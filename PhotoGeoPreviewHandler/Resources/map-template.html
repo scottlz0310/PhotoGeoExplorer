@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Location Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="anonymous"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 16px;
+            line-height: 1.5;
+        }
+
+        .popup-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .popup-coords {
+            font-size: 12px;
+            color: #666;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        .info-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 16px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            font-size: 12px;
+            color: #666;
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="info" class="info-overlay" style="display: none;"></div>
+
+    <script>
+        // Configuration from template variables
+        const config = {
+            latitude: {{LATITUDE}},
+            longitude: {{LONGITUDE}},
+            hasGps: {{HAS_GPS}},
+            locationName: "{{LOCATION_NAME}}",
+            formattedCoords: "{{FORMATTED_COORDS}}",
+            zoomLevel: {{ZOOM_LEVEL}}
+        };
+
+        // Initialize map
+        const map = L.map('map', {
+            center: [config.latitude, config.longitude],
+            zoom: config.zoomLevel,
+            zoomControl: true,
+            attributionControl: true
+        });
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+            minZoom: 1
+        }).addTo(map);
+
+        // Custom icon for photo location marker
+        const photoIcon = L.icon({
+            iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSI0MCI+PHBhdGggZmlsbD0iIzNiODJmNiIgZD0iTTE2IDAgQzcuMTYzIDAgMCA3LjE2MyAwIDE2YzAgOC44MzcgMTYgMjQgMTYgMjRzMTYtMTUuMTYzIDE2LTI0YzAtOC44MzctNy4xNjMtMTYtMTYtMTZ6bTAgMjJjLTMuMzE0IDAtNi0yLjY4Ni02LTZzMi42ODYtNiA2LTYgNiAyLjY4NiA2IDYtMi42ODYgNi02IDZ6Ii8+PC9zdmc+',
+            iconSize: [32, 40],
+            iconAnchor: [16, 40],
+            popupAnchor: [0, -40]
+        });
+
+        // Add marker
+        const marker = L.marker([config.latitude, config.longitude], {
+            icon: photoIcon,
+            title: config.locationName
+        }).addTo(map);
+
+        // Create popup content
+        let popupContent = '<div class="popup-title">' + config.locationName + '</div>';
+        if (config.formattedCoords) {
+            popupContent += '<div class="popup-coords">' + config.formattedCoords + '</div>';
+        }
+
+        marker.bindPopup(popupContent).openPopup();
+
+        // Show info overlay for Null Island
+        if (!config.hasGps) {
+            const infoDiv = document.getElementById('info');
+            infoDiv.textContent = 'No GPS data found in image EXIF';
+            infoDiv.style.display = 'block';
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                infoDiv.style.opacity = '0';
+                infoDiv.style.transition = 'opacity 1s';
+                setTimeout(() => {
+                    infoDiv.style.display = 'none';
+                }, 1000);
+            }, 5000);
+        }
+
+        // Fit bounds to marker with some padding
+        setTimeout(() => {
+            if (config.hasGps) {
+                map.setView([config.latitude, config.longitude], config.zoomLevel);
+            }
+        }, 100);
+    </script>
+</body>
+</html>
