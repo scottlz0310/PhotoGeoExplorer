@@ -1,0 +1,16 @@
+{
+  "name": "PhotoGeoPreview",
+  "clsid": "{YOUR-GUID-HERE}",
+  "description": "Photo with Geolocation Preview Handler",
+  "extensions": [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".heic",
+    ".heif"
+  ],
+  "enabled": true,
+  "displayName": "Photo Geo Preview",
+  "vendor": "PhotoGeoPreview Project",
+  "version": "1.0.0"
+}

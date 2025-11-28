@@ -21,41 +21,57 @@ PowerToys をフォークして実装する、C++/WinRT + WebView2 ベースの�
 - WebView2 Runtime
 - **HEIC サポート**: Windows HEIF Image Extensions（Microsoft Store から入手）
 
-## ビルド手順
+## 現在の状態
 
-### 1. PowerToys をフォーク
+このリポジトリには以下が含まれています：
+- 📋 **ドキュメント**: 完全な実装計画とアーキテクチャドキュメント
+- 📝 **コードテンプレート**: `templates/` ディレクトリにすぐに使えるC++ソースコードテンプレート
+- 🚀 **セットアップガイド**: PowerToysフォークでの実装手順の詳細説明
+
+**注意**: 実際の実装は別のPowerToysフォークリポジトリで行います。このリポジトリはドキュメントとコードテンプレートのリファレンスとして機能します。
+
+## はじめに
+
+### ステップ 1: セットアップガイドを読む
+
+👉 **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - PowerToys をフォークして PhotoGeoPreview を実装するための完全ガイド
+
+### ステップ 2: ドキュメントを確認
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - システムアーキテクチャとコンポーネント設計
+- [ImplementationPlan.md](ImplementationPlan.md) - 詳細な実装計画
+- [TASKS.md](TASKS.md) - タスク分解とチェックリスト
+- [TECHSTACK.md](TECHSTACK.md) - 技術スタック詳細
+
+### ステップ 3: コードテンプレートを使用
+
+`templates/` ディレクトリにすぐに使えるコードが含まれています：
+- `PhotoGeoPreviewHandler.h` - メインハンドラーヘッダー
+- `PhotoGeoPreviewHandler.cpp` - メインハンドラー実装
+- `Resources/template.html` - Leaflet 地図を含む HTML テンプレート
+- `module.def` - COM エクスポート定義
+- `pch.h` / `pch.cpp` - プリコンパイル済みヘッダー
+- `preview_handler_registration.json` - 登録設定
+
+## PowerToys フォークのクイックスタート
 
 ```bash
+# 1. PowerToys をフォーク & クローン
 git clone https://github.com/YOUR_USERNAME/PowerToys.git
 cd PowerToys
+
+# 2. PhotoGeoPreview ディレクトリを作成
+mkdir src/modules/previewpane/PhotoGeoPreview
+mkdir src/modules/previewpane/PhotoGeoPreview/Resources
+
+# 3. このリポジトリからテンプレートをコピー
+# (templates/ ディレクトリのファイルを PowerToys フォークにコピー)
+
+# 4. PowerToys をビルド
+.\build\build.cmd -Configuration Debug -Platform x64
 ```
 
-### 2. PhotoGeoPreview を追加
-
-`src/modules/previewpane/PhotoGeoPreview/` にコードを配置。
-
-### 3. `preview_handlers.json` に登録
-
-`installer/PowerToysSetup/preview_handlers.json` に追加：
-
-```json
-{
-  "id": "{YOUR-GUID}",
-  "name": "PhotoGeoPreview",
-  "extensions": [".jpg", ".jpeg", ".png", ".heic"],
-  "clsid": "{YOUR-GUID}"
-}
-```
-
-### 4. PowerToys をビルド
-
-```bash
-# Visual Studio 2026 で開く
-start PowerToys.sln
-
-# またはコマンドラインでビルド
-.\build.cmd
-```
+詳細な手順は [SETUP_GUIDE.md](SETUP_GUIDE.md) を参照してください。
 
 ## 技術詳細
 

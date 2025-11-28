@@ -21,41 +21,57 @@ Implemented as a **PowerToys fork** using C++.
 - WebView2 Runtime
 - **HEIC Support**: Windows HEIF Image Extensions (from Microsoft Store)
 
-## Build Instructions
+## Current Status
 
-### 1. Fork PowerToys
+This repository contains:
+- 📋 **Documentation**: Complete implementation planning and architecture documents
+- 📝 **Code Templates**: Ready-to-use C++ source code templates in `templates/` directory
+- 🚀 **Setup Guide**: Detailed step-by-step instructions for implementing in PowerToys fork
+
+**Note**: The actual implementation should be done in a separate PowerToys fork repository. This repository serves as documentation and code template reference.
+
+## Getting Started
+
+### Step 1: Read the Setup Guide
+
+👉 **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete guide for forking PowerToys and implementing PhotoGeoPreview
+
+### Step 2: Review Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and component design
+- [ImplementationPlan.md](ImplementationPlan.md) - Detailed implementation plan
+- [TASKS.md](TASKS.md) - Task breakdown and checklist
+- [TECHSTACK.md](TECHSTACK.md) - Technology stack details
+
+### Step 3: Use Code Templates
+
+The `templates/` directory contains ready-to-use code:
+- `PhotoGeoPreviewHandler.h` - Main handler header
+- `PhotoGeoPreviewHandler.cpp` - Main handler implementation
+- `Resources/template.html` - HTML template with Leaflet map
+- `module.def` - COM export definitions
+- `pch.h` / `pch.cpp` - Precompiled headers
+- `preview_handler_registration.json` - Registration configuration
+
+## Quick Start for PowerToys Fork
 
 ```bash
+# 1. Fork and clone PowerToys
 git clone https://github.com/YOUR_USERNAME/PowerToys.git
 cd PowerToys
+
+# 2. Create PhotoGeoPreview directory
+mkdir src/modules/previewpane/PhotoGeoPreview
+mkdir src/modules/previewpane/PhotoGeoPreview/Resources
+
+# 3. Copy templates from this repository
+# (Copy files from templates/ directory to your PowerToys fork)
+
+# 4. Build PowerToys
+.\build\build.cmd -Configuration Debug -Platform x64
 ```
 
-### 2. Add PhotoGeoPreview
-
-Place code in `src/modules/previewpane/PhotoGeoPreview/`.
-
-### 3. Register in `preview_handlers.json`
-
-Add to `installer/PowerToysSetup/preview_handlers.json`:
-
-```json
-{
-  "id": "{YOUR-GUID}",
-  "name": "PhotoGeoPreview",
-  "extensions": [".jpg", ".jpeg", ".png", ".heic"],
-  "clsid": "{YOUR-GUID}"
-}
-```
-
-### 4. Build PowerToys
-
-```bash
-# Open in Visual Studio 2026
-start PowerToys.sln
-
-# Or build via command line
-.\build.cmd
-```
+For detailed instructions, see [SETUP_GUIDE.md](SETUP_GUIDE.md).
 
 ## Technical Details
 
