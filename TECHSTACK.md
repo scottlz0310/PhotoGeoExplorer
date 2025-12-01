@@ -1,10 +1,11 @@
-# 技術スタック計画書 (C++/WinRT + WebView2)
+# 技術スタック計画書 (C++/Win32 + WebView2)
 
 ## 基本プラットフォーム
-- **Base**: PowerToys (Fork)
-- **言語**: C++/WinRT (C++17/20)
+- **Base**: Windows Native (Win32/COM)
+- **言語**: C++ (C++17/20)
+- **Framework**: ATL (Active Template Library) / WRL (Windows Runtime Library)
 - **Target**: Windows 10 / 11 (x64 / ARM64)
-- **Host**: PowerToys Runner → Windows Explorer Preview Pane
+- **Host**: Windows Explorer Preview Pane
 
 ## UI テクノロジー
 - **WebView2 (Microsoft Edge based)**:
@@ -19,43 +20,43 @@
 - **WIC (Windows Imaging Component)**:
   - ネイティブ C++ による高速 EXIF 解析
   - GPS メタデータ抽出
+- **WIL (Windows Implementation Libraries)**:
+  - COM ポインタ管理、エラーハンドリング、リソース管理
 - **Leaflet.js**:
   - 軽量なオープンソース JavaScript マップライブラリ
 - **OpenStreetMap**:
   - 地図タイルプロバイダ
 
-## PowerToys インフラ
-- **COM Preview Handler**: C++/WinRT による実装
-- **PowerToys Runner**: 自動 COM 登録・管理
-- **Settings UI**: PowerToys 設定画面で有効/無効切り替え
-- **Theme System**: PowerToys のテーマ（Dark/Light）に自動追従
+## インフラ & 登録
+- **COM Preview Handler**: C++/Win32 ATL による実装
+- **Registration**: `regsvr32` による標準的な COM 登録
+- **Settings**: なし（シンプルさを重視）
 
 ## 開発環境
-- **IDE**: Visual Studio 2026
-- **Build Tools**: CMake + MSBuild
-- **Version Control**: Git (PowerToys fork)
+- **IDE**: Visual Studio 2022
+- **Workload**: Desktop development with C++
+- **Build Tools**: MSBuild
+- **Version Control**: Git
 
 ## ビルド & デプロイ
 - **ビルド方法**:
-  - PowerToys 全体をビルド（`build.cmd` または Visual Studio）
-  - `PhotoGeoPreview` は自動的に含まれる
+  - Visual Studio ソリューション (`.sln`)
+  - Release / x64 ビルド
 - **配布方法**:
-  - ビルド済み PowerToys 全体を zip で配布
-  - または PowerToys インストーラーを再パッケージ
+  - DLL 単体配布 (+ 登録バッチ)
+  - または MSI インストーラー
 - **登録方法**:
-  - PowerToys Runner が自動的に COM 登録
-  - 手動登録は不要
+  - `regsvr32 PhotoGeoPreviewHandler.dll`
 
 ## 技術選定の背景
 
-### C++/WinRT (vs C#/.NET)
-- **PowerToys の標準**: 既存の Preview Handler は全て C++ で実装
-- **COM ネイティブ**: Explorer との統合がスムーズ
+### C++/Win32 (vs C#/.NET)
+- **安定性**: Explorer はネイティブアプリであり、ネイティブ DLL が最も安定して動作する
+- **トラブル回避**: .NET ランタイムのバージョン不整合や読み込みエラーを回避
 - **パフォーマンス**: ネイティブコードによる高速処理
-- **一貫性**: 他の Preview Handler と同じ技術スタック
 
 ### WebView2 + HTML (vs WPF/XAML)
-- **PowerToys の実装パターン**: Markdown, SVG などは全て WebView2 + HTML
+- **モダン UI**: Web 技術を使ってリッチな UI を簡単に構築可能
 - **単一ホスト**: WebView2 一つで UI 完結
 - **柔軟性**: HTML/CSS/JS による自由な UI 設計
 - **Web 標準**: Leaflet.js などの Web ライブラリを直接利用可能
@@ -64,4 +65,3 @@
 - **ネイティブ API**: Windows 標準の画像処理 API
 - **高速**: C++ による直接アクセス
 - **依存関係なし**: 外部ライブラリ不要
-- **PowerToys との一貫性**: 他の Preview Handler も WIC を使用

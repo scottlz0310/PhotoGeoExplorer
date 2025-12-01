@@ -1,0 +1,87 @@
+HKCR
+{
+	PhotoGeoPreview.Handler.1 = s 'PhotoGeoPreview Handler'
+	{
+		CLSID = s '{8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C}'
+	}
+	PhotoGeoPreview.Handler = s 'PhotoGeoPreview Handler'
+	{
+		CurVer = s 'PhotoGeoPreview.Handler.1'
+	}
+	NoRemove CLSID
+	{
+		ForceRemove {8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C} = s 'PhotoGeoPreview Handler'
+		{
+			ProgID = s 'PhotoGeoPreview.Handler.1'
+			VersionIndependentProgID = s 'PhotoGeoPreview.Handler'
+			ForceRemove Programmable
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			TypeLib = s '{D8196810-5366-4F63-9CB6-6A3F3E2C8F1A}'
+			Version = s '1.0'
+			val AppID = s '{8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C}'
+			val DisableLowILProcessIsolation = d '1'
+		}
+	}
+	NoRemove AppID
+	{
+		{8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C} = s 'PhotoGeoPreview Handler'
+		{
+			val DllSurrogate = s ''
+		}
+	}
+}
+
+HKLM
+{
+    NoRemove SOFTWARE
+    {
+        NoRemove Microsoft
+        {
+            NoRemove Windows
+            {
+                NoRemove CurrentVersion
+                {
+                    NoRemove PreviewHandlers
+                    {
+                        val {8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C} = s 'PhotoGeoPreview Handler'
+                    }
+                }
+            }
+        }
+    }
+}
+
+HKCR
+{
+    NoRemove .jpg
+    {
+        NoRemove shellex
+        {
+            {8895b1c6-b41f-4c1c-a562-0d564250836f} = s '{8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C}'
+        }
+    }
+    NoRemove .jpeg
+    {
+        NoRemove shellex
+        {
+            {8895b1c6-b41f-4c1c-a562-0d564250836f} = s '{8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C}'
+        }
+    }
+    NoRemove .png
+    {
+        NoRemove shellex
+        {
+            {8895b1c6-b41f-4c1c-a562-0d564250836f} = s '{8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C}'
+        }
+    }
+    NoRemove .heic
+    {
+        NoRemove shellex
+        {
+            {8895b1c6-b41f-4c1c-a562-0d564250836f} = s '{8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C}'
+        }
+    }
+}

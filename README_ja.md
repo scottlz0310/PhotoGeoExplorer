@@ -1,77 +1,54 @@
 # PhotoGeoPreview
 
-PowerToys をフォークして実装する、C++/WinRT + WebView2 ベースの画像ジオタグ表示用 Preview Handler です。
+C++/Win32 + WebView2 ベースのスタンドアロン画像ジオタグ表示用 Preview Handler です。
+Windows Explorer のプレビューウィンドウに、写真とその撮影場所（地図）を表示します。
 
 ## 概要
 
-このプロジェクトは **PowerToys のフォーク** として、C++ で実装されます。
-- **技術**: C++/WinRT + WebView2 + HTML/CSS/JS
+このプロジェクトは **PowerToys などの外部ツールに依存しない**、単独で動作する軽量な Preview Handler です。
+- **技術**: C++/Win32 (ATL/WRL) + WebView2 + HTML/CSS/JS
 - **UI**: 単一の WebView2 内で画像と地図を表示
 - **スプリッター**: HTML/CSS/JS による可変レイアウト
+- **依存性**: 最小限（WebView2 Runtime のみ）
 
 ## 特徴
-- ✅ PowerToys の標準構造（C++）に完全準拠
-- ✅ WebView2 単一で UI 完結
-- ✅ HTML/CSS/JS による柔軟な UI
-- ✅ WIC による高速 EXIF 抽出
+- ✅ **スタンドアロン動作**: PowerToys や他の巨大なフレームワークは不要
+- ✅ **軽量**: ネイティブ C++ DLL による高速動作
+- ✅ **WebView2**: 最新の Web 技術で UI を構築
+- ✅ **WIC**: Windows 標準機能による高速な EXIF 解析
 
 ## 動作環境
 - Windows 10 / 11 (x64 / ARM64)
-- PowerToys (フォーク版)
-- WebView2 Runtime
+- WebView2 Runtime (Windows 11 には標準搭載)
 - **HEIC サポート**: Windows HEIF Image Extensions（Microsoft Store から入手）
 
 ## 現在の状態
 
 このリポジトリには以下が含まれています：
-- 📋 **ドキュメント**: 完全な実装計画とアーキテクチャドキュメント
-- 📝 **コードテンプレート**: `templates/` ディレクトリにすぐに使えるC++ソースコードテンプレート
-- 🚀 **セットアップガイド**: PowerToysフォークでの実装手順の詳細説明
-
-**注意**: 実際の実装は別のPowerToysフォークリポジトリで行います。このリポジトリはドキュメントとコードテンプレートのリファレンスとして機能します。
+- 📋 **ドキュメント**: 実装計画とアーキテクチャ設計
+- 📝 **ソースコード**: C++ による Preview Handler の実装（進行中）
+- 🚀 **ビルドガイド**: Visual Studio を使用したビルド手順
 
 ## はじめに
 
-### ステップ 1: セットアップガイドを読む
+### ステップ 1: 必須コンポーネントの確認
 
-👉 **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - PowerToys をフォークして PhotoGeoPreview を実装するための完全ガイド
+- Visual Studio 2022 (C++ デスクトップ開発ワークロード)
+- Windows SDK
 
-### ステップ 2: ドキュメントを確認
+### ステップ 2: ビルド
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - システムアーキテクチャとコンポーネント設計
-- [ImplementationPlan.md](ImplementationPlan.md) - 詳細な実装計画
-- [TASKS.md](TASKS.md) - タスク分解とチェックリスト
-- [TECHSTACK.md](TECHSTACK.md) - 技術スタック詳細
+1. `PhotoGeoPreview.sln` を Visual Studio で開く
+2. ソリューション構成を `Release` / `x64` に設定
+3. ソリューションのビルドを実行
 
-### ステップ 3: コードテンプレートを使用
+### ステップ 3: インストール（登録）
 
-`templates/` ディレクトリにすぐに使えるコードが含まれています：
-- `PhotoGeoPreviewHandler.h` - メインハンドラーヘッダー
-- `PhotoGeoPreviewHandler.cpp` - メインハンドラー実装
-- `Resources/template.html` - Leaflet 地図を含む HTML テンプレート
-- `module.def` - COM エクスポート定義
-- `pch.h` / `pch.cpp` - プリコンパイル済みヘッダー
-- `preview_handler_registration.json` - 登録設定
+管理者権限でコマンドプロンプトを開き、ビルドされた DLL を登録します。
 
-## PowerToys フォークのクイックスタート
-
-```bash
-# 1. PowerToys をフォーク & クローン
-git clone https://github.com/YOUR_USERNAME/PowerToys.git
-cd PowerToys
-
-# 2. PhotoGeoPreview ディレクトリを作成
-mkdir src/modules/previewpane/PhotoGeoPreview
-mkdir src/modules/previewpane/PhotoGeoPreview/Resources
-
-# 3. このリポジトリからテンプレートをコピー
-# (templates/ ディレクトリのファイルを PowerToys フォークにコピー)
-
-# 4. PowerToys をビルド
-.\build\build.cmd -Configuration Debug -Platform x64
+```cmd
+regsvr32.exe PhotoGeoPreviewHandler.dll
 ```
-
-詳細な手順は [SETUP_GUIDE.md](SETUP_GUIDE.md) を参照してください。
 
 ## 技術詳細
 
@@ -93,10 +70,6 @@ IWICBitmapDecoder* decoder;
 IWICMetadataQueryReader* reader;
 // GPS 座標を取得
 ```
-
-## 参考実装
-- `src/modules/previewpane/MarkdownPreviewHandler/` (C++)
-- `src/modules/previewpane/SvgPreviewHandler/` (C++)
 
 ## ライセンス
 

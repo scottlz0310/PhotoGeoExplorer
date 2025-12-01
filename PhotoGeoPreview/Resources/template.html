@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Geo Preview</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #cccccc;
+        }
+
+        .split-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        .image-pane {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #1e1e1e;
+            position: relative;
+            min-height: 100px;
+        }
+
+        .image-pane img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .splitter {
+            height: 4px;
+            background: #007acc;
+            cursor: ns-resize;
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .splitter:hover {
+            background: #1a9aff;
+            height: 6px;
+        }
+
+        .map-pane {
+            flex: 1;
+            position: relative;
+            min-height: 100px;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .no-gps-message {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #2d2d2d;
+            color: #888;
+            font-size: 14px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .no-gps-message p {
+            margin: 10px 0;
+        }
+
+        .no-gps-message .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .loading-spinner {
+            border: 3px solid #333;
+            border-top: 3px solid #007acc;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (prefers-color-scheme: light) {
+
+            body,
+            html {
+                background-color: #ffffff;
+                color: #333333;
+            }
+
+            .image-pane {
+                background: #f5f5f5;
+            }
+
+            .no-gps-message {
+                background: #f0f0f0;
+                color: #666;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="split-container">
+        <div class="image-pane" id="imagePane">
+            <div class="loading active" id="loading">
+                <div class="loading-spinner"></div>
+            </div>
+            <img id="photo" src="{IMAGE_PATH}" alt="Photo" onload="hideLoading()" onerror="handleImageError()">
+        </div>
+        <div class="splitter {SPLITTER_HIDDEN}" id="splitter"></div>
+        <div class="map-pane {MAP_HIDDEN}">
+            <div id="map"></div>
+        </div>
+        <div class="no-gps-message {NOGPS_HIDDEN}">
+            <div class="icon">📍</div>
+            <p><strong>位置情報が見つかりません</strong></p>
+            <p>この画像には GPS メタデータが含まれていません。</p>
+        </div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        const LAT = { LAT };
+        const LON = { LON };
+        const HAS_GPS = { HAS_GPS };
+        function hideLoading() {
+            const loading = document.getElementById('loading');
+            if (loading) loading.classList.remove('active');
+        }
+        function handleImageError() {
+            hideLoading();
+            document.getElementById('imagePane').innerHTML = '<div style="color:#888;text-align:center;"><div style="font-size:48px;">⚠️</div><p>画像を読み込めませんでした</p></div>';
+        }
+        if (HAS_GPS && typeof L !== 'undefined') {
+            try {
+                const map = L.map('map').setView([LAT, LON], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap', maxZoom: 19
+                }).addTo(map);
+                const marker = L.marker([LAT, LON]).addTo(map);
+                marker.bindPopup('<b>撮影場所</b><br>緯度: ' + LAT.toFixed(6) + '<br>経度: ' + LON.toFixed(6));
+                window.addEventListener('resize', () => setTimeout(() => map.invalidateSize(), 100));
+                const splitter = document.getElementById('splitter');
+                const imagePane = document.getElementById('imagePane');
+                const container = document.querySelector('.split-container');
+                let isDragging = false, startY = 0, startHeight = 0;
+                splitter.addEventListener('mousedown', (e) => {
+                    isDragging = true; startY = e.clientY;
+                    startHeight = imagePane.getBoundingClientRect().height;
+                    e.preventDefault();
+                    document.body.style.cursor = 'ns-resize';
+                    document.body.style.userSelect = 'none';
+                });
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    const containerRect = container.getBoundingClientRect();
+                    const deltaY = e.clientY - startY;
+                    const newHeight = startHeight + deltaY;
+                    const percentage = (newHeight / containerRect.height) * 100;
+                    if (percentage >= 10 && percentage <= 90) {
+                        imagePane.style.flex = '0 0 ' + percentage + '%';
+                        setTimeout(() => map.invalidateSize(), 0);
+                    }
+                });
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = '';
+                        setTimeout(() => map.invalidateSize(), 100);
+                    }
+                });
+                setTimeout(() => map.invalidateSize(), 200);
+            } catch (error) { console.error('地図の初期化に失敗しました:', error); }
+        }
+    </script>
+</body>
+
+</html>

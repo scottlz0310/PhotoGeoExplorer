@@ -1,38 +1,40 @@
-# 実装計画書（PowerToys Fork + C++/WinRT Implementation）
+# 実装計画書（Standalone C++/Win32 Implementation）
 
 ## 目的
-PowerToys をフォークし、**C++/WinRT + WebView2 + HTML** で `PhotoGeoPreview` Preview Handler を実装する。
-画像プレビューとジオタグ地図を **HTML 内で** 上下に配置し、CSS/JS による可変スライダーで調整可能にする。
+**C++/Win32 (ATL) + WebView2 + HTML** で `PhotoGeoPreview` Preview Handler を実装する。
+PowerToys などの外部ツールに依存せず、単独の DLL として動作させる。
 
-## 技術スタック（PowerToys 準拠）
-- **言語**: C++/WinRT (C++17/20)
+## 技術スタック
+- **言語**: C++ (C++17/20)
+- **Framework**: ATL (Active Template Library)
 - **UI**: WebView2 + HTML/CSS/JavaScript
 - **EXIF**: WIC (Windows Imaging Component)
 - **地図**: Leaflet.js (CDN)
-- **プロジェクト**: `.vcxproj` (Visual Studio C++ プロジェクト)
+- **プロジェクト**: Visual Studio C++ DLL プロジェクト
 
 ## アプローチ
-PowerToys の既存 Preview Handler（Markdown, SVG, DevFilePreview）と同じパターンで実装：
-1. **単一の WebView2** をホスト
-2. **HTML テンプレート** で画像と地図を配置
-3. **CSS/JS** で resizable splitter を実装
-4. **C++ 側** で EXIF 抽出 + HTML 生成
+1. **ATL DLL プロジェクト** を作成し、COM サーバーとして構成
+2. **IPreviewHandler** インターフェースを実装
+3. **WebView2** をホストし、HTML を表示
+4. **WIC** で画像から GPS 情報を抽出
+5. **regsvr32** で Explorer に登録
 
 ## スコープ（Phase 1 - MVP）
 
-### 1. PowerToys フォーク & セットアップ
-- [ ] PowerToys リポジトリをフォーク
-- [ ] Visual Studio 2026 でビルド確認
-- [ ] 既存 Preview Handler の実装調査：
-  - `src/modules/previewpane/MarkdownPreviewHandler/` (C++)
-  - `src/modules/previewpane/SvgPreviewHandler/` (C++)
+### 1. プロジェクトセットアップ
+- [ ] Visual Studio で ATL プロジェクトを作成 (`PhotoGeoPreview`)
+- [ ] NuGet パッケージ追加:
+  - `Microsoft.Web.WebView2`
+  - `Microsoft.Windows.ImplementationLibrary` (WIL)
 
-### 2. PhotoGeoPreview Add-on 作成（C++）
-- [ ] `src/modules/previewpane/PhotoGeoPreview/` ディレクトリ作成
-- [ ] `PhotoGeoPreview.vcxproj` 作成
-- [ ] `PhotoGeoPreviewHandler.h/.cpp` 作成
-- [ ] `module.def` 作成（COM エクスポート）
-- [ ] `preview_handlers.json` に登録
+### 2. COM Preview Handler 実装 (C++)
+- [ ] `PhotoGeoPreviewHandler` クラス作成
+- [ ] インターフェース実装:
+  - `IPreviewHandler`
+  - `IInitializeWithFile`
+  - `IObjectWithSite`
+  - `IPreviewHandlerVisuals`
+- [ ] `SetWindow` で WebView2 コントローラを作成
 
 ### 3. UI 実装（HTML/CSS/JS）
 **HTML テンプレート** (`template.html`):
@@ -65,39 +67,29 @@ PowerToys の既存 Preview Handler（Markdown, SVG, DevFilePreview）と同じ�
   ```
 - [ ] **HTML 生成**:
   - テンプレートに画像パス、緯度経度を埋め込み
-  - WebView2 に `NavigateToString()` で渡す
+  - WebView2 に `NavigateToString()` または一時ファイル経由で渡す
 
-### 5. ビルド & 配布
-- [ ] PowerToys 全体をビルド（CMake + Visual Studio）
-- [ ] 動作確認（JPEG, PNG, HEIC）
-- [ ] 配布用パッケージ作成
+### 5. ビルド & 登録
+- [ ] Release / x64 ビルド
+- [ ] `regsvr32 PhotoGeoPreviewHandler.dll` で登録
+- [ ] レジストリ設定（拡張子との関連付け）
+  - `.jpg`, `.jpeg`, `.png` などの `PreviewHandler` 値を設定
 
 ## 非スコープ
-- WPF/XAML（使用しない）
-- C#/.NET（使用しない）
-- 複数 UI コントロール（WebView2 単一で完結）
+- PowerToys 統合
+- C#/.NET 相互運用
+- 32bit (x86) サポート（Explorer は 64bit が主流のため）
 
 ## 成功基準
-- PowerToys Runner 経由で自動登録される
+- `regsvr32` で正常に登録できる
 - Explorer で画像選択時、HTML 内に画像と地図が表示される
 - スライダーで上下比率を調整可能
-- PowerToys の他の機能と共存できる
+- メモリリークやクラッシュがない
 
 ## 技術的利点
-- ✅ PowerToys の標準構造（C++/WinRT）に完全準拠
-- ✅ WebView2 の単一ホストで UI 完結
-- ✅ HTML/CSS/JS による柔軟な UI 実装
-- ✅ WIC による高速 EXIF 抽出
-
-## 実装時の重要な注意点（PowerToys ベストプラクティス）
-
-### ✅ 最重要
-
-#### 1. HTML の読み込み方法
-**推奨**: `NavigateToString()` ではなく、**一時ファイル経由**で読み込む
-```cpp
-// ❌ 非推奨（大きな HTML で遅い、CSP 問題）
-webview->NavigateToString(htmlContent);
+- ✅ **完全なスタンドアロン**: 依存関係トラブルからの解放
+- ✅ **WebView2**: 最新の Web 技術を利用可能
+- ✅ **ネイティブパフォーマンス**: C++ による高速動作
 
 // ✅ 推奨（PowerToys の標準パターン）
 std::wstring tempPath = GetTempHtmlPath();

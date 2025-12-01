@@ -1,47 +1,46 @@
-# アーキテクチャ設計書 (C++/WinRT + WebView2)
+# アーキテクチャ設計書 (C++/Win32 + WebView2)
 
 ## 概要
-PowerToys をフォークし、**C++/WinRT + WebView2 + HTML** で `PhotoGeoPreview` を実装する。
-PowerToys の既存 Preview Handler（Markdown, SVG）と同じパターンに準拠し、単一の WebView2 内で全 UI を完結させる。
+**C++/Win32 (ATL) + WebView2 + HTML** で `PhotoGeoPreview` を実装する。
+Windows Explorer の Preview Handler として単独で動作し、単一の WebView2 内で全 UI を完結させる。
 
-## プロジェクト構造（PowerToys 内）
+## プロジェクト構造
 
 ```
-PowerToys/
-├── src/
-│   └── modules/
-│       └── previewpane/
-│           ├── MarkdownPreviewHandler/      # 既存（参考）- C++
-│           ├── SvgPreviewHandler/           # 既存（参考）- C++
-│           ├── PhotoGeoPreview/             # 新規追加 - C++
-│           │   ├── PhotoGeoPreview.vcxproj
-│           │   ├── PhotoGeoPreviewHandler.h
-│           │   ├── PhotoGeoPreviewHandler.cpp
-│           │   ├── module.def
-│           │   └── Resources/
-│           │       ├── template.html        # HTML テンプレート
-│           │       ├── styles.css
-│           │       ├── map.js               # Leaflet 初期化
-│           │       ├── splitter.js          # スプリッター処理
-│           │       └── leaflet/             # オフライン fallback
-│           │           ├── leaflet.js
-│           │           └── leaflet.css
-│           └── common/
-│               └── (共通ヘルパー)
-└── installer/
-    └── PowerToysSetup/
-        └── preview_handlers.json            # 登録情報追加
+PhotoGeoPreview/
+├── PhotoGeoPreview.sln          # Visual Studio ソリューション
+├── PhotoGeoPreview/             # メインプロジェクト
+│   ├── PhotoGeoPreview.vcxproj
+│   ├── PhotoGeoPreviewHandler.h # IPreviewHandler 実装
+│   ├── PhotoGeoPreviewHandler.cpp
+│   ├── dllmain.cpp              # DLL エントリポイント
+│   ├── PhotoGeoPreview.idl      # COM インターフェース定義
+│   ├── Resource.h
+│   ├── PhotoGeoPreview.rc
+│   └── Resources/
+│       ├── template.html        # HTML テンプレート
+│       ├── styles.css
+│       ├── map.js               # Leaflet 初期化
+│       └── leaflet/             # オフライン fallback
+│           ├── leaflet.js
+│           └── leaflet.css
+└── installer/                   # (Optional) インストーラー
+    └── register.bat             # 登録用スクリプト
 ```
 
 ## コンポーネント構成
 
-### 1. COM Preview Handler (C++/WinRT)
+### 1. COM Preview Handler (C++/Win32 ATL)
 
 **PhotoGeoPreviewHandler.h/.cpp**:
 ```cpp
-class PhotoGeoPreviewHandler : public IPreviewHandler,
-                                public IInitializeWithFile,
-                                public IPreviewHandlerVisuals
+class ATL_NO_VTABLE CPhotoGeoPreviewHandler :
+    public CComObjectRootEx<CComMultiThreadModel>,
+    public CComCoClass<CPhotoGeoPreviewHandler, &CLSID_PhotoGeoPreviewHandler>,
+    public IPreviewHandler,
+    public IInitializeWithFile,
+    public IObjectWithSite,
+    public IPreviewHandlerVisuals
 {
 private:
     HWND m_hwndParent;
@@ -50,8 +49,13 @@ private:
     wil::com_ptr<ICoreWebView2> m_webview;
 
 public:
-    HRESULT SetWindow(HWND hwnd, const RECT* prc);
-    HRESULT DoPreview();
+    // IPreviewHandler
+    STDMETHOD(SetWindow)(HWND hwnd, const RECT* prc);
+    STDMETHOD(DoPreview)();
+
+    // IInitializeWithFile
+    STDMETHOD(Initialize)(LPCWSTR pszFilePath, DWORD grfMode);
+
     // EXIF 抽出 + HTML 生成 + WebView2 表示
 };
 ```

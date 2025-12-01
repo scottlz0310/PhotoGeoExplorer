@@ -129,3 +129,7 @@ logs/
 .vscode/launch.json
 .vscode/settings.json
 .vscode/tasks.json
+
+# Project-specific
+nuget.exe
+reference/

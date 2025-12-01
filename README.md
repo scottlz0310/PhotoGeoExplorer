@@ -1,77 +1,54 @@
 # PhotoGeoPreview
 
-A C++/WinRT + WebView2 based PowerToys fork add-on for displaying image geotags.
+A standalone C++/Win32 + WebView2 based Preview Handler for displaying image geotags.
+Displays photos and their shooting locations (map) in the Windows Explorer preview pane.
 
 ## Overview
 
-Implemented as a **PowerToys fork** using C++.
-- **Tech**: C++/WinRT + WebView2 + HTML/CSS/JS
+This project is a **standalone** lightweight Preview Handler that **does not depend on external tools like PowerToys**.
+- **Tech**: C++/Win32 (ATL/WRL) + WebView2 + HTML/CSS/JS
 - **UI**: Single WebView2 hosting image and map
 - **Splitter**: HTML/CSS/JS resizable layout
+- **Dependencies**: Minimal (WebView2 Runtime only)
 
 ## Features
-- ✅ Fully compliant with PowerToys standard structure (C++)
-- ✅ Complete UI within single WebView2
-- ✅ Flexible UI via HTML/CSS/JS
-- ✅ Fast EXIF extraction via WIC
+- ✅ **Standalone**: No PowerToys or huge frameworks required
+- ✅ **Lightweight**: Fast execution via native C++ DLL
+- ✅ **WebView2**: Modern UI built with web technologies
+- ✅ **WIC**: Fast EXIF extraction using Windows standard features
 
 ## Requirements
 - Windows 10 / 11 (x64 / ARM64)
-- PowerToys (forked version)
-- WebView2 Runtime
+- WebView2 Runtime (Pre-installed on Windows 11)
 - **HEIC Support**: Windows HEIF Image Extensions (from Microsoft Store)
 
 ## Current Status
 
 This repository contains:
-- 📋 **Documentation**: Complete implementation planning and architecture documents
-- 📝 **Code Templates**: Ready-to-use C++ source code templates in `templates/` directory
-- 🚀 **Setup Guide**: Detailed step-by-step instructions for implementing in PowerToys fork
-
-**Note**: The actual implementation should be done in a separate PowerToys fork repository. This repository serves as documentation and code template reference.
+- 📋 **Documentation**: Implementation planning and architecture design
+- 📝 **Source Code**: C++ Preview Handler implementation (In Progress)
+- 🚀 **Build Guide**: Build instructions using Visual Studio
 
 ## Getting Started
 
-### Step 1: Read the Setup Guide
+### Step 1: Prerequisites
 
-👉 **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Complete guide for forking PowerToys and implementing PhotoGeoPreview
+- Visual Studio 2022 (C++ Desktop Development workload)
+- Windows SDK
 
-### Step 2: Review Documentation
+### Step 2: Build
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and component design
-- [ImplementationPlan.md](ImplementationPlan.md) - Detailed implementation plan
-- [TASKS.md](TASKS.md) - Task breakdown and checklist
-- [TECHSTACK.md](TECHSTACK.md) - Technology stack details
+1. Open `PhotoGeoPreview.sln` in Visual Studio
+2. Set solution configuration to `Release` / `x64`
+3. Build the solution
 
-### Step 3: Use Code Templates
+### Step 3: Install (Register)
 
-The `templates/` directory contains ready-to-use code:
-- `PhotoGeoPreviewHandler.h` - Main handler header
-- `PhotoGeoPreviewHandler.cpp` - Main handler implementation
-- `Resources/template.html` - HTML template with Leaflet map
-- `module.def` - COM export definitions
-- `pch.h` / `pch.cpp` - Precompiled headers
-- `preview_handler_registration.json` - Registration configuration
+Open Command Prompt as Administrator and register the built DLL.
 
-## Quick Start for PowerToys Fork
-
-```bash
-# 1. Fork and clone PowerToys
-git clone https://github.com/YOUR_USERNAME/PowerToys.git
-cd PowerToys
-
-# 2. Create PhotoGeoPreview directory
-mkdir src/modules/previewpane/PhotoGeoPreview
-mkdir src/modules/previewpane/PhotoGeoPreview/Resources
-
-# 3. Copy templates from this repository
-# (Copy files from templates/ directory to your PowerToys fork)
-
-# 4. Build PowerToys
-.\build\build.cmd -Configuration Debug -Platform x64
+```cmd
+regsvr32.exe PhotoGeoPreviewHandler.dll
 ```
-
-For detailed instructions, see [SETUP_GUIDE.md](SETUP_GUIDE.md).
 
 ## Technical Details
 
@@ -93,10 +70,6 @@ IWICBitmapDecoder* decoder;
 IWICMetadataQueryReader* reader;
 // Extract GPS coordinates
 ```
-
-## Reference Implementations
-- `src/modules/previewpane/MarkdownPreviewHandler/` (C++)
-- `src/modules/previewpane/SvgPreviewHandler/` (C++)
 
 ## License
 

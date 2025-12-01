@@ -1,0 +1,23 @@
+import "oaidl.idl";
+import "ocidl.idl";
+import "shobjidl.idl";
+
+[
+    uuid(D8196810-5366-4F63-9CB6-6A3F3E2C8F1A),
+    version(1.0),
+]
+library PhotoGeoPreviewLib
+{
+    importlib("stdole2.tlb");
+
+    [
+        uuid(8A3D6B10-4F2C-4E1A-9D3B-7C5E8F1A2B3C)
+    ]
+    coclass PhotoGeoPreviewHandler
+    {
+        [default] interface IPreviewHandler;
+        interface IInitializeWithFile;
+        interface IObjectWithSite;
+        interface IPreviewHandlerVisuals;
+    };
+};
