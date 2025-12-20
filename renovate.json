@@ -4,7 +4,8 @@
     "github>scottlz0310/renovate-config//presets/default",
     "github>scottlz0310/renovate-config//presets/languages/csharp",
     "github>scottlz0310/renovate-config//presets/languages/cpp",
-    "github>scottlz0310/renovate-config//presets/options/automerge",
-    "github>scottlz0310/renovate-config//presets/options/security"
+    "github>scottlz0310/renovate-config//presets/options/monorepo",
+    "github>scottlz0310/renovate-config//presets/options/security",
+    "github>scottlz0310/renovate-config//presets/options/automerge"
   ]
 }
