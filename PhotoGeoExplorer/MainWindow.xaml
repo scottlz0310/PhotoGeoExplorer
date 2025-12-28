@@ -215,13 +215,42 @@
                         ItemTemplate="{StaticResource DetailsItemTemplate}"
                         HorizontalContentAlignment="Stretch"
                         Visibility="{Binding DetailsViewVisibility}" />
-                    <TextBlock
-                        Text="{Binding StatusMessage}"
-                        Visibility="{Binding StatusVisibility}"
-                        Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                    <Border
+                        Padding="16"
+                        CornerRadius="8"
+                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        TextWrapping="Wrap" />
+                        Visibility="{Binding StatusVisibility}">
+                        <StackPanel Spacing="8" MaxWidth="320" HorizontalAlignment="Center">
+                            <SymbolIcon
+                                Symbol="{Binding StatusSymbol}"
+                                Width="28"
+                                Height="28"
+                                HorizontalAlignment="Center" />
+                            <TextBlock
+                                Text="{Binding StatusTitle}"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Text="{Binding StatusDetail}"
+                                Opacity="0.7"
+                                TextAlignment="Center"
+                                TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <Button
+                                    Content="{Binding StatusPrimaryActionLabel}"
+                                    Visibility="{Binding StatusPrimaryActionVisibility}"
+                                    Click="OnStatusPrimaryActionClicked" />
+                                <Button
+                                    Content="{Binding StatusSecondaryActionLabel}"
+                                    Visibility="{Binding StatusSecondaryActionVisibility}"
+                                    Click="OnStatusSecondaryActionClicked" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Grid>
 

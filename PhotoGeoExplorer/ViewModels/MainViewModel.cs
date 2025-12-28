@@ -31,6 +31,16 @@ internal sealed class MainViewModel : BindableBase
     private InfoBarSeverity _notificationSeverity = InfoBarSeverity.Informational;
     private bool _isNotificationOpen;
     private FileViewMode _fileViewMode = FileViewMode.Details;
+    private string? _statusTitle;
+    private string? _statusDetail;
+    private Symbol _statusSymbol = Symbol.Help;
+    private StatusAction _statusPrimaryAction;
+    private StatusAction _statusSecondaryAction;
+    private string? _statusPrimaryActionLabel;
+    private string? _statusSecondaryActionLabel;
+    private Visibility _statusPrimaryActionVisibility = Visibility.Collapsed;
+    private Visibility _statusSecondaryActionVisibility = Visibility.Collapsed;
+    private bool _hasActiveFilters;
 
     public MainViewModel(FileSystemService fileSystemService)
     {
@@ -63,13 +73,25 @@ internal sealed class MainViewModel : BindableBase
     public bool ShowImagesOnly
     {
         get => _showImagesOnly;
-        set => SetProperty(ref _showImagesOnly, value);
+        set
+        {
+            if (SetProperty(ref _showImagesOnly, value))
+            {
+                UpdateFilterState();
+            }
+        }
     }
 
     public string? SearchText
     {
         get => _searchText;
-        set => SetProperty(ref _searchText, value);
+        set
+        {
+            if (SetProperty(ref _searchText, value))
+            {
+                UpdateFilterState();
+            }
+        }
     }
 
     public FileViewMode FileViewMode
@@ -104,6 +126,66 @@ internal sealed class MainViewModel : BindableBase
     public Visibility IconViewVisibility => _fileViewMode == FileViewMode.Icon ? Visibility.Visible : Visibility.Collapsed;
     public Visibility ListViewVisibility => _fileViewMode == FileViewMode.List ? Visibility.Visible : Visibility.Collapsed;
     public Visibility DetailsViewVisibility => _fileViewMode == FileViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
+
+    public string? StatusTitle
+    {
+        get => _statusTitle;
+        private set => SetProperty(ref _statusTitle, value);
+    }
+
+    public string? StatusDetail
+    {
+        get => _statusDetail;
+        private set => SetProperty(ref _statusDetail, value);
+    }
+
+    public Symbol StatusSymbol
+    {
+        get => _statusSymbol;
+        private set => SetProperty(ref _statusSymbol, value);
+    }
+
+    public StatusAction StatusPrimaryAction
+    {
+        get => _statusPrimaryAction;
+        private set => SetProperty(ref _statusPrimaryAction, value);
+    }
+
+    public StatusAction StatusSecondaryAction
+    {
+        get => _statusSecondaryAction;
+        private set => SetProperty(ref _statusSecondaryAction, value);
+    }
+
+    public string? StatusPrimaryActionLabel
+    {
+        get => _statusPrimaryActionLabel;
+        private set => SetProperty(ref _statusPrimaryActionLabel, value);
+    }
+
+    public string? StatusSecondaryActionLabel
+    {
+        get => _statusSecondaryActionLabel;
+        private set => SetProperty(ref _statusSecondaryActionLabel, value);
+    }
+
+    public Visibility StatusPrimaryActionVisibility
+    {
+        get => _statusPrimaryActionVisibility;
+        private set => SetProperty(ref _statusPrimaryActionVisibility, value);
+    }
+
+    public Visibility StatusSecondaryActionVisibility
+    {
+        get => _statusSecondaryActionVisibility;
+        private set => SetProperty(ref _statusSecondaryActionVisibility, value);
+    }
+
+    public bool HasActiveFilters
+    {
+        get => _hasActiveFilters;
+        private set => SetProperty(ref _hasActiveFilters, value);
+    }
 
     public PhotoListItem? SelectedItem
     {
@@ -426,6 +508,77 @@ internal sealed class MainViewModel : BindableBase
         StatusMessage = message;
         StatusVisibility = string.IsNullOrWhiteSpace(message) ? Visibility.Collapsed : Visibility.Visible;
         SetNotification(message);
+        UpdateStatusOverlay(message);
+    }
+
+    private void UpdateStatusOverlay(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            StatusTitle = null;
+            StatusDetail = null;
+            StatusSymbol = Symbol.Help;
+            SetStatusActions(StatusAction.None, StatusAction.None);
+            return;
+        }
+
+        if (message.Contains("no files", StringComparison.OrdinalIgnoreCase))
+        {
+            StatusTitle = "No files found";
+            StatusDetail = HasActiveFilters
+                ? "Try resetting filters or open another folder."
+                : "Try opening another folder.";
+            StatusSymbol = Symbol.Pictures;
+            SetStatusActions(StatusAction.OpenFolder, HasActiveFilters ? StatusAction.ResetFilters : StatusAction.None);
+            return;
+        }
+
+        if (GetNotificationSeverity(message) == InfoBarSeverity.Error)
+        {
+            StatusTitle = "Unable to load folder";
+            StatusDetail = message;
+            StatusSymbol = Symbol.Folder;
+            SetStatusActions(StatusAction.OpenFolder, StatusAction.GoHome);
+            return;
+        }
+
+        StatusTitle = message;
+        StatusDetail = null;
+        StatusSymbol = Symbol.Help;
+        SetStatusActions(StatusAction.None, StatusAction.None);
+    }
+
+    private void SetStatusActions(StatusAction primary, StatusAction secondary)
+    {
+        StatusPrimaryAction = primary;
+        StatusSecondaryAction = secondary;
+        StatusPrimaryActionLabel = GetActionLabel(primary);
+        StatusSecondaryActionLabel = GetActionLabel(secondary);
+        StatusPrimaryActionVisibility = primary == StatusAction.None ? Visibility.Collapsed : Visibility.Visible;
+        StatusSecondaryActionVisibility = secondary == StatusAction.None ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private static string? GetActionLabel(StatusAction action)
+    {
+        return action switch
+        {
+            StatusAction.OpenFolder => "Open folder",
+            StatusAction.GoHome => "Go home",
+            StatusAction.ResetFilters => "Reset filters",
+            _ => null
+        };
+    }
+
+    private void UpdateFilterState()
+    {
+        HasActiveFilters = !string.IsNullOrWhiteSpace(SearchText) || !ShowImagesOnly;
+        UpdateStatusOverlay(StatusMessage);
+    }
+
+    public void ResetFilters()
+    {
+        SearchText = null;
+        ShowImagesOnly = true;
     }
 
     private void SelectRelative(int delta)

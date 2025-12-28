@@ -504,6 +504,11 @@ public sealed partial class MainWindow : Window
 
     private async void OnOpenFolderClicked(object sender, RoutedEventArgs e)
     {
+        await OpenFolderPickerAsync().ConfigureAwait(true);
+    }
+
+    private async Task OpenFolderPickerAsync()
+    {
         var picker = new FolderPicker
         {
             SuggestedStartLocation = PickerLocationId.PicturesLibrary
@@ -535,6 +540,33 @@ public sealed partial class MainWindow : Window
         }
 
         await _viewModel.LoadFolderAsync(folder.Path).ConfigureAwait(true);
+    }
+
+    private async void OnStatusPrimaryActionClicked(object sender, RoutedEventArgs e)
+    {
+        await PerformStatusActionAsync(_viewModel.StatusPrimaryAction).ConfigureAwait(true);
+    }
+
+    private async void OnStatusSecondaryActionClicked(object sender, RoutedEventArgs e)
+    {
+        await PerformStatusActionAsync(_viewModel.StatusSecondaryAction).ConfigureAwait(true);
+    }
+
+    private async Task PerformStatusActionAsync(StatusAction action)
+    {
+        switch (action)
+        {
+            case StatusAction.OpenFolder:
+                await OpenFolderPickerAsync().ConfigureAwait(true);
+                break;
+            case StatusAction.GoHome:
+                await _viewModel.OpenHomeAsync().ConfigureAwait(true);
+                break;
+            case StatusAction.ResetFilters:
+                _viewModel.ResetFilters();
+                await _viewModel.RefreshAsync().ConfigureAwait(true);
+                break;
+        }
     }
 
     private async void OnBreadcrumbItemClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
