@@ -802,4 +802,19 @@ public sealed partial class MainWindow : Window
 
         await _viewModel.RefreshAsync().ConfigureAwait(true);
     }
+
+    private void OnDetailsSortClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string tag)
+        {
+            return;
+        }
+
+        if (!Enum.TryParse(tag, out FileSortColumn column))
+        {
+            return;
+        }
+
+        _viewModel.ToggleSort(column);
+    }
 }

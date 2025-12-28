@@ -201,7 +201,78 @@
                     AllowDrop="True"
                     DragOver="OnFileListDragOver"
                     Drop="OnFileListDrop">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid
+                        Grid.Row="0"
+                        Margin="0,0,0,4"
+                        Visibility="{Binding DetailsViewVisibility}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Width="56" />
+                        <Button
+                            Grid.Column="1"
+                            Padding="4,2"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Left"
+                            Click="OnDetailsSortClicked"
+                            Tag="Name">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Name" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding NameSortIndicator}" Opacity="0.7" />
+                            </StackPanel>
+                        </Button>
+                        <Button
+                            Grid.Column="2"
+                            Padding="4,2"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Left"
+                            Click="OnDetailsSortClicked"
+                            Tag="ModifiedAt">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Modified" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding ModifiedSortIndicator}" Opacity="0.7" />
+                            </StackPanel>
+                        </Button>
+                        <Button
+                            Grid.Column="3"
+                            Padding="4,2"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Left"
+                            Click="OnDetailsSortClicked"
+                            Tag="Resolution">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Resolution" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding ResolutionSortIndicator}" Opacity="0.7" />
+                            </StackPanel>
+                        </Button>
+                        <Button
+                            Grid.Column="4"
+                            Padding="4,2"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Right"
+                            HorizontalContentAlignment="Right"
+                            Click="OnDetailsSortClicked"
+                            Tag="Size">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Size" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding SizeSortIndicator}" Opacity="0.7" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
                     <ListView
+                        Grid.Row="1"
                         ItemsSource="{Binding Items}"
                         SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                         SelectionMode="Single"
@@ -213,6 +284,7 @@
                         Drop="OnFileListDrop"
                         Visibility="{Binding ListViewVisibility}" />
                     <GridView
+                        Grid.Row="1"
                         ItemsSource="{Binding Items}"
                         SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                         SelectionMode="Single"
@@ -224,6 +296,7 @@
                         Drop="OnFileListDrop"
                         Visibility="{Binding IconViewVisibility}" />
                     <ListView
+                        Grid.Row="1"
                         ItemsSource="{Binding Items}"
                         SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                         SelectionMode="Single"
@@ -236,6 +309,7 @@
                         Drop="OnFileListDrop"
                         Visibility="{Binding DetailsViewVisibility}" />
                     <Border
+                        Grid.Row="1"
                         Padding="16"
                         CornerRadius="8"
                         Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"

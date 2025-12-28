@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -45,6 +46,8 @@ internal sealed class MainViewModel : BindableBase
     private Visibility _statusPrimaryActionVisibility = Visibility.Collapsed;
     private Visibility _statusSecondaryActionVisibility = Visibility.Collapsed;
     private bool _hasActiveFilters;
+    private FileSortColumn _sortColumn = FileSortColumn.Name;
+    private SortDirection _sortDirection = SortDirection.Ascending;
 
     public MainViewModel(FileSystemService fileSystemService)
     {
@@ -191,6 +194,11 @@ internal sealed class MainViewModel : BindableBase
         private set => SetProperty(ref _hasActiveFilters, value);
     }
 
+    public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
+    public string ModifiedSortIndicator => GetSortIndicator(FileSortColumn.ModifiedAt);
+    public string ResolutionSortIndicator => GetSortIndicator(FileSortColumn.Resolution);
+    public string SizeSortIndicator => GetSortIndicator(FileSortColumn.Size);
+
     public PhotoListItem? SelectedItem
     {
         get => _selectedItem;
@@ -324,6 +332,24 @@ internal sealed class MainViewModel : BindableBase
         await LoadFolderAsync(CurrentFolderPath).ConfigureAwait(true);
     }
 
+    public void ToggleSort(FileSortColumn column)
+    {
+        if (_sortColumn == column)
+        {
+            _sortDirection = _sortDirection == SortDirection.Ascending
+                ? SortDirection.Descending
+                : SortDirection.Ascending;
+        }
+        else
+        {
+            _sortColumn = column;
+            _sortDirection = SortDirection.Ascending;
+        }
+
+        ApplySorting();
+        NotifySortIndicators();
+    }
+
     public void SelectNext()
     {
         SelectRelative(1);
@@ -376,9 +402,10 @@ internal sealed class MainViewModel : BindableBase
                 .GetPhotoItemsAsync(folderPath, ShowImagesOnly, SearchText)
                 .ConfigureAwait(true);
             Items.Clear();
-            foreach (var item in items)
+            var listItems = items.Select(CreateListItem).ToList();
+            foreach (var item in SortItems(listItems))
             {
-                Items.Add(CreateListItem(item));
+                Items.Add(item);
             }
 
             SetStatus(Items.Count == 0 ? "No files found." : null);
@@ -611,6 +638,86 @@ internal sealed class MainViewModel : BindableBase
     {
         HasActiveFilters = !string.IsNullOrWhiteSpace(SearchText) || !ShowImagesOnly;
         UpdateStatusOverlay(StatusMessage);
+    }
+
+    private void ApplySorting()
+    {
+        if (Items.Count <= 1)
+        {
+            return;
+        }
+
+        var sorted = SortItems(Items);
+        for (var index = 0; index < sorted.Count; index++)
+        {
+            var item = sorted[index];
+            var currentIndex = Items.IndexOf(item);
+            if (currentIndex >= 0 && currentIndex != index)
+            {
+                Items.Move(currentIndex, index);
+            }
+        }
+    }
+
+    private List<PhotoListItem> SortItems(IEnumerable<PhotoListItem> items)
+    {
+        var ordered = items.OrderByDescending(item => item.IsFolder);
+        ordered = _sortColumn switch
+        {
+            FileSortColumn.Name => _sortDirection == SortDirection.Ascending
+                ? ordered.ThenBy(item => item.FileName, StringComparer.CurrentCultureIgnoreCase)
+                : ordered.ThenByDescending(item => item.FileName, StringComparer.CurrentCultureIgnoreCase),
+            FileSortColumn.ModifiedAt => _sortDirection == SortDirection.Ascending
+                ? ordered.ThenBy(item => item.Item.ModifiedAt)
+                : ordered.ThenByDescending(item => item.Item.ModifiedAt),
+            FileSortColumn.Resolution => _sortDirection == SortDirection.Ascending
+                ? ordered.ThenBy(item => GetResolutionSortKey(item, ascending: true))
+                : ordered.ThenByDescending(item => GetResolutionSortKey(item, ascending: false)),
+            FileSortColumn.Size => _sortDirection == SortDirection.Ascending
+                ? ordered.ThenBy(item => item.Item.SizeBytes)
+                : ordered.ThenByDescending(item => item.Item.SizeBytes),
+            _ => ordered
+        };
+
+        if (_sortColumn != FileSortColumn.Name)
+        {
+            ordered = ordered.ThenBy(item => item.FileName, StringComparer.CurrentCultureIgnoreCase);
+        }
+
+        return ordered.ToList();
+    }
+
+    private static long GetResolutionSortKey(PhotoListItem item, bool ascending)
+    {
+        if (item.Item.PixelWidth is not int width || item.Item.PixelHeight is not int height)
+        {
+            return ascending ? long.MaxValue : long.MinValue;
+        }
+
+        if (width <= 0 || height <= 0)
+        {
+            return ascending ? long.MaxValue : long.MinValue;
+        }
+
+        return (long)width * height;
+    }
+
+    private string GetSortIndicator(FileSortColumn column)
+    {
+        if (_sortColumn != column)
+        {
+            return string.Empty;
+        }
+
+        return _sortDirection == SortDirection.Ascending ? "▲" : "▼";
+    }
+
+    private void NotifySortIndicators()
+    {
+        OnPropertyChanged(nameof(NameSortIndicator));
+        OnPropertyChanged(nameof(ModifiedSortIndicator));
+        OnPropertyChanged(nameof(ResolutionSortIndicator));
+        OnPropertyChanged(nameof(SizeSortIndicator));
     }
 
     public void ResetFilters()
