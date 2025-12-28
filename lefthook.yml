@@ -1,7 +1,7 @@
 pre-commit:
   commands:
     format:
-      run: dotnet tool restore && dotnet tool run dotnet-format --check PhotoGeoExplorer.sln
+      run: dotnet format --verify-no-changes PhotoGeoExplorer.sln
     build:
       run: dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64 -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest -p:EnforceCodeStyleInBuild=true
 
