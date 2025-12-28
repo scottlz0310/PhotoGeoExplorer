@@ -88,11 +88,18 @@ jobs:
           languages: csharp
           build-mode: manual
 
+      - name: Prepare CodeQL generated output path
+        shell: pwsh
+        run: |
+          $genPath = Join-Path $env:RUNNER_TEMP "codeql-generated"
+          New-Item -ItemType Directory -Force -Path $genPath | Out-Null
+          "CODEQL_GEN_PATH=$genPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Restore
         run: dotnet restore PhotoGeoExplorer.sln
 
       - name: Build
-        run: dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64 -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest
+        run: dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64 -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest -p:CompilerGeneratedFilesOutputPath="$env:CODEQL_GEN_PATH"
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
