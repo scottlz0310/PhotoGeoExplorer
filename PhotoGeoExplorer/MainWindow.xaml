@@ -10,6 +10,104 @@
     mc:Ignorable="d"
     Title="PhotoGeoExplorer">
     <Grid x:Name="RootGrid">
+        <Grid.Resources>
+            <DataTemplate x:Key="IconItemTemplate">
+                <StackPanel Width="140" Margin="0,0,8,8" Spacing="6">
+                    <Border
+                        Width="120"
+                        Height="120"
+                        CornerRadius="8"
+                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                        <Grid>
+                            <Image
+                                Source="{Binding Thumbnail}"
+                                Stretch="UniformToFill"
+                                Visibility="{Binding ThumbnailVisibility}" />
+                            <FontIcon
+                                Glyph="&#xE8B7;"
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                                FontSize="28"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding FolderIconVisibility}" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding FileName}" TextWrapping="Wrap" />
+                </StackPanel>
+            </DataTemplate>
+            <DataTemplate x:Key="ListItemTemplate">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Spacing="8">
+                    <Border
+                        Width="40"
+                        Height="40"
+                        CornerRadius="6"
+                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                        <Grid>
+                            <Image
+                                Source="{Binding Thumbnail}"
+                                Stretch="UniformToFill"
+                                Visibility="{Binding ThumbnailVisibility}" />
+                            <FontIcon
+                                Glyph="&#xE8B7;"
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                                FontSize="20"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding FolderIconVisibility}" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding FileName}" VerticalAlignment="Center" />
+                </StackPanel>
+            </DataTemplate>
+            <DataTemplate x:Key="DetailsItemTemplate">
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border
+                        Width="56"
+                        Height="56"
+                        CornerRadius="6"
+                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                        <Grid>
+                            <Image
+                                Source="{Binding Thumbnail}"
+                                Stretch="UniformToFill"
+                                Visibility="{Binding ThumbnailVisibility}" />
+                            <FontIcon
+                                Glyph="&#xE8B7;"
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                                FontSize="24"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding FolderIconVisibility}" />
+                        </Grid>
+                    </Border>
+                    <TextBlock
+                        Grid.Column="1"
+                        Text="{Binding FileName}"
+                        TextTrimming="CharacterEllipsis"
+                        VerticalAlignment="Center" />
+                    <TextBlock
+                        Grid.Column="2"
+                        Text="{Binding ModifiedAtText}"
+                        Opacity="0.7"
+                        VerticalAlignment="Center" />
+                    <TextBlock
+                        Grid.Column="3"
+                        Text="{Binding SizeText}"
+                        Opacity="0.7"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center" />
+                </Grid>
+            </DataTemplate>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -75,6 +173,14 @@
                         KeyDown="OnSearchKeyDown" />
                     <Button Content="Filters" Click="OnApplyFiltersClicked" />
                     <Button Content="Open" Click="OnOpenFolderClicked" />
+                    <ComboBox
+                        MinWidth="120"
+                        SelectedIndex="{Binding FileViewModeIndex, Mode=TwoWay}"
+                        ToolTipService.ToolTip="View mode">
+                        <ComboBoxItem Content="Icon" />
+                        <ComboBoxItem Content="List" />
+                        <ComboBoxItem Content="Details" />
+                    </ComboBox>
                 </StackPanel>
                 <CheckBox
                     Grid.Row="4"
@@ -89,41 +195,26 @@
                         SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                         SelectionMode="Single"
                         IsItemClickEnabled="True"
-                        ItemClick="OnFileItemClicked">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Border
-                                        Width="72"
-                                        Height="72"
-                                        CornerRadius="6"
-                                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
-                                        <Grid>
-                                            <Image
-                                                Source="{Binding Thumbnail}"
-                                                Stretch="UniformToFill"
-                                                Visibility="{Binding ThumbnailVisibility}" />
-                                            <FontIcon
-                                                Glyph="&#xE8B7;"
-                                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                                Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
-                                                FontSize="24"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Visibility="{Binding FolderIconVisibility}" />
-                                        </Grid>
-                                    </Border>
-                                    <StackPanel Spacing="2" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding FileName}" />
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Opacity="0.7" Text="{Binding ModifiedAtText}" />
-                                            <TextBlock Opacity="0.7" Text="{Binding SizeText}" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                        ItemClick="OnFileItemClicked"
+                        ItemTemplate="{StaticResource ListItemTemplate}"
+                        Visibility="{Binding ListViewVisibility}" />
+                    <GridView
+                        ItemsSource="{Binding Items}"
+                        SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                        SelectionMode="Single"
+                        IsItemClickEnabled="True"
+                        ItemClick="OnFileItemClicked"
+                        ItemTemplate="{StaticResource IconItemTemplate}"
+                        Visibility="{Binding IconViewVisibility}" />
+                    <ListView
+                        ItemsSource="{Binding Items}"
+                        SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                        SelectionMode="Single"
+                        IsItemClickEnabled="True"
+                        ItemClick="OnFileItemClicked"
+                        ItemTemplate="{StaticResource DetailsItemTemplate}"
+                        HorizontalContentAlignment="Stretch"
+                        Visibility="{Binding DetailsViewVisibility}" />
                     <TextBlock
                         Text="{Binding StatusMessage}"
                         Visibility="{Binding StatusVisibility}"

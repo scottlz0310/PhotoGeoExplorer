@@ -30,6 +30,7 @@ internal sealed class MainViewModel : BindableBase
     private string? _notificationMessage;
     private InfoBarSeverity _notificationSeverity = InfoBarSeverity.Informational;
     private bool _isNotificationOpen;
+    private FileViewMode _fileViewMode = FileViewMode.Details;
 
     public MainViewModel(FileSystemService fileSystemService)
     {
@@ -70,6 +71,39 @@ internal sealed class MainViewModel : BindableBase
         get => _searchText;
         set => SetProperty(ref _searchText, value);
     }
+
+    public FileViewMode FileViewMode
+    {
+        get => _fileViewMode;
+        set
+        {
+            if (SetProperty(ref _fileViewMode, value))
+            {
+                OnPropertyChanged(nameof(FileViewModeIndex));
+                OnPropertyChanged(nameof(IconViewVisibility));
+                OnPropertyChanged(nameof(ListViewVisibility));
+                OnPropertyChanged(nameof(DetailsViewVisibility));
+            }
+        }
+    }
+
+    public int FileViewModeIndex
+    {
+        get => (int)_fileViewMode;
+        set
+        {
+            if (value < 0 || value > 2)
+            {
+                return;
+            }
+
+            FileViewMode = (FileViewMode)value;
+        }
+    }
+
+    public Visibility IconViewVisibility => _fileViewMode == FileViewMode.Icon ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ListViewVisibility => _fileViewMode == FileViewMode.List ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility DetailsViewVisibility => _fileViewMode == FileViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
 
     public PhotoListItem? SelectedItem
     {
