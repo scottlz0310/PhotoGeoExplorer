@@ -107,7 +107,7 @@ public sealed partial class MainWindow : Window
         if (MapControl is null)
         {
             AppLog.Error("Map control is missing.");
-            ShowMapStatus("Map control missing. See log.");
+            ShowMapStatus("Map control missing", "See log for details.", Symbol.Map);
             return Task.CompletedTask;
         }
 
@@ -141,27 +141,37 @@ public sealed partial class MainWindow : Window
             _map = map;
             _markerLayer = markerLayer;
             MapControl.Map = map;
-            MapStatusText.Visibility = Visibility.Collapsed;
+            HideMapStatus();
             AppLog.Info("Map initialized.");
         }
         catch (InvalidOperationException ex)
         {
             AppLog.Error("Map init failed.", ex);
-            ShowMapStatus("Map init failed. See log.");
+            ShowMapStatus("Map init failed", "See log for details.", Symbol.Map);
         }
         catch (NotSupportedException ex)
         {
             AppLog.Error("Map init failed.", ex);
-            ShowMapStatus("Map init failed. See log.");
+            ShowMapStatus("Map init failed", "See log for details.", Symbol.Map);
         }
 
         return Task.CompletedTask;
     }
 
-    private void ShowMapStatus(string message)
+    private void ShowMapStatus(string title, string? description, Symbol symbol)
     {
-        MapStatusText.Text = message;
-        MapStatusText.Visibility = Visibility.Visible;
+        MapStatusTitle.Text = title;
+        MapStatusDescription.Text = description ?? string.Empty;
+        MapStatusDescription.Visibility = string.IsNullOrWhiteSpace(description) ? Visibility.Collapsed : Visibility.Visible;
+        MapStatusIcon.Symbol = symbol;
+        MapStatusOverlay.Visibility = Visibility.Visible;
+        MapStatusPanel.Visibility = Visibility.Visible;
+    }
+
+    private void HideMapStatus()
+    {
+        MapStatusOverlay.Visibility = Visibility.Collapsed;
+        MapStatusPanel.Visibility = Visibility.Collapsed;
     }
 
     private async void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -183,7 +193,7 @@ public sealed partial class MainWindow : Window
         if (selectedItem is null || selectedItem.IsFolder)
         {
             ClearMapMarkers();
-            ShowMapStatus("Select a photo to show location.");
+            ShowMapStatus("Select a photo", "Pick an image with GPS data to show it on the map.", Symbol.Map);
             return Task.CompletedTask;
         }
 
@@ -193,12 +203,12 @@ public sealed partial class MainWindow : Window
             || metadata.Longitude is not double longitude)
         {
             ClearMapMarkers();
-            ShowMapStatus("Location data not found.");
+            ShowMapStatus("Location data not found", "This photo has no GPS information.", Symbol.Map);
             return Task.CompletedTask;
         }
 
         SetMapMarker(latitude, longitude, metadata);
-        MapStatusText.Visibility = Visibility.Collapsed;
+        HideMapStatus();
         return Task.CompletedTask;
     }
 

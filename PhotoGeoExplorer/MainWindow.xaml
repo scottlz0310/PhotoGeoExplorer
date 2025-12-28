@@ -368,12 +368,40 @@
                         <Grid x:Name="MapHost">
                             <mapsui:MapControl x:Name="MapControl" />
                         </Grid>
-                        <TextBlock
-                            x:Name="MapStatusText"
-                            Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                        <Border
+                            x:Name="MapStatusOverlay"
+                            Background="#D0000000"
+                            Visibility="Collapsed"
+                            IsHitTestVisible="False" />
+                        <Border
+                            x:Name="MapStatusPanel"
+                            Padding="16"
+                            CornerRadius="8"
+                            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Visibility="Collapsed" />
+                            Visibility="Collapsed"
+                            IsHitTestVisible="False">
+                            <StackPanel Spacing="8" MaxWidth="320" HorizontalAlignment="Center">
+                                <SymbolIcon
+                                    x:Name="MapStatusIcon"
+                                    Symbol="Map"
+                                    Width="28"
+                                    Height="28"
+                                    HorizontalAlignment="Center" />
+                                <TextBlock
+                                    x:Name="MapStatusTitle"
+                                    FontSize="16"
+                                    FontWeight="SemiBold"
+                                    TextAlignment="Center"
+                                    TextWrapping="Wrap" />
+                                <TextBlock
+                                    x:Name="MapStatusDescription"
+                                    Opacity="0.7"
+                                    TextAlignment="Center"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Grid>
             </Grid>
