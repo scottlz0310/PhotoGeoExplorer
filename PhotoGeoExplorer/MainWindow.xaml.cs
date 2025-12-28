@@ -1,8 +1,13 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
+using Mapsui;
+using Mapsui.Layers;
+using Mapsui.Projections;
+using Mapsui.Styles;
+using Mapsui.Tiling;
+using Mapsui.UI.WinUI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -11,9 +16,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Text.Json;
 using Windows.Graphics;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -27,9 +30,10 @@ public sealed partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
     private bool _layoutStored;
-    private bool _mapReady;
     private bool _mapInitialized;
-    private WebView2? _mapWebView;
+    private Map? _map;
+    private ILayer? _baseTileLayer;
+    private MemoryLayer? _markerLayer;
     private bool _previewFitToWindow = true;
     private bool _previewMaximized;
     private bool _windowSized;
@@ -90,63 +94,53 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task InitializeMapAsync()
+    private Task InitializeMapAsync()
     {
-        if (_mapWebView is not null)
+        if (_map is not null)
         {
-            return;
+            return Task.CompletedTask;
+        }
+
+        if (MapControl is null)
+        {
+            AppLog.Error("Map control is missing.");
+            ShowMapStatus("Map control missing. See log.");
+            return Task.CompletedTask;
         }
 
         try
         {
-            var indexPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "index.html");
-            if (!File.Exists(indexPath))
-            {
-                AppLog.Error($"Map page not found: {indexPath}");
-                ShowMapStatus("Map page missing. See log.");
-                return;
-            }
+            var map = new Map();
+            var tileLayer = OpenStreetMap.CreateTileLayer();
+            _baseTileLayer = tileLayer;
+            map.Layers.Add(tileLayer);
 
-            AppLog.Info("Initializing WebView2.");
-            var webView = new WebView2();
-            MapHost.Children.Clear();
-            MapHost.Children.Add(webView);
-            _mapWebView = webView;
-            await webView.EnsureCoreWebView2Async().AsTask().ConfigureAwait(true);
-            webView.Source = new Uri(indexPath);
+            var markerLayer = new MemoryLayer
+            {
+                Name = "PhotoMarkers",
+                Features = Array.Empty<IFeature>(),
+                Style = null
+            };
+            map.Layers.Add(markerLayer);
+
+            _map = map;
+            _markerLayer = markerLayer;
+            MapControl.Map = map;
             MapStatusText.Visibility = Visibility.Collapsed;
-            AppLog.Info("WebView2 initialized.");
-        }
-        catch (TypeLoadException ex)
-        {
-            AppLog.Error("Map WebView2 type load failed.", ex);
-            ShowMapStatus("WebView2 unavailable. See log.");
+            AppLog.Info("Map initialized.");
         }
         catch (InvalidOperationException ex)
         {
-            AppLog.Error("Map WebView2 init failed.", ex);
-            ShowMapStatus("WebView2 init failed. See log.");
+            AppLog.Error("Map init failed.", ex);
+            ShowMapStatus("Map init failed. See log.");
         }
-        catch (IOException ex)
+        catch (NotSupportedException ex)
         {
-            AppLog.Error("Map WebView2 init failed.", ex);
-            ShowMapStatus("WebView2 init failed. See log.");
+            AppLog.Error("Map init failed.", ex);
+            ShowMapStatus("Map init failed. See log.");
         }
-        catch (System.Runtime.InteropServices.COMException ex)
-        {
-            AppLog.Error("Map WebView2 init failed.", ex);
-            ShowMapStatus("WebView2 init failed. See log.");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            AppLog.Error("Map WebView2 init failed.", ex);
-            ShowMapStatus("WebView2 init failed. See log.");
-        }
-        catch (UriFormatException ex)
-        {
-            AppLog.Error("Map WebView2 init failed.", ex);
-            ShowMapStatus("WebView2 init failed. See log.");
-        }
+
+        return Task.CompletedTask;
     }
 
     private void ShowMapStatus(string message)
@@ -163,98 +157,135 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task UpdateMapFromSelectionAsync()
+    private Task UpdateMapFromSelectionAsync()
     {
-        if (_mapWebView is null)
+        if (_map is null || _markerLayer is null)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         var selectedItem = _viewModel.SelectedItem;
         if (selectedItem is null || selectedItem.IsFolder)
         {
-            await SetMapMarkersAsync("[]").ConfigureAwait(true);
+            ClearMapMarkers();
             ShowMapStatus("Select a photo to show location.");
-            return;
+            return Task.CompletedTask;
         }
 
         var metadata = _viewModel.SelectedMetadata;
-        if (metadata?.HasLocation != true)
+        if (metadata?.HasLocation != true
+            || metadata.Latitude is not double latitude
+            || metadata.Longitude is not double longitude)
         {
-            await SetMapMarkersAsync("[]").ConfigureAwait(true);
+            ClearMapMarkers();
             ShowMapStatus("Location data not found.");
-            return;
+            return Task.CompletedTask;
         }
 
-        var markers = new[]
-        {
-            new Dictionary<string, object?>
-            {
-                ["lat"] = metadata.Latitude,
-                ["lon"] = metadata.Longitude,
-                ["label"] = selectedItem.FileName
-            }
-        };
-        var json = JsonSerializer.Serialize(markers);
-        await SetMapMarkersAsync(json).ConfigureAwait(true);
+        SetMapMarker(latitude, longitude, metadata);
         MapStatusText.Visibility = Visibility.Collapsed;
+        return Task.CompletedTask;
     }
 
-    private async Task SetMapMarkersAsync(string markersJson)
+    private void ClearMapMarkers()
     {
-        if (_mapWebView is null)
+        if (_markerLayer is null)
         {
             return;
         }
 
-        if (!await EnsureMapReadyAsync().ConfigureAwait(true))
+        _markerLayer.Features = Array.Empty<IFeature>();
+        _map?.Refresh();
+    }
+
+    private void SetMapMarker(double latitude, double longitude, PhotoMetadata metadata)
+    {
+        if (_map is null || _markerLayer is null)
         {
             return;
         }
 
-        var script = $"window.PhotoGeoExplorer?.setMarkers({markersJson});";
-        await _mapWebView.ExecuteScriptAsync(script).AsTask().ConfigureAwait(true);
+        var position = SphericalMercator.FromLonLat(new MPoint(longitude, latitude));
+        var feature = new PointFeature(position);
+        feature.Styles.Clear();
+        foreach (var style in CreatePinStyles(metadata))
+        {
+            feature.Styles.Add(style);
+        }
+        _markerLayer.Features = new[] { feature };
+        _map.Refresh();
+
+        var navigator = _map.Navigator;
+        navigator.CenterOn(position, 0, Mapsui.Animations.Easing.CubicOut);
+        if (navigator.Resolutions.Count > 0)
+        {
+            var targetLevel = Math.Clamp(14, 0, navigator.Resolutions.Count - 1);
+            navigator.ZoomToLevel(targetLevel);
+        }
     }
 
-    private async Task<bool> EnsureMapReadyAsync()
+    private static IStyle[] CreatePinStyles(PhotoMetadata metadata)
     {
-        if (_mapWebView is null)
+        var pinPath = GetPinPath(metadata);
+        if (TryCreatePinStyle(pinPath, out var pinStyle))
         {
+            return new IStyle[] { pinStyle };
+        }
+
+        return new IStyle[] { CreateFallbackMarkerStyle() };
+    }
+
+    private static bool TryCreatePinStyle(string imagePath, out ImageStyle pinStyle)
+    {
+        pinStyle = null!;
+        if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+        {
+            if (!string.IsNullOrWhiteSpace(imagePath))
+            {
+                AppLog.Info($"Pin image missing: {imagePath}");
+            }
             return false;
         }
 
-        if (_mapReady)
+        var imageUri = new Uri(imagePath).AbsoluteUri;
+        pinStyle = new ImageStyle
         {
-            return true;
+            Image = new Mapsui.Styles.Image { Source = imageUri },
+            SymbolScale = 1,
+            RelativeOffset = new RelativeOffset(0, -0.5)
+        };
+        return true;
+    }
+
+    private static SymbolStyle CreateFallbackMarkerStyle()
+    {
+        return new SymbolStyle
+        {
+            SymbolType = SymbolType.Ellipse,
+            SymbolScale = 0.8,
+            Fill = new Brush(Color.FromArgb(255, 32, 128, 255)),
+            Outline = new Pen(Color.White, 2)
+        };
+    }
+
+    private static string GetPinPath(PhotoMetadata metadata)
+    {
+        var assetsRoot = Path.Combine(AppContext.BaseDirectory, "Assets", "MapPins");
+        if (metadata.TakenAt is DateTimeOffset takenAt)
+        {
+            var age = DateTimeOffset.Now - takenAt;
+            if (age <= TimeSpan.FromDays(30))
+            {
+                return Path.Combine(assetsRoot, "green_pin.png");
+            }
+
+            if (age <= TimeSpan.FromDays(365))
+            {
+                return Path.Combine(assetsRoot, "blue_pin.png");
+            }
         }
 
-        const int maxAttempts = 15;
-        for (var attempt = 0; attempt < maxAttempts; attempt++)
-        {
-            try
-            {
-                var result = await _mapWebView
-                    .ExecuteScriptAsync("typeof window.PhotoGeoExplorer !== 'undefined'")
-                    .AsTask()
-                    .ConfigureAwait(true);
-
-                if (string.Equals(result, "true", StringComparison.OrdinalIgnoreCase))
-                {
-                    _mapReady = true;
-                    return true;
-                }
-            }
-            catch (InvalidOperationException)
-            {
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-            }
-
-            await Task.Delay(100).ConfigureAwait(true);
-        }
-
-        return false;
+        return Path.Combine(assetsRoot, "red_pin.png");
     }
 
     private void OnPreviewImageOpened(object sender, RoutedEventArgs e)

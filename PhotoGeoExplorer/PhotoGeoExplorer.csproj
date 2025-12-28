@@ -8,22 +8,31 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <Platforms>x64;ARM64</Platforms>
     <RootNamespace>PhotoGeoExplorer</RootNamespace>
-    <WindowsSdkPackageVersion>10.0.26100.38</WindowsSdkPackageVersion>
+    <WindowsSdkPackageVersion>10.0.26100.81</WindowsSdkPackageVersion>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <TargetPlatformVersion>10.0.26100.0</TargetPlatformVersion>
     <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251106002" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="MetadataExtractor" Version="2.9.0" />
+    <PackageReference Include="Mapsui" Version="5.0.1" />
+    <PackageReference Include="Mapsui.WinUI" Version="5.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="wwwroot\\**\\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\\MapPins\\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
 
