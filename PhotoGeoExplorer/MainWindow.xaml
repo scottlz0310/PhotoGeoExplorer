@@ -75,7 +75,13 @@
                     <TextBlock Text="Map" FontSize="20" FontWeight="SemiBold" />
                     <Grid Grid.Row="1" Margin="0,8,0,0">
                         <Border Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="6" />
-                        <WebView2 x:Name="MapWebView" />
+                        <Grid x:Name="MapHost" />
+                        <TextBlock
+                            x:Name="MapStatusText"
+                            Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="Collapsed" />
                     </Grid>
                 </Grid>
             </Grid>
