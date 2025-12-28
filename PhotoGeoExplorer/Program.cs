@@ -7,6 +7,8 @@ namespace PhotoGeoExplorer;
 
 internal static class Program
 {
+    private const uint WindowsAppSdkMajorMinor = 0x00010008;
+
     [STAThread]
     public static void Main(string[] args)
     {
@@ -14,7 +16,7 @@ internal static class Program
 
         try
         {
-            Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap.Initialize(0x00010006);
+            Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap.Initialize(WindowsAppSdkMajorMinor);
             AppLog.Info("Windows App Runtime bootstrap initialized.");
         }
         catch (BadImageFormatException ex)
@@ -34,6 +36,10 @@ internal static class Program
             AppLog.Error("Windows App SDK bootstrap failed.", ex);
         }
         catch (InvalidOperationException ex)
+        {
+            AppLog.Error("Windows App SDK bootstrap failed.", ex);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
         {
             AppLog.Error("Windows App SDK bootstrap failed.", ex);
         }
