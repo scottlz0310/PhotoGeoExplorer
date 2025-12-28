@@ -17,7 +17,7 @@ internal sealed class MainViewModel : BindableBase
     private string? _currentFolderPath;
     private string? _statusMessage;
     private Visibility _statusVisibility = Visibility.Collapsed;
-    private PhotoItem? _selectedItem;
+    private PhotoListItem? _selectedItem;
     private PhotoMetadata? _selectedMetadata;
     private BitmapImage? _selectedPreview;
     private Visibility _previewPlaceholderVisibility = Visibility.Visible;
@@ -29,11 +29,11 @@ internal sealed class MainViewModel : BindableBase
     public MainViewModel(FileSystemService fileSystemService)
     {
         _fileSystemService = fileSystemService ?? throw new ArgumentNullException(nameof(fileSystemService));
-        Items = new ObservableCollection<PhotoItem>();
+        Items = new ObservableCollection<PhotoListItem>();
         BreadcrumbItems = new ObservableCollection<BreadcrumbSegment>();
     }
 
-    public ObservableCollection<PhotoItem> Items { get; }
+    public ObservableCollection<PhotoListItem> Items { get; }
     public ObservableCollection<BreadcrumbSegment> BreadcrumbItems { get; }
 
     public string? CurrentFolderPath
@@ -66,7 +66,7 @@ internal sealed class MainViewModel : BindableBase
         set => SetProperty(ref _searchText, value);
     }
 
-    public PhotoItem? SelectedItem
+    public PhotoListItem? SelectedItem
     {
         get => _selectedItem;
         set
@@ -186,7 +186,7 @@ internal sealed class MainViewModel : BindableBase
             Items.Clear();
             foreach (var item in items)
             {
-                Items.Add(item);
+                Items.Add(CreateListItem(item));
             }
 
             SetStatus(Items.Count == 0 ? "No files found." : null);
@@ -213,7 +213,41 @@ internal sealed class MainViewModel : BindableBase
         }
     }
 
-    private void UpdatePreview(PhotoItem? item)
+    private static PhotoListItem CreateListItem(PhotoItem item)
+    {
+        var thumbnail = CreateThumbnailImage(item.ThumbnailPath);
+        return new PhotoListItem(item, thumbnail);
+    }
+
+    private static BitmapImage? CreateThumbnailImage(string? thumbnailPath)
+    {
+        if (string.IsNullOrWhiteSpace(thumbnailPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new BitmapImage(new Uri(thumbnailPath));
+        }
+        catch (ArgumentException ex)
+        {
+            AppLog.Error("Failed to load thumbnail image.", ex);
+            return null;
+        }
+        catch (IOException ex)
+        {
+            AppLog.Error("Failed to load thumbnail image.", ex);
+            return null;
+        }
+        catch (UriFormatException ex)
+        {
+            AppLog.Error("Failed to load thumbnail image.", ex);
+            return null;
+        }
+    }
+
+    private void UpdatePreview(PhotoListItem? item)
     {
         if (item is null)
         {
@@ -241,7 +275,7 @@ internal sealed class MainViewModel : BindableBase
         }
     }
 
-    private async Task LoadMetadataAsync(PhotoItem? item)
+    private async Task LoadMetadataAsync(PhotoListItem? item)
     {
         var previousCts = _metadataCts;
         _metadataCts = null;

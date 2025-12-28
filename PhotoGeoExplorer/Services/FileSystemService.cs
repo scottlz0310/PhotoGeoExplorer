@@ -51,7 +51,13 @@ internal sealed class FileSystemService
             }
 
             var info = new FileInfo(path);
-            items.Add(new PhotoItem(info.FullName, info.Length, info.LastWriteTime));
+            string? thumbnailPath = null;
+            if (IsImage(info.FullName))
+            {
+                thumbnailPath = ThumbnailService.GetOrCreateThumbnailPath(info.FullName, info.LastWriteTimeUtc);
+            }
+
+            items.Add(new PhotoItem(info.FullName, info.Length, info.LastWriteTime, thumbnailPath));
         }
 
         return items

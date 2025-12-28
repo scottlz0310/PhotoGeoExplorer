@@ -77,11 +77,20 @@
                         SelectionMode="Single">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Spacing="2">
-                                    <TextBlock Text="{Binding FileName}" />
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Opacity="0.7" Text="{Binding ModifiedAtText}" />
-                                        <TextBlock Opacity="0.7" Text="{Binding SizeText}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border
+                                        Width="72"
+                                        Height="72"
+                                        CornerRadius="6"
+                                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                                        <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                                    </Border>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding FileName}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Opacity="0.7" Text="{Binding ModifiedAtText}" />
+                                            <TextBlock Opacity="0.7" Text="{Binding SizeText}" />
+                                        </StackPanel>
                                     </StackPanel>
                                 </StackPanel>
                             </DataTemplate>
