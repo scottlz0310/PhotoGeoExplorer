@@ -1,0 +1,46 @@
+# GitHub Actions workflow for CI/CD pipeline
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: [Release]
+        platform: [x64]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "preview"
+
+      - name: Restore
+        run: dotnet restore PhotoGeoExplorer.sln
+
+      - name: Build
+        run: dotnet build PhotoGeoExplorer.sln -c ${{ matrix.configuration }} -p:Platform=${{ matrix.platform }} -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest
+
+      - name: Test
+        shell: pwsh
+        run: |
+          $testProjects = Get-ChildItem -Path . -Recurse -Include '*Test*.csproj','*Tests*.csproj' -File -ErrorAction SilentlyContinue
+          if (-not $testProjects) {
+            Write-Host "No test projects found, skipping tests."
+            exit 0
+          }
+          dotnet test PhotoGeoExplorer.sln -c ${{ matrix.configuration }} -p:Platform=${{ matrix.platform }} -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest
