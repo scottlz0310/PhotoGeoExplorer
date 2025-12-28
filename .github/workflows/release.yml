@@ -1,0 +1,63 @@
+# GitHub Actions workflow for release packaging
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "preview"
+
+      - name: Restore
+        run: dotnet restore PhotoGeoExplorer.sln
+
+      - name: Publish unsigned MSIX
+        run: >
+          dotnet publish PhotoGeoExplorer\PhotoGeoExplorer.csproj
+          -c Release
+          -r win-x64
+          -p:Platform=x64
+          -p:WindowsPackageType=MSIX
+          -p:AppxPackageSigningEnabled=false
+          -p:GenerateAppInstallerFile=false
+
+      - name: Collect installer artifacts
+        shell: pwsh
+        run: |
+          $patterns = @('*.msix', '*.msixbundle', '*.appx', '*.appxbundle', '*.appinstaller')
+          $packages = Get-ChildItem -Path PhotoGeoExplorer -Recurse -File -Include $patterns
+          if (-not $packages) {
+            Write-Error "No installer packages found."
+            exit 1
+          }
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          foreach ($package in $packages) {
+            Copy-Item $package.FullName -Destination artifacts -Force
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*

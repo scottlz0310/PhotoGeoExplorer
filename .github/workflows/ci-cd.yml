@@ -1,11 +1,10 @@
-# GitHub Actions workflow for CI/CD pipeline
+# GitHub Actions workflow for CI pipeline
 
-name: CI/CD Pipeline
+name: CI Pipeline
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
     branches: [main]
 
