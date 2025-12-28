@@ -10,6 +10,9 @@ using Microsoft.UI.Xaml.Input;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Text.Json;
 using Windows.Graphics;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -22,6 +25,7 @@ namespace PhotoGeoExplorer;
 public sealed partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
+    private bool _mapReady;
     private bool _mapInitialized;
     private WebView2? _mapWebView;
     private bool _windowSized;
@@ -33,6 +37,7 @@ public sealed partial class MainWindow : Window
         RootGrid.DataContext = _viewModel;
         AppLog.Info("MainWindow constructed.");
         Activated += OnActivated;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     private async void OnActivated(object sender, WindowActivatedEventArgs args)
@@ -47,6 +52,7 @@ public sealed partial class MainWindow : Window
         AppLog.Info("MainWindow activated.");
         await InitializeMapAsync().ConfigureAwait(true);
         await _viewModel.InitializeAsync().ConfigureAwait(true);
+        await UpdateMapFromSelectionAsync().ConfigureAwait(true);
     }
 
     private void EnsureWindowSize()
@@ -139,6 +145,108 @@ public sealed partial class MainWindow : Window
     {
         MapStatusText.Text = message;
         MapStatusText.Visibility = Visibility.Visible;
+    }
+
+    private async void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainViewModel.SelectedMetadata) or nameof(MainViewModel.SelectedItem))
+        {
+            await UpdateMapFromSelectionAsync().ConfigureAwait(true);
+        }
+    }
+
+    private async Task UpdateMapFromSelectionAsync()
+    {
+        if (_mapWebView is null)
+        {
+            return;
+        }
+
+        var selectedItem = _viewModel.SelectedItem;
+        if (selectedItem is null)
+        {
+            await SetMapMarkersAsync("[]").ConfigureAwait(true);
+            ShowMapStatus("Select a photo to show location.");
+            return;
+        }
+
+        var metadata = _viewModel.SelectedMetadata;
+        if (metadata?.HasLocation != true)
+        {
+            await SetMapMarkersAsync("[]").ConfigureAwait(true);
+            ShowMapStatus("Location data not found.");
+            return;
+        }
+
+        var markers = new[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["lat"] = metadata.Latitude,
+                ["lon"] = metadata.Longitude,
+                ["label"] = selectedItem.FileName
+            }
+        };
+        var json = JsonSerializer.Serialize(markers);
+        await SetMapMarkersAsync(json).ConfigureAwait(true);
+        MapStatusText.Visibility = Visibility.Collapsed;
+    }
+
+    private async Task SetMapMarkersAsync(string markersJson)
+    {
+        if (_mapWebView is null)
+        {
+            return;
+        }
+
+        if (!await EnsureMapReadyAsync().ConfigureAwait(true))
+        {
+            return;
+        }
+
+        var script = $"window.PhotoGeoExplorer?.setMarkers({markersJson});";
+        await _mapWebView.ExecuteScriptAsync(script).AsTask().ConfigureAwait(true);
+    }
+
+    private async Task<bool> EnsureMapReadyAsync()
+    {
+        if (_mapWebView is null)
+        {
+            return false;
+        }
+
+        if (_mapReady)
+        {
+            return true;
+        }
+
+        const int maxAttempts = 15;
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            try
+            {
+                var result = await _mapWebView
+                    .ExecuteScriptAsync("typeof window.PhotoGeoExplorer !== 'undefined'")
+                    .AsTask()
+                    .ConfigureAwait(true);
+
+                if (string.Equals(result, "true", StringComparison.OrdinalIgnoreCase))
+                {
+                    _mapReady = true;
+                    return true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+            }
+
+            await Task.Delay(100).ConfigureAwait(true);
+        }
+
+        return false;
     }
 
     private async void OnNavigateHomeClicked(object sender, RoutedEventArgs e)

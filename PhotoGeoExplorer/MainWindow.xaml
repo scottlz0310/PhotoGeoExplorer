@@ -109,7 +109,14 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Image Preview" FontSize="20" FontWeight="SemiBold" />
+                    <StackPanel Grid.Row="0" Spacing="2">
+                        <TextBlock Text="Image Preview" FontSize="20" FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="{Binding MetadataSummary}"
+                            Visibility="{Binding MetadataVisibility}"
+                            Opacity="0.7"
+                            FontSize="12" />
+                    </StackPanel>
                     <Border
                         Grid.Row="1"
                         Margin="0,8,0,0"

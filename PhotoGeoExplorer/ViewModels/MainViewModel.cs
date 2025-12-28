@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -12,14 +13,18 @@ namespace PhotoGeoExplorer.ViewModels;
 internal sealed class MainViewModel : BindableBase
 {
     private readonly FileSystemService _fileSystemService;
+    private CancellationTokenSource? _metadataCts;
     private string? _currentFolderPath;
     private string? _statusMessage;
     private Visibility _statusVisibility = Visibility.Collapsed;
     private PhotoItem? _selectedItem;
+    private PhotoMetadata? _selectedMetadata;
     private BitmapImage? _selectedPreview;
     private Visibility _previewPlaceholderVisibility = Visibility.Visible;
     private bool _showImagesOnly = true;
     private string? _searchText;
+    private string? _metadataSummary;
+    private Visibility _metadataVisibility = Visibility.Collapsed;
 
     public MainViewModel(FileSystemService fileSystemService)
     {
@@ -69,8 +74,15 @@ internal sealed class MainViewModel : BindableBase
             if (SetProperty(ref _selectedItem, value))
             {
                 UpdatePreview(value);
+                _ = LoadMetadataAsync(value);
             }
         }
+    }
+
+    public PhotoMetadata? SelectedMetadata
+    {
+        get => _selectedMetadata;
+        private set => SetProperty(ref _selectedMetadata, value);
     }
 
     public BitmapImage? SelectedPreview
@@ -83,6 +95,18 @@ internal sealed class MainViewModel : BindableBase
     {
         get => _previewPlaceholderVisibility;
         private set => SetProperty(ref _previewPlaceholderVisibility, value);
+    }
+
+    public string? MetadataSummary
+    {
+        get => _metadataSummary;
+        private set => SetProperty(ref _metadataSummary, value);
+    }
+
+    public Visibility MetadataVisibility
+    {
+        get => _metadataVisibility;
+        private set => SetProperty(ref _metadataVisibility, value);
     }
 
     public async Task InitializeAsync()
@@ -153,6 +177,8 @@ internal sealed class MainViewModel : BindableBase
             UpdateBreadcrumbs(folderPath);
             SetStatus(null);
             SelectedItem = null;
+            SelectedMetadata = null;
+            SetMetadataSummary(null, hasSelection: false);
 
             var items = await _fileSystemService
                 .GetPhotoItemsAsync(folderPath, ShowImagesOnly, SearchText)
@@ -215,6 +241,46 @@ internal sealed class MainViewModel : BindableBase
         }
     }
 
+    private async Task LoadMetadataAsync(PhotoItem? item)
+    {
+        var previousCts = _metadataCts;
+        _metadataCts = null;
+        if (previousCts is not null)
+        {
+            await previousCts.CancelAsync().ConfigureAwait(true);
+            previousCts.Dispose();
+        }
+
+        if (item is null)
+        {
+            SelectedMetadata = null;
+            SetMetadataSummary(null, hasSelection: false);
+            return;
+        }
+
+        SelectedMetadata = null;
+        MetadataSummary = "Loading metadata...";
+        MetadataVisibility = Visibility.Visible;
+
+        var cts = new CancellationTokenSource();
+        _metadataCts = cts;
+
+        try
+        {
+            var metadata = await ExifService.GetMetadataAsync(item.FilePath, cts.Token).ConfigureAwait(true);
+            if (cts.Token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            SelectedMetadata = metadata;
+            SetMetadataSummary(metadata, hasSelection: true);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
     private void UpdateBreadcrumbs(string folderPath)
     {
         BreadcrumbItems.Clear();
@@ -247,5 +313,46 @@ internal sealed class MainViewModel : BindableBase
     {
         StatusMessage = message;
         StatusVisibility = string.IsNullOrWhiteSpace(message) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void SetMetadataSummary(PhotoMetadata? metadata, bool hasSelection)
+    {
+        if (!hasSelection)
+        {
+            MetadataSummary = null;
+            MetadataVisibility = Visibility.Collapsed;
+            return;
+        }
+
+        if (metadata is null)
+        {
+            MetadataSummary = "Metadata not available.";
+            MetadataVisibility = Visibility.Visible;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(metadata.TakenAtText) && string.IsNullOrWhiteSpace(metadata.CameraSummary))
+        {
+            MetadataSummary = "Metadata not available.";
+            MetadataVisibility = Visibility.Visible;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(metadata.TakenAtText))
+        {
+            MetadataSummary = metadata.CameraSummary;
+            MetadataVisibility = Visibility.Visible;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(metadata.CameraSummary))
+        {
+            MetadataSummary = metadata.TakenAtText;
+            MetadataVisibility = Visibility.Visible;
+            return;
+        }
+
+        MetadataSummary = $"{metadata.TakenAtText} | {metadata.CameraSummary}";
+        MetadataVisibility = Visibility.Visible;
     }
 }
