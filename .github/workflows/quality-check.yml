@@ -27,11 +27,8 @@ jobs:
       - name: Restore
         run: dotnet restore PhotoGeoExplorer.sln
 
-      - name: Restore dotnet tools
-        run: dotnet tool restore
-
       - name: Format check
-        run: dotnet tool run dotnet-format --check PhotoGeoExplorer.sln
+        run: dotnet format --verify-no-changes PhotoGeoExplorer.sln
 
       - name: Build with analyzers
         run: dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64 -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest
