@@ -9,7 +9,6 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace PhotoGeoExplorer.E2E;
 
@@ -23,16 +22,9 @@ public sealed class AppE2ETests
         _output = output;
     }
 
-    [Fact]
+    [E2EFact]
     public async Task LaunchOpenFolderPreviewMetadataAndMap()
     {
-        if (!E2EEnvironment.IsEnabled)
-        {
-            var reason = "PHOTO_GEO_EXPLORER_RUN_E2E=1 が未設定のためスキップします。";
-            _output.WriteLine(reason);
-            throw SkipException.ForSkip(reason);
-        }
-
         E2ETestData? testData = null;
         try
         {
@@ -284,12 +276,4 @@ public sealed class AppE2ETests
         }
     }
 
-    private static class E2EEnvironment
-    {
-        public static bool IsEnabled
-            => string.Equals(
-                Environment.GetEnvironmentVariable("PHOTO_GEO_EXPLORER_RUN_E2E"),
-                "1",
-                StringComparison.OrdinalIgnoreCase);
-    }
 }
