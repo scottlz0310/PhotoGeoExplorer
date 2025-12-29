@@ -27,13 +27,13 @@ jobs:
       - name: Restore
         run: dotnet restore PhotoGeoExplorer.sln
 
-      - name: Publish unsigned MSIX
+      - name: Build unsigned MSIX
         run: >
-          dotnet publish PhotoGeoExplorer\PhotoGeoExplorer.csproj
+          dotnet build PhotoGeoExplorer\PhotoGeoExplorer.csproj
           -c Release
-          -r win-x64
           -p:Platform=x64
           -p:WindowsPackageType=MSIX
+          -p:GenerateAppxPackageOnBuild=true
           -p:AppxPackageSigningEnabled=false
           -p:GenerateAppInstallerFile=false
 
