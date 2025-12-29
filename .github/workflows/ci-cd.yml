@@ -85,14 +85,36 @@ jobs:
       - name: Restore
         run: dotnet restore PhotoGeoExplorer.sln
 
-      - name: Build MSIX
+      - name: Prepare signing certificate
+        shell: pwsh
+        run: |
+          if (-not "${{ secrets.MSIX_CERT_BASE64 }}") {
+            Write-Error "MSIX_CERT_BASE64 is not set."
+            exit 1
+          }
+          if (-not "${{ secrets.MSIX_CERT_PASSWORD }}") {
+            Write-Error "MSIX_CERT_PASSWORD is not set."
+            exit 1
+          }
+          $certPath = Join-Path $env:RUNNER_TEMP "PhotoGeoExplorer.pfx"
+          [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String("${{ secrets.MSIX_CERT_BASE64 }}"))
+          "MSIX_CERT_PATH=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $cerPath = Join-Path $env:RUNNER_TEMP "PhotoGeoExplorer.cer"
+          $pfx = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+          $pfx.Import($certPath, "${{ secrets.MSIX_CERT_PASSWORD }}", "Exportable,PersistKeySet")
+          [System.IO.File]::WriteAllBytes($cerPath, $pfx.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+          "MSIX_CER_PATH=$cerPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build signed MSIX
         run: >
           dotnet build PhotoGeoExplorer\PhotoGeoExplorer.csproj
           -c Release
           -p:Platform=x64
           -p:WindowsPackageType=MSIX
           -p:GenerateAppxPackageOnBuild=true
-          -p:AppxPackageSigningEnabled=false
+          -p:AppxPackageSigningEnabled=true
+          -p:PackageCertificateKeyFile="${{ env.MSIX_CERT_PATH }}"
+          -p:PackageCertificatePassword="${{ secrets.MSIX_CERT_PASSWORD }}"
           -p:GenerateAppInstallerFile=false
           -p:TreatWarningsAsErrors=true
           -p:AnalysisLevel=latest
@@ -109,6 +131,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           foreach ($package in $packages) {
             Copy-Item $package.FullName -Destination artifacts -Force
+          }
+          if ($env:MSIX_CER_PATH -and (Test-Path $env:MSIX_CER_PATH)) {
+            Copy-Item $env:MSIX_CER_PATH -Destination (Join-Path artifacts "PhotoGeoExplorer.cer") -Force
           }
 
       - name: Upload installer artifacts
