@@ -43,11 +43,12 @@ jobs:
           [System.IO.File]::WriteAllBytes($certPath, $certBytes)
           "MSIX_CERT_PATH=$certPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           $cerPath = Join-Path $env:RUNNER_TEMP "PhotoGeoExplorer.cer"
-          $pfx = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+          $flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable `
+            -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
+          $pfx = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
             $certBytes,
             "${{ secrets.MSIX_CERT_PASSWORD }}",
-            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable `
-              -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet)
+            $flags)
           [System.IO.File]::WriteAllBytes($cerPath, $pfx.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
           "MSIX_CER_PATH=$cerPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
