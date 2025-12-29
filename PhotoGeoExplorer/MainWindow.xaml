@@ -145,6 +145,9 @@
             </MenuBarItem>
             <MenuBarItem Title="Settings">
                 <MenuFlyoutItem Text="Reset filters" Click="OnResetFiltersClicked" IsEnabled="{Binding HasActiveFilters}" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="Export settings..." Click="OnExportSettingsClicked" />
+                <MenuFlyoutItem Text="Import settings..." Click="OnImportSettingsClicked" />
             </MenuBarItem>
             <MenuBarItem Title="Help">
                 <MenuFlyoutItem Text="About" Click="OnAboutClicked" />

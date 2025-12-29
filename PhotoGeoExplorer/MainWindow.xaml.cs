@@ -33,19 +33,21 @@ using WinRT.Interop;
 namespace PhotoGeoExplorer;
 
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
-public sealed partial class MainWindow : Window
+public sealed partial class MainWindow : Window, IDisposable
 {
     private const string InternalDragKey = "PhotoGeoExplorer.InternalDrag";
     private readonly MainViewModel _viewModel;
+    private readonly SettingsService _settingsService;
     private bool _layoutStored;
     private bool _mapInitialized;
     private Map? _map;
-    private ILayer? _baseTileLayer;
+    private Mapsui.Tiling.Layers.TileLayer? _baseTileLayer;
     private MemoryLayer? _markerLayer;
     private bool _previewFitToWindow = true;
     private bool _previewMaximized;
     private bool _windowSized;
     private CancellationTokenSource? _mapUpdateCts;
+    private CancellationTokenSource? _settingsCts;
     private GridLength _storedDetailWidth;
     private GridLength _storedFileBrowserWidth;
     private GridLength _storedMapRowHeight;
@@ -56,14 +58,17 @@ public sealed partial class MainWindow : Window
     private double _previewStartHorizontalOffset;
     private double _previewStartVerticalOffset;
     private List<PhotoListItem>? _dragItems;
+    private bool _isApplyingSettings;
 
     public MainWindow()
     {
         InitializeComponent();
         _viewModel = new MainViewModel(new FileSystemService());
+        _settingsService = new SettingsService();
         RootGrid.DataContext = _viewModel;
         AppLog.Info("MainWindow constructed.");
         Activated += OnActivated;
+        Closed += OnClosed;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
@@ -78,6 +83,7 @@ public sealed partial class MainWindow : Window
         _mapInitialized = true;
         AppLog.Info("MainWindow activated.");
         await InitializeMapAsync().ConfigureAwait(true);
+        await LoadSettingsAsync().ConfigureAwait(true);
         await _viewModel.InitializeAsync().ConfigureAwait(true);
         await UpdateMapFromSelectionAsync().ConfigureAwait(true);
     }
@@ -170,6 +176,85 @@ public sealed partial class MainWindow : Window
         return Task.CompletedTask;
     }
 
+    private async Task LoadSettingsAsync()
+    {
+        _isApplyingSettings = true;
+        try
+        {
+            var settings = await _settingsService.LoadAsync().ConfigureAwait(true);
+            await ApplySettingsAsync(settings).ConfigureAwait(true);
+        }
+        finally
+        {
+            _isApplyingSettings = false;
+        }
+    }
+
+    private async Task ApplySettingsAsync(AppSettings settings)
+    {
+        if (settings is null)
+        {
+            return;
+        }
+
+        _viewModel.ShowImagesOnly = settings.ShowImagesOnly;
+        _viewModel.FileViewMode = Enum.IsDefined<FileViewMode>(settings.FileViewMode)
+            ? settings.FileViewMode
+            : FileViewMode.Details;
+
+        if (!string.IsNullOrWhiteSpace(settings.LastFolderPath)
+            && Directory.Exists(settings.LastFolderPath))
+        {
+            await _viewModel.LoadFolderAsync(settings.LastFolderPath).ConfigureAwait(true);
+        }
+    }
+
+    private void ScheduleSettingsSave()
+    {
+        if (_isApplyingSettings)
+        {
+            return;
+        }
+
+        var previous = _settingsCts;
+        _settingsCts = new CancellationTokenSource();
+        previous?.Cancel();
+        previous?.Dispose();
+
+        var token = _settingsCts.Token;
+        _ = SaveSettingsDelayedAsync(token);
+    }
+
+    private async Task SaveSettingsDelayedAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(300, token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        await SaveSettingsAsync().ConfigureAwait(true);
+    }
+
+    private Task SaveSettingsAsync()
+    {
+        var settings = BuildSettingsSnapshot();
+        return _settingsService.SaveAsync(settings);
+    }
+
+    private AppSettings BuildSettingsSnapshot()
+    {
+        return new AppSettings
+        {
+            LastFolderPath = _viewModel.CurrentFolderPath,
+            ShowImagesOnly = _viewModel.ShowImagesOnly,
+            FileViewMode = _viewModel.FileViewMode
+        };
+    }
+
     private void ShowMapStatus(string title, string? description, Symbol symbol)
     {
         MapStatusTitle.Text = title;
@@ -191,6 +276,13 @@ public sealed partial class MainWindow : Window
         if (e.PropertyName is nameof(MainViewModel.SelectedMetadata) or nameof(MainViewModel.SelectedItem))
         {
             await UpdateMapFromSelectionAsync().ConfigureAwait(true);
+        }
+
+        if (e.PropertyName is nameof(MainViewModel.ShowImagesOnly)
+            or nameof(MainViewModel.FileViewMode)
+            or nameof(MainViewModel.CurrentFolderPath))
+        {
+            ScheduleSettingsSave();
         }
     }
 
@@ -702,6 +794,101 @@ public sealed partial class MainWindow : Window
         await _viewModel.RefreshAsync().ConfigureAwait(true);
     }
 
+    private async void OnExportSettingsClicked(object sender, RoutedEventArgs e)
+    {
+        var file = await PickSettingsSaveFileAsync().ConfigureAwait(true);
+        if (file is null)
+        {
+            return;
+        }
+
+        var settings = BuildSettingsSnapshot();
+        await SettingsService.ExportAsync(settings, file.Path).ConfigureAwait(true);
+    }
+
+    private async void OnImportSettingsClicked(object sender, RoutedEventArgs e)
+    {
+        var file = await PickSettingsFileAsync().ConfigureAwait(true);
+        if (file is null)
+        {
+            return;
+        }
+
+        var settings = await SettingsService.ImportAsync(file.Path).ConfigureAwait(true);
+        if (settings is null)
+        {
+            await ShowMessageDialogAsync(
+                "Import failed",
+                "Unable to read the settings file.").ConfigureAwait(true);
+            return;
+        }
+
+        _isApplyingSettings = true;
+        try
+        {
+            await ApplySettingsAsync(settings).ConfigureAwait(true);
+        }
+        finally
+        {
+            _isApplyingSettings = false;
+        }
+
+        await _settingsService.SaveAsync(settings).ConfigureAwait(true);
+    }
+
+    private async Task<StorageFile?> PickSettingsFileAsync()
+    {
+        var picker = new FileOpenPicker();
+        picker.FileTypeFilter.Add(".json");
+        picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+
+        var hwnd = WindowNative.GetWindowHandle(this);
+        InitializeWithWindow.Initialize(picker, hwnd);
+
+        try
+        {
+            return await picker.PickSingleFileAsync().AsTask().ConfigureAwait(true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            AppLog.Error("Settings import picker failed.", ex);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("Settings import picker failed.", ex);
+        }
+
+        return null;
+    }
+
+    private async Task<StorageFile?> PickSettingsSaveFileAsync()
+    {
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            SuggestedFileName = "PhotoGeoExplorer.settings"
+        };
+        picker.FileTypeChoices.Add("JSON", new List<string> { ".json" });
+
+        var hwnd = WindowNative.GetWindowHandle(this);
+        InitializeWithWindow.Initialize(picker, hwnd);
+
+        try
+        {
+            return await picker.PickSaveFileAsync().AsTask().ConfigureAwait(true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            AppLog.Error("Settings export picker failed.", ex);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("Settings export picker failed.", ex);
+        }
+
+        return null;
+    }
+
     private async void OnToggleImagesOnlyClicked(object sender, RoutedEventArgs e)
     {
         _viewModel.ShowImagesOnly = !_viewModel.ShowImagesOnly;
@@ -724,6 +911,33 @@ public sealed partial class MainWindow : Window
     private void OnExitClicked(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private void OnClosed(object sender, WindowEventArgs args)
+    {
+        Dispose();
+    }
+
+    public void Dispose()
+    {
+        _markerLayer?.Dispose();
+        _markerLayer = null;
+
+        _baseTileLayer?.Dispose();
+        _baseTileLayer = null;
+
+        _map?.Dispose();
+        _map = null;
+
+        _settingsCts?.Cancel();
+        _settingsCts?.Dispose();
+        _settingsCts = null;
+
+        _mapUpdateCts?.Cancel();
+        _mapUpdateCts?.Dispose();
+        _mapUpdateCts = null;
+
+        GC.SuppressFinalize(this);
     }
 
     private async void OnAboutClicked(object sender, RoutedEventArgs e)
