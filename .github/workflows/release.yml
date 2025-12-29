@@ -18,6 +18,41 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate release version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if (-not $tag.StartsWith("v")) {
+            Write-Error "Tag must start with 'v' (example: v1.0.0)."
+            exit 1
+          }
+          $version = $tag.TrimStart("v")
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            Write-Error "Tag version is empty."
+            exit 1
+          }
+
+          [xml]$wix = Get-Content -Path "PhotoGeoExplorer.Installer/PhotoGeoExplorer.Installer.wixproj" -Raw
+          $productVersion = ($wix.Project.PropertyGroup.ProductVersion | Select-Object -First 1).Trim()
+          if ($productVersion -ne $version) {
+            Write-Error "Installer ProductVersion ($productVersion) must match tag ($version)."
+            exit 1
+          }
+
+          [xml]$manifest = Get-Content -Path "PhotoGeoExplorer/Package.appxmanifest" -Raw
+          $manifestVersion = $manifest.Package.Identity.Version
+          $expectedManifest = "$version.0"
+          if ($manifestVersion -ne $expectedManifest) {
+            Write-Error "Appxmanifest Version ($manifestVersion) must match $expectedManifest."
+            exit 1
+          }
+
+          $changelog = Get-Content -Path "CHANGELOG.md"
+          if (-not ($changelog | Select-String -SimpleMatch "## [$version]")) {
+            Write-Error "CHANGELOG.md must include a section for [$version]."
+            exit 1
+          }
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:

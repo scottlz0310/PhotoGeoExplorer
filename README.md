@@ -67,6 +67,7 @@ lefthook install
 ## リリース成果物
 
 タグの push (例: `v0.1.0`) を契機に、`win-x64` 向けの MSI インストーラーを作成します。
+リリース作業のチェックリストは `docs/ReleaseChecklist.md` を参照してください。
 
 ## Microsoft Store (将来)
 
