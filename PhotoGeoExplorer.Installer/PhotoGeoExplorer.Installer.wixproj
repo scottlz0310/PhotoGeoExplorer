@@ -11,7 +11,6 @@
     <PublishDir>$(MSBuildProjectDirectory)\..\PhotoGeoExplorer\bin\$(Platform)\$(Configuration)\net10.0-windows10.0.19041.0\$(RuntimeIdentifier)\publish\</PublishDir>
     <DefineConstants>$(DefineConstants);ProductVersion=$(ProductVersion);UpgradeCode=$(UpgradeCode);PublishDir=$(PublishDir)</DefineConstants>
     <HarvestDirectoryPreprocessorVariable>var.PublishDir</HarvestDirectoryPreprocessorVariable>
-    <HarvestDirectoryDependsOn>PublishApp;$(HarvestDirectoryDependsOn)</HarvestDirectoryDependsOn>
     <AppProject>..\PhotoGeoExplorer\PhotoGeoExplorer.csproj</AppProject>
     <HarvestDirectoryTreatWarningsAsErrors>false</HarvestDirectoryTreatWarningsAsErrors>
     <HarvestDirectorySuppressSpecificWarnings>5151</HarvestDirectorySuppressSpecificWarnings>
@@ -35,7 +34,7 @@
     <BindPath Include="$(PublishDir)" />
   </ItemGroup>
 
-  <Target Name="PublishApp">
+  <Target Name="PublishApp" BeforeTargets="HarvestDirectory">
     <Exec Command='dotnet publish "$(AppProject)" -c $(Configuration) -r $(RuntimeIdentifier) -p:Platform=$(Platform) -p:WindowsPackageType=None -p:SelfContained=false -p:PublishDir="$(PublishDir)"' />
   </Target>
 </Project>
