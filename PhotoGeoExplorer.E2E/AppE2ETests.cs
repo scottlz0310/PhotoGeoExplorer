@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
@@ -12,6 +13,7 @@ using Xunit.Sdk;
 
 namespace PhotoGeoExplorer.E2E;
 
+[SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public sealed class AppE2ETests
 {
     private readonly ITestOutputHelper _output;
