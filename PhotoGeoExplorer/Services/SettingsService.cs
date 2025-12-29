@@ -19,11 +19,21 @@ internal sealed class SettingsService
     private readonly string _settingsPath;
 
     public SettingsService()
-    {
-        _settingsPath = Path.Combine(
+        : this(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "PhotoGeoExplorer",
-            "settings.json");
+            "settings.json"))
+    {
+    }
+
+    internal SettingsService(string settingsPath)
+    {
+        if (string.IsNullOrWhiteSpace(settingsPath))
+        {
+            throw new ArgumentException("Settings path is required.", nameof(settingsPath));
+        }
+
+        _settingsPath = settingsPath;
     }
 
     public async Task<AppSettings> LoadAsync()

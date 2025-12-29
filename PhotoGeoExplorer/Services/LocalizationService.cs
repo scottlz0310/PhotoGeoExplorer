@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Windows.ApplicationModel.Resources;
 
@@ -6,7 +7,7 @@ namespace PhotoGeoExplorer.Services;
 
 internal static class LocalizationService
 {
-    private static readonly ResourceLoader Loader = new();
+    private static readonly Lazy<ResourceLoader?> Loader = new(CreateLoader);
 
     public static string GetString(string key)
     {
@@ -18,7 +19,13 @@ internal static class LocalizationService
         var normalizedKey = NormalizeKey(key);
         try
         {
-            var value = Loader.GetString(normalizedKey);
+            var loader = Loader.Value;
+            if (loader is null)
+            {
+                return key;
+            }
+
+            var value = loader.GetString(normalizedKey);
             return string.IsNullOrWhiteSpace(value) ? key : value;
         }
         catch (COMException)
@@ -36,5 +43,21 @@ internal static class LocalizationService
     private static string NormalizeKey(string key)
     {
         return key.Replace('.', '/');
+    }
+
+    private static ResourceLoader? CreateLoader()
+    {
+        try
+        {
+            return new ResourceLoader();
+        }
+        catch (COMException)
+        {
+            return null;
+        }
+        catch (FileNotFoundException)
+        {
+            return null;
+        }
     }
 }
