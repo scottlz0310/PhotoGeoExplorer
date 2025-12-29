@@ -696,6 +696,44 @@ public sealed partial class MainWindow : Window
         await OpenFolderPickerAsync().ConfigureAwait(true);
     }
 
+    private async void OnResetFiltersClicked(object sender, RoutedEventArgs e)
+    {
+        _viewModel.ResetFilters();
+        await _viewModel.RefreshAsync().ConfigureAwait(true);
+    }
+
+    private async void OnToggleImagesOnlyClicked(object sender, RoutedEventArgs e)
+    {
+        _viewModel.ShowImagesOnly = !_viewModel.ShowImagesOnly;
+        await _viewModel.RefreshAsync().ConfigureAwait(true);
+    }
+
+    private void OnViewModeMenuClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuFlyoutItem item || item.Tag is not string tag)
+        {
+            return;
+        }
+
+        if (Enum.TryParse(tag, out FileViewMode mode))
+        {
+            _viewModel.FileViewMode = mode;
+        }
+    }
+
+    private void OnExitClicked(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private async void OnAboutClicked(object sender, RoutedEventArgs e)
+    {
+        var version = typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown";
+        await ShowMessageDialogAsync(
+            "About",
+            $"PhotoGeoExplorer\nVersion {version}").ConfigureAwait(true);
+    }
+
     private async Task OpenFolderPickerAsync()
     {
         var folder = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);

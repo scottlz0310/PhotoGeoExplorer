@@ -121,6 +121,9 @@ internal sealed class MainViewModel : BindableBase
                 OnPropertyChanged(nameof(IconViewVisibility));
                 OnPropertyChanged(nameof(ListViewVisibility));
                 OnPropertyChanged(nameof(DetailsViewVisibility));
+                OnPropertyChanged(nameof(IsIconView));
+                OnPropertyChanged(nameof(IsListView));
+                OnPropertyChanged(nameof(IsDetailsView));
             }
         }
     }
@@ -142,6 +145,41 @@ internal sealed class MainViewModel : BindableBase
     public Visibility IconViewVisibility => _fileViewMode == FileViewMode.Icon ? Visibility.Visible : Visibility.Collapsed;
     public Visibility ListViewVisibility => _fileViewMode == FileViewMode.List ? Visibility.Visible : Visibility.Collapsed;
     public Visibility DetailsViewVisibility => _fileViewMode == FileViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
+    public bool IsIconView
+    {
+        get => _fileViewMode == FileViewMode.Icon;
+        set
+        {
+            if (value)
+            {
+                FileViewMode = FileViewMode.Icon;
+            }
+        }
+    }
+
+    public bool IsListView
+    {
+        get => _fileViewMode == FileViewMode.List;
+        set
+        {
+            if (value)
+            {
+                FileViewMode = FileViewMode.List;
+            }
+        }
+    }
+
+    public bool IsDetailsView
+    {
+        get => _fileViewMode == FileViewMode.Details;
+        set
+        {
+            if (value)
+            {
+                FileViewMode = FileViewMode.Details;
+            }
+        }
+    }
 
     public string? StatusTitle
     {

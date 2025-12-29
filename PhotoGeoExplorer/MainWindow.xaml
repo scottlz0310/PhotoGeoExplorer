@@ -121,10 +121,34 @@
         </Grid.RowDefinitions>
 
         <MenuBar>
-            <MenuBarItem Title="File" />
-            <MenuBarItem Title="View" />
-            <MenuBarItem Title="Settings" />
-            <MenuBarItem Title="Help" />
+            <MenuBarItem Title="File">
+                <MenuFlyoutItem Text="Open folder..." Click="OnOpenFolderClicked" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="New folder" Click="OnCreateFolderClicked" IsEnabled="{Binding CanCreateFolder}" />
+                <MenuFlyoutItem Text="Rename" Click="OnRenameClicked" IsEnabled="{Binding CanRenameSelection}" />
+                <MenuFlyoutItem Text="Move..." Click="OnMoveClicked" IsEnabled="{Binding CanModifySelection}" />
+                <MenuFlyoutItem Text="Move to parent" Click="OnMoveToParentClicked" IsEnabled="{Binding CanMoveToParentSelection}" />
+                <MenuFlyoutItem Text="Delete" Click="OnDeleteClicked" IsEnabled="{Binding CanModifySelection}" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="Refresh" Click="OnRefreshClicked" IsEnabled="{Binding CanCreateFolder}" />
+                <MenuFlyoutItem Text="Go home" Click="OnNavigateHomeClicked" />
+                <MenuFlyoutItem Text="Go up" Click="OnNavigateUpClicked" IsEnabled="{Binding CanCreateFolder}" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="Exit" Click="OnExitClicked" />
+            </MenuBarItem>
+            <MenuBarItem Title="View">
+                <MenuFlyoutItem Text="Icon" Tag="Icon" Click="OnViewModeMenuClicked" />
+                <MenuFlyoutItem Text="List" Tag="List" Click="OnViewModeMenuClicked" />
+                <MenuFlyoutItem Text="Details" Tag="Details" Click="OnViewModeMenuClicked" />
+                <MenuFlyoutSeparator />
+                <MenuFlyoutItem Text="Show images only" Click="OnToggleImagesOnlyClicked" />
+            </MenuBarItem>
+            <MenuBarItem Title="Settings">
+                <MenuFlyoutItem Text="Reset filters" Click="OnResetFiltersClicked" IsEnabled="{Binding HasActiveFilters}" />
+            </MenuBarItem>
+            <MenuBarItem Title="Help">
+                <MenuFlyoutItem Text="About" Click="OnAboutClicked" />
+            </MenuBarItem>
         </MenuBar>
 
         <Grid x:Name="MainContentGrid" Grid.Row="1">
