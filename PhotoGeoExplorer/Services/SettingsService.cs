@@ -46,6 +46,54 @@ internal sealed class SettingsService
         }
     }
 
+    public string? LoadLanguageOverride()
+    {
+        try
+        {
+            if (!File.Exists(_settingsPath))
+            {
+                return null;
+            }
+
+            var json = File.ReadAllText(_settingsPath);
+            var settings = JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions);
+            return NormalizeLanguageTag(settings?.Language);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            AppLog.Error("Failed to load language override.", ex);
+            return null;
+        }
+    }
+
+    private static string? NormalizeLanguageTag(string? languageTag)
+    {
+        if (string.IsNullOrWhiteSpace(languageTag))
+        {
+            return null;
+        }
+
+        var trimmed = languageTag.Trim();
+        if (string.Equals(trimmed, "system", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (string.Equals(trimmed, "ja", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "ja-jp", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ja-JP";
+        }
+
+        if (string.Equals(trimmed, "en", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "en-us", StringComparison.OrdinalIgnoreCase))
+        {
+            return "en-US";
+        }
+
+        return trimmed;
+    }
+
     public Task SaveAsync(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);

@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.UI.Xaml;
+using PhotoGeoExplorer.Services;
 
 namespace PhotoGeoExplorer;
 
@@ -9,5 +10,6 @@ public sealed partial class SplashWindow : Window
     public SplashWindow()
     {
         InitializeComponent();
+        Title = LocalizationService.GetString("SplashWindow.Title");
     }
 }

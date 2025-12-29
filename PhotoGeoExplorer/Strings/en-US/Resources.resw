@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="MainWindow.Title" xml:space="preserve">
+    <value>PhotoGeoExplorer</value>
+  </data>
+  <data name="SplashWindow.Title" xml:space="preserve">
+    <value>PhotoGeoExplorer</value>
+  </data>
+  <data name="SplashTitle.Text" xml:space="preserve">
+    <value>PhotoGeoExplorer</value>
+  </data>
+  <data name="SplashLoading.Text" xml:space="preserve">
+    <value>Loading...</value>
+  </data>
+  <data name="MenuFile.Title" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="MenuFileOpenFolder.Text" xml:space="preserve">
+    <value>Open folder...</value>
+  </data>
+  <data name="MenuFileNewFolder.Text" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="MenuFileRename.Text" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="MenuFileMove.Text" xml:space="preserve">
+    <value>Move...</value>
+  </data>
+  <data name="MenuFileMoveToParent.Text" xml:space="preserve">
+    <value>Move to parent</value>
+  </data>
+  <data name="MenuFileDelete.Text" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="MenuFileRefresh.Text" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="MenuFileGoHome.Text" xml:space="preserve">
+    <value>Go home</value>
+  </data>
+  <data name="MenuFileGoUp.Text" xml:space="preserve">
+    <value>Go up</value>
+  </data>
+  <data name="MenuFileExit.Text" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="MenuView.Title" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="MenuViewIcon.Text" xml:space="preserve">
+    <value>Icon</value>
+  </data>
+  <data name="MenuViewList.Text" xml:space="preserve">
+    <value>List</value>
+  </data>
+  <data name="MenuViewDetails.Text" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="MenuViewImagesOnly.Text" xml:space="preserve">
+    <value>Show images only</value>
+  </data>
+  <data name="MenuSettings.Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="MenuSettingsResetFilters.Text" xml:space="preserve">
+    <value>Reset filters</value>
+  </data>
+  <data name="MenuSettingsLanguage.Text" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="MenuSettingsLanguageSystem.Text" xml:space="preserve">
+    <value>System default</value>
+  </data>
+  <data name="MenuSettingsLanguageJapanese.Text" xml:space="preserve">
+    <value>Japanese</value>
+  </data>
+  <data name="MenuSettingsLanguageEnglish.Text" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="MenuSettingsExport.Text" xml:space="preserve">
+    <value>Export settings...</value>
+  </data>
+  <data name="MenuSettingsImport.Text" xml:space="preserve">
+    <value>Import settings...</value>
+  </data>
+  <data name="MenuHelp.Title" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="MenuHelpAbout.Text" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="FileBrowserHeader.Text" xml:space="preserve">
+    <value>File Browser</value>
+  </data>
+  <data name="FileCommandBack.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="FileCommandForward.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Forward</value>
+  </data>
+  <data name="FileCommandUp.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Up</value>
+  </data>
+  <data name="FileCommandRefresh.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="FileCommandHome.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="FileCommandNewFolder.Label" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="FileCommandNewFolder.ToolTipService.ToolTip" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="FileCommandRename.Label" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="FileCommandRename.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="FileCommandMove.Label" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="FileCommandMove.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="FileCommandDelete.Label" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="FileCommandDelete.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="SearchTextBox.PlaceholderText" xml:space="preserve">
+    <value>Search files...</value>
+  </data>
+  <data name="FiltersButton.Content" xml:space="preserve">
+    <value>Filters</value>
+  </data>
+  <data name="OpenFolderButton.Content" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="ViewModeCombo.ToolTipService.ToolTip" xml:space="preserve">
+    <value>View mode</value>
+  </data>
+  <data name="ViewModeIconItem.Content" xml:space="preserve">
+    <value>Icon</value>
+  </data>
+  <data name="ViewModeListItem.Content" xml:space="preserve">
+    <value>List</value>
+  </data>
+  <data name="ViewModeDetailsItem.Content" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="ShowImagesOnlyCheckBox.Content" xml:space="preserve">
+    <value>Show images only</value>
+  </data>
+  <data name="DetailsHeaderNameText.Text" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="DetailsHeaderModifiedText.Text" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="DetailsHeaderResolutionText.Text" xml:space="preserve">
+    <value>Resolution</value>
+  </data>
+  <data name="DetailsHeaderSizeText.Text" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="PreviewHeader.Text" xml:space="preserve">
+    <value>Image Preview</value>
+  </data>
+  <data name="PreviewFitButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Fit to window</value>
+  </data>
+  <data name="PreviewZoomInButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="PreviewZoomOutButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="PreviewMaximizeButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Maximize</value>
+  </data>
+  <data name="PreviewPreviousButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Previous photo</value>
+  </data>
+  <data name="PreviewNextButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Next photo</value>
+  </data>
+  <data name="PreviewPlaceholder.Text" xml:space="preserve">
+    <value>Select a photo to preview.</value>
+  </data>
+  <data name="MapHeader.Text" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="Message.PicturesFolderNotFound" xml:space="preserve">
+    <value>Pictures folder not found.</value>
+  </data>
+  <data name="Message.FolderPathEmpty" xml:space="preserve">
+    <value>Folder path is empty.</value>
+  </data>
+  <data name="Message.FolderNotFound" xml:space="preserve">
+    <value>Folder not found.</value>
+  </data>
+  <data name="Message.NoFilesFound" xml:space="preserve">
+    <value>No files found.</value>
+  </data>
+  <data name="Message.AccessDeniedSeeLog" xml:space="preserve">
+    <value>Access denied. See the log for details.</value>
+  </data>
+  <data name="Message.FolderNotFoundSeeLog" xml:space="preserve">
+    <value>Folder not found. See the log for details.</value>
+  </data>
+  <data name="Message.FolderPathTooLongSeeLog" xml:space="preserve">
+    <value>Folder path is too long. See the log for details.</value>
+  </data>
+  <data name="Message.FailedReadFolderSeeLog" xml:space="preserve">
+    <value>Failed to read folder. See the log for details.</value>
+  </data>
+  <data name="Message.MetadataLoading" xml:space="preserve">
+    <value>Loading metadata...</value>
+  </data>
+  <data name="Message.MetadataNotAvailable" xml:space="preserve">
+    <value>Metadata not available.</value>
+  </data>
+  <data name="Overlay.NoFilesFoundTitle" xml:space="preserve">
+    <value>No files found</value>
+  </data>
+  <data name="Overlay.NoFilesFoundDetail" xml:space="preserve">
+    <value>Try another folder or change filters.</value>
+  </data>
+  <data name="Overlay.NoFilesFoundDetailWithFilters" xml:space="preserve">
+    <value>No matching files. Adjust or reset filters.</value>
+  </data>
+  <data name="Overlay.LoadFolderErrorTitle" xml:space="preserve">
+    <value>Folder load failed</value>
+  </data>
+  <data name="Action.OpenFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="Action.GoHome" xml:space="preserve">
+    <value>Go home</value>
+  </data>
+  <data name="Action.ResetFilters" xml:space="preserve">
+    <value>Reset filters</value>
+  </data>
+  <data name="StatusBar.NoFolderSelected" xml:space="preserve">
+    <value>No folder selected</value>
+  </data>
+  <data name="StatusBar.Selected" xml:space="preserve">
+    <value>Selected: {0}</value>
+  </data>
+  <data name="StatusBar.Items" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="StatusBar.GpsAvailable" xml:space="preserve">
+    <value>GPS location available</value>
+  </data>
+  <data name="StatusBar.GpsMissing" xml:space="preserve">
+    <value>GPS location missing</value>
+  </data>
+  <data name="MapStatus.ControlMissingTitle" xml:space="preserve">
+    <value>Map control unavailable</value>
+  </data>
+  <data name="MapStatus.InitFailedTitle" xml:space="preserve">
+    <value>Map initialization failed</value>
+  </data>
+  <data name="MapStatus.SeeLogDetail" xml:space="preserve">
+    <value>See the log for details.</value>
+  </data>
+  <data name="MapStatus.SelectPhotoTitle" xml:space="preserve">
+    <value>Select a photo</value>
+  </data>
+  <data name="MapStatus.SelectPhotoDetail" xml:space="preserve">
+    <value>Select a photo to show its location on the map.</value>
+  </data>
+  <data name="MapStatus.LocationMissingTitle" xml:space="preserve">
+    <value>Location not available</value>
+  </data>
+  <data name="MapStatus.LocationMissingDetail" xml:space="preserve">
+    <value>This photo has no location data.</value>
+  </data>
+  <data name="MapStatus.LocationMissingSelectionDetail" xml:space="preserve">
+    <value>No selected photos have location data.</value>
+  </data>
+  <data name="Dialog.ImportFailed.Title" xml:space="preserve">
+    <value>Import failed</value>
+  </data>
+  <data name="Dialog.ImportFailed.Detail" xml:space="preserve">
+    <value>Failed to import settings. See the log for details.</value>
+  </data>
+  <data name="Dialog.About.Title" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="Dialog.About.Detail" xml:space="preserve">
+    <value>PhotoGeoExplorer {0} - Photo viewer and map explorer.</value>
+  </data>
+  <data name="Dialog.LanguageChanged.Title" xml:space="preserve">
+    <value>Language updated</value>
+  </data>
+  <data name="Dialog.LanguageChanged.Detail" xml:space="preserve">
+    <value>Restart the app to apply the new language.</value>
+  </data>
+  <data name="Dialog.NewFolder.Title" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="Dialog.NewFolder.Primary" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Dialog.NewFolder.DefaultName" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="Dialog.NewFolder.Placeholder" xml:space="preserve">
+    <value>Folder name</value>
+  </data>
+  <data name="Dialog.InvalidName.Title" xml:space="preserve">
+    <value>Invalid name</value>
+  </data>
+  <data name="Dialog.InvalidName.Detail" xml:space="preserve">
+    <value>The name contains invalid characters.</value>
+  </data>
+  <data name="Dialog.AlreadyExists.Title" xml:space="preserve">
+    <value>Already exists</value>
+  </data>
+  <data name="Dialog.AlreadyExists.Detail" xml:space="preserve">
+    <value>An item with the same name already exists.</value>
+  </data>
+  <data name="Dialog.CreateFolderFailed.Title" xml:space="preserve">
+    <value>Failed to create folder</value>
+  </data>
+  <data name="Dialog.SeeLogDetail" xml:space="preserve">
+    <value>See the log for details.</value>
+  </data>
+  <data name="Dialog.RenameNotAvailable.Title" xml:space="preserve">
+    <value>Rename not available</value>
+  </data>
+  <data name="Dialog.RenameNotAvailable.Detail" xml:space="preserve">
+    <value>This item cannot be renamed.</value>
+  </data>
+  <data name="Dialog.Rename.Title" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="Dialog.Rename.Primary" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="Dialog.Rename.Placeholder" xml:space="preserve">
+    <value>New name</value>
+  </data>
+  <data name="Dialog.RenameFailed.Title" xml:space="preserve">
+    <value>Rename failed</value>
+  </data>
+  <data name="Dialog.DeleteConfirm.Multiple" xml:space="preserve">
+    <value>Delete {0} items?</value>
+  </data>
+  <data name="Dialog.DeleteConfirm.Title" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Dialog.DeleteConfirm.Folder" xml:space="preserve">
+    <value>Delete folder "{0}"?</value>
+  </data>
+  <data name="Dialog.DeleteConfirm.File" xml:space="preserve">
+    <value>Delete file "{0}"?</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Common.Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common.Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Menu.NewFolder" xml:space="preserve">
+    <value>New folder</value>
+  </data>
+  <data name="Menu.Rename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="Menu.Move" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="Menu.MoveToParent" xml:space="preserve">
+    <value>Move to parent</value>
+  </data>
+  <data name="Menu.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Dialog.MoveFailed.Title" xml:space="preserve">
+    <value>Move failed</value>
+  </data>
+  <data name="Dialog.MoveIntoSelf.Detail" xml:space="preserve">
+    <value>You cannot move a folder into itself.</value>
+  </data>
+  <data name="Dialog.AlreadyExistsDestination.Detail" xml:space="preserve">
+    <value>An item with the same name already exists in the destination.</value>
+  </data>
+  <data name="Dialog.DeleteNotAvailable.Title" xml:space="preserve">
+    <value>Delete not available</value>
+  </data>
+  <data name="Dialog.DeleteNotAvailable.Detail" xml:space="preserve">
+    <value>This item cannot be deleted.</value>
+  </data>
+  <data name="Dialog.DeleteFailed.Title" xml:space="preserve">
+    <value>Delete failed</value>
+  </data>
+</root>

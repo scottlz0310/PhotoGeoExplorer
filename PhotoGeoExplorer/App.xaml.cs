@@ -1,7 +1,9 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
+using Microsoft.Windows.Globalization;
 using Microsoft.UI.Xaml;
+using PhotoGeoExplorer.Services;
 
 namespace PhotoGeoExplorer;
 
@@ -23,6 +25,7 @@ public partial class App : Application
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
         AppLog.Info("App launched.");
+        ApplyLanguageOverrideFromSettings();
         _splashWindow = new SplashWindow();
         _splashWindow.Activate();
 
@@ -60,5 +63,28 @@ public partial class App : Application
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
         AppLog.Error("Unobserved task exception.", e.Exception);
+    }
+
+    private static void ApplyLanguageOverrideFromSettings()
+    {
+        var settingsService = new SettingsService();
+        var languageOverride = settingsService.LoadLanguageOverride();
+        if (string.IsNullOrWhiteSpace(languageOverride))
+        {
+            return;
+        }
+
+        try
+        {
+            ApplicationLanguages.PrimaryLanguageOverride = languageOverride;
+        }
+        catch (ArgumentException ex)
+        {
+            AppLog.Error("Failed to apply language override.", ex);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("Failed to apply language override.", ex);
+        }
     }
 }

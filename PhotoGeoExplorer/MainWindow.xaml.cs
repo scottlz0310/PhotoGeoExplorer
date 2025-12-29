@@ -18,6 +18,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Windows.Globalization;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
@@ -59,6 +60,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private double _previewStartVerticalOffset;
     private List<PhotoListItem>? _dragItems;
     private bool _isApplyingSettings;
+    private string? _languageOverride;
 
     public MainWindow()
     {
@@ -66,6 +68,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _viewModel = new MainViewModel(new FileSystemService());
         _settingsService = new SettingsService();
         RootGrid.DataContext = _viewModel;
+        Title = LocalizationService.GetString("MainWindow.Title");
         AppLog.Info("MainWindow constructed.");
         Activated += OnActivated;
         Closed += OnClosed;
@@ -125,7 +128,10 @@ public sealed partial class MainWindow : Window, IDisposable
         if (MapControl is null)
         {
             AppLog.Error("Map control is missing.");
-            ShowMapStatus("Map control missing", "See log for details.", Symbol.Map);
+            ShowMapStatus(
+                LocalizationService.GetString("MapStatus.ControlMissingTitle"),
+                LocalizationService.GetString("MapStatus.SeeLogDetail"),
+                Symbol.Map);
             return Task.CompletedTask;
         }
 
@@ -165,12 +171,18 @@ public sealed partial class MainWindow : Window, IDisposable
         catch (InvalidOperationException ex)
         {
             AppLog.Error("Map init failed.", ex);
-            ShowMapStatus("Map init failed", "See log for details.", Symbol.Map);
+            ShowMapStatus(
+                LocalizationService.GetString("MapStatus.InitFailedTitle"),
+                LocalizationService.GetString("MapStatus.SeeLogDetail"),
+                Symbol.Map);
         }
         catch (NotSupportedException ex)
         {
             AppLog.Error("Map init failed.", ex);
-            ShowMapStatus("Map init failed", "See log for details.", Symbol.Map);
+            ShowMapStatus(
+                LocalizationService.GetString("MapStatus.InitFailedTitle"),
+                LocalizationService.GetString("MapStatus.SeeLogDetail"),
+                Symbol.Map);
         }
 
         return Task.CompletedTask;
@@ -190,12 +202,14 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    private async Task ApplySettingsAsync(AppSettings settings)
+    private async Task ApplySettingsAsync(AppSettings settings, bool showLanguagePrompt = false)
     {
         if (settings is null)
         {
             return;
         }
+
+        await ApplyLanguageSettingAsync(settings.Language, showLanguagePrompt).ConfigureAwait(true);
 
         _viewModel.ShowImagesOnly = settings.ShowImagesOnly;
         _viewModel.FileViewMode = Enum.IsDefined<FileViewMode>(settings.FileViewMode)
@@ -251,7 +265,8 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             LastFolderPath = _viewModel.CurrentFolderPath,
             ShowImagesOnly = _viewModel.ShowImagesOnly,
-            FileViewMode = _viewModel.FileViewMode
+            FileViewMode = _viewModel.FileViewMode,
+            Language = _languageOverride
         };
     }
 
@@ -306,7 +321,10 @@ public sealed partial class MainWindow : Window, IDisposable
         if (imageItems.Count == 0)
         {
             ClearMapMarkers();
-            ShowMapStatus("Select a photo", "Pick an image with GPS data to show it on the map.", Symbol.Map);
+            ShowMapStatus(
+                LocalizationService.GetString("MapStatus.SelectPhotoTitle"),
+                LocalizationService.GetString("MapStatus.SelectPhotoDetail"),
+                Symbol.Map);
             return;
         }
 
@@ -324,7 +342,10 @@ public sealed partial class MainWindow : Window, IDisposable
             else
             {
                 ClearMapMarkers();
-                ShowMapStatus("Location data not found", "This photo has no GPS information.", Symbol.Map);
+                ShowMapStatus(
+                    LocalizationService.GetString("MapStatus.LocationMissingTitle"),
+                    LocalizationService.GetString("MapStatus.LocationMissingDetail"),
+                    Symbol.Map);
             }
 
             return;
@@ -364,7 +385,10 @@ public sealed partial class MainWindow : Window, IDisposable
         if (points.Count == 0)
         {
             ClearMapMarkers();
-            ShowMapStatus("Location data not found", "Selected photos have no GPS information.", Symbol.Map);
+            ShowMapStatus(
+                LocalizationService.GetString("MapStatus.LocationMissingTitle"),
+                LocalizationService.GetString("MapStatus.LocationMissingSelectionDetail"),
+                Symbol.Map);
             return;
         }
 
@@ -794,6 +818,17 @@ public sealed partial class MainWindow : Window, IDisposable
         await _viewModel.RefreshAsync().ConfigureAwait(true);
     }
 
+    private async void OnLanguageMenuClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not RadioMenuFlyoutItem item)
+        {
+            return;
+        }
+
+        var languageTag = item.Tag as string;
+        await ApplyLanguageSettingAsync(languageTag, showRestartPrompt: true).ConfigureAwait(true);
+    }
+
     private async void OnExportSettingsClicked(object sender, RoutedEventArgs e)
     {
         var file = await PickSettingsSaveFileAsync().ConfigureAwait(true);
@@ -818,15 +853,15 @@ public sealed partial class MainWindow : Window, IDisposable
         if (settings is null)
         {
             await ShowMessageDialogAsync(
-                "Import failed",
-                "Unable to read the settings file.").ConfigureAwait(true);
+                LocalizationService.GetString("Dialog.ImportFailed.Title"),
+                LocalizationService.GetString("Dialog.ImportFailed.Detail")).ConfigureAwait(true);
             return;
         }
 
         _isApplyingSettings = true;
         try
         {
-            await ApplySettingsAsync(settings).ConfigureAwait(true);
+            await ApplySettingsAsync(settings, showLanguagePrompt: true).ConfigureAwait(true);
         }
         finally
         {
@@ -942,10 +977,100 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnAboutClicked(object sender, RoutedEventArgs e)
     {
-        var version = typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown";
+        var version = typeof(App).Assembly.GetName().Version?.ToString()
+            ?? LocalizationService.GetString("Common.Unknown");
         await ShowMessageDialogAsync(
-            "About",
-            $"PhotoGeoExplorer\nVersion {version}").ConfigureAwait(true);
+            LocalizationService.GetString("Dialog.About.Title"),
+            LocalizationService.Format("Dialog.About.Detail", version)).ConfigureAwait(true);
+    }
+
+    private async Task ApplyLanguageSettingAsync(string? languageTag, bool showRestartPrompt)
+    {
+        var normalized = NormalizeLanguageSetting(languageTag);
+        var changed = !string.Equals(_languageOverride, normalized, StringComparison.OrdinalIgnoreCase);
+        _languageOverride = normalized;
+        UpdateLanguageMenuChecks(normalized);
+        ApplyLanguageOverride(normalized);
+
+        if (!showRestartPrompt || !changed)
+        {
+            return;
+        }
+
+        if (!_isApplyingSettings)
+        {
+            await SaveSettingsAsync().ConfigureAwait(true);
+        }
+        await ShowMessageDialogAsync(
+            LocalizationService.GetString("Dialog.LanguageChanged.Title"),
+            LocalizationService.GetString("Dialog.LanguageChanged.Detail")).ConfigureAwait(true);
+    }
+
+    private static string? NormalizeLanguageSetting(string? languageTag)
+    {
+        if (string.IsNullOrWhiteSpace(languageTag))
+        {
+            return null;
+        }
+
+        var trimmed = languageTag.Trim();
+        if (string.Equals(trimmed, "system", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (string.Equals(trimmed, "ja", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "ja-jp", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ja-JP";
+        }
+
+        if (string.Equals(trimmed, "en", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "en-us", StringComparison.OrdinalIgnoreCase))
+        {
+            return "en-US";
+        }
+
+        return trimmed;
+    }
+
+    private void UpdateLanguageMenuChecks(string? normalized)
+    {
+        if (LanguageSystemMenuItem is not null)
+        {
+            LanguageSystemMenuItem.IsChecked = string.IsNullOrWhiteSpace(normalized);
+        }
+
+        if (LanguageJapaneseMenuItem is not null)
+        {
+            LanguageJapaneseMenuItem.IsChecked = string.Equals(normalized, "ja-JP", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (LanguageEnglishMenuItem is not null)
+        {
+            LanguageEnglishMenuItem.IsChecked = string.Equals(normalized, "en-US", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private static void ApplyLanguageOverride(string? normalized)
+    {
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return;
+        }
+
+        try
+        {
+            ApplicationLanguages.PrimaryLanguageOverride = normalized;
+        }
+        catch (ArgumentException ex)
+        {
+            AppLog.Error("Failed to apply language override.", ex);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("Failed to apply language override.", ex);
+        }
     }
 
     private async Task OpenFolderPickerAsync()
@@ -1357,10 +1482,10 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         var folderName = await ShowTextInputDialogAsync(
-            "New folder",
-            "Create",
-            "New Folder",
-            "Folder name").ConfigureAwait(true);
+            LocalizationService.GetString("Dialog.NewFolder.Title"),
+            LocalizationService.GetString("Dialog.NewFolder.Primary"),
+            LocalizationService.GetString("Dialog.NewFolder.DefaultName"),
+            LocalizationService.GetString("Dialog.NewFolder.Placeholder")).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(folderName))
         {
             return;
@@ -1369,8 +1494,8 @@ public sealed partial class MainWindow : Window, IDisposable
         if (ContainsInvalidFileNameChars(folderName))
         {
             await ShowMessageDialogAsync(
-                "Invalid name",
-                "The folder name contains invalid characters.").ConfigureAwait(true);
+                LocalizationService.GetString("Dialog.InvalidName.Title"),
+                LocalizationService.GetString("Dialog.InvalidName.Detail")).ConfigureAwait(true);
             return;
         }
 
@@ -1378,8 +1503,8 @@ public sealed partial class MainWindow : Window, IDisposable
         if (Directory.Exists(targetPath) || File.Exists(targetPath))
         {
             await ShowMessageDialogAsync(
-                "Already exists",
-                "A file or folder with the same name already exists.").ConfigureAwait(true);
+                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
+                LocalizationService.GetString("Dialog.AlreadyExists.Detail")).ConfigureAwait(true);
             return;
         }
 
@@ -1395,8 +1520,8 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             AppLog.Error($"Failed to create folder: {targetPath}", ex);
             await ShowMessageDialogAsync(
-                "Create folder failed",
-                "See log for details.").ConfigureAwait(true);
+                LocalizationService.GetString("Dialog.CreateFolderFailed.Title"),
+                LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
             return;
         }
 
@@ -1415,16 +1540,16 @@ public sealed partial class MainWindow : Window, IDisposable
         if (string.IsNullOrWhiteSpace(parent))
         {
             await ShowMessageDialogAsync(
-                "Rename not available",
-                "This item cannot be renamed.").ConfigureAwait(true);
+                LocalizationService.GetString("Dialog.RenameNotAvailable.Title"),
+                LocalizationService.GetString("Dialog.RenameNotAvailable.Detail")).ConfigureAwait(true);
             return;
         }
 
         var newName = await ShowTextInputDialogAsync(
-            "Rename",
-            "Rename",
+            LocalizationService.GetString("Dialog.Rename.Title"),
+            LocalizationService.GetString("Dialog.Rename.Primary"),
             item.FileName,
-            "New name").ConfigureAwait(true);
+            LocalizationService.GetString("Dialog.Rename.Placeholder")).ConfigureAwait(true);
         if (string.IsNullOrWhiteSpace(newName))
         {
             return;
@@ -1439,8 +1564,8 @@ public sealed partial class MainWindow : Window, IDisposable
         if (ContainsInvalidFileNameChars(normalizedName))
         {
             await ShowMessageDialogAsync(
-                "Invalid name",
-                "The name contains invalid characters.").ConfigureAwait(true);
+                LocalizationService.GetString("Dialog.InvalidName.Title"),
+                LocalizationService.GetString("Dialog.InvalidName.Detail")).ConfigureAwait(true);
             return;
         }
 
@@ -1448,8 +1573,8 @@ public sealed partial class MainWindow : Window, IDisposable
         if (Directory.Exists(targetPath) || File.Exists(targetPath))
         {
             await ShowMessageDialogAsync(
-                "Already exists",
-                "A file or folder with the same name already exists.").ConfigureAwait(true);
+                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
+                LocalizationService.GetString("Dialog.AlreadyExists.Detail")).ConfigureAwait(true);
             return;
         }
 
@@ -1472,8 +1597,8 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             AppLog.Error($"Failed to rename item: {item.FilePath}", ex);
             await ShowMessageDialogAsync(
-                "Rename failed",
-                "See log for details.").ConfigureAwait(true);
+                LocalizationService.GetString("Dialog.RenameFailed.Title"),
+                LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
             return;
         }
 
@@ -1506,11 +1631,11 @@ public sealed partial class MainWindow : Window, IDisposable
 
         var message = _viewModel.SelectedItems.Count == 1
             ? BuildDeleteMessage(_viewModel.SelectedItems[0])
-            : $"Delete {_viewModel.SelectedItems.Count} items?";
+            : LocalizationService.Format("Dialog.DeleteConfirm.Multiple", _viewModel.SelectedItems.Count);
         var confirmed = await ShowConfirmationDialogAsync(
-            "Delete",
+            LocalizationService.GetString("Dialog.DeleteConfirm.Title"),
             message,
-            "Delete").ConfigureAwait(true);
+            LocalizationService.GetString("Common.Delete")).ConfigureAwait(true);
         if (!confirmed)
         {
             return;
@@ -1525,7 +1650,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         var createFolder = new MenuFlyoutItem
         {
-            Text = "New folder",
+            Text = LocalizationService.GetString("Menu.NewFolder"),
             Icon = new SymbolIcon(Symbol.Folder),
             IsEnabled = _viewModel.CanCreateFolder
         };
@@ -1533,7 +1658,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         var renameItem = new MenuFlyoutItem
         {
-            Text = "Rename",
+            Text = LocalizationService.GetString("Menu.Rename"),
             Icon = new SymbolIcon(Symbol.Edit),
             IsEnabled = _viewModel.CanRenameSelection
         };
@@ -1541,7 +1666,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         var moveItem = new MenuFlyoutItem
         {
-            Text = "Move",
+            Text = LocalizationService.GetString("Menu.Move"),
             Icon = new SymbolIcon(Symbol.Forward),
             IsEnabled = _viewModel.CanModifySelection
         };
@@ -1549,7 +1674,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         var moveParentItem = new MenuFlyoutItem
         {
-            Text = "Move to parent",
+            Text = LocalizationService.GetString("Menu.MoveToParent"),
             Icon = new SymbolIcon(Symbol.Up),
             IsEnabled = _viewModel.CanMoveToParentSelection
         };
@@ -1557,7 +1682,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         var deleteItem = new MenuFlyoutItem
         {
-            Text = "Delete",
+            Text = LocalizationService.GetString("Menu.Delete"),
             Icon = new SymbolIcon(Symbol.Delete),
             IsEnabled = _viewModel.CanModifySelection
         };
@@ -1672,8 +1797,8 @@ public sealed partial class MainWindow : Window, IDisposable
             if (item.IsFolder && IsDescendantPath(sourcePath, destinationFolder))
             {
                 await ShowMessageDialogAsync(
-                    "Move failed",
-                    "Cannot move a folder into itself.").ConfigureAwait(true);
+                    LocalizationService.GetString("Dialog.MoveFailed.Title"),
+                    LocalizationService.GetString("Dialog.MoveIntoSelf.Detail")).ConfigureAwait(true);
                 return;
             }
 
@@ -1681,8 +1806,8 @@ public sealed partial class MainWindow : Window, IDisposable
             if (Directory.Exists(targetPath) || File.Exists(targetPath))
             {
                 await ShowMessageDialogAsync(
-                    "Already exists",
-                    "A file or folder with the same name already exists in the destination.").ConfigureAwait(true);
+                    LocalizationService.GetString("Dialog.AlreadyExists.Title"),
+                    LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")).ConfigureAwait(true);
                 return;
             }
 
@@ -1705,8 +1830,8 @@ public sealed partial class MainWindow : Window, IDisposable
             {
                 AppLog.Error($"Failed to move item: {sourcePath}", ex);
                 await ShowMessageDialogAsync(
-                    "Move failed",
-                    "See log for details.").ConfigureAwait(true);
+                    LocalizationService.GetString("Dialog.MoveFailed.Title"),
+                    LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
                 return;
             }
         }
@@ -1773,8 +1898,8 @@ public sealed partial class MainWindow : Window, IDisposable
             if (item.IsFolder && Directory.GetParent(item.FilePath) is null)
             {
                 await ShowMessageDialogAsync(
-                    "Delete not available",
-                    "This folder cannot be deleted.").ConfigureAwait(true);
+                    LocalizationService.GetString("Dialog.DeleteNotAvailable.Title"),
+                    LocalizationService.GetString("Dialog.DeleteNotAvailable.Detail")).ConfigureAwait(true);
                 return;
             }
 
@@ -1797,8 +1922,8 @@ public sealed partial class MainWindow : Window, IDisposable
             {
                 AppLog.Error($"Failed to delete item: {item.FilePath}", ex);
                 await ShowMessageDialogAsync(
-                    "Delete failed",
-                    "See log for details.").ConfigureAwait(true);
+                    LocalizationService.GetString("Dialog.DeleteFailed.Title"),
+                    LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
                 return;
             }
         }
@@ -1809,8 +1934,8 @@ public sealed partial class MainWindow : Window, IDisposable
     private static string BuildDeleteMessage(PhotoListItem item)
     {
         return item.IsFolder
-            ? $"Delete \"{item.FileName}\" and all of its contents?"
-            : $"Delete \"{item.FileName}\"?";
+            ? LocalizationService.Format("Dialog.DeleteConfirm.Folder", item.FileName)
+            : LocalizationService.Format("Dialog.DeleteConfirm.File", item.FileName);
     }
 
     private async Task<string?> ShowTextInputDialogAsync(
@@ -1831,7 +1956,7 @@ public sealed partial class MainWindow : Window, IDisposable
             Title = title,
             Content = textBox,
             PrimaryButtonText = primaryButtonText,
-            SecondaryButtonText = "Cancel",
+            SecondaryButtonText = LocalizationService.GetString("Common.Cancel"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = RootGrid.XamlRoot
         };
@@ -1871,7 +1996,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 TextWrapping = TextWrapping.Wrap
             },
             PrimaryButtonText = primaryButtonText,
-            SecondaryButtonText = "Cancel",
+            SecondaryButtonText = LocalizationService.GetString("Common.Cancel"),
             DefaultButton = ContentDialogButton.Secondary,
             XamlRoot = RootGrid.XamlRoot
         };
@@ -1890,7 +2015,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 Text = message,
                 TextWrapping = TextWrapping.Wrap
             },
-            CloseButtonText = "OK",
+            CloseButtonText = LocalizationService.GetString("Common.Ok"),
             XamlRoot = RootGrid.XamlRoot
         };
 

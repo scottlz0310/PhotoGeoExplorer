@@ -47,6 +47,7 @@ internal sealed class MainViewModel : BindableBase
     private Visibility _statusPrimaryActionVisibility = Visibility.Collapsed;
     private Visibility _statusSecondaryActionVisibility = Visibility.Collapsed;
     private bool _hasActiveFilters;
+    private InfoBarSeverity _statusSeverity = InfoBarSeverity.Informational;
     private FileSortColumn _sortColumn = FileSortColumn.Name;
     private SortDirection _sortDirection = SortDirection.Ascending;
     private int _selectedCount;
@@ -369,7 +370,7 @@ internal sealed class MainViewModel : BindableBase
         var homePath = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
         if (string.IsNullOrWhiteSpace(homePath) || !Directory.Exists(homePath))
         {
-            SetStatus("Pictures folder not found.");
+            SetStatus(LocalizationService.GetString("Message.PicturesFolderNotFound"), InfoBarSeverity.Error);
             return;
         }
 
@@ -449,13 +450,13 @@ internal sealed class MainViewModel : BindableBase
     {
         if (string.IsNullOrWhiteSpace(folderPath))
         {
-            SetStatus("Folder path is empty.");
+            SetStatus(LocalizationService.GetString("Message.FolderPathEmpty"), InfoBarSeverity.Error);
             return;
         }
 
         if (!Directory.Exists(folderPath))
         {
-            SetStatus("Folder not found.");
+            SetStatus(LocalizationService.GetString("Message.FolderNotFound"), InfoBarSeverity.Error);
             return;
         }
 
@@ -463,7 +464,7 @@ internal sealed class MainViewModel : BindableBase
         {
             CurrentFolderPath = folderPath;
             UpdateBreadcrumbs(folderPath);
-            SetStatus(null);
+            SetStatus(null, InfoBarSeverity.Informational);
             SelectedItem = null;
             SelectedMetadata = null;
             SetMetadataSummary(null, hasSelection: false);
@@ -479,28 +480,30 @@ internal sealed class MainViewModel : BindableBase
                 Items.Add(item);
             }
 
-            SetStatus(Items.Count == 0 ? "No files found." : null);
+            SetStatus(
+                Items.Count == 0 ? LocalizationService.GetString("Message.NoFilesFound") : null,
+                InfoBarSeverity.Informational);
             UpdateStatusBar();
         }
         catch (UnauthorizedAccessException ex)
         {
             AppLog.Error($"Failed to access folder: {folderPath}", ex);
-            SetStatus("Access denied. See log.");
+            SetStatus(LocalizationService.GetString("Message.AccessDeniedSeeLog"), InfoBarSeverity.Error);
         }
         catch (DirectoryNotFoundException ex)
         {
             AppLog.Error($"Folder not found: {folderPath}", ex);
-            SetStatus("Folder not found. See log.");
+            SetStatus(LocalizationService.GetString("Message.FolderNotFoundSeeLog"), InfoBarSeverity.Error);
         }
         catch (PathTooLongException ex)
         {
             AppLog.Error($"Folder path too long: {folderPath}", ex);
-            SetStatus("Folder path too long. See log.");
+            SetStatus(LocalizationService.GetString("Message.FolderPathTooLongSeeLog"), InfoBarSeverity.Error);
         }
         catch (IOException ex)
         {
             AppLog.Error($"Failed to read folder: {folderPath}", ex);
-            SetStatus("Failed to read folder. See log.");
+            SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
         }
     }
 
@@ -588,7 +591,7 @@ internal sealed class MainViewModel : BindableBase
         }
 
         SelectedMetadata = null;
-        MetadataSummary = "Loading metadata...";
+        MetadataSummary = LocalizationService.GetString("Message.MetadataLoading");
         MetadataVisibility = Visibility.Visible;
 
         var cts = new CancellationTokenSource();
@@ -641,13 +644,19 @@ internal sealed class MainViewModel : BindableBase
 
     private void SetStatus(string? message)
     {
-        StatusMessage = message;
-        StatusVisibility = string.IsNullOrWhiteSpace(message) ? Visibility.Collapsed : Visibility.Visible;
-        SetNotification(message);
-        UpdateStatusOverlay(message);
+        SetStatus(message, InfoBarSeverity.Informational);
     }
 
-    private void UpdateStatusOverlay(string? message)
+    private void SetStatus(string? message, InfoBarSeverity severity)
+    {
+        _statusSeverity = severity;
+        StatusMessage = message;
+        StatusVisibility = string.IsNullOrWhiteSpace(message) ? Visibility.Collapsed : Visibility.Visible;
+        SetNotification(message, severity);
+        UpdateStatusOverlay(message, severity);
+    }
+
+    private void UpdateStatusOverlay(string? message, InfoBarSeverity severity)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -658,20 +667,20 @@ internal sealed class MainViewModel : BindableBase
             return;
         }
 
-        if (message.Contains("no files", StringComparison.OrdinalIgnoreCase))
+        if (message == LocalizationService.GetString("Message.NoFilesFound"))
         {
-            StatusTitle = "No files found";
+            StatusTitle = LocalizationService.GetString("Overlay.NoFilesFoundTitle");
             StatusDetail = HasActiveFilters
-                ? "Try resetting filters or open another folder."
-                : "Try opening another folder.";
+                ? LocalizationService.GetString("Overlay.NoFilesFoundDetailWithFilters")
+                : LocalizationService.GetString("Overlay.NoFilesFoundDetail");
             StatusSymbol = Symbol.Pictures;
             SetStatusActions(StatusAction.OpenFolder, HasActiveFilters ? StatusAction.ResetFilters : StatusAction.None);
             return;
         }
 
-        if (GetNotificationSeverity(message) == InfoBarSeverity.Error)
+        if (severity == InfoBarSeverity.Error)
         {
-            StatusTitle = "Unable to load folder";
+            StatusTitle = LocalizationService.GetString("Overlay.LoadFolderErrorTitle");
             StatusDetail = message;
             StatusSymbol = Symbol.Folder;
             SetStatusActions(StatusAction.OpenFolder, StatusAction.GoHome);
@@ -698,9 +707,9 @@ internal sealed class MainViewModel : BindableBase
     {
         return action switch
         {
-            StatusAction.OpenFolder => "Open folder",
-            StatusAction.GoHome => "Go home",
-            StatusAction.ResetFilters => "Reset filters",
+            StatusAction.OpenFolder => LocalizationService.GetString("Action.OpenFolder"),
+            StatusAction.GoHome => LocalizationService.GetString("Action.GoHome"),
+            StatusAction.ResetFilters => LocalizationService.GetString("Action.ResetFilters"),
             _ => null
         };
     }
@@ -708,7 +717,7 @@ internal sealed class MainViewModel : BindableBase
     private void UpdateFilterState()
     {
         HasActiveFilters = !string.IsNullOrWhiteSpace(SearchText) || !ShowImagesOnly;
-        UpdateStatusOverlay(StatusMessage);
+        UpdateStatusOverlay(StatusMessage, _statusSeverity);
     }
 
     public void UpdateSelection(IReadOnlyList<PhotoListItem> items)
@@ -841,14 +850,14 @@ internal sealed class MainViewModel : BindableBase
 
         if (metadata is null)
         {
-            MetadataSummary = "Metadata not available.";
+            MetadataSummary = LocalizationService.GetString("Message.MetadataNotAvailable");
             MetadataVisibility = Visibility.Visible;
             return;
         }
 
         if (string.IsNullOrWhiteSpace(metadata.TakenAtText) && string.IsNullOrWhiteSpace(metadata.CameraSummary))
         {
-            MetadataSummary = "Metadata not available.";
+            MetadataSummary = LocalizationService.GetString("Message.MetadataNotAvailable");
             MetadataVisibility = Visibility.Visible;
             return;
         }
@@ -873,14 +882,19 @@ internal sealed class MainViewModel : BindableBase
 
     private void UpdateStatusBar()
     {
-        var folderLabel = string.IsNullOrWhiteSpace(CurrentFolderPath) ? "No folder selected." : CurrentFolderPath;
+        var folderLabel = string.IsNullOrWhiteSpace(CurrentFolderPath)
+            ? LocalizationService.GetString("StatusBar.NoFolderSelected")
+            : CurrentFolderPath;
         var itemCount = Items.Count;
-        var selectedLabel = SelectedItem is null ? null : $"Selected: {SelectedItem.FileName}";
+        var selectedLabel = SelectedItem is null
+            ? null
+            : LocalizationService.Format("StatusBar.Selected", SelectedItem.FileName);
         var resolutionLabel = SelectedItem is null || SelectedItem.IsFolder ? null : SelectedItem.ResolutionText;
 
+        var itemsLabel = LocalizationService.Format("StatusBar.Items", itemCount);
         var statusText = selectedLabel is null
-            ? $"{folderLabel} | {itemCount} items"
-            : $"{folderLabel} | {itemCount} items | {selectedLabel}";
+            ? $"{folderLabel} | {itemsLabel}"
+            : $"{folderLabel} | {itemsLabel} | {selectedLabel}";
         if (!string.IsNullOrWhiteSpace(resolutionLabel))
         {
             statusText = $"{statusText} | {resolutionLabel}";
@@ -904,7 +918,7 @@ internal sealed class MainViewModel : BindableBase
         {
             StatusBarLocationVisibility = Visibility.Visible;
             StatusBarLocationGlyph = "\uE707";
-            StatusBarLocationTooltip = "GPS available";
+            StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsAvailable");
         }
         else if (SelectedMetadata is null)
         {
@@ -916,11 +930,11 @@ internal sealed class MainViewModel : BindableBase
         {
             StatusBarLocationVisibility = Visibility.Visible;
             StatusBarLocationGlyph = "\uE711";
-            StatusBarLocationTooltip = "GPS not found";
+            StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsMissing");
         }
     }
 
-    private void SetNotification(string? message)
+    private void SetNotification(string? message, InfoBarSeverity severity)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -931,25 +945,7 @@ internal sealed class MainViewModel : BindableBase
         }
 
         NotificationMessage = message;
-        NotificationSeverity = GetNotificationSeverity(message);
+        NotificationSeverity = severity;
         IsNotificationOpen = true;
-    }
-
-    private static InfoBarSeverity GetNotificationSeverity(string message)
-    {
-        if (message.Contains("see log", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("failed", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("denied", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("not found", StringComparison.OrdinalIgnoreCase))
-        {
-            return InfoBarSeverity.Error;
-        }
-
-        if (message.Contains("no files", StringComparison.OrdinalIgnoreCase))
-        {
-            return InfoBarSeverity.Informational;
-        }
-
-        return InfoBarSeverity.Warning;
     }
 }

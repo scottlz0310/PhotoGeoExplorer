@@ -121,36 +121,59 @@
         </Grid.RowDefinitions>
 
         <MenuBar>
-            <MenuBarItem Title="File">
-                <MenuFlyoutItem Text="Open folder..." Click="OnOpenFolderClicked" />
+            <MenuBarItem Title="File" x:Uid="MenuFile">
+                <MenuFlyoutItem Text="Open folder..." Click="OnOpenFolderClicked" x:Uid="MenuFileOpenFolder" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="New folder" Click="OnCreateFolderClicked" IsEnabled="{Binding CanCreateFolder}" />
-                <MenuFlyoutItem Text="Rename" Click="OnRenameClicked" IsEnabled="{Binding CanRenameSelection}" />
-                <MenuFlyoutItem Text="Move..." Click="OnMoveClicked" IsEnabled="{Binding CanModifySelection}" />
-                <MenuFlyoutItem Text="Move to parent" Click="OnMoveToParentClicked" IsEnabled="{Binding CanMoveToParentSelection}" />
-                <MenuFlyoutItem Text="Delete" Click="OnDeleteClicked" IsEnabled="{Binding CanModifySelection}" />
+                <MenuFlyoutItem Text="New folder" Click="OnCreateFolderClicked" IsEnabled="{Binding CanCreateFolder}" x:Uid="MenuFileNewFolder" />
+                <MenuFlyoutItem Text="Rename" Click="OnRenameClicked" IsEnabled="{Binding CanRenameSelection}" x:Uid="MenuFileRename" />
+                <MenuFlyoutItem Text="Move..." Click="OnMoveClicked" IsEnabled="{Binding CanModifySelection}" x:Uid="MenuFileMove" />
+                <MenuFlyoutItem Text="Move to parent" Click="OnMoveToParentClicked" IsEnabled="{Binding CanMoveToParentSelection}" x:Uid="MenuFileMoveToParent" />
+                <MenuFlyoutItem Text="Delete" Click="OnDeleteClicked" IsEnabled="{Binding CanModifySelection}" x:Uid="MenuFileDelete" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Refresh" Click="OnRefreshClicked" IsEnabled="{Binding CanCreateFolder}" />
-                <MenuFlyoutItem Text="Go home" Click="OnNavigateHomeClicked" />
-                <MenuFlyoutItem Text="Go up" Click="OnNavigateUpClicked" IsEnabled="{Binding CanCreateFolder}" />
+                <MenuFlyoutItem Text="Refresh" Click="OnRefreshClicked" IsEnabled="{Binding CanCreateFolder}" x:Uid="MenuFileRefresh" />
+                <MenuFlyoutItem Text="Go home" Click="OnNavigateHomeClicked" x:Uid="MenuFileGoHome" />
+                <MenuFlyoutItem Text="Go up" Click="OnNavigateUpClicked" IsEnabled="{Binding CanCreateFolder}" x:Uid="MenuFileGoUp" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Exit" Click="OnExitClicked" />
+                <MenuFlyoutItem Text="Exit" Click="OnExitClicked" x:Uid="MenuFileExit" />
             </MenuBarItem>
-            <MenuBarItem Title="View">
-                <MenuFlyoutItem Text="Icon" Tag="Icon" Click="OnViewModeMenuClicked" />
-                <MenuFlyoutItem Text="List" Tag="List" Click="OnViewModeMenuClicked" />
-                <MenuFlyoutItem Text="Details" Tag="Details" Click="OnViewModeMenuClicked" />
+            <MenuBarItem Title="View" x:Uid="MenuView">
+                <MenuFlyoutItem Text="Icon" Tag="Icon" Click="OnViewModeMenuClicked" x:Uid="MenuViewIcon" />
+                <MenuFlyoutItem Text="List" Tag="List" Click="OnViewModeMenuClicked" x:Uid="MenuViewList" />
+                <MenuFlyoutItem Text="Details" Tag="Details" Click="OnViewModeMenuClicked" x:Uid="MenuViewDetails" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Show images only" Click="OnToggleImagesOnlyClicked" />
+                <MenuFlyoutItem Text="Show images only" Click="OnToggleImagesOnlyClicked" x:Uid="MenuViewImagesOnly" />
             </MenuBarItem>
-            <MenuBarItem Title="Settings">
-                <MenuFlyoutItem Text="Reset filters" Click="OnResetFiltersClicked" IsEnabled="{Binding HasActiveFilters}" />
+            <MenuBarItem Title="Settings" x:Uid="MenuSettings">
+                <MenuFlyoutItem Text="Reset filters" Click="OnResetFiltersClicked" IsEnabled="{Binding HasActiveFilters}" x:Uid="MenuSettingsResetFilters" />
+                <MenuFlyoutSubItem Text="Language" x:Uid="MenuSettingsLanguage">
+                    <RadioMenuFlyoutItem
+                        x:Name="LanguageSystemMenuItem"
+                        Text="System default"
+                        Tag="system"
+                        GroupName="Language"
+                        Click="OnLanguageMenuClicked"
+                        x:Uid="MenuSettingsLanguageSystem" />
+                    <RadioMenuFlyoutItem
+                        x:Name="LanguageJapaneseMenuItem"
+                        Text="日本語"
+                        Tag="ja-JP"
+                        GroupName="Language"
+                        Click="OnLanguageMenuClicked"
+                        x:Uid="MenuSettingsLanguageJapanese" />
+                    <RadioMenuFlyoutItem
+                        x:Name="LanguageEnglishMenuItem"
+                        Text="English"
+                        Tag="en-US"
+                        GroupName="Language"
+                        Click="OnLanguageMenuClicked"
+                        x:Uid="MenuSettingsLanguageEnglish" />
+                </MenuFlyoutSubItem>
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Export settings..." Click="OnExportSettingsClicked" />
-                <MenuFlyoutItem Text="Import settings..." Click="OnImportSettingsClicked" />
+                <MenuFlyoutItem Text="Export settings..." Click="OnExportSettingsClicked" x:Uid="MenuSettingsExport" />
+                <MenuFlyoutItem Text="Import settings..." Click="OnImportSettingsClicked" x:Uid="MenuSettingsImport" />
             </MenuBarItem>
-            <MenuBarItem Title="Help">
-                <MenuFlyoutItem Text="About" Click="OnAboutClicked" />
+            <MenuBarItem Title="Help" x:Uid="MenuHelp">
+                <MenuFlyoutItem Text="About" Click="OnAboutClicked" x:Uid="MenuHelpAbout" />
             </MenuBarItem>
         </MenuBar>
 
@@ -170,38 +193,42 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="File Browser" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Grid.Row="0" Text="File Browser" FontSize="20" FontWeight="SemiBold" x:Uid="FileBrowserHeader" />
                 <CommandBar Grid.Row="1" Margin="0,8,0,0">
-                    <AppBarButton Icon="Back" ToolTipService.ToolTip="Back" IsEnabled="False" />
-                    <AppBarButton Icon="Forward" ToolTipService.ToolTip="Forward" IsEnabled="False" />
-                    <AppBarButton Icon="Up" ToolTipService.ToolTip="Up" Click="OnNavigateUpClicked" />
-                    <AppBarButton Icon="Refresh" ToolTipService.ToolTip="Refresh" Click="OnRefreshClicked" />
-                    <AppBarButton Icon="Home" ToolTipService.ToolTip="Home" Click="OnNavigateHomeClicked" />
+                    <AppBarButton Icon="Back" ToolTipService.ToolTip="Back" IsEnabled="False" x:Uid="FileCommandBack" />
+                    <AppBarButton Icon="Forward" ToolTipService.ToolTip="Forward" IsEnabled="False" x:Uid="FileCommandForward" />
+                    <AppBarButton Icon="Up" ToolTipService.ToolTip="Up" Click="OnNavigateUpClicked" x:Uid="FileCommandUp" />
+                    <AppBarButton Icon="Refresh" ToolTipService.ToolTip="Refresh" Click="OnRefreshClicked" x:Uid="FileCommandRefresh" />
+                    <AppBarButton Icon="Home" ToolTipService.ToolTip="Home" Click="OnNavigateHomeClicked" x:Uid="FileCommandHome" />
                     <AppBarSeparator />
                     <AppBarButton
                         Icon="Folder"
                         Label="New folder"
                         ToolTipService.ToolTip="New folder"
                         IsEnabled="{Binding CanCreateFolder}"
-                        Click="OnCreateFolderClicked" />
+                        Click="OnCreateFolderClicked"
+                        x:Uid="FileCommandNewFolder" />
                     <AppBarButton
                         Icon="Edit"
                         Label="Rename"
                         ToolTipService.ToolTip="Rename"
                         IsEnabled="{Binding CanRenameSelection}"
-                        Click="OnRenameClicked" />
+                        Click="OnRenameClicked"
+                        x:Uid="FileCommandRename" />
                     <AppBarButton
                         Icon="Forward"
                         Label="Move"
                         ToolTipService.ToolTip="Move"
                         IsEnabled="{Binding CanModifySelection}"
-                        Click="OnMoveClicked" />
+                        Click="OnMoveClicked"
+                        x:Uid="FileCommandMove" />
                     <AppBarButton
                         Icon="Delete"
                         Label="Delete"
                         ToolTipService.ToolTip="Delete"
                         IsEnabled="{Binding CanModifySelection}"
-                        Click="OnDeleteClicked" />
+                        Click="OnDeleteClicked"
+                        x:Uid="FileCommandDelete" />
                 </CommandBar>
                 <BreadcrumbBar
                     Grid.Row="2"
@@ -231,16 +258,18 @@
                         PlaceholderText="Search files..."
                         Width="240"
                         Text="{Binding SearchText, Mode=TwoWay}"
-                        KeyDown="OnSearchKeyDown" />
-                    <Button Content="Filters" Click="OnApplyFiltersClicked" />
-                    <Button Content="Open" Click="OnOpenFolderClicked" />
+                        KeyDown="OnSearchKeyDown"
+                        x:Uid="SearchTextBox" />
+                    <Button Content="Filters" Click="OnApplyFiltersClicked" x:Uid="FiltersButton" />
+                    <Button Content="Open" Click="OnOpenFolderClicked" x:Uid="OpenFolderButton" />
                     <ComboBox
                         MinWidth="120"
                         SelectedIndex="{Binding FileViewModeIndex, Mode=TwoWay}"
-                        ToolTipService.ToolTip="View mode">
-                        <ComboBoxItem Content="Icon" />
-                        <ComboBoxItem Content="List" />
-                        <ComboBoxItem Content="Details" />
+                        ToolTipService.ToolTip="View mode"
+                        x:Uid="ViewModeCombo">
+                        <ComboBoxItem Content="Icon" x:Uid="ViewModeIconItem" />
+                        <ComboBoxItem Content="List" x:Uid="ViewModeListItem" />
+                        <ComboBoxItem Content="Details" x:Uid="ViewModeDetailsItem" />
                     </ComboBox>
                 </StackPanel>
                 <CheckBox
@@ -249,7 +278,8 @@
                     Margin="0,8,0,0"
                     IsChecked="{Binding ShowImagesOnly, Mode=TwoWay}"
                     Checked="OnFiltersChanged"
-                    Unchecked="OnFiltersChanged" />
+                    Unchecked="OnFiltersChanged"
+                    x:Uid="ShowImagesOnlyCheckBox" />
                 <Grid
                     Grid.Row="5"
                     Margin="0,8,0,0"
@@ -281,7 +311,7 @@
                             Click="OnDetailsSortClicked"
                             Tag="Name">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Name" FontWeight="SemiBold" />
+                                <TextBlock Text="Name" FontWeight="SemiBold" x:Uid="DetailsHeaderNameText" />
                                 <TextBlock Text="{Binding NameSortIndicator}" Opacity="0.7" />
                             </StackPanel>
                         </Button>
@@ -294,7 +324,7 @@
                             Click="OnDetailsSortClicked"
                             Tag="ModifiedAt">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Modified" FontWeight="SemiBold" />
+                                <TextBlock Text="Modified" FontWeight="SemiBold" x:Uid="DetailsHeaderModifiedText" />
                                 <TextBlock Text="{Binding ModifiedSortIndicator}" Opacity="0.7" />
                             </StackPanel>
                         </Button>
@@ -307,7 +337,7 @@
                             Click="OnDetailsSortClicked"
                             Tag="Resolution">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Resolution" FontWeight="SemiBold" />
+                                <TextBlock Text="Resolution" FontWeight="SemiBold" x:Uid="DetailsHeaderResolutionText" />
                                 <TextBlock Text="{Binding ResolutionSortIndicator}" Opacity="0.7" />
                             </StackPanel>
                         </Button>
@@ -321,7 +351,7 @@
                             Click="OnDetailsSortClicked"
                             Tag="Size">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Size" FontWeight="SemiBold" />
+                                <TextBlock Text="Size" FontWeight="SemiBold" x:Uid="DetailsHeaderSizeText" />
                                 <TextBlock Text="{Binding SizeSortIndicator}" Opacity="0.7" />
                             </StackPanel>
                         </Button>
@@ -455,7 +485,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="Image Preview" FontSize="20" FontWeight="SemiBold" />
+                            <TextBlock Text="Image Preview" FontSize="20" FontWeight="SemiBold" x:Uid="PreviewHeader" />
                             <TextBlock
                                 Text="{Binding MetadataSummary}"
                                 Visibility="{Binding MetadataVisibility}"
@@ -463,25 +493,26 @@
                                 FontSize="12" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Button Click="OnPreviewFitClicked" ToolTipService.ToolTip="ウィンドウに合わせる">
+                            <Button Click="OnPreviewFitClicked" ToolTipService.ToolTip="ウィンドウに合わせる" x:Uid="PreviewFitButton">
                                 <SymbolIcon Symbol="View" />
                             </Button>
-                            <Button Click="OnPreviewZoomInClicked" ToolTipService.ToolTip="拡大">
+                            <Button Click="OnPreviewZoomInClicked" ToolTipService.ToolTip="拡大" x:Uid="PreviewZoomInButton">
                                 <SymbolIcon Symbol="ZoomIn" />
                             </Button>
-                            <Button Click="OnPreviewZoomOutClicked" ToolTipService.ToolTip="縮小">
+                            <Button Click="OnPreviewZoomOutClicked" ToolTipService.ToolTip="縮小" x:Uid="PreviewZoomOutButton">
                                 <SymbolIcon Symbol="ZoomOut" />
                             </Button>
                             <ToggleButton
                                 Checked="OnPreviewMaximizeChecked"
                                 Unchecked="OnPreviewMaximizeUnchecked"
-                                ToolTipService.ToolTip="最大化">
+                                ToolTipService.ToolTip="最大化"
+                                x:Uid="PreviewMaximizeButton">
                                 <SymbolIcon Symbol="FullScreen" />
                             </ToggleButton>
-                            <Button Click="OnPreviewPreviousClicked" ToolTipService.ToolTip="前の画像">
+                            <Button Click="OnPreviewPreviousClicked" ToolTipService.ToolTip="前の画像" x:Uid="PreviewPreviousButton">
                                 <SymbolIcon Symbol="Back" />
                             </Button>
-                            <Button Click="OnPreviewNextClicked" ToolTipService.ToolTip="次の画像">
+                            <Button Click="OnPreviewNextClicked" ToolTipService.ToolTip="次の画像" x:Uid="PreviewNextButton">
                                 <SymbolIcon Symbol="Forward" />
                             </Button>
                         </StackPanel>
@@ -521,7 +552,8 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 IsHitTestVisible="False"
-                                TextWrapping="Wrap" />
+                                TextWrapping="Wrap"
+                                x:Uid="PreviewPlaceholder" />
                         </Grid>
                     </Border>
                 </Grid>
@@ -541,7 +573,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Map" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="Map" FontSize="20" FontWeight="SemiBold" x:Uid="MapHeader" />
                     <Grid Grid.Row="1" Margin="0,8,0,0">
                         <Border Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="6" />
                         <Grid x:Name="MapHost">

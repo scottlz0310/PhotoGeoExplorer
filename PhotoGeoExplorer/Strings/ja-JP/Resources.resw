@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="MainWindow.Title" xml:space="preserve">
+    <value>PhotoGeoExplorer</value>
+  </data>
+  <data name="SplashWindow.Title" xml:space="preserve">
+    <value>PhotoGeoExplorer</value>
+  </data>
+  <data name="SplashTitle.Text" xml:space="preserve">
+    <value>PhotoGeoExplorer</value>
+  </data>
+  <data name="SplashLoading.Text" xml:space="preserve">
+    <value>読み込み中...</value>
+  </data>
+  <data name="MenuFile.Title" xml:space="preserve">
+    <value>ファイル</value>
+  </data>
+  <data name="MenuFileOpenFolder.Text" xml:space="preserve">
+    <value>フォルダーを開く...</value>
+  </data>
+  <data name="MenuFileNewFolder.Text" xml:space="preserve">
+    <value>新しいフォルダー</value>
+  </data>
+  <data name="MenuFileRename.Text" xml:space="preserve">
+    <value>名前変更</value>
+  </data>
+  <data name="MenuFileMove.Text" xml:space="preserve">
+    <value>移動...</value>
+  </data>
+  <data name="MenuFileMoveToParent.Text" xml:space="preserve">
+    <value>親フォルダーへ移動</value>
+  </data>
+  <data name="MenuFileDelete.Text" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="MenuFileRefresh.Text" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="MenuFileGoHome.Text" xml:space="preserve">
+    <value>ホームへ</value>
+  </data>
+  <data name="MenuFileGoUp.Text" xml:space="preserve">
+    <value>上へ</value>
+  </data>
+  <data name="MenuFileExit.Text" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="MenuView.Title" xml:space="preserve">
+    <value>表示</value>
+  </data>
+  <data name="MenuViewIcon.Text" xml:space="preserve">
+    <value>アイコン</value>
+  </data>
+  <data name="MenuViewList.Text" xml:space="preserve">
+    <value>リスト</value>
+  </data>
+  <data name="MenuViewDetails.Text" xml:space="preserve">
+    <value>詳細</value>
+  </data>
+  <data name="MenuViewImagesOnly.Text" xml:space="preserve">
+    <value>画像のみ表示</value>
+  </data>
+  <data name="MenuSettings.Title" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="MenuSettingsResetFilters.Text" xml:space="preserve">
+    <value>フィルターをリセット</value>
+  </data>
+  <data name="MenuSettingsLanguage.Text" xml:space="preserve">
+    <value>言語</value>
+  </data>
+  <data name="MenuSettingsLanguageSystem.Text" xml:space="preserve">
+    <value>システム既定</value>
+  </data>
+  <data name="MenuSettingsLanguageJapanese.Text" xml:space="preserve">
+    <value>日本語</value>
+  </data>
+  <data name="MenuSettingsLanguageEnglish.Text" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="MenuSettingsExport.Text" xml:space="preserve">
+    <value>設定をエクスポート...</value>
+  </data>
+  <data name="MenuSettingsImport.Text" xml:space="preserve">
+    <value>設定をインポート...</value>
+  </data>
+  <data name="MenuHelp.Title" xml:space="preserve">
+    <value>ヘルプ</value>
+  </data>
+  <data name="MenuHelpAbout.Text" xml:space="preserve">
+    <value>情報</value>
+  </data>
+  <data name="FileBrowserHeader.Text" xml:space="preserve">
+    <value>ファイルブラウザー</value>
+  </data>
+  <data name="FileCommandBack.ToolTipService.ToolTip" xml:space="preserve">
+    <value>戻る</value>
+  </data>
+  <data name="FileCommandForward.ToolTipService.ToolTip" xml:space="preserve">
+    <value>進む</value>
+  </data>
+  <data name="FileCommandUp.ToolTipService.ToolTip" xml:space="preserve">
+    <value>上へ</value>
+  </data>
+  <data name="FileCommandRefresh.ToolTipService.ToolTip" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="FileCommandHome.ToolTipService.ToolTip" xml:space="preserve">
+    <value>ホーム</value>
+  </data>
+  <data name="FileCommandNewFolder.Label" xml:space="preserve">
+    <value>新しいフォルダー</value>
+  </data>
+  <data name="FileCommandNewFolder.ToolTipService.ToolTip" xml:space="preserve">
+    <value>新しいフォルダー</value>
+  </data>
+  <data name="FileCommandRename.Label" xml:space="preserve">
+    <value>名前変更</value>
+  </data>
+  <data name="FileCommandRename.ToolTipService.ToolTip" xml:space="preserve">
+    <value>名前変更</value>
+  </data>
+  <data name="FileCommandMove.Label" xml:space="preserve">
+    <value>移動</value>
+  </data>
+  <data name="FileCommandMove.ToolTipService.ToolTip" xml:space="preserve">
+    <value>移動</value>
+  </data>
+  <data name="FileCommandDelete.Label" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="FileCommandDelete.ToolTipService.ToolTip" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="SearchTextBox.PlaceholderText" xml:space="preserve">
+    <value>ファイルを検索...</value>
+  </data>
+  <data name="FiltersButton.Content" xml:space="preserve">
+    <value>フィルター</value>
+  </data>
+  <data name="OpenFolderButton.Content" xml:space="preserve">
+    <value>開く</value>
+  </data>
+  <data name="ViewModeCombo.ToolTipService.ToolTip" xml:space="preserve">
+    <value>表示モード</value>
+  </data>
+  <data name="ViewModeIconItem.Content" xml:space="preserve">
+    <value>アイコン</value>
+  </data>
+  <data name="ViewModeListItem.Content" xml:space="preserve">
+    <value>リスト</value>
+  </data>
+  <data name="ViewModeDetailsItem.Content" xml:space="preserve">
+    <value>詳細</value>
+  </data>
+  <data name="ShowImagesOnlyCheckBox.Content" xml:space="preserve">
+    <value>画像のみ表示</value>
+  </data>
+  <data name="DetailsHeaderNameText.Text" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="DetailsHeaderModifiedText.Text" xml:space="preserve">
+    <value>更新日時</value>
+  </data>
+  <data name="DetailsHeaderResolutionText.Text" xml:space="preserve">
+    <value>解像度</value>
+  </data>
+  <data name="DetailsHeaderSizeText.Text" xml:space="preserve">
+    <value>サイズ</value>
+  </data>
+  <data name="PreviewHeader.Text" xml:space="preserve">
+    <value>画像プレビュー</value>
+  </data>
+  <data name="PreviewFitButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>ウィンドウに合わせる</value>
+  </data>
+  <data name="PreviewZoomInButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>拡大</value>
+  </data>
+  <data name="PreviewZoomOutButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>縮小</value>
+  </data>
+  <data name="PreviewMaximizeButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>最大化</value>
+  </data>
+  <data name="PreviewPreviousButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>前の画像</value>
+  </data>
+  <data name="PreviewNextButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>次の画像</value>
+  </data>
+  <data name="PreviewPlaceholder.Text" xml:space="preserve">
+    <value>プレビューする写真を選択してください。</value>
+  </data>
+  <data name="MapHeader.Text" xml:space="preserve">
+    <value>地図</value>
+  </data>
+  <data name="Message.PicturesFolderNotFound" xml:space="preserve">
+    <value>ピクチャ フォルダーが見つかりません。</value>
+  </data>
+  <data name="Message.FolderPathEmpty" xml:space="preserve">
+    <value>フォルダー パスが空です。</value>
+  </data>
+  <data name="Message.FolderNotFound" xml:space="preserve">
+    <value>フォルダーが見つかりません。</value>
+  </data>
+  <data name="Message.NoFilesFound" xml:space="preserve">
+    <value>ファイルが見つかりません。</value>
+  </data>
+  <data name="Message.AccessDeniedSeeLog" xml:space="preserve">
+    <value>アクセスが拒否されました。詳細はログを確認してください。</value>
+  </data>
+  <data name="Message.FolderNotFoundSeeLog" xml:space="preserve">
+    <value>フォルダーが見つかりません。詳細はログを確認してください。</value>
+  </data>
+  <data name="Message.FolderPathTooLongSeeLog" xml:space="preserve">
+    <value>フォルダー パスが長すぎます。詳細はログを確認してください。</value>
+  </data>
+  <data name="Message.FailedReadFolderSeeLog" xml:space="preserve">
+    <value>フォルダーの読み込みに失敗しました。詳細はログを確認してください。</value>
+  </data>
+  <data name="Message.MetadataLoading" xml:space="preserve">
+    <value>メタデータを読み込み中...</value>
+  </data>
+  <data name="Message.MetadataNotAvailable" xml:space="preserve">
+    <value>メタデータはありません。</value>
+  </data>
+  <data name="Overlay.NoFilesFoundTitle" xml:space="preserve">
+    <value>ファイルが見つかりません</value>
+  </data>
+  <data name="Overlay.NoFilesFoundDetail" xml:space="preserve">
+    <value>別のフォルダーを選ぶか、フィルターを変更してください。</value>
+  </data>
+  <data name="Overlay.NoFilesFoundDetailWithFilters" xml:space="preserve">
+    <value>条件に一致するファイルがありません。フィルターを調整またはリセットしてください。</value>
+  </data>
+  <data name="Overlay.LoadFolderErrorTitle" xml:space="preserve">
+    <value>フォルダーの読み込みに失敗しました</value>
+  </data>
+  <data name="Action.OpenFolder" xml:space="preserve">
+    <value>フォルダーを開く</value>
+  </data>
+  <data name="Action.GoHome" xml:space="preserve">
+    <value>ホームへ</value>
+  </data>
+  <data name="Action.ResetFilters" xml:space="preserve">
+    <value>フィルターをリセット</value>
+  </data>
+  <data name="StatusBar.NoFolderSelected" xml:space="preserve">
+    <value>フォルダーが選択されていません</value>
+  </data>
+  <data name="StatusBar.Selected" xml:space="preserve">
+    <value>選択: {0}</value>
+  </data>
+  <data name="StatusBar.Items" xml:space="preserve">
+    <value>{0} 件</value>
+  </data>
+  <data name="StatusBar.GpsAvailable" xml:space="preserve">
+    <value>GPS 情報あり</value>
+  </data>
+  <data name="StatusBar.GpsMissing" xml:space="preserve">
+    <value>GPS 情報なし</value>
+  </data>
+  <data name="MapStatus.ControlMissingTitle" xml:space="preserve">
+    <value>地図コントロールが利用できません</value>
+  </data>
+  <data name="MapStatus.InitFailedTitle" xml:space="preserve">
+    <value>地図の初期化に失敗しました</value>
+  </data>
+  <data name="MapStatus.SeeLogDetail" xml:space="preserve">
+    <value>詳細はログを確認してください。</value>
+  </data>
+  <data name="MapStatus.SelectPhotoTitle" xml:space="preserve">
+    <value>写真を選択してください</value>
+  </data>
+  <data name="MapStatus.SelectPhotoDetail" xml:space="preserve">
+    <value>地図に位置を表示する写真を選択してください。</value>
+  </data>
+  <data name="MapStatus.LocationMissingTitle" xml:space="preserve">
+    <value>位置情報がありません</value>
+  </data>
+  <data name="MapStatus.LocationMissingDetail" xml:space="preserve">
+    <value>この写真には位置情報がありません。</value>
+  </data>
+  <data name="MapStatus.LocationMissingSelectionDetail" xml:space="preserve">
+    <value>選択した写真に位置情報がありません。</value>
+  </data>
+  <data name="Dialog.ImportFailed.Title" xml:space="preserve">
+    <value>インポートに失敗しました</value>
+  </data>
+  <data name="Dialog.ImportFailed.Detail" xml:space="preserve">
+    <value>設定のインポートに失敗しました。詳細はログを確認してください。</value>
+  </data>
+  <data name="Dialog.About.Title" xml:space="preserve">
+    <value>情報</value>
+  </data>
+  <data name="Dialog.About.Detail" xml:space="preserve">
+    <value>PhotoGeoExplorer {0} - 写真と地図の閲覧アプリ</value>
+  </data>
+  <data name="Dialog.LanguageChanged.Title" xml:space="preserve">
+    <value>言語を変更しました</value>
+  </data>
+  <data name="Dialog.LanguageChanged.Detail" xml:space="preserve">
+    <value>変更を反映するにはアプリを再起動してください。</value>
+  </data>
+  <data name="Dialog.NewFolder.Title" xml:space="preserve">
+    <value>新しいフォルダー</value>
+  </data>
+  <data name="Dialog.NewFolder.Primary" xml:space="preserve">
+    <value>作成</value>
+  </data>
+  <data name="Dialog.NewFolder.DefaultName" xml:space="preserve">
+    <value>新しいフォルダー</value>
+  </data>
+  <data name="Dialog.NewFolder.Placeholder" xml:space="preserve">
+    <value>フォルダー名</value>
+  </data>
+  <data name="Dialog.InvalidName.Title" xml:space="preserve">
+    <value>無効な名前</value>
+  </data>
+  <data name="Dialog.InvalidName.Detail" xml:space="preserve">
+    <value>名前に使用できない文字が含まれています。</value>
+  </data>
+  <data name="Dialog.AlreadyExists.Title" xml:space="preserve">
+    <value>既に存在します</value>
+  </data>
+  <data name="Dialog.AlreadyExists.Detail" xml:space="preserve">
+    <value>同じ名前の項目が既に存在します。</value>
+  </data>
+  <data name="Dialog.CreateFolderFailed.Title" xml:space="preserve">
+    <value>フォルダーの作成に失敗しました</value>
+  </data>
+  <data name="Dialog.SeeLogDetail" xml:space="preserve">
+    <value>詳細はログを確認してください。</value>
+  </data>
+  <data name="Dialog.RenameNotAvailable.Title" xml:space="preserve">
+    <value>名前変更できません</value>
+  </data>
+  <data name="Dialog.RenameNotAvailable.Detail" xml:space="preserve">
+    <value>この項目は名前変更できません。</value>
+  </data>
+  <data name="Dialog.Rename.Title" xml:space="preserve">
+    <value>名前変更</value>
+  </data>
+  <data name="Dialog.Rename.Primary" xml:space="preserve">
+    <value>変更</value>
+  </data>
+  <data name="Dialog.Rename.Placeholder" xml:space="preserve">
+    <value>新しい名前</value>
+  </data>
+  <data name="Dialog.RenameFailed.Title" xml:space="preserve">
+    <value>名前変更に失敗しました</value>
+  </data>
+  <data name="Dialog.DeleteConfirm.Multiple" xml:space="preserve">
+    <value>{0} 件を削除しますか？</value>
+  </data>
+  <data name="Dialog.DeleteConfirm.Title" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="Dialog.DeleteConfirm.Folder" xml:space="preserve">
+    <value>フォルダー「{0}」を削除しますか？</value>
+  </data>
+  <data name="Dialog.DeleteConfirm.File" xml:space="preserve">
+    <value>ファイル「{0}」を削除しますか？</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="Common.Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common.Unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
+  <data name="Menu.NewFolder" xml:space="preserve">
+    <value>新しいフォルダー</value>
+  </data>
+  <data name="Menu.Rename" xml:space="preserve">
+    <value>名前変更</value>
+  </data>
+  <data name="Menu.Move" xml:space="preserve">
+    <value>移動</value>
+  </data>
+  <data name="Menu.MoveToParent" xml:space="preserve">
+    <value>親フォルダーへ移動</value>
+  </data>
+  <data name="Menu.Delete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="Dialog.MoveFailed.Title" xml:space="preserve">
+    <value>移動に失敗しました</value>
+  </data>
+  <data name="Dialog.MoveIntoSelf.Detail" xml:space="preserve">
+    <value>フォルダーを自身の配下に移動できません。</value>
+  </data>
+  <data name="Dialog.AlreadyExistsDestination.Detail" xml:space="preserve">
+    <value>移動先に同名の項目が既に存在します。</value>
+  </data>
+  <data name="Dialog.DeleteNotAvailable.Title" xml:space="preserve">
+    <value>削除できません</value>
+  </data>
+  <data name="Dialog.DeleteNotAvailable.Detail" xml:space="preserve">
+    <value>この項目は削除できません。</value>
+  </data>
+  <data name="Dialog.DeleteFailed.Title" xml:space="preserve">
+    <value>削除に失敗しました</value>
+  </data>
+</root>

@@ -6,8 +6,8 @@
     Title="PhotoGeoExplorer">
     <Grid Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-            <TextBlock Text="PhotoGeoExplorer" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock Text="Loading..." Opacity="0.7" />
+            <TextBlock Text="PhotoGeoExplorer" FontSize="28" FontWeight="SemiBold" x:Uid="SplashTitle" />
+            <TextBlock Text="Loading..." Opacity="0.7" x:Uid="SplashLoading" />
             <controls:ProgressRing IsActive="True" Width="36" Height="36" />
         </StackPanel>
     </Grid>
