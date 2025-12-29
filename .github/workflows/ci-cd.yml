@@ -37,9 +37,17 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
-          $testProjects = Get-ChildItem -Path . -Recurse -Include '*Test*.csproj','*Tests*.csproj' -File -ErrorAction SilentlyContinue
-          if (-not $testProjects) {
-            Write-Host "No test projects found, skipping tests."
-            exit 0
-          }
-          dotnet test PhotoGeoExplorer.sln -c ${{ matrix.configuration }} -p:Platform=${{ matrix.platform }} -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest
+          dotnet test PhotoGeoExplorer.sln `
+            -c ${{ matrix.configuration }} `
+            -p:Platform=${{ matrix.platform }} `
+            -p:TreatWarningsAsErrors=true `
+            -p:AnalysisLevel=latest `
+            --logger "trx;LogFileName=test-results.trx" `
+            --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-${{ matrix.configuration }}-${{ matrix.platform }}
+          path: TestResults/
