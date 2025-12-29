@@ -21,3 +21,18 @@ internal sealed class CultureScope : IDisposable
         CultureInfo.CurrentUICulture = _originalUiCulture;
     }
 }
+
+internal static class TestEnvironment
+{
+    public static void SkipIfCi(string reason)
+    {
+        if (IsCi)
+        {
+            Assert.Inconclusive(reason);
+        }
+    }
+
+    private static bool IsCi
+        => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CI"))
+           || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
+}

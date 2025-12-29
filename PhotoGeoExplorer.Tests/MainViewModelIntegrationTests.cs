@@ -6,6 +6,12 @@ namespace PhotoGeoExplorer.Tests;
 [TestClass]
 public sealed class MainViewModelIntegrationTests
 {
+    [TestInitialize]
+    public void Initialize()
+    {
+        TestEnvironment.SkipIfCi("CI環境ではWinUI依存の初期化が不安定なためスキップします。");
+    }
+
     [TestMethod]
     public async Task LoadFolderAsyncLoadsItemsAndBreadcrumbs()
     {
