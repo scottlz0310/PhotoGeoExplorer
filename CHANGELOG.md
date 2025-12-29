@@ -5,20 +5,23 @@
 ## [未リリース]
 
 ### 追加
-- WinUI 3 アプリシェル（ファイルブラウザ、画像プレビュー、地図の各ペイン）。
-- ローカルの `wwwroot/index.html` マップページを読み込む WebView2 初期化。
+- ファイルブラウザ（フォルダ選択、検索/画像フィルタ、パンくず、表示切替）。
+- ファイル操作（新規フォルダ/移動/リネーム/削除、ドラッグ&ドロップ）。
+- EXIF/GPS 抽出、複数選択の地図マーカー表示と自動フィット。
+- 画像プレビュー（ズーム/パン/最大化、前後ナビ）。
+- Mapsui による地図表示とオフラインタイルキャッシュ。
+- ステータスバー/通知、起動スプラッシュ画面。
+- 設定の永続化、言語/テーマ切替、設定のエクスポート/インポート。
 - `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` へのアプリログ出力。
-- CI/品質/セキュリティのワークフローと、タグベースの未署名 MSIX リリースワークフロー。
-- lefthook による pre-commit / pre-push チェック。
 
 ### 変更
+- 地図表示を WebView2/Leaflet から Mapsui に移行。
 - 解析の厳格化とフォーマットチェックを CI とフックに導入。
-- 主要依存関係の更新（Windows App SDK、WebView2、MetadataExtractor）。
+- 主要依存関係の更新（Windows App SDK、MetadataExtractor、Mapsui）。
 
 ### 修正
-- 生成ファイルの出力先を短いパスに変更し、CodeQL のビルド失敗を解消。
-- Windows App SDK のブートストラップパスを修正し、アプリ起動を安定化。
+- WebView2 初期化失敗時のフォールバック表示を追加。
 - `AppWindow` を安全に扱うようにウィンドウサイズ計算を修正。
 
 ### 削除
-- まだアプリに接続されていなかった仮置きの Models/Services/ViewModels。
+- WebView2 向けの旧タイルキャッシュ資産を整理。
