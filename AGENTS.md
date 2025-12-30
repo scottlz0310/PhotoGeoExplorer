@@ -48,4 +48,4 @@
 
 ## セキュリティと設定の注意
 - ログは `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` に書き出し、起動時にリセットします。
-- Release ワークフローは `v1.1.0` のようなタグで `win-x64` 向け MSI を作成します。
+- Release ワークフローは `v1.1.1` のようなタグで `win-x64` 向け MSI を作成します。

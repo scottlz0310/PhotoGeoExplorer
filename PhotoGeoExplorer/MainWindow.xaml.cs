@@ -154,7 +154,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 "Tiles");
             Directory.CreateDirectory(cacheRoot);
             var persistentCache = new FileCache(cacheRoot, "png");
-            const string userAgent = "PhotoGeoExplorer/1.1.0 (scott.lz0310@gmail.com)";
+            const string userAgent = "PhotoGeoExplorer/1.1.1 (scott.lz0310@gmail.com)";
             var tileLayer = OpenStreetMap.CreateTileLayer(userAgent);
             if (tileLayer.TileSource is BruTile.Web.HttpTileSource httpTileSource)
             {
