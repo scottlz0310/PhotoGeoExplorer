@@ -36,6 +36,9 @@ internal sealed class MainViewModel : BindableBase
     private string? _notificationMessage;
     private InfoBarSeverity _notificationSeverity = InfoBarSeverity.Informational;
     private bool _isNotificationOpen;
+    private string? _notificationActionLabel;
+    private string? _notificationActionUrl;
+    private Visibility _notificationActionVisibility = Visibility.Collapsed;
     private FileViewMode _fileViewMode = FileViewMode.Details;
     private string? _statusTitle;
     private string? _statusDetail;
@@ -353,6 +356,24 @@ internal sealed class MainViewModel : BindableBase
     {
         get => _isNotificationOpen;
         set => SetProperty(ref _isNotificationOpen, value);
+    }
+
+    public string? NotificationActionLabel
+    {
+        get => _notificationActionLabel;
+        private set => SetProperty(ref _notificationActionLabel, value);
+    }
+
+    public string? NotificationActionUrl
+    {
+        get => _notificationActionUrl;
+        private set => SetProperty(ref _notificationActionUrl, value);
+    }
+
+    public Visibility NotificationActionVisibility
+    {
+        get => _notificationActionVisibility;
+        private set => SetProperty(ref _notificationActionVisibility, value);
     }
 
     public async Task InitializeAsync()
@@ -936,6 +957,7 @@ internal sealed class MainViewModel : BindableBase
 
     private void SetNotification(string? message, InfoBarSeverity severity)
     {
+        ClearNotificationAction();
         if (string.IsNullOrWhiteSpace(message))
         {
             NotificationMessage = null;
@@ -947,5 +969,25 @@ internal sealed class MainViewModel : BindableBase
         NotificationMessage = message;
         NotificationSeverity = severity;
         IsNotificationOpen = true;
+    }
+
+    public void ShowNotificationMessage(string message, InfoBarSeverity severity)
+    {
+        SetNotification(message, severity);
+    }
+
+    public void ShowNotificationWithAction(string message, InfoBarSeverity severity, string actionLabel, string actionUrl)
+    {
+        SetNotification(message, severity);
+        NotificationActionLabel = actionLabel;
+        NotificationActionUrl = actionUrl;
+        NotificationActionVisibility = Visibility.Visible;
+    }
+
+    private void ClearNotificationAction()
+    {
+        NotificationActionLabel = null;
+        NotificationActionUrl = null;
+        NotificationActionVisibility = Visibility.Collapsed;
     }
 }

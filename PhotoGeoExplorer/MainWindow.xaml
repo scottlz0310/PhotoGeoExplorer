@@ -191,11 +191,18 @@
                         Click="OnThemeMenuClicked"
                         x:Uid="MenuSettingsThemeDark" />
                 </MenuFlyoutSubItem>
+                <ToggleMenuFlyoutItem
+                    x:Name="AutoUpdateMenuItem"
+                    Text="Check for updates automatically"
+                    Click="OnAutoUpdateMenuClicked"
+                    x:Uid="MenuSettingsAutoUpdate" />
                 <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="Export settings..." Click="OnExportSettingsClicked" x:Uid="MenuSettingsExport" />
                 <MenuFlyoutItem Text="Import settings..." Click="OnImportSettingsClicked" x:Uid="MenuSettingsImport" />
             </MenuBarItem>
             <MenuBarItem Title="Help" x:Uid="MenuHelp">
+                <MenuFlyoutItem Text="Check for updates" Click="OnCheckForUpdatesClicked" x:Uid="MenuHelpCheckUpdates" />
+                <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="About" Click="OnAboutClicked" x:Uid="MenuHelpAbout" />
             </MenuBarItem>
         </MenuBar>
@@ -662,7 +669,15 @@
                 IsOpen="{Binding IsNotificationOpen, Mode=TwoWay}"
                 Message="{Binding NotificationMessage}"
                 Severity="{Binding NotificationSeverity}"
-                IsClosable="True" />
+                IsClosable="True">
+                <controls:InfoBar.ActionButton>
+                    <Button
+                        Content="{Binding NotificationActionLabel}"
+                        Visibility="{Binding NotificationActionVisibility}"
+                        Tag="{Binding NotificationActionUrl}"
+                        Click="OnNotificationActionClicked" />
+                </controls:InfoBar.ActionButton>
+            </controls:InfoBar>
             <Border
                 Grid.Row="1"
                 Margin="0,6,0,0"

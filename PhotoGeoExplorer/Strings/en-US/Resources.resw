@@ -102,6 +102,9 @@
   <data name="MenuSettingsThemeDark.Text" xml:space="preserve">
     <value>Dark</value>
   </data>
+  <data name="MenuSettingsAutoUpdate.Text" xml:space="preserve">
+    <value>Check for updates automatically</value>
+  </data>
   <data name="MenuSettingsExport.Text" xml:space="preserve">
     <value>Export settings...</value>
   </data>
@@ -110,6 +113,9 @@
   </data>
   <data name="MenuHelp.Title" xml:space="preserve">
     <value>Help</value>
+  </data>
+  <data name="MenuHelpCheckUpdates.Text" xml:space="preserve">
+    <value>Check for updates</value>
   </data>
   <data name="MenuHelpAbout.Text" xml:space="preserve">
     <value>About</value>
@@ -249,6 +255,15 @@
   <data name="Message.MetadataNotAvailable" xml:space="preserve">
     <value>Metadata not available.</value>
   </data>
+  <data name="Message.UpdateAvailable" xml:space="preserve">
+    <value>Update available: {0}</value>
+  </data>
+  <data name="Message.UpdateUpToDate" xml:space="preserve">
+    <value>You're up to date.</value>
+  </data>
+  <data name="Message.UpdateCheckFailed" xml:space="preserve">
+    <value>Update check failed. See the log for details.</value>
+  </data>
   <data name="Overlay.NoFilesFoundTitle" xml:space="preserve">
     <value>No files found</value>
   </data>
@@ -269,6 +284,9 @@
   </data>
   <data name="Action.ResetFilters" xml:space="preserve">
     <value>Reset filters</value>
+  </data>
+  <data name="Action.DownloadUpdate" xml:space="preserve">
+    <value>Download update</value>
   </data>
   <data name="StatusBar.NoFolderSelected" xml:space="preserve">
     <value>No folder selected</value>

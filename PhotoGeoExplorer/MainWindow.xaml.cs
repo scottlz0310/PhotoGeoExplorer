@@ -62,6 +62,9 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _isApplyingSettings;
     private string? _languageOverride;
     private ThemePreference _themePreference = ThemePreference.System;
+    private bool _autoCheckUpdates = true;
+    private CancellationTokenSource? _updateCts;
+    private bool _isCheckingUpdates;
 
     public MainWindow()
     {
@@ -91,6 +94,10 @@ public sealed partial class MainWindow : Window, IDisposable
         await ApplyStartupFolderOverrideAsync().ConfigureAwait(true);
         await _viewModel.InitializeAsync().ConfigureAwait(true);
         await UpdateMapFromSelectionAsync().ConfigureAwait(true);
+        if (_autoCheckUpdates)
+        {
+            _ = CheckForUpdatesAsync(isAutomatic: true);
+        }
     }
 
     private void EnsureWindowSize()
@@ -284,6 +291,8 @@ public sealed partial class MainWindow : Window, IDisposable
 
         await ApplyLanguageSettingAsync(settings.Language, showLanguagePrompt).ConfigureAwait(true);
         ApplyThemePreference(settings.Theme, saveSettings: false);
+        _autoCheckUpdates = settings.AutoCheckUpdates;
+        UpdateAutoUpdateMenuCheck();
 
         _viewModel.ShowImagesOnly = settings.ShowImagesOnly;
         _viewModel.FileViewMode = Enum.IsDefined<FileViewMode>(settings.FileViewMode)
@@ -341,8 +350,83 @@ public sealed partial class MainWindow : Window, IDisposable
             ShowImagesOnly = _viewModel.ShowImagesOnly,
             FileViewMode = _viewModel.FileViewMode,
             Language = _languageOverride,
-            Theme = _themePreference
+            Theme = _themePreference,
+            AutoCheckUpdates = _autoCheckUpdates
         };
+    }
+
+    private void UpdateAutoUpdateMenuCheck()
+    {
+        if (AutoUpdateMenuItem is not null)
+        {
+            AutoUpdateMenuItem.IsChecked = _autoCheckUpdates;
+        }
+    }
+
+    private async Task CheckForUpdatesAsync(bool isAutomatic)
+    {
+        if (_isCheckingUpdates)
+        {
+            return;
+        }
+
+        _isCheckingUpdates = true;
+        var previous = _updateCts;
+        _updateCts = new CancellationTokenSource();
+        if (previous is not null)
+        {
+            await previous.CancelAsync().ConfigureAwait(true);
+            previous.Dispose();
+        }
+
+        try
+        {
+            var currentVersion = typeof(App).Assembly.GetName().Version;
+            var result = await UpdateService
+                .CheckForUpdatesAsync(currentVersion, _updateCts.Token)
+                .ConfigureAwait(true);
+
+            if (!result.IsSuccess)
+            {
+                if (!isAutomatic)
+                {
+                    _viewModel.ShowNotificationMessage(
+                        LocalizationService.GetString("Message.UpdateCheckFailed"),
+                        InfoBarSeverity.Error);
+                }
+
+                return;
+            }
+
+            if (!result.IsUpdateAvailable)
+            {
+                if (!isAutomatic)
+                {
+                    _viewModel.ShowNotificationMessage(
+                        LocalizationService.GetString("Message.UpdateUpToDate"),
+                        InfoBarSeverity.Success);
+                }
+
+                return;
+            }
+
+            var latest = result.LatestVersion?.ToString() ?? "unknown";
+            var message = LocalizationService.Format("Message.UpdateAvailable", latest);
+            var actionLabel = LocalizationService.GetString("Action.DownloadUpdate");
+            var actionUrl = result.DownloadUrl ?? result.ReleasePageUrl;
+            if (!string.IsNullOrWhiteSpace(actionUrl))
+            {
+                _viewModel.ShowNotificationWithAction(message, InfoBarSeverity.Informational, actionLabel, actionUrl);
+            }
+            else
+            {
+                _viewModel.ShowNotificationMessage(message, InfoBarSeverity.Informational);
+            }
+        }
+        finally
+        {
+            _isCheckingUpdates = false;
+        }
     }
 
     private void ShowMapStatus(string title, string? description, Symbol symbol)
@@ -893,6 +977,36 @@ public sealed partial class MainWindow : Window, IDisposable
         await _viewModel.RefreshAsync().ConfigureAwait(true);
     }
 
+    private void OnAutoUpdateMenuClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleMenuFlyoutItem item)
+        {
+            return;
+        }
+
+        _autoCheckUpdates = item.IsChecked;
+        ScheduleSettingsSave();
+    }
+
+    private async void OnCheckForUpdatesClicked(object sender, RoutedEventArgs e)
+    {
+        await CheckForUpdatesAsync(isAutomatic: false).ConfigureAwait(true);
+    }
+
+    private async void OnNotificationActionClicked(object sender, RoutedEventArgs e)
+    {
+        var url = _viewModel.NotificationActionUrl;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            await Launcher.LaunchUriAsync(uri);
+        }
+    }
+
     private async void OnLanguageMenuClicked(object sender, RoutedEventArgs e)
     {
         if (sender is not RadioMenuFlyoutItem item)
@@ -1061,6 +1175,10 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapUpdateCts?.Cancel();
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
+
+        _updateCts?.Cancel();
+        _updateCts?.Dispose();
+        _updateCts = null;
 
         GC.SuppressFinalize(this);
     }

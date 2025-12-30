@@ -9,4 +9,5 @@ internal sealed class AppSettings
     public FileViewMode FileViewMode { get; set; } = FileViewMode.Details;
     public string? Language { get; set; }
     public ThemePreference Theme { get; set; } = ThemePreference.System;
+    public bool AutoCheckUpdates { get; set; } = true;
 }
