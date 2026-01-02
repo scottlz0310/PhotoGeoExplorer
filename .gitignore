@@ -107,3 +107,4 @@ packages/
 project.fragment.lock.json
 project.lock.json
 publish/
+.claude/

@@ -235,6 +235,22 @@
                         Click="OnMapZoomMenuClicked"
                         x:Uid="MenuSettingsMapZoomLevel18" />
                 </MenuFlyoutSubItem>
+                <MenuFlyoutSubItem Text="Map tile source" x:Uid="MenuSettingsMapTileSource">
+                    <RadioMenuFlyoutItem
+                        x:Name="MapTileSourceOsmMenuItem"
+                        Text="OpenStreetMap (Road Map)"
+                        Tag="OpenStreetMap"
+                        GroupName="MapTileSource"
+                        Click="OnMapTileSourceMenuClicked"
+                        x:Uid="MenuSettingsMapTileSourceOsm" />
+                    <RadioMenuFlyoutItem
+                        x:Name="MapTileSourceEsriMenuItem"
+                        Text="Esri WorldImagery (Satellite)"
+                        Tag="EsriWorldImagery"
+                        GroupName="MapTileSource"
+                        Click="OnMapTileSourceMenuClicked"
+                        x:Uid="MenuSettingsMapTileSourceEsri" />
+                </MenuFlyoutSubItem>
                 <ToggleMenuFlyoutItem
                     x:Name="AutoUpdateMenuItem"
                     Text="Check for updates automatically"

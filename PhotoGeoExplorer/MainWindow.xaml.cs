@@ -11,6 +11,7 @@ using Mapsui.Layers;
 using Mapsui.Projections;
 using Mapsui.Styles;
 using Mapsui.Tiling;
+using Mapsui.Tiling.Layers;
 using Mapsui.UI.WinUI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -70,6 +71,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private CancellationTokenSource? _updateCts;
     private bool _isCheckingUpdates;
     private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
+    private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
     private PhotoMetadata? _flyoutMetadata;
 
     public MainWindow()
@@ -150,22 +152,17 @@ public sealed partial class MainWindow : Window, IDisposable
             return Task.CompletedTask;
         }
 
+        Map? map = null;
         try
         {
-            var map = new Map();
+            map = new Map();
             var cacheRoot = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "PhotoGeoExplorer",
                 "Cache",
                 "Tiles");
-            Directory.CreateDirectory(cacheRoot);
-            var persistentCache = new FileCache(cacheRoot, "png");
             const string userAgent = "PhotoGeoExplorer/1.2.0 (scott.lz0310@gmail.com)";
-            var tileLayer = OpenStreetMap.CreateTileLayer(userAgent);
-            if (tileLayer.TileSource is BruTile.Web.HttpTileSource httpTileSource)
-            {
-                httpTileSource.PersistentCache = persistentCache;
-            }
+            var tileLayer = CreateTileLayer(_mapTileSource, cacheRoot, userAgent);
             _baseTileLayer = tileLayer;
             map.Layers.Add(tileLayer);
 
@@ -180,6 +177,7 @@ public sealed partial class MainWindow : Window, IDisposable
             _map = map;
             _markerLayer = markerLayer;
             MapControl.Map = map;
+            map = null; // 所有権が _map に移ったので null に設定
             HideMapStatus();
             AppLog.Info("Map initialized.");
         }
@@ -199,8 +197,127 @@ public sealed partial class MainWindow : Window, IDisposable
                 LocalizationService.GetString("MapStatus.SeeLogDetail"),
                 Symbol.Map);
         }
+        finally
+        {
+            map?.Dispose();
+        }
 
         return Task.CompletedTask;
+    }
+
+    private static TileLayer CreateOpenStreetMapLayer(string userAgent, IPersistentCache<byte[]>? persistentCache = null)
+    {
+        var tileSource = new BruTile.Web.HttpTileSource(
+            new BruTile.Predefined.GlobalSphericalMercator(),
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            name: "OpenStreetMap",
+            attribution: new BruTile.Attribution("© OpenStreetMap contributors", "https://www.openstreetmap.org/copyright"),
+            configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
+            persistentCache: persistentCache);
+
+        return new TileLayer(tileSource) { Name = "OpenStreetMap" };
+    }
+
+    private static TileLayer CreateEsriWorldImageryLayer(string userAgent, IPersistentCache<byte[]>? persistentCache = null)
+    {
+        var tileSource = new BruTile.Web.HttpTileSource(
+            new BruTile.Predefined.GlobalSphericalMercator(),
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            name: "Esri WorldImagery",
+            attribution: new BruTile.Attribution("Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"),
+            configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
+            persistentCache: persistentCache);
+
+        return new TileLayer(tileSource) { Name = "Esri WorldImagery" };
+    }
+
+    private static TileLayer CreateTileLayer(MapTileSourceType sourceType, string cacheDirectory, string userAgent)
+    {
+        var sourceDirectory = Path.Combine(cacheDirectory, sourceType.ToString());
+        Directory.CreateDirectory(sourceDirectory);
+        var persistentCache = new FileCache(sourceDirectory, "png");
+
+        return sourceType switch
+        {
+            MapTileSourceType.EsriWorldImagery => CreateEsriWorldImageryLayer(userAgent, persistentCache),
+            _ => CreateOpenStreetMapLayer(userAgent, persistentCache)
+        };
+    }
+
+    private void SwitchTileLayer(MapTileSourceType newSource)
+    {
+        if (_map is null || MapControl is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var cacheRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "PhotoGeoExplorer",
+                "Cache",
+                "Tiles");
+            const string userAgent = "PhotoGeoExplorer/1.2.0 (scott.lz0310@gmail.com)";
+            var newTileLayer = CreateTileLayer(newSource, cacheRoot, userAgent);
+
+            if (_baseTileLayer is not null)
+            {
+                _map.Layers.Remove(_baseTileLayer);
+                _baseTileLayer.Dispose();
+            }
+
+            _map.Layers.Insert(0, newTileLayer);
+            _baseTileLayer = newTileLayer;
+            _mapTileSource = newSource;
+
+            MapControl.Refresh();
+            AppLog.Info($"Switched map tile source to {newSource}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            AppLog.Error("Map tile switch failed.", ex);
+            _viewModel.ShowNotificationMessage(
+                LocalizationService.GetString("Message.OperationFailed"),
+                InfoBarSeverity.Error);
+        }
+        catch (NotSupportedException ex)
+        {
+            AppLog.Error("Map tile switch failed.", ex);
+            _viewModel.ShowNotificationMessage(
+                LocalizationService.GetString("Message.OperationFailed"),
+                InfoBarSeverity.Error);
+        }
+    }
+
+    private void OnMapTileSourceMenuClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not RadioMenuFlyoutItem item || item.Tag is not string tag)
+        {
+            return;
+        }
+
+        if (!Enum.TryParse(tag, ignoreCase: true, out MapTileSourceType sourceType))
+        {
+            return;
+        }
+
+        SwitchTileLayer(sourceType);
+        UpdateMapTileSourceMenuChecks(sourceType);
+        ScheduleSettingsSave();
+    }
+
+    private void UpdateMapTileSourceMenuChecks(MapTileSourceType source)
+    {
+        if (MapTileSourceOsmMenuItem is not null)
+        {
+            MapTileSourceOsmMenuItem.IsChecked = source == MapTileSourceType.OpenStreetMap;
+        }
+
+        if (MapTileSourceEsriMenuItem is not null)
+        {
+            MapTileSourceEsriMenuItem.IsChecked = source == MapTileSourceType.EsriWorldImagery;
+        }
     }
 
     private async Task LoadSettingsAsync()
@@ -299,6 +416,8 @@ public sealed partial class MainWindow : Window, IDisposable
         ApplyThemePreference(settings.Theme, saveSettings: false);
         _mapDefaultZoomLevel = NormalizeMapZoomLevel(settings.MapDefaultZoomLevel);
         UpdateMapZoomMenuChecks(_mapDefaultZoomLevel);
+        _mapTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
+        UpdateMapTileSourceMenuChecks(_mapTileSource);
         _autoCheckUpdates = settings.AutoCheckUpdates;
         UpdateAutoUpdateMenuCheck();
 
@@ -360,7 +479,8 @@ public sealed partial class MainWindow : Window, IDisposable
             Language = _languageOverride,
             Theme = _themePreference,
             AutoCheckUpdates = _autoCheckUpdates,
-            MapDefaultZoomLevel = _mapDefaultZoomLevel
+            MapDefaultZoomLevel = _mapDefaultZoomLevel,
+            MapTileSource = _mapTileSource
         };
     }
 

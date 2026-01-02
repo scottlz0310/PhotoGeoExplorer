@@ -123,6 +123,15 @@
   <data name="MenuSettingsMapZoomLevel18.Text" xml:space="preserve">
     <value>Level 18</value>
   </data>
+  <data name="MenuSettingsMapTileSource.Text" xml:space="preserve">
+    <value>Map tile source</value>
+  </data>
+  <data name="MenuSettingsMapTileSourceOsm.Text" xml:space="preserve">
+    <value>OpenStreetMap (Road Map)</value>
+  </data>
+  <data name="MenuSettingsMapTileSourceEsri.Text" xml:space="preserve">
+    <value>Esri WorldImagery (Satellite)</value>
+  </data>
   <data name="MenuSettingsAutoUpdate.Text" xml:space="preserve">
     <value>Check for updates automatically</value>
   </data>
