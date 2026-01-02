@@ -102,3 +102,7 @@ MSIX を使う場合は、証明書の信頼登録が必要です。配布済み
 ## ライセンス
 
 このプロジェクトは MIT License の下でライセンスされています。詳細は [LICENSE](LICENSE) ファイルを参照してください。
+
+## プライバシーポリシー
+
+プライバシーポリシーは [こちら](https://scottlz0310.github.io/PhotoGeoExplorer/privacy-policy.html) で確認できます。
