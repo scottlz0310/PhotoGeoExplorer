@@ -471,4 +471,22 @@
   <data name="Dialog.DeleteFailed.Title" xml:space="preserve">
     <value>Delete failed</value>
   </data>
+  <data name="Flyout.TakenAtLabel.Text" xml:space="preserve">
+    <value>Taken At</value>
+  </data>
+  <data name="Flyout.CameraLabel.Text" xml:space="preserve">
+    <value>Camera</value>
+  </data>
+  <data name="Flyout.FileLabel.Text" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="Flyout.ResolutionLabel.Text" xml:space="preserve">
+    <value>Resolution</value>
+  </data>
+  <data name="Flyout.GoogleMapsButton.Content" xml:space="preserve">
+    <value>Open in Google Maps</value>
+  </data>
+  <data name="Message.LaunchBrowserFailed" xml:space="preserve">
+    <value>Failed to launch browser.</value>
+  </data>
 </root>

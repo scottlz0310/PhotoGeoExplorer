@@ -37,6 +37,8 @@ namespace PhotoGeoExplorer;
 public sealed partial class MainWindow : Window, IDisposable
 {
     private const string InternalDragKey = "PhotoGeoExplorer.InternalDrag";
+    private const string PhotoItemKey = "PhotoItem";
+    private const string PhotoMetadataKey = "PhotoMetadata";
     private const int DefaultMapZoomLevel = 14;
     private static readonly int[] MapZoomLevelOptions = { 8, 10, 12, 14, 16, 18 };
     private readonly MainViewModel _viewModel;
@@ -68,6 +70,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private CancellationTokenSource? _updateCts;
     private bool _isCheckingUpdates;
     private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
+    private PhotoMetadata? _flyoutMetadata;
 
     public MainWindow()
     {
@@ -501,7 +504,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 && selectedMetadata.Latitude is double latitude
                 && selectedMetadata.Longitude is double longitude)
             {
-                SetMapMarker(latitude, longitude, selectedMetadata);
+                SetMapMarker(latitude, longitude, selectedMetadata, imageItems[0].Item);
                 HideMapStatus();
             }
             else
@@ -534,7 +537,7 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        var points = new List<(double Latitude, double Longitude, PhotoMetadata Metadata)>();
+        var points = new List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)>();
         foreach (var (item, metadata) in metadataItems)
         {
             if (metadata?.HasLocation != true
@@ -544,7 +547,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 continue;
             }
 
-            points.Add((latitude, longitude, metadata));
+            points.Add((latitude, longitude, metadata, item.Item));
         }
 
         if (points.Count == 0)
@@ -560,7 +563,7 @@ public sealed partial class MainWindow : Window, IDisposable
         if (points.Count == 1)
         {
             var single = points[0];
-            SetMapMarker(single.Latitude, single.Longitude, single.Metadata);
+            SetMapMarker(single.Latitude, single.Longitude, single.Metadata, single.Item);
             HideMapStatus();
             return;
         }
@@ -580,7 +583,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _map?.Refresh();
     }
 
-    private void SetMapMarker(double latitude, double longitude, PhotoMetadata metadata)
+    private void SetMapMarker(double latitude, double longitude, PhotoMetadata metadata, PhotoItem photoItem)
     {
         if (_map is null || _markerLayer is null)
         {
@@ -594,6 +597,8 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             feature.Styles.Add(style);
         }
+        feature[PhotoMetadataKey] = metadata;
+        feature[PhotoItemKey] = photoItem;
         _markerLayer.Features = new[] { feature };
         _map.Refresh();
 
@@ -1709,7 +1714,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    private void SetMapMarkers(List<(double Latitude, double Longitude, PhotoMetadata Metadata)> items)
+    private void SetMapMarkers(List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)> items)
     {
         if (_map is null || _markerLayer is null)
         {
@@ -1746,6 +1751,8 @@ public sealed partial class MainWindow : Window, IDisposable
             {
                 feature.Styles.Add(style);
             }
+            feature[PhotoMetadataKey] = item.Metadata;
+            feature[PhotoItemKey] = item.Item;
             features.Add(feature);
         }
 
@@ -2405,5 +2412,111 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         _viewModel.ToggleSort(column);
+    }
+
+    private void OnMapInfoReceived(object? sender, MapInfoEventArgs e)
+    {
+        if (e is null || MapControl.Map?.Layers is null)
+        {
+            return;
+        }
+
+        var mapInfo = e.GetMapInfo(MapControl.Map.Layers);
+        if (mapInfo?.Feature is not PointFeature feature)
+        {
+            return;
+        }
+
+        if (_markerLayer is null || !_markerLayer.Features.Contains(feature))
+        {
+            return;
+        }
+
+        var itemObj = feature[PhotoItemKey];
+        var metadataObj = feature[PhotoMetadataKey];
+
+        if (itemObj is null || metadataObj is null)
+        {
+            AppLog.Info("Marker clicked but missing PhotoItem or PhotoMetadata.");
+            return;
+        }
+
+        if (itemObj is not PhotoItem photoItem || metadataObj is not PhotoMetadata metadata)
+        {
+            return;
+        }
+
+        ShowMarkerFlyout(photoItem, metadata);
+    }
+
+    private void ShowMarkerFlyout(PhotoItem photoItem, PhotoMetadata metadata)
+    {
+        _flyoutMetadata = metadata;
+
+        FlyoutTakenAtLabel.Text = LocalizationService.GetString("Flyout.TakenAtLabel.Text");
+        FlyoutTakenAt.Text = metadata.TakenAtText ?? "-";
+
+        if (!string.IsNullOrWhiteSpace(metadata.CameraSummary))
+        {
+            FlyoutCameraLabel.Text = LocalizationService.GetString("Flyout.CameraLabel.Text");
+            FlyoutCamera.Text = metadata.CameraSummary;
+            FlyoutCameraPanel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            FlyoutCameraPanel.Visibility = Visibility.Collapsed;
+        }
+
+        FlyoutFileLabel.Text = LocalizationService.GetString("Flyout.FileLabel.Text");
+        FlyoutFileName.Text = photoItem.FileName;
+
+        if (!string.IsNullOrWhiteSpace(photoItem.ResolutionText))
+        {
+            FlyoutResolutionLabel.Text = LocalizationService.GetString("Flyout.ResolutionLabel.Text");
+            FlyoutResolution.Text = photoItem.ResolutionText;
+            FlyoutResolutionPanel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            FlyoutResolutionPanel.Visibility = Visibility.Collapsed;
+        }
+
+        FlyoutGoogleMapsLink.Content = LocalizationService.GetString("Flyout.GoogleMapsButton.Content");
+
+        MarkerFlyout.ShowAt(MapControl);
+    }
+
+    private async void OnGoogleMapsLinkClicked(object sender, RoutedEventArgs e)
+    {
+        if (_flyoutMetadata?.HasLocation != true)
+        {
+            return;
+        }
+
+        var url = GenerateGoogleMapsUrl(_flyoutMetadata.Latitude!.Value, _flyoutMetadata.Longitude!.Value);
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            try
+            {
+                await Launcher.LaunchUriAsync(uri);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException
+                or System.Runtime.InteropServices.COMException
+                or ArgumentException)
+            {
+                AppLog.Error("Failed to launch Google Maps URL.", ex);
+                _viewModel.ShowNotificationMessage(
+                    LocalizationService.GetString("Message.LaunchBrowserFailed"),
+                    InfoBarSeverity.Error);
+            }
+        }
+
+        MarkerFlyout.Hide();
+    }
+
+    private static string GenerateGoogleMapsUrl(double latitude, double longitude)
+    {
+        return $"https://www.google.com/maps?q={latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},{longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
     }
 }

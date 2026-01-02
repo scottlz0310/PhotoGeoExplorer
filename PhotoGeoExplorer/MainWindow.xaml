@@ -651,6 +651,60 @@
                     IsTabStop="False" />
 
                 <Grid x:Name="MapPane" Grid.Row="2">
+                    <Grid.Resources>
+                        <Flyout x:Name="MarkerFlyout" Placement="Top">
+                            <StackPanel Spacing="8" MinWidth="280" MaxWidth="320" Padding="12">
+                                <!-- 撮影日時 -->
+                                <StackPanel Spacing="4">
+                                    <TextBlock x:Name="FlyoutTakenAtLabel"
+                                               FontWeight="SemiBold"
+                                               FontSize="12"
+                                               Opacity="0.7" />
+                                    <TextBlock x:Name="FlyoutTakenAt"
+                                               FontSize="14"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <!-- カメラ情報 -->
+                                <StackPanel Spacing="4" x:Name="FlyoutCameraPanel">
+                                    <TextBlock x:Name="FlyoutCameraLabel"
+                                               FontWeight="SemiBold"
+                                               FontSize="12"
+                                               Opacity="0.7" />
+                                    <TextBlock x:Name="FlyoutCamera"
+                                               FontSize="14"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <!-- ファイル名 -->
+                                <StackPanel Spacing="4">
+                                    <TextBlock x:Name="FlyoutFileLabel"
+                                               FontWeight="SemiBold"
+                                               FontSize="12"
+                                               Opacity="0.7" />
+                                    <TextBlock x:Name="FlyoutFileName"
+                                               FontSize="14"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <!-- 画像サイズ -->
+                                <StackPanel Spacing="4" x:Name="FlyoutResolutionPanel">
+                                    <TextBlock x:Name="FlyoutResolutionLabel"
+                                               FontWeight="SemiBold"
+                                               FontSize="12"
+                                               Opacity="0.7" />
+                                    <TextBlock x:Name="FlyoutResolution"
+                                               FontSize="14" />
+                                </StackPanel>
+
+                                <!-- Google Maps リンク -->
+                                <HyperlinkButton x:Name="FlyoutGoogleMapsLink"
+                                                 HorizontalAlignment="Stretch"
+                                                 Margin="0,4,0,0"
+                                                 Click="OnGoogleMapsLinkClicked" />
+                            </StackPanel>
+                        </Flyout>
+                    </Grid.Resources>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
@@ -659,7 +713,7 @@
                     <Grid Grid.Row="1" Margin="0,8,0,0">
                         <Border Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="6" />
                         <Grid x:Name="MapHost">
-                            <mapsui:MapControl x:Name="MapControl" AutomationProperties.AutomationId="MapControl" />
+                            <mapsui:MapControl x:Name="MapControl" AutomationProperties.AutomationId="MapControl" Info="OnMapInfoReceived" />
                         </Grid>
                         <Border
                             x:Name="MapStatusOverlay"

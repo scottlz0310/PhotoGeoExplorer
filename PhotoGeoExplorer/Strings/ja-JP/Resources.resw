@@ -471,4 +471,22 @@
   <data name="Dialog.DeleteFailed.Title" xml:space="preserve">
     <value>削除に失敗しました</value>
   </data>
+  <data name="Flyout.TakenAtLabel.Text" xml:space="preserve">
+    <value>撮影日時</value>
+  </data>
+  <data name="Flyout.CameraLabel.Text" xml:space="preserve">
+    <value>カメラ</value>
+  </data>
+  <data name="Flyout.FileLabel.Text" xml:space="preserve">
+    <value>ファイル</value>
+  </data>
+  <data name="Flyout.ResolutionLabel.Text" xml:space="preserve">
+    <value>解像度</value>
+  </data>
+  <data name="Flyout.GoogleMapsButton.Content" xml:space="preserve">
+    <value>Google マップで開く</value>
+  </data>
+  <data name="Message.LaunchBrowserFailed" xml:space="preserve">
+    <value>ブラウザの起動に失敗しました。</value>
+  </data>
 </root>
