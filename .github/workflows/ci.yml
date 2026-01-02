@@ -1,18 +1,18 @@
 # GitHub Actions workflow for CI pipeline
 
-name: CI Pipeline
+name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  ci:
     runs-on: windows-latest
     strategy:
       matrix:
@@ -31,7 +31,10 @@ jobs:
       - name: Restore
         run: dotnet restore PhotoGeoExplorer.sln
 
-      - name: Build
+      - name: Format check
+        run: dotnet format --verify-no-changes PhotoGeoExplorer.sln
+
+      - name: Build with analyzers
         run: dotnet build PhotoGeoExplorer.sln -c ${{ matrix.configuration }} -p:Platform=${{ matrix.platform }} -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest
 
       - name: Ensure Windows App SDK runtime
@@ -49,6 +52,26 @@ jobs:
             }
           }
 
+      - name: Check for outdated packages
+        shell: pwsh
+        run: |
+          $projects = Get-ChildItem -Path . -Recurse -Filter *.csproj |
+            Where-Object { $_.FullName -notmatch '\\\\(bin|obj)\\\\' }
+          if (-not $projects) {
+            Write-Error "No .csproj projects found for package checks."
+            exit 1
+          }
+          foreach ($project in $projects) {
+            Write-Host "Checking outdated packages: $($project.FullName)"
+            $lines = dotnet list $project.FullName package --outdated
+            $lines | ForEach-Object { $_ }
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if ($lines | Select-String -Pattern '^\\s*>\\s') {
+              Write-Error "Outdated NuGet packages detected. Update packages to the latest versions."
+              exit 1
+            }
+          }
+
       - name: Test
         shell: pwsh
         run: |
@@ -59,7 +82,16 @@ jobs:
             -p:AnalysisLevel=latest `
             --logger "trx;LogFileName=test-results.trx" `
             --results-directory TestResults `
+            --collect "XPlat Code Coverage" `
+            --settings coverlet.runsettings `
             --blame-hang-timeout 10m
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: TestResults/**/coverage.cobertura.xml
+          flags: unittests
+          fail_ci_if_error: true
 
       - name: Upload test results
         if: always()
@@ -69,7 +101,7 @@ jobs:
           path: TestResults/
 
   package:
-    needs: build
+    needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
 

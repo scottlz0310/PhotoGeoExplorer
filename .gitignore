@@ -18,6 +18,7 @@
 **/*.appxsym
 **/*.msixsym
 **/*.pdb
+**/TestResults/
 
 # NuGet
 **/packages/
