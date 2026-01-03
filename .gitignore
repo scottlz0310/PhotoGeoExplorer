@@ -111,3 +111,6 @@ publish/
 
 # WACK (Windows App Certification Kit) test files
 wack/wack-report.xml
+wack/logs/
+wack/profile/
+wack/temp/

@@ -6,6 +6,30 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptDir
 Set-Location $projectRoot
 
+# Configuration
+$wackDir = Join-Path $projectRoot 'wack'
+$report = Join-Path $wackDir 'wack-report.xml'
+$wackProfile = Join-Path $wackDir 'profile'
+$wackLocalAppData = Join-Path $wackProfile 'AppData\\Local'
+$wackRoamingAppData = Join-Path $wackProfile 'AppData\\Roaming'
+$wackTemp = Join-Path $wackLocalAppData 'Temp'
+$wackLogs = Join-Path $wackDir 'logs'
+
+# Use repo-local temp/log paths to avoid TAEF log creation failures on non-ASCII user profiles.
+New-Item -ItemType Directory -Path $wackTemp, $wackLogs, $wackLocalAppData, $wackRoamingAppData -Force | Out-Null
+$appVerifierLogs = Join-Path $wackLocalAppData 'AppVerifierLogs'
+New-Item -ItemType Directory -Path $appVerifierLogs -Force | Out-Null
+$env:TEMP = $wackTemp
+$env:TMP = $wackTemp
+$env:USERPROFILE = $wackProfile
+$env:LOCALAPPDATA = $wackLocalAppData
+$env:APPDATA = $wackRoamingAppData
+$env:HOMEDRIVE = Split-Path $wackProfile -Qualifier
+$env:HOMEPATH = $wackProfile.Substring($env:HOMEDRIVE.Length)
+$env:TAEF_LOG_DIR = $wackLogs
+$env:TAEF_LOG_ROOT = $wackLogs
+$env:TAEF_LOG_PATH = $wackLogs
+
 # Find appcert.exe - try environment variable first, then common paths
 $appcert = $env:WACK_APPCERT_PATH
 if (-not $appcert -or -not (Test-Path $appcert)) {
@@ -28,10 +52,6 @@ if (-not $appcert -or -not (Test-Path $appcert)) {
     Write-Host "Example: `$env:WACK_APPCERT_PATH = 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit\appcert.exe'" -ForegroundColor Gray
     exit 1
 }
-
-# Configuration
-$wackDir = Join-Path $projectRoot 'wack'
-$report = Join-Path $wackDir 'wack-report.xml'
 
 # Find the latest MSIX bundle
 $packagePattern = Join-Path $projectRoot 'PhotoGeoExplorer\AppPackages\PhotoGeoExplorer_*_Test\*.msixbundle'
