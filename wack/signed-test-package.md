@@ -23,6 +23,15 @@ PowerShell で次を実行します。
 .\wack\install-signed-test.ps1
 ```
 
+### ルート証明書の信頼（必須）
+
+`0x800B0109` が出る場合は、管理者 PowerShell で次を実行して LocalMachine 側にも登録してください。
+
+```powershell
+Import-Certificate -FilePath .\wack\certs\PhotoGeoExplorer_test.cer -CertStoreLocation Cert:\LocalMachine\Root
+Import-Certificate -FilePath .\wack\certs\PhotoGeoExplorer_test.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+```
+
 パス指定でインストールする場合:
 
 ```powershell
