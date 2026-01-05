@@ -7,6 +7,9 @@
 
 ## 議論項目
 
+## 運用メモ
+- Draft PR でも CI/セキュリティチェックは実行される（workflow に draft 判定がない）
+
 ### 自動更新機能と Microsoft Store 配信
 - 現状: GitHub Release の更新通知を利用
 - 論点: Store 版で更新通知を維持するか、Store の更新導線に寄せるか
