@@ -319,19 +319,11 @@
                     AllowDrop="True"
                     DragOver="OnBreadcrumbDragOver"
                     Drop="OnBreadcrumbDrop"
-                    ItemClicked="OnBreadcrumbItemClicked">
+                    ItemClicked="OnBreadcrumbItemClicked"
+                    PointerPressed="OnBreadcrumbPointerPressed">
                     <BreadcrumbBar.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="{Binding Title}" />
-                                <Button
-                                    Content="v"
-                                    Padding="4,0"
-                                    MinWidth="24"
-                                    IsEnabled="{Binding HasChildren}"
-                                    Tag="{Binding}"
-                                    Click="OnBreadcrumbDropDownClicked" />
-                            </StackPanel>
+                            <TextBlock Text="{Binding Title}" />
                         </DataTemplate>
                     </BreadcrumbBar.ItemTemplate>
                 </BreadcrumbBar>
@@ -449,6 +441,7 @@
                         IsMultiSelectCheckBoxEnabled="True"
                         IsItemClickEnabled="True"
                         ItemClick="OnFileItemClicked"
+                        DoubleTapped="OnFileItemDoubleTapped"
                         SelectionChanged="OnFileSelectionChanged"
                         CanDragItems="True"
                         CanReorderItems="False"
@@ -469,6 +462,7 @@
                         IsMultiSelectCheckBoxEnabled="True"
                         IsItemClickEnabled="True"
                         ItemClick="OnFileItemClicked"
+                        DoubleTapped="OnFileItemDoubleTapped"
                         SelectionChanged="OnFileSelectionChanged"
                         CanDragItems="True"
                         CanReorderItems="False"
@@ -489,6 +483,7 @@
                         IsMultiSelectCheckBoxEnabled="True"
                         IsItemClickEnabled="True"
                         ItemClick="OnFileItemClicked"
+                        DoubleTapped="OnFileItemDoubleTapped"
                         SelectionChanged="OnFileSelectionChanged"
                         CanDragItems="True"
                         CanReorderItems="False"

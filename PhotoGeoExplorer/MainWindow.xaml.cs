@@ -52,6 +52,8 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _previewFitToWindow = true;
     private bool _previewMaximized;
     private bool _windowSized;
+    private bool _windowIconSet;
+    private bool _suppressBreadcrumbNavigation;
     private CancellationTokenSource? _mapUpdateCts;
     private CancellationTokenSource? _settingsCts;
     private GridLength _storedDetailWidth;
@@ -59,6 +61,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private GridLength _storedMapRowHeight;
     private GridLength _storedMapSplitterHeight;
     private GridLength _storedSplitterWidth;
+    private double _storedMapRowMinHeight;
     private bool _previewDragging;
     private Point _previewDragStart;
     private double _previewStartHorizontalOffset;
@@ -93,6 +96,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         EnsureWindowSize();
+        EnsureWindowIcon();
         _mapInitialized = true;
         AppLog.Info("MainWindow activated.");
         await InitializeMapAsync().ConfigureAwait(true);
@@ -127,6 +131,40 @@ public sealed partial class MainWindow : Window, IDisposable
         catch (System.Runtime.InteropServices.COMException ex)
         {
             AppLog.Error("Failed to set initial window size.", ex);
+        }
+    }
+
+    private void EnsureWindowIcon()
+    {
+        if (_windowIconSet)
+        {
+            return;
+        }
+
+        _windowIconSet = true;
+
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico");
+        if (!File.Exists(iconPath))
+        {
+            AppLog.Error($"Window icon not found: {iconPath}");
+            return;
+        }
+
+        try
+        {
+            AppWindow.SetIcon(iconPath);
+        }
+        catch (ArgumentException ex)
+        {
+            AppLog.Error("Failed to set window icon.", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            AppLog.Error("Failed to set window icon.", ex);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("Failed to set window icon.", ex);
         }
     }
 
@@ -741,7 +779,7 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             Image = new Mapsui.Styles.Image { Source = imageUri },
             SymbolScale = 1,
-            RelativeOffset = new RelativeOffset(0, -0.5)
+            RelativeOffset = new RelativeOffset(0, 0.5)
         };
         return true;
     }
@@ -964,8 +1002,16 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        var scaleX = viewportWidth / bitmap.PixelWidth;
-        var scaleY = viewportHeight / bitmap.PixelHeight;
+        var rasterScale = RootGrid?.XamlRoot?.RasterizationScale ?? 1.0;
+        var imageWidth = bitmap.PixelWidth / rasterScale;
+        var imageHeight = bitmap.PixelHeight / rasterScale;
+        if (imageWidth <= 0 || imageHeight <= 0)
+        {
+            return;
+        }
+
+        var scaleX = viewportWidth / imageWidth;
+        var scaleY = viewportHeight / imageHeight;
         var target = (float)Math.Min(scaleX, scaleY);
         var clamped = Math.Clamp(target, PreviewScrollViewer.MinZoomFactor, PreviewScrollViewer.MaxZoomFactor);
         PreviewScrollViewer.ChangeView(0, 0, clamped, true);
@@ -985,6 +1031,7 @@ public sealed partial class MainWindow : Window, IDisposable
             _storedDetailWidth = DetailColumn.Width;
             _storedMapRowHeight = MapRow.Height;
             _storedMapSplitterHeight = MapSplitterRow.Height;
+            _storedMapRowMinHeight = MapRow.MinHeight;
             _layoutStored = true;
         }
 
@@ -996,6 +1043,7 @@ public sealed partial class MainWindow : Window, IDisposable
             DetailColumn.Width = new GridLength(1, GridUnitType.Star);
             MapRow.Height = new GridLength(0);
             MapSplitterRow.Height = new GridLength(0);
+            MapRow.MinHeight = 0;
             FileBrowserPane.Visibility = Visibility.Collapsed;
             MapPane.Visibility = Visibility.Collapsed;
             MainSplitter.Visibility = Visibility.Collapsed;
@@ -1008,6 +1056,7 @@ public sealed partial class MainWindow : Window, IDisposable
             DetailColumn.Width = _storedDetailWidth;
             MapRow.Height = _storedMapRowHeight;
             MapSplitterRow.Height = _storedMapSplitterHeight;
+            MapRow.MinHeight = _storedMapRowMinHeight;
             FileBrowserPane.Visibility = Visibility.Visible;
             MapPane.Visibility = Visibility.Visible;
             MainSplitter.Visibility = Visibility.Visible;
@@ -1549,6 +1598,11 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnBreadcrumbItemClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
     {
+        if (_suppressBreadcrumbNavigation)
+        {
+            return;
+        }
+
         if (args.Item is not BreadcrumbSegment segment)
         {
             return;
@@ -1557,13 +1611,48 @@ public sealed partial class MainWindow : Window, IDisposable
         await _viewModel.LoadFolderAsync(segment.FullPath).ConfigureAwait(true);
     }
 
-    private void OnBreadcrumbDropDownClicked(object sender, RoutedEventArgs e)
+    private void OnBreadcrumbPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is not Button button || button.Tag is not BreadcrumbSegment segment)
+        var container = FindAncestor<BreadcrumbBarItem>(e.OriginalSource as DependencyObject);
+        if (container?.DataContext is not BreadcrumbSegment segment)
         {
             return;
         }
 
+        if (segment.Children.Count == 0 || container.ActualWidth <= 0)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(container);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        var position = point.Position;
+        const double separatorHitWidth = 18;
+        if (position.X < container.ActualWidth - separatorHitWidth)
+        {
+            return;
+        }
+
+        ShowBreadcrumbChildrenFlyout(container, segment);
+        e.Handled = true;
+    }
+
+    private async void OnBreadcrumbChildClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuFlyoutItem item || item.Tag is not string folderPath)
+        {
+            return;
+        }
+
+        await _viewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
+    }
+
+    private void ShowBreadcrumbChildrenFlyout(FrameworkElement anchor, BreadcrumbSegment segment)
+    {
         if (segment.Children.Count == 0)
         {
             return;
@@ -1581,17 +1670,9 @@ public sealed partial class MainWindow : Window, IDisposable
             flyout.Items.Add(item);
         }
 
-        flyout.ShowAt(button);
-    }
-
-    private async void OnBreadcrumbChildClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem item || item.Tag is not string folderPath)
-        {
-            return;
-        }
-
-        await _viewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
+        _suppressBreadcrumbNavigation = true;
+        flyout.Closed += (_, _) => _suppressBreadcrumbNavigation = false;
+        flyout.ShowAt(anchor);
     }
 
     private void OnBreadcrumbDragOver(object sender, DragEventArgs e)
@@ -1784,17 +1865,34 @@ public sealed partial class MainWindow : Window, IDisposable
         e.Handled = true;
     }
 
-    private async void OnFileItemClicked(object sender, ItemClickEventArgs e)
+    private void OnFileItemClicked(object sender, ItemClickEventArgs e)
     {
-        if (e.ClickedItem is not PhotoListItem item)
+        if (e.ClickedItem is not PhotoListItem)
+        {
+            return;
+        }
+    }
+
+    private async void OnFileItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (sender is not ListViewBase listView)
         {
             return;
         }
 
-        if (item.IsFolder)
+        var container = FindAncestor<SelectorItem>(e.OriginalSource as DependencyObject);
+        if (container is null || listView.ItemFromContainer(container) is not PhotoListItem item)
         {
-            await _viewModel.LoadFolderAsync(item.FilePath).ConfigureAwait(true);
+            return;
         }
+
+        if (!item.IsFolder)
+        {
+            return;
+        }
+
+        await _viewModel.LoadFolderAsync(item.FilePath).ConfigureAwait(true);
+        e.Handled = true;
     }
 
     private void SetMapMarkers(List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)> items)
@@ -2285,6 +2383,29 @@ public sealed partial class MainWindow : Window, IDisposable
         return null;
     }
 
+    private static IEnumerable<T> FindDescendants<T>(DependencyObject? source) where T : DependencyObject
+    {
+        if (source is null)
+        {
+            yield break;
+        }
+
+        var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(source);
+        for (var index = 0; index < count; index++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(source, index);
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (var descendant in FindDescendants<T>(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
     private static bool IsDescendantOf(DependencyObject? child, DependencyObject ancestor)
     {
         var current = child;
@@ -2529,6 +2650,7 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
+        FocusPhotoItem(photoItem);
         ShowMarkerFlyout(photoItem, metadata);
     }
 
@@ -2567,6 +2689,45 @@ public sealed partial class MainWindow : Window, IDisposable
         FlyoutGoogleMapsLink.Content = LocalizationService.GetString("Flyout.GoogleMapsButton.Content");
 
         MarkerFlyout.ShowAt(MapControl);
+    }
+
+    private void FocusPhotoItem(PhotoItem photoItem)
+    {
+        var target = _viewModel.Items.FirstOrDefault(item
+            => !item.IsFolder
+               && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
+        if (target is null)
+        {
+            return;
+        }
+
+        _viewModel.SelectedItem = target;
+
+        var listView = GetFileListView();
+        if (listView is null)
+        {
+            return;
+        }
+        listView.ScrollIntoView(target);
+    }
+
+    private ListViewBase? GetFileListView()
+    {
+        if (RootGrid is null)
+        {
+            return null;
+        }
+
+        var candidates = FindDescendants<ListViewBase>(RootGrid)
+            .Where(listView => ReferenceEquals(listView.ItemsSource, _viewModel.Items))
+            .ToList();
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        return candidates.FirstOrDefault(listView => listView.Visibility == Visibility.Visible)
+            ?? candidates[0];
     }
 
     private async void OnGoogleMapsLinkClicked(object sender, RoutedEventArgs e)

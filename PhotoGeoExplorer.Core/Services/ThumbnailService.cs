@@ -10,7 +10,9 @@ namespace PhotoGeoExplorer.Services;
 
 internal static class ThumbnailService
 {
-    private const int MaxThumbnailSize = 96;
+    private const int MaxThumbnailSize = 256;
+    private const int ThumbnailJpegQuality = 90;
+    private const string ThumbnailCacheVersion = "v2";
     private static readonly string CacheDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PhotoGeoExplorer",
@@ -24,7 +26,7 @@ internal static class ThumbnailService
         width = null;
         height = null;
 
-        var cacheKey = $"{filePath}|{lastWriteUtc.Ticks}";
+        var cacheKey = $"{filePath}|{lastWriteUtc.Ticks}|{MaxThumbnailSize}|{ThumbnailJpegQuality}|{ThumbnailCacheVersion}";
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(cacheKey)));
         var thumbnailPath = Path.Combine(CacheDirectory, $"{hash}.jpg");
 
@@ -44,9 +46,11 @@ internal static class ThumbnailService
             image.Mutate(context => context.Resize(new ResizeOptions
             {
                 Size = new Size(MaxThumbnailSize, MaxThumbnailSize),
-                Mode = ResizeMode.Max
+                Mode = ResizeMode.Max,
+                Sampler = KnownResamplers.Lanczos3,
+                Compand = true
             }));
-            image.Save(tempPath, new JpegEncoder { Quality = 80 });
+            image.Save(tempPath, new JpegEncoder { Quality = ThumbnailJpegQuality });
             File.Move(tempPath, thumbnailPath, overwrite: true);
             return thumbnailPath;
         }
