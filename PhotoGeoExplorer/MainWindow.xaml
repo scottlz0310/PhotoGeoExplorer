@@ -251,18 +251,10 @@
                         Click="OnMapTileSourceMenuClicked"
                         x:Uid="MenuSettingsMapTileSourceEsri" />
                 </MenuFlyoutSubItem>
-                <ToggleMenuFlyoutItem
-                    x:Name="AutoUpdateMenuItem"
-                    Text="Check for updates automatically"
-                    Click="OnAutoUpdateMenuClicked"
-                    x:Uid="MenuSettingsAutoUpdate" />
-                <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="Export settings..." Click="OnExportSettingsClicked" x:Uid="MenuSettingsExport" />
                 <MenuFlyoutItem Text="Import settings..." Click="OnImportSettingsClicked" x:Uid="MenuSettingsImport" />
             </MenuBarItem>
             <MenuBarItem Title="Help" x:Uid="MenuHelp">
-                <MenuFlyoutItem Text="Check for updates" Click="OnCheckForUpdatesClicked" x:Uid="MenuHelpCheckUpdates" />
-                <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="About" Click="OnAboutClicked" x:Uid="MenuHelpAbout" />
             </MenuBarItem>
         </MenuBar>

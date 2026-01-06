@@ -68,9 +68,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private string? _languageOverride;
     private string? _startupFilePath;
     private ThemePreference _themePreference = ThemePreference.System;
-    private bool _autoCheckUpdates = true;
-    private CancellationTokenSource? _updateCts;
-    private bool _isCheckingUpdates;
     private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
     private PhotoMetadata? _flyoutMetadata;
@@ -104,10 +101,6 @@ public sealed partial class MainWindow : Window, IDisposable
         await ApplyStartupFileActivationAsync().ConfigureAwait(true);
         await _viewModel.InitializeAsync().ConfigureAwait(true);
         await UpdateMapFromSelectionAsync().ConfigureAwait(true);
-        if (_autoCheckUpdates)
-        {
-            _ = CheckForUpdatesAsync(isAutomatic: true);
-        }
     }
 
     private void EnsureWindowSize()
@@ -467,8 +460,6 @@ public sealed partial class MainWindow : Window, IDisposable
         UpdateMapZoomMenuChecks(_mapDefaultZoomLevel);
         _mapTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
         UpdateMapTileSourceMenuChecks(_mapTileSource);
-        _autoCheckUpdates = settings.AutoCheckUpdates;
-        UpdateAutoUpdateMenuCheck();
 
         _viewModel.ShowImagesOnly = settings.ShowImagesOnly;
         _viewModel.FileViewMode = Enum.IsDefined<FileViewMode>(settings.FileViewMode)
@@ -527,84 +518,9 @@ public sealed partial class MainWindow : Window, IDisposable
             FileViewMode = _viewModel.FileViewMode,
             Language = _languageOverride,
             Theme = _themePreference,
-            AutoCheckUpdates = _autoCheckUpdates,
             MapDefaultZoomLevel = _mapDefaultZoomLevel,
             MapTileSource = _mapTileSource
         };
-    }
-
-    private void UpdateAutoUpdateMenuCheck()
-    {
-        if (AutoUpdateMenuItem is not null)
-        {
-            AutoUpdateMenuItem.IsChecked = _autoCheckUpdates;
-        }
-    }
-
-    private async Task CheckForUpdatesAsync(bool isAutomatic)
-    {
-        if (_isCheckingUpdates)
-        {
-            return;
-        }
-
-        _isCheckingUpdates = true;
-        var previous = _updateCts;
-        _updateCts = new CancellationTokenSource();
-        if (previous is not null)
-        {
-            await previous.CancelAsync().ConfigureAwait(true);
-            previous.Dispose();
-        }
-
-        try
-        {
-            var currentVersion = typeof(App).Assembly.GetName().Version;
-            var result = await UpdateService
-                .CheckForUpdatesAsync(currentVersion, _updateCts.Token)
-                .ConfigureAwait(true);
-
-            if (!result.IsSuccess)
-            {
-                if (!isAutomatic)
-                {
-                    _viewModel.ShowNotificationMessage(
-                        LocalizationService.GetString("Message.UpdateCheckFailed"),
-                        InfoBarSeverity.Error);
-                }
-
-                return;
-            }
-
-            if (!result.IsUpdateAvailable)
-            {
-                if (!isAutomatic)
-                {
-                    _viewModel.ShowNotificationMessage(
-                        LocalizationService.GetString("Message.UpdateUpToDate"),
-                        InfoBarSeverity.Success);
-                }
-
-                return;
-            }
-
-            var latest = result.LatestVersion?.ToString() ?? "unknown";
-            var message = LocalizationService.Format("Message.UpdateAvailable", latest);
-            var actionLabel = LocalizationService.GetString("Action.DownloadUpdate");
-            var actionUrl = result.DownloadUrl ?? result.ReleasePageUrl;
-            if (!string.IsNullOrWhiteSpace(actionUrl))
-            {
-                _viewModel.ShowNotificationWithAction(message, InfoBarSeverity.Informational, actionLabel, actionUrl);
-            }
-            else
-            {
-                _viewModel.ShowNotificationMessage(message, InfoBarSeverity.Informational);
-            }
-        }
-        finally
-        {
-            _isCheckingUpdates = false;
-        }
     }
 
     private void ShowMapStatus(string title, string? description, Symbol symbol)
@@ -669,9 +585,7 @@ public sealed partial class MainWindow : Window, IDisposable
             && ReferenceEquals(imageItems[0], _viewModel.SelectedItem)
             && _viewModel.SelectedMetadata is PhotoMetadata selectedMetadata)
         {
-            if (selectedMetadata.HasLocation
-                && selectedMetadata.Latitude is double latitude
-                && selectedMetadata.Longitude is double longitude)
+            if (TryGetValidLocation(selectedMetadata, out var latitude, out var longitude))
             {
                 SetMapMarker(latitude, longitude, selectedMetadata, imageItems[0].Item);
                 HideMapStatus();
@@ -709,9 +623,7 @@ public sealed partial class MainWindow : Window, IDisposable
         var points = new List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)>();
         foreach (var (item, metadata) in metadataItems)
         {
-            if (metadata?.HasLocation != true
-                || metadata.Latitude is not double latitude
-                || metadata.Longitude is not double longitude)
+            if (metadata is null || !TryGetValidLocation(metadata, out var latitude, out var longitude))
             {
                 continue;
             }
@@ -739,6 +651,27 @@ public sealed partial class MainWindow : Window, IDisposable
 
         SetMapMarkers(points);
         HideMapStatus();
+    }
+
+    private static bool TryGetValidLocation(PhotoMetadata metadata, out double latitude, out double longitude)
+    {
+        latitude = 0;
+        longitude = 0;
+        if (!metadata.HasLocation
+            || metadata.Latitude is not double lat
+            || metadata.Longitude is not double lon)
+        {
+            return false;
+        }
+
+        if (Math.Abs(lat) < 0.000001 && Math.Abs(lon) < 0.000001)
+        {
+            return false;
+        }
+
+        latitude = lat;
+        longitude = lon;
+        return true;
     }
 
     private void ClearMapMarkers()
@@ -1157,22 +1090,6 @@ public sealed partial class MainWindow : Window, IDisposable
         await _viewModel.RefreshAsync().ConfigureAwait(true);
     }
 
-    private void OnAutoUpdateMenuClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not ToggleMenuFlyoutItem item)
-        {
-            return;
-        }
-
-        _autoCheckUpdates = item.IsChecked;
-        ScheduleSettingsSave();
-    }
-
-    private async void OnCheckForUpdatesClicked(object sender, RoutedEventArgs e)
-    {
-        await CheckForUpdatesAsync(isAutomatic: false).ConfigureAwait(true);
-    }
-
     private async void OnNotificationActionClicked(object sender, RoutedEventArgs e)
     {
         var url = _viewModel.NotificationActionUrl;
@@ -1373,9 +1290,6 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
 
-        _updateCts?.Cancel();
-        _updateCts?.Dispose();
-        _updateCts = null;
 
         GC.SuppressFinalize(this);
     }
