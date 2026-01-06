@@ -7,10 +7,10 @@
 ## 次回リリースの作業内容 target: v1.4.0
 
 ### Microsoft Store / 配布
-- [ ] Store 依存関係の説明を追記（`docs/2026-01-05_user_feedback.md`）
+- [x] Store 依存関係の説明を追記（`docs/2026-01-05_user_feedback.md`）
 - [ ] Store キーワード/説明文/スクリーンショットの見直し
 - [x] 更新確認 UI を削除（Store 方針に合わせる）
-- [ ] Optional [88] の再検証と説明メモ更新
+- [x] Optional [88] の再検証と説明メモ更新
 
 ### UX/機能改善（ユーザーフィードバック）
 - [x] フォルダ選択のダブルクリックで下位フォルダへ移動
