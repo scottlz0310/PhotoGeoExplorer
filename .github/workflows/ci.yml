@@ -75,18 +75,21 @@ jobs:
       - name: Test
         shell: pwsh
         run: |
-          dotnet test PhotoGeoExplorer.Tests/PhotoGeoExplorer.Tests.csproj `    
-            -c ${{ matrix.configuration }} `
-            -p:Platform=${{ matrix.platform }} `
-            -p:TreatWarningsAsErrors=true `
-            -p:AnalysisLevel=latest `
-            -p:DebugType=portable `
-            -p:DebugSymbols=true `
-            --logger "trx;LogFileName=test-results.trx" `
-            --results-directory TestResults `
-            --collect "XPlat Code Coverage" `
-            --settings coverlet.runsettings `
-            --blame-hang-timeout 10m
+          $testArgs = @(
+            "PhotoGeoExplorer.Tests/PhotoGeoExplorer.Tests.csproj",
+            "-c", "${{ matrix.configuration }}",
+            "-p:Platform=${{ matrix.platform }}",
+            "-p:TreatWarningsAsErrors=true",
+            "-p:AnalysisLevel=latest",
+            "-p:DebugType=portable",
+            "-p:DebugSymbols=true",
+            "--logger", "trx;LogFileName=test-results.trx",
+            "--results-directory", "TestResults",
+            "--collect", "XPlat Code Coverage",
+            "--settings", "coverlet.runsettings",
+            "--blame-hang-timeout", "10m"
+          )
+          dotnet test @testArgs
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
