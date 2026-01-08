@@ -56,6 +56,7 @@
 
 ### Store 掲載用アセット
 
+- 提出用アセットと CSV は `PhotoGeoExplorer/Assets/propose/` に集約する
 - [x] スクリーンショット（最低1枚、推奨3-4枚）
   - [x] screenshot1.png（1186×793 px）
   - [x] screenshot2.png（1186×793 px）
