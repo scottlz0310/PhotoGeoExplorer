@@ -23,11 +23,11 @@ echo ""
 
 # マイルストーンの確認
 echo "v1.5.0 マイルストーンを確認中..."
-if ! gh milestone list | grep -q "v1.5.0"; then
+if ! gh api repos/{owner}/{repo}/milestones --jq '.[].title' | grep -q "^v1.5.0$"; then
     echo "⚠ v1.5.0 マイルストーンが見つかりません。作成しますか？ (y/n)"
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-        gh milestone create v1.5.0 --title "v1.5.0" --description "次期メジャーリリース"
+        gh api repos/{owner}/{repo}/milestones -f title="v1.5.0" -f description="次期メジャーリリース"
         echo "✓ v1.5.0 マイルストーンを作成しました"
     else
         echo "エラー: v1.5.0 マイルストーンが必要です"
