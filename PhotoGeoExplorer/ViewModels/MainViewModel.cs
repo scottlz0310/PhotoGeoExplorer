@@ -15,10 +15,12 @@ namespace PhotoGeoExplorer.ViewModels;
 
 internal sealed class MainViewModel : BindableBase
 {
+    private const int MaxNavigationHistorySize = 100;
     private readonly FileSystemService _fileSystemService;
     private readonly List<PhotoListItem> _selectedItems = new();
     private readonly Stack<string> _navigationBackStack = new();
     private readonly Stack<string> _navigationForwardStack = new();
+    private readonly SemaphoreSlim _navigationSemaphore = new(1, 1);
     private CancellationTokenSource? _metadataCts;
     private string? _currentFolderPath;
     private string? _statusMessage;
@@ -426,23 +428,46 @@ internal sealed class MainViewModel : BindableBase
             return;
         }
 
-        var previousPath = _navigationBackStack.Pop();
-        if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
-        {
-            _navigationForwardStack.Push(CurrentFolderPath);
-        }
-
-        _isNavigating = true;
+        await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
         try
         {
-            await LoadFolderAsync(previousPath).ConfigureAwait(true);
+            if (_navigationBackStack.Count == 0)
+            {
+                return;
+            }
+
+            var previousPath = _navigationBackStack.Pop();
+            var currentPath = CurrentFolderPath;
+
+            _isNavigating = true;
+            try
+            {
+                await LoadFolderAsync(previousPath).ConfigureAwait(true);
+                
+                // ロード成功時のみ進む履歴に追加
+                if (!string.IsNullOrWhiteSpace(currentPath) && 
+                    string.Equals(CurrentFolderPath, previousPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    PushToForwardStack(currentPath);
+                }
+            }
+            catch
+            {
+                // ロード失敗時は履歴を元に戻す
+                _navigationBackStack.Push(previousPath);
+                throw;
+            }
+            finally
+            {
+                _isNavigating = false;
+            }
+
+            UpdateNavigationProperties();
         }
         finally
         {
-            _isNavigating = false;
+            _navigationSemaphore.Release();
         }
-
-        UpdateNavigationProperties();
     }
 
     public async Task NavigateForwardAsync()
@@ -452,23 +477,46 @@ internal sealed class MainViewModel : BindableBase
             return;
         }
 
-        var nextPath = _navigationForwardStack.Pop();
-        if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
-        {
-            _navigationBackStack.Push(CurrentFolderPath);
-        }
-
-        _isNavigating = true;
+        await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
         try
         {
-            await LoadFolderAsync(nextPath).ConfigureAwait(true);
+            if (_navigationForwardStack.Count == 0)
+            {
+                return;
+            }
+
+            var nextPath = _navigationForwardStack.Pop();
+            var currentPath = CurrentFolderPath;
+
+            _isNavigating = true;
+            try
+            {
+                await LoadFolderAsync(nextPath).ConfigureAwait(true);
+                
+                // ロード成功時のみ戻る履歴に追加
+                if (!string.IsNullOrWhiteSpace(currentPath) && 
+                    string.Equals(CurrentFolderPath, nextPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    PushToBackStack(currentPath);
+                }
+            }
+            catch
+            {
+                // ロード失敗時は履歴を元に戻す
+                _navigationForwardStack.Push(nextPath);
+                throw;
+            }
+            finally
+            {
+                _isNavigating = false;
+            }
+
+            UpdateNavigationProperties();
         }
         finally
         {
-            _isNavigating = false;
+            _navigationSemaphore.Release();
         }
-
-        UpdateNavigationProperties();
     }
 
     public async Task RefreshAsync()
@@ -538,15 +586,24 @@ internal sealed class MainViewModel : BindableBase
             return;
         }
 
+        // パスを正規化して比較
+        var normalizedPath = NormalizePath(folderPath);
+        var normalizedCurrentPath = string.IsNullOrWhiteSpace(CurrentFolderPath) 
+            ? null 
+            : NormalizePath(CurrentFolderPath);
+
+        // 同じフォルダの場合は何もしない（リフレッシュ以外）
+        if (!_isNavigating && normalizedCurrentPath != null && 
+            string.Equals(normalizedPath, normalizedCurrentPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
         try
         {
-            // 履歴管理: 通常のナビゲーション時のみ履歴に追加
-            if (!_isNavigating && !string.IsNullOrWhiteSpace(CurrentFolderPath))
-            {
-                _navigationBackStack.Push(CurrentFolderPath);
-                _navigationForwardStack.Clear();
-                UpdateNavigationProperties();
-            }
+            var previousPath = CurrentFolderPath;
+            var shouldAddToHistory = !_isNavigating && !string.IsNullOrWhiteSpace(previousPath);
 
             CurrentFolderPath = folderPath;
             UpdateBreadcrumbs(folderPath);
@@ -571,9 +628,11 @@ internal sealed class MainViewModel : BindableBase
                 InfoBarSeverity.Informational);
             UpdateStatusBar();
 
-            // 履歴プロパティを更新
-            if (!_isNavigating)
+            // ロード成功後に履歴を更新
+            if (shouldAddToHistory)
             {
+                PushToBackStack(previousPath!);
+                _navigationForwardStack.Clear();
                 UpdateNavigationProperties();
             }
         }
@@ -581,21 +640,29 @@ internal sealed class MainViewModel : BindableBase
         {
             AppLog.Error($"Failed to access folder: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.AccessDeniedSeeLog"), InfoBarSeverity.Error);
+            throw;
         }
         catch (DirectoryNotFoundException ex)
         {
             AppLog.Error($"Folder not found: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FolderNotFoundSeeLog"), InfoBarSeverity.Error);
+            throw;
         }
         catch (PathTooLongException ex)
         {
             AppLog.Error($"Folder path too long: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FolderPathTooLongSeeLog"), InfoBarSeverity.Error);
+            throw;
         }
         catch (IOException ex)
         {
             AppLog.Error($"Failed to read folder: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+            throw;
+        }
+        finally
+        {
+            _navigationSemaphore.Release();
         }
     }
 
@@ -1066,5 +1133,51 @@ internal sealed class MainViewModel : BindableBase
     {
         OnPropertyChanged(nameof(CanNavigateBack));
         OnPropertyChanged(nameof(CanNavigateForward));
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return Path.GetFullPath(path)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private void PushToBackStack(string path)
+    {
+        var normalizedPath = NormalizePath(path);
+        
+        // 履歴サイズの上限チェック
+        if (_navigationBackStack.Count >= MaxNavigationHistorySize)
+        {
+            // スタックを一時的にリストに変換して古いものを削除
+            var items = _navigationBackStack.ToList();
+            items.RemoveAt(items.Count - 1); // 最も古い項目を削除
+            _navigationBackStack.Clear();
+            for (var i = items.Count - 1; i >= 0; i--)
+            {
+                _navigationBackStack.Push(items[i]);
+            }
+        }
+        
+        _navigationBackStack.Push(normalizedPath);
+    }
+
+    private void PushToForwardStack(string path)
+    {
+        var normalizedPath = NormalizePath(path);
+        
+        // 履歴サイズの上限チェック
+        if (_navigationForwardStack.Count >= MaxNavigationHistorySize)
+        {
+            // スタックを一時的にリストに変換して古いものを削除
+            var items = _navigationForwardStack.ToList();
+            items.RemoveAt(items.Count - 1); // 最も古い項目を削除
+            _navigationForwardStack.Clear();
+            for (var i = items.Count - 1; i >= 0; i--)
+            {
+                _navigationForwardStack.Push(items[i]);
+            }
+        }
+        
+        _navigationForwardStack.Push(normalizedPath);
     }
 }
