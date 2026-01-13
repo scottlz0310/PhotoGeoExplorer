@@ -1110,12 +1110,28 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnNavigateBackClicked(object sender, RoutedEventArgs e)
     {
-        await _viewModel.NavigateBackAsync().ConfigureAwait(true);
+        try
+        {
+            await _viewModel.NavigateBackAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Navigation back failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
     }
 
     private async void OnNavigateForwardClicked(object sender, RoutedEventArgs e)
     {
-        await _viewModel.NavigateForwardAsync().ConfigureAwait(true);
+        try
+        {
+            await _viewModel.NavigateForwardAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Navigation forward failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
     }
 
     private async void OnNavigateUpClicked(object sender, RoutedEventArgs e)

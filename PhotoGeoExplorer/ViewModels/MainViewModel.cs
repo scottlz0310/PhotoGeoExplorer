@@ -446,7 +446,7 @@ internal sealed class MainViewModel : BindableBase
                 
                 // ロード成功時のみ進む履歴に追加
                 if (!string.IsNullOrWhiteSpace(currentPath) && 
-                    string.Equals(CurrentFolderPath, previousPath, StringComparison.OrdinalIgnoreCase))
+                    PathsAreEqual(CurrentFolderPath, previousPath))
                 {
                     PushToForwardStack(currentPath);
                 }
@@ -495,7 +495,7 @@ internal sealed class MainViewModel : BindableBase
                 
                 // ロード成功時のみ戻る履歴に追加
                 if (!string.IsNullOrWhiteSpace(currentPath) && 
-                    string.Equals(CurrentFolderPath, nextPath, StringComparison.OrdinalIgnoreCase))
+                    PathsAreEqual(CurrentFolderPath, nextPath))
                 {
                     PushToBackStack(currentPath);
                 }
@@ -586,15 +586,8 @@ internal sealed class MainViewModel : BindableBase
             return;
         }
 
-        // パスを正規化して比較
-        var normalizedPath = NormalizePath(folderPath);
-        var normalizedCurrentPath = string.IsNullOrWhiteSpace(CurrentFolderPath) 
-            ? null 
-            : NormalizePath(CurrentFolderPath);
-
         // 同じフォルダの場合は何もしない（リフレッシュ以外）
-        if (!_isNavigating && normalizedCurrentPath != null && 
-            string.Equals(normalizedPath, normalizedCurrentPath, StringComparison.OrdinalIgnoreCase))
+        if (!_isNavigating && PathsAreEqual(folderPath, CurrentFolderPath))
         {
             return;
         }
@@ -1155,6 +1148,19 @@ internal sealed class MainViewModel : BindableBase
     {
         return Path.GetFullPath(path)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static bool PathsAreEqual(string? path1, string? path2)
+    {
+        if (string.IsNullOrWhiteSpace(path1) || string.IsNullOrWhiteSpace(path2))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            NormalizePath(path1),
+            NormalizePath(path2),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private void PushToBackStack(string path)
