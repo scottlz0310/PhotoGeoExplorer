@@ -1,10 +1,9 @@
 Field,ID,Type (種類),default,en-us,ja-jp
-Description,2,テキスト,,"This app requires the .NET Desktop Runtime to run. It is automatically provided when installing from the Microsoft Store.
-PhotoGeoExplorer is a Windows desktop application that displays the location information of photos on a map.
-It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
-PhotoGeoExplorer は、写真の位置情報を地図上に表示する Windows デスクトップアプリです。
-Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。
-"
+Description,2,テキスト,,"PhotoGeoExplorer is a Windows desktop application that displays the location information of photos on a map.
+This app requires the .NET Desktop Runtime to run. It is automatically provided when installing from the Microsoft Store.
+It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、写真の位置情報を地図上に表示するWindows デスクトップアプリです。
+このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
+Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
 ReleaseNotes,3,テキスト,,"Release Notes (v1.4.0)
 Overview:
 - Improved daily usability for folder operations and file associations. Enhanced integration between maps and previews, with improved thumbnail quality.
