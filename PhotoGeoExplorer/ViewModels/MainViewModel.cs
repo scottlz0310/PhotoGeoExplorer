@@ -17,6 +17,8 @@ internal sealed class MainViewModel : BindableBase
 {
     private readonly FileSystemService _fileSystemService;
     private readonly List<PhotoListItem> _selectedItems = new();
+    private readonly Stack<string> _navigationBackStack = new();
+    private readonly Stack<string> _navigationForwardStack = new();
     private CancellationTokenSource? _metadataCts;
     private string? _currentFolderPath;
     private string? _statusMessage;
@@ -54,6 +56,7 @@ internal sealed class MainViewModel : BindableBase
     private FileSortColumn _sortColumn = FileSortColumn.Name;
     private SortDirection _sortDirection = SortDirection.Ascending;
     private int _selectedCount;
+    private bool _isNavigating;
 
     public MainViewModel(FileSystemService fileSystemService)
     {
@@ -266,6 +269,8 @@ internal sealed class MainViewModel : BindableBase
         => SelectedCount > 0
            && !string.IsNullOrWhiteSpace(CurrentFolderPath)
            && Directory.GetParent(CurrentFolderPath) is not null;
+    public bool CanNavigateBack => _navigationBackStack.Count > 0;
+    public bool CanNavigateForward => _navigationForwardStack.Count > 0;
     public IReadOnlyList<PhotoListItem> SelectedItems => _selectedItems;
 
     public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
@@ -414,6 +419,58 @@ internal sealed class MainViewModel : BindableBase
         await LoadFolderAsync(parent.FullName).ConfigureAwait(true);
     }
 
+    public async Task NavigateBackAsync()
+    {
+        if (_navigationBackStack.Count == 0)
+        {
+            return;
+        }
+
+        var previousPath = _navigationBackStack.Pop();
+        if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
+        {
+            _navigationForwardStack.Push(CurrentFolderPath);
+        }
+
+        _isNavigating = true;
+        try
+        {
+            await LoadFolderAsync(previousPath).ConfigureAwait(true);
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
+
+        UpdateNavigationProperties();
+    }
+
+    public async Task NavigateForwardAsync()
+    {
+        if (_navigationForwardStack.Count == 0)
+        {
+            return;
+        }
+
+        var nextPath = _navigationForwardStack.Pop();
+        if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
+        {
+            _navigationBackStack.Push(CurrentFolderPath);
+        }
+
+        _isNavigating = true;
+        try
+        {
+            await LoadFolderAsync(nextPath).ConfigureAwait(true);
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
+
+        UpdateNavigationProperties();
+    }
+
     public async Task RefreshAsync()
     {
         if (string.IsNullOrWhiteSpace(CurrentFolderPath))
@@ -483,6 +540,14 @@ internal sealed class MainViewModel : BindableBase
 
         try
         {
+            // 履歴管理: 通常のナビゲーション時のみ履歴に追加
+            if (!_isNavigating && !string.IsNullOrWhiteSpace(CurrentFolderPath))
+            {
+                _navigationBackStack.Push(CurrentFolderPath);
+                _navigationForwardStack.Clear();
+                UpdateNavigationProperties();
+            }
+
             CurrentFolderPath = folderPath;
             UpdateBreadcrumbs(folderPath);
             SetStatus(null, InfoBarSeverity.Informational);
@@ -505,6 +570,12 @@ internal sealed class MainViewModel : BindableBase
                 Items.Count == 0 ? LocalizationService.GetString("Message.NoFilesFound") : null,
                 InfoBarSeverity.Informational);
             UpdateStatusBar();
+
+            // 履歴プロパティを更新
+            if (!_isNavigating)
+            {
+                UpdateNavigationProperties();
+            }
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -989,5 +1060,11 @@ internal sealed class MainViewModel : BindableBase
         NotificationActionLabel = null;
         NotificationActionUrl = null;
         NotificationActionVisibility = Visibility.Collapsed;
+    }
+
+    private void UpdateNavigationProperties()
+    {
+        OnPropertyChanged(nameof(CanNavigateBack));
+        OnPropertyChanged(nameof(CanNavigateForward));
     }
 }

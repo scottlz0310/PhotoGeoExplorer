@@ -1108,6 +1108,16 @@ public sealed partial class MainWindow : Window, IDisposable
         await _viewModel.OpenHomeAsync().ConfigureAwait(true);
     }
 
+    private async void OnNavigateBackClicked(object sender, RoutedEventArgs e)
+    {
+        await _viewModel.NavigateBackAsync().ConfigureAwait(true);
+    }
+
+    private async void OnNavigateForwardClicked(object sender, RoutedEventArgs e)
+    {
+        await _viewModel.NavigateForwardAsync().ConfigureAwait(true);
+    }
+
     private async void OnNavigateUpClicked(object sender, RoutedEventArgs e)
     {
         await _viewModel.NavigateUpAsync().ConfigureAwait(true);

@@ -277,8 +277,8 @@
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="File Browser" FontSize="20" FontWeight="SemiBold" x:Uid="FileBrowserHeader" />
                 <CommandBar Grid.Row="1" Margin="0,8,0,0">
-                    <AppBarButton Icon="Back" ToolTipService.ToolTip="Back" IsEnabled="False" x:Uid="FileCommandBack" />
-                    <AppBarButton Icon="Forward" ToolTipService.ToolTip="Forward" IsEnabled="False" x:Uid="FileCommandForward" />
+                    <AppBarButton Icon="Back" ToolTipService.ToolTip="Back" IsEnabled="{Binding CanNavigateBack}" Click="OnNavigateBackClicked" x:Uid="FileCommandBack" />
+                    <AppBarButton Icon="Forward" ToolTipService.ToolTip="Forward" IsEnabled="{Binding CanNavigateForward}" Click="OnNavigateForwardClicked" x:Uid="FileCommandForward" />
                     <AppBarButton Icon="Up" ToolTipService.ToolTip="Up" Click="OnNavigateUpClicked" x:Uid="FileCommandUp" />
                     <AppBarButton Icon="Refresh" ToolTipService.ToolTip="Refresh" Click="OnRefreshClicked" x:Uid="FileCommandRefresh" />
                     <AppBarButton Icon="Home" ToolTipService.ToolTip="Home" Click="OnNavigateHomeClicked" x:Uid="FileCommandHome" />
