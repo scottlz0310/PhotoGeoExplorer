@@ -1,0 +1,230 @@
+#!/bin/bash
+
+# v1.5.0 Issue作成スクリプト
+# このスクリプトは8件のIssueをGitHubに一括作成します
+
+set -e
+
+echo "=========================================="
+echo "v1.5.0 Issue作成スクリプト"
+echo "=========================================="
+echo ""
+
+# GitHub CLIの認証確認
+if ! gh auth status >/dev/null 2>&1; then
+    echo "エラー: GitHub CLIで認証されていません。"
+    echo "以下のコマンドで認証してください："
+    echo "  gh auth login"
+    exit 1
+fi
+
+echo "✓ GitHub CLI認証確認完了"
+echo ""
+
+# マイルストーンの確認
+echo "v1.5.0 マイルストーンを確認中..."
+if ! gh milestone list | grep -q "v1.5.0"; then
+    echo "⚠ v1.5.0 マイルストーンが見つかりません。作成しますか？ (y/n)"
+    read -r response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        gh milestone create v1.5.0 --title "v1.5.0" --description "次期メジャーリリース"
+        echo "✓ v1.5.0 マイルストーンを作成しました"
+    else
+        echo "エラー: v1.5.0 マイルストーンが必要です"
+        exit 1
+    fi
+else
+    echo "✓ v1.5.0 マイルストーン確認完了"
+fi
+echo ""
+
+# Issue作成開始
+echo "Issueを作成します..."
+echo ""
+
+# Issue 1
+echo "[1/8] Issue 1: 空のフォルダを開くとクラッシュすることがある"
+gh issue create \
+  --title "空のフォルダを開くとクラッシュすることがある" \
+  --body "## 概要
+空のフォルダを開こうとした際、アプリがクラッシュする不具合が稀に発生します。
+
+## 詳細
+- 再現性は高くありませんが、発生時にログ収集を予定
+- Store版でもユーザーログを集められるか検討中
+
+## 関連ファイル
+- \`PhotoGeoExplorer/ViewModels/MainViewModel.cs\` (LoadFolderAsync メソッド)
+- \`PhotoGeoExplorer.Core/Services/FileSystemService.cs\`
+
+## 優先度
+High" \
+  --label "bug" \
+  --assignee "scottlz0310" \
+  --milestone "v1.5.0"
+echo "✓ Issue 1 作成完了"
+echo ""
+
+# Issue 2
+echo "[2/8] Issue 2: 戻る・進むボタンが正しく機能しない"
+gh issue create \
+  --title "戻る・進むボタンが正しく機能しない" \
+  --body "## 概要
+「戻る」「進む」ボタンの操作時に、意図通りに画面遷移しない不具合が発生しています。常に再現します。
+
+## 詳細
+現状、ナビゲーション履歴機能の実装が必要です。
+
+## 関連ファイル
+- \`PhotoGeoExplorer/ViewModels/MainViewModel.cs\` (ナビゲーション関連メソッド)
+- \`PhotoGeoExplorer/MainWindow.xaml.cs\` (OnNavigateUpClicked など)
+
+## 優先度
+High" \
+  --label "bug" \
+  --assignee "scottlz0310" \
+  --milestone "v1.5.0"
+echo "✓ Issue 2 作成完了"
+echo ""
+
+# Issue 3
+echo "[3/8] Issue 3: lastfolderpath のパスリカバリ動作を改善する"
+gh issue create \
+  --title "lastfolderpath のパスリカバリ動作を改善する" \
+  --body "## 概要
+lastfolderpathに保存されているパスが無効な場合、自動的に picture フォルダにフォールバックしています。
+
+## 改善案
+親フォルダに順次フォールバックするようにして、ユーザーの作業ディレクトリ復元性を向上させる。
+
+## 関連ファイル
+- \`PhotoGeoExplorer.Core/Services/SettingsService.cs\`
+- \`PhotoGeoExplorer.Core/Models/AppSettings.cs\` (LastFolderPath)
+- \`PhotoGeoExplorer/MainWindow.xaml.cs\` (ApplySettingsAsync)
+
+## 優先度
+High" \
+  --label "enhancement" \
+  --assignee "scottlz0310" \
+  --milestone "v1.5.0"
+echo "✓ Issue 3 作成完了"
+echo ""
+
+# Issue 4
+echo "[4/8] Issue 4: フォルダ読み込み時のパフォーマンス改善"
+gh issue create \
+  --title "フォルダ読み込み時のパフォーマンス改善" \
+  --body "## 概要
+大量のファイルが含まれるフォルダやクラウドドライブの読み込みで遅延が発生することがあります。
+
+## 改善案
+サムネイルが全て生成されるのを待つのではなく、プレースホルダーアイコンを先に表示し、その後サムネイルを非同期で読み込み表示させる方式に改善します。
+
+## 関連ファイル
+- \`PhotoGeoExplorer.Core/Services/ThumbnailService.cs\`
+- \`PhotoGeoExplorer/ViewModels/MainViewModel.cs\` (LoadFolderAsync)
+- \`PhotoGeoExplorer.Core/Services/FileSystemService.cs\`
+
+## 優先度
+Medium" \
+  --label "performance,enhancement" \
+  --assignee "scottlz0310" \
+  --milestone "v1.5.0"
+echo "✓ Issue 4 作成完了"
+echo ""
+
+# Issue 5
+echo "[5/8] Issue 5: ファイルビュー画面でマウスオン時に詳細情報を表示する"
+gh issue create \
+  --title "ファイルビュー画面でマウスオン時に詳細情報を表示する" \
+  --body "## 概要
+ファイルビュー画面でファイルにマウスオーバー（オン）した際に、詳細情報（EXIFや撮影日時、サイズ等）をツールチップ等で表示する機能を追加します。
+
+## 目的
+ユーザーの利便性向上
+
+## 関連ファイル
+- \`PhotoGeoExplorer/MainWindow.xaml.cs\` (ファイルリストイベントハンドラ)
+- \`PhotoGeoExplorer.Core/ViewModels/FileViewMode.cs\`
+- XAML ファイル (GridView/ListView テンプレートに ToolTip 追加が必要)
+
+## 優先度
+Medium" \
+  --label "enhancement" \
+  --assignee "scottlz0310" \
+  --milestone "v1.5.0"
+echo "✓ Issue 5 作成完了"
+echo ""
+
+# Issue 6
+echo "[6/8] Issue 6: Windows Store製品ページのSEO対策強化"
+gh issue create \
+  --title "Windows Store製品ページのSEO対策強化" \
+  --body "## 概要
+Windows Store版アプリの説明エリアやキーワード等、ストアページのSEO対策を行う必要があります。
+
+## 改善案
+listingData.csvのキーワード補足や説明文見直し、スクリーンショットキャプションの充実化など。
+
+## 関連ファイル
+- \`PhotoGeoExplorer/Assets/propose/listingData-9P0WNR54441B-1152921505700361349.csv\` (350行以降のカラム数調整済み)
+
+## 優先度
+Low" \
+  --label "enhancement,seo" \
+  --assignee "scottlz0310" \
+  --milestone "v1.5.0"
+echo "✓ Issue 6 作成完了"
+echo ""
+
+# Issue 7
+echo "[7/8] Issue 7: 地図上で複数写真を矩形選択できる機能を追加する"
+gh issue create \
+  --title "地図上で複数写真を矩形選択できる機能を追加する" \
+  --body "## 概要
+複数選択時、地図上で矩形選択エリアを作り、そのエリア内の近い場所の写真を一括選択できる新機能を実装します。
+
+## 目的
+大量写真の効率的な管理のため
+
+## 関連ファイル
+- \`PhotoGeoExplorer/MainWindow.xaml.cs\` (UpdateMapFromSelectionAsync, SetMapMarkers)
+- Mapsui 地図コントロール (新機能実装が必要)
+
+## 優先度
+Low" \
+  --label "enhancement,feature" \
+  --assignee "scottlz0310" \
+  --milestone "v1.5.0"
+echo "✓ Issue 7 作成完了"
+echo ""
+
+# Issue 8
+echo "[8/8] Issue 8: EXIF情報（撮影日時等）の編集機能を追加する"
+gh issue create \
+  --title "EXIF情報（撮影日時等）の編集機能を追加する" \
+  --body "## 概要
+画像ファイルのEXIF情報、特に撮影日時を編集可能にする機能を実装します。
+
+## 補足
+あわせてファイル更新日時を撮影日時に揃えるオプションも検討中。
+
+## 関連ファイル
+- \`PhotoGeoExplorer.Core/Services/ExifService.cs\` (現在は読み取りのみ)
+- 新規実装が必要: EXIF書き込み機能 (MetadataExtractorは読み取り専用のため、別ライブラリが必要)
+
+## 優先度
+Low" \
+  --label "enhancement,feature" \
+  --assignee "scottlz0310" \
+  --milestone "v1.5.0"
+echo "✓ Issue 8 作成完了"
+echo ""
+
+echo "=========================================="
+echo "✓ すべてのIssueの作成が完了しました！"
+echo "=========================================="
+echo ""
+echo "作成されたIssueを確認するには："
+echo "  gh issue list --milestone v1.5.0"
+echo ""
