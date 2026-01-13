@@ -13,7 +13,7 @@ using PhotoGeoExplorer.Services;
 
 namespace PhotoGeoExplorer.ViewModels;
 
-internal sealed class MainViewModel : BindableBase
+internal sealed class MainViewModel : BindableBase, IDisposable
 {
     private const int MaxNavigationHistorySize = 100;
     private readonly FileSystemService _fileSystemService;
@@ -1201,5 +1201,12 @@ internal sealed class MainViewModel : BindableBase
         }
         
         _navigationForwardStack.Push(normalizedPath);
+    }
+
+    public void Dispose()
+    {
+        _navigationSemaphore.Dispose();
+        _metadataCts?.Cancel();
+        _metadataCts?.Dispose();
     }
 }
