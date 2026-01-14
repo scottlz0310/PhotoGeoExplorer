@@ -34,7 +34,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251106002" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260101001" />
     <PackageReference Include="Mapsui" Version="5.0.2" />
     <PackageReference Include="Mapsui.WinUI" Version="5.0.2" />
   </ItemGroup>
