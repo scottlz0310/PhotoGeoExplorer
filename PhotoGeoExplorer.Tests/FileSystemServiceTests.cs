@@ -117,7 +117,7 @@ public sealed class FileSystemServiceTests
         try
         {
             var service = new FileSystemService();
-            
+
             // This should not throw and should log properly
             var exception = await Record.ExceptionAsync(async () =>
             {

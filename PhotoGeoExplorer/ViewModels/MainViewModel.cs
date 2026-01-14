@@ -442,21 +442,21 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             _isNavigating = true;
             try
             {
-                await LoadFolderCoreAsync(previousPath).ConfigureAwait(true);
+                var loadSucceeded = await LoadFolderCoreAsync(previousPath).ConfigureAwait(true);
 
                 // ロード成功時のみ進む履歴に追加
-                if (!string.IsNullOrWhiteSpace(currentPath)
+                if (loadSucceeded
+                    && !string.IsNullOrWhiteSpace(currentPath)
                     && PathsAreEqual(CurrentFolderPath, previousPath))
                 {
                     PushToForwardStack(currentPath);
                 }
-            }
-            catch (Exception ex)
-            {
-                // ロード失敗時は履歴を元に戻す
-                _navigationBackStack.Push(previousPath);
-                AppLog.Error($"NavigateBackAsync failed to load path: {previousPath}", ex);
-                // Error already handled in LoadFolderCoreAsync
+                else if (!loadSucceeded)
+                {
+                    // ロード失敗時は履歴を元に戻す
+                    _navigationBackStack.Push(previousPath);
+                    AppLog.Error($"NavigateBackAsync failed to load path: {previousPath}");
+                }
             }
             finally
             {
@@ -492,21 +492,21 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             _isNavigating = true;
             try
             {
-                await LoadFolderCoreAsync(nextPath).ConfigureAwait(true);
+                var loadSucceeded = await LoadFolderCoreAsync(nextPath).ConfigureAwait(true);
 
                 // ロード成功時のみ戻る履歴に追加
-                if (!string.IsNullOrWhiteSpace(currentPath)
+                if (loadSucceeded
+                    && !string.IsNullOrWhiteSpace(currentPath)
                     && PathsAreEqual(CurrentFolderPath, nextPath))
                 {
                     PushToBackStack(currentPath);
                 }
-            }
-            catch (Exception ex)
-            {
-                // ロード失敗時は履歴を元に戻す
-                _navigationForwardStack.Push(nextPath);
-                AppLog.Error($"NavigateForwardAsync failed to load path: {nextPath}", ex);
-                // Error already handled in LoadFolderCoreAsync
+                else if (!loadSucceeded)
+                {
+                    // ロード失敗時は履歴を元に戻す
+                    _navigationForwardStack.Push(nextPath);
+                    AppLog.Error($"NavigateForwardAsync failed to load path: {nextPath}");
+                }
             }
             finally
             {
@@ -531,12 +531,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
         try
         {
-            await LoadFolderCoreAsync(CurrentFolderPath).ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
-            AppLog.Error($"RefreshAsync failed for folder: {CurrentFolderPath}", ex);
-            // Error already handled in LoadFolderCoreAsync, no need to rethrow
+            _ = await LoadFolderCoreAsync(CurrentFolderPath).ConfigureAwait(true);
         }
         finally
         {
@@ -610,12 +605,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
         try
         {
-            await LoadFolderCoreAsync(folderPath).ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
-            AppLog.Error($"LoadFolderAsync failed for folder: {folderPath}", ex);
-            // Error already handled in LoadFolderCoreAsync, no need to rethrow
+            _ = await LoadFolderCoreAsync(folderPath).ConfigureAwait(true);
         }
         finally
         {
@@ -623,7 +613,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         }
     }
 
-    private async Task LoadFolderCoreAsync(string folderPath)
+    private async Task<bool> LoadFolderCoreAsync(string folderPath)
     {
         var previousPath = CurrentFolderPath;
         var shouldAddToHistory = !_isNavigating && !string.IsNullOrWhiteSpace(previousPath);
@@ -647,10 +637,10 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             var items = await _fileSystemService
                 .GetPhotoItemsAsync(folderPath, ShowImagesOnly, SearchText)
                 .ConfigureAwait(true);
-            
+
             Items.Clear();
             var listItems = items.Select(CreateListItem).ToList();
-            
+
             foreach (var item in SortItems(listItems))
             {
                 Items.Add(item);
@@ -669,6 +659,8 @@ internal sealed class MainViewModel : BindableBase, IDisposable
                 _navigationForwardStack.Clear();
                 UpdateNavigationProperties();
             }
+
+            return true;
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -694,31 +686,39 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
             RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
-            AppLog.Error($"Unexpected error loading folder: {folderPath}, previousPath: {previousPath ?? "(null)"}, ItemsCount: {Items.Count}, SelectedCount: {SelectedCount}", ex);
+            AppLog.Error($"Invalid folder path: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
             RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
         }
+        catch (NotSupportedException ex)
+        {
+            AppLog.Error($"Unsupported folder path: {folderPath}", ex);
+            SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+            RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
+        }
+
+        return false;
     }
 
     private void RestoreUIState(string? previousPath, List<PhotoListItem> previousItems, List<BreadcrumbSegment> previousBreadcrumbs)
     {
         // ロード失敗時は元の状態に戻す
         CurrentFolderPath = previousPath;
-        
+
         Items.Clear();
         foreach (var item in previousItems)
         {
             Items.Add(item);
         }
-        
+
         BreadcrumbItems.Clear();
         foreach (var breadcrumb in previousBreadcrumbs)
         {
             BreadcrumbItems.Add(breadcrumb);
         }
-        
+
         UpdateStatusBar();
     }
 

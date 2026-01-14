@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 
 namespace PhotoGeoExplorer.Tests;
@@ -52,8 +53,8 @@ public sealed class AppLogTests
     {
         var logPath = AppLog.LogFilePath;
 
-        Assert.Contains("PhotoGeoExplorer", logPath);
-        Assert.Contains("Logs", logPath);
+        Assert.Contains("PhotoGeoExplorer", logPath, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Logs", logPath, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -61,7 +62,7 @@ public sealed class AppLogTests
     {
         var logPath = AppLog.LogFilePath;
 
-        Assert.EndsWith("app.log", logPath);
+        Assert.EndsWith("app.log", logPath, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

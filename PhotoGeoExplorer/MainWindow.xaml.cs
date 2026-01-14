@@ -1420,12 +1420,21 @@ public sealed partial class MainWindow : Window, IDisposable
             _ = await Windows.System.Launcher.LaunchFolderPathAsync(logDirectory);
             AppLog.Info($"Opened log folder: {logDirectory}");
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
         {
-            AppLog.Error("Failed to open log folder", ex);
-            _viewModel.ShowNotificationMessage(
-                LocalizationService.GetString("Message.FailedOpenLogFolder"),
-                InfoBarSeverity.Error);
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (IOException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (ArgumentException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
         }
     }
 
@@ -1437,7 +1446,7 @@ public sealed partial class MainWindow : Window, IDisposable
             var currentVersion = typeof(App).Assembly.GetName().Version;
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var updateResult = await UpdateService.CheckForUpdatesAsync(currentVersion, cts.Token).ConfigureAwait(true);
-            
+
             if (updateResult.IsUpdateAvailable)
             {
                 var message = LocalizationService.Format("Dialog.UpdateCheck.UpdateAvailableDetail", updateResult.LatestVersion?.ToString() ?? "Unknown");
@@ -1459,13 +1468,30 @@ public sealed partial class MainWindow : Window, IDisposable
                 LocalizationService.GetString("Dialog.UpdateCheck.Title"),
                 LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            AppLog.Error("Failed to check for updates", ex);
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.UpdateCheck.Title"),
-                LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
+            await HandleUpdateCheckFailureAsync(ex).ConfigureAwait(true);
         }
+        catch (ArgumentException ex)
+        {
+            await HandleUpdateCheckFailureAsync(ex).ConfigureAwait(true);
+        }
+    }
+
+    private void HandleOpenLogFolderFailure(Exception ex)
+    {
+        AppLog.Error("Failed to open log folder", ex);
+        _viewModel.ShowNotificationMessage(
+            LocalizationService.GetString("Message.FailedOpenLogFolder"),
+            InfoBarSeverity.Error);
+    }
+
+    private async Task HandleUpdateCheckFailureAsync(Exception ex)
+    {
+        AppLog.Error("Failed to check for updates", ex);
+        await ShowMessageDialogAsync(
+            LocalizationService.GetString("Dialog.UpdateCheck.Title"),
+            LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
     }
 
     private async void OnAboutClicked(object sender, RoutedEventArgs e)
