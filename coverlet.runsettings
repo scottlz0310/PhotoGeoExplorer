@@ -7,7 +7,7 @@
           <Format>cobertura</Format>
           <SkipAutoProps>true</SkipAutoProps>
           <DeterministicSourcePaths>true</DeterministicSourcePaths>
-          <Exclude>[xunit.*]*,[*.Tests]*,[*.E2E]*</Exclude>
+          <Exclude>[xunit.*]*,[*.Tests]*,[*.E2E]*,[PhotoGeoExplorer]*</Exclude>
           <ExcludeByAttribute>ExcludeFromCodeCoverage,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
           <ExcludeByFile>**/*.g.cs;**/*.g.i.cs;**/*.designer.cs</ExcludeByFile>
           <IncludeTestAssembly>false</IncludeTestAssembly>
