@@ -48,6 +48,16 @@ internal static class ExifService
             AppLog.Error($"Failed to read metadata: {filePath}", ex);
             return null;
         }
+#pragma warning disable CA1031 // Do not catch general exception types
+        catch (Exception ex)
+        {
+            // Catch any other unexpected exceptions from MetadataExtractor library
+            // (e.g., IndexOutOfRangeException when processing certain MP3 files)
+            // to prevent app crashes. These are logged and treated as metadata read failures.
+            AppLog.Error($"Unexpected exception reading metadata: {filePath}", ex);
+            return null;
+        }
+#pragma warning restore CA1031 // Do not catch general exception types
 
         cancellationToken.ThrowIfCancellationRequested();
 
