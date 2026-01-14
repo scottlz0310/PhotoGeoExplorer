@@ -1400,7 +1400,7 @@ public sealed partial class MainWindow : Window, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private void OnOpenLogFolderClicked(object sender, RoutedEventArgs e)
+    private async void OnOpenLogFolderClicked(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -1417,7 +1417,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 AppLog.Info($"Created log directory: {logDirectory}");
             }
 
-            _ = await Windows.System.Launcher.LaunchFolderPathAsync(logDirectory).ConfigureAwait(true);
+            _ = await Windows.System.Launcher.LaunchFolderPathAsync(logDirectory);
             AppLog.Info($"Opened log folder: {logDirectory}");
         }
         catch (Exception ex)
