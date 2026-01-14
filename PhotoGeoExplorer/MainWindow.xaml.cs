@@ -1114,7 +1114,22 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             await _viewModel.NavigateBackAsync().ConfigureAwait(true);
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
+        {
+            AppLog.Error("Navigation back failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            AppLog.Error("Navigation back failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (PathTooLongException ex)
+        {
+            AppLog.Error("Navigation back failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (IOException ex)
         {
             AppLog.Error("Navigation back failed", ex);
             // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
@@ -1127,7 +1142,22 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             await _viewModel.NavigateForwardAsync().ConfigureAwait(true);
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
+        {
+            AppLog.Error("Navigation forward failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            AppLog.Error("Navigation forward failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (PathTooLongException ex)
+        {
+            AppLog.Error("Navigation forward failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (IOException ex)
         {
             AppLog.Error("Navigation forward failed", ex);
             // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている

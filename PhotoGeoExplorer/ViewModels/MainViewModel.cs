@@ -443,10 +443,10 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             try
             {
                 await LoadFolderCoreAsync(previousPath).ConfigureAwait(true);
-                
+
                 // ロード成功時のみ進む履歴に追加
-                if (!string.IsNullOrWhiteSpace(currentPath) && 
-                    PathsAreEqual(CurrentFolderPath, previousPath))
+                if (!string.IsNullOrWhiteSpace(currentPath)
+                    && PathsAreEqual(CurrentFolderPath, previousPath))
                 {
                     PushToForwardStack(currentPath);
                 }
@@ -492,10 +492,10 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             try
             {
                 await LoadFolderCoreAsync(nextPath).ConfigureAwait(true);
-                
+
                 // ロード成功時のみ戻る履歴に追加
-                if (!string.IsNullOrWhiteSpace(currentPath) && 
-                    PathsAreEqual(CurrentFolderPath, nextPath))
+                if (!string.IsNullOrWhiteSpace(currentPath)
+                    && PathsAreEqual(CurrentFolderPath, nextPath))
                 {
                     PushToBackStack(currentPath);
                 }
@@ -1166,7 +1166,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     private void PushToBackStack(string path)
     {
         var normalizedPath = NormalizePath(path);
-        
+
         // 履歴サイズの上限チェック
         if (_navigationBackStack.Count >= MaxNavigationHistorySize)
         {
@@ -1179,14 +1179,14 @@ internal sealed class MainViewModel : BindableBase, IDisposable
                 _navigationBackStack.Push(items[i]);
             }
         }
-        
+
         _navigationBackStack.Push(normalizedPath);
     }
 
     private void PushToForwardStack(string path)
     {
         var normalizedPath = NormalizePath(path);
-        
+
         // 履歴サイズの上限チェック
         if (_navigationForwardStack.Count >= MaxNavigationHistorySize)
         {
@@ -1199,7 +1199,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
                 _navigationForwardStack.Push(items[i]);
             }
         }
-        
+
         _navigationForwardStack.Push(normalizedPath);
     }
 
