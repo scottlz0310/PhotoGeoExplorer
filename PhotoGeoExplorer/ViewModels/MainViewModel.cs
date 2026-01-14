@@ -13,10 +13,14 @@ using PhotoGeoExplorer.Services;
 
 namespace PhotoGeoExplorer.ViewModels;
 
-internal sealed class MainViewModel : BindableBase
+internal sealed class MainViewModel : BindableBase, IDisposable
 {
+    private const int MaxNavigationHistorySize = 100;
     private readonly FileSystemService _fileSystemService;
     private readonly List<PhotoListItem> _selectedItems = new();
+    private readonly Stack<string> _navigationBackStack = new();
+    private readonly Stack<string> _navigationForwardStack = new();
+    private readonly SemaphoreSlim _navigationSemaphore = new(1, 1);
     private CancellationTokenSource? _metadataCts;
     private string? _currentFolderPath;
     private string? _statusMessage;
@@ -54,6 +58,7 @@ internal sealed class MainViewModel : BindableBase
     private FileSortColumn _sortColumn = FileSortColumn.Name;
     private SortDirection _sortDirection = SortDirection.Ascending;
     private int _selectedCount;
+    private bool _isNavigating;
 
     public MainViewModel(FileSystemService fileSystemService)
     {
@@ -266,6 +271,8 @@ internal sealed class MainViewModel : BindableBase
         => SelectedCount > 0
            && !string.IsNullOrWhiteSpace(CurrentFolderPath)
            && Directory.GetParent(CurrentFolderPath) is not null;
+    public bool CanNavigateBack => _navigationBackStack.Count > 0;
+    public bool CanNavigateForward => _navigationForwardStack.Count > 0;
     public IReadOnlyList<PhotoListItem> SelectedItems => _selectedItems;
 
     public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
@@ -414,6 +421,104 @@ internal sealed class MainViewModel : BindableBase
         await LoadFolderAsync(parent.FullName).ConfigureAwait(true);
     }
 
+    public async Task NavigateBackAsync()
+    {
+        if (_navigationBackStack.Count == 0)
+        {
+            return;
+        }
+
+        await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            if (_navigationBackStack.Count == 0)
+            {
+                return;
+            }
+
+            var previousPath = _navigationBackStack.Pop();
+            var currentPath = CurrentFolderPath;
+
+            _isNavigating = true;
+            try
+            {
+                await LoadFolderCoreAsync(previousPath).ConfigureAwait(true);
+
+                // ロード成功時のみ進む履歴に追加
+                if (!string.IsNullOrWhiteSpace(currentPath)
+                    && PathsAreEqual(CurrentFolderPath, previousPath))
+                {
+                    PushToForwardStack(currentPath);
+                }
+            }
+            catch
+            {
+                // ロード失敗時は履歴を元に戻す
+                _navigationBackStack.Push(previousPath);
+                throw;
+            }
+            finally
+            {
+                _isNavigating = false;
+            }
+
+            UpdateNavigationProperties();
+        }
+        finally
+        {
+            _navigationSemaphore.Release();
+        }
+    }
+
+    public async Task NavigateForwardAsync()
+    {
+        if (_navigationForwardStack.Count == 0)
+        {
+            return;
+        }
+
+        await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            if (_navigationForwardStack.Count == 0)
+            {
+                return;
+            }
+
+            var nextPath = _navigationForwardStack.Pop();
+            var currentPath = CurrentFolderPath;
+
+            _isNavigating = true;
+            try
+            {
+                await LoadFolderCoreAsync(nextPath).ConfigureAwait(true);
+
+                // ロード成功時のみ戻る履歴に追加
+                if (!string.IsNullOrWhiteSpace(currentPath)
+                    && PathsAreEqual(CurrentFolderPath, nextPath))
+                {
+                    PushToBackStack(currentPath);
+                }
+            }
+            catch
+            {
+                // ロード失敗時は履歴を元に戻す
+                _navigationForwardStack.Push(nextPath);
+                throw;
+            }
+            finally
+            {
+                _isNavigating = false;
+            }
+
+            UpdateNavigationProperties();
+        }
+        finally
+        {
+            _navigationSemaphore.Release();
+        }
+    }
+
     public async Task RefreshAsync()
     {
         if (string.IsNullOrWhiteSpace(CurrentFolderPath))
@@ -481,6 +586,28 @@ internal sealed class MainViewModel : BindableBase
             return;
         }
 
+        // 同じフォルダの場合は何もしない（リフレッシュ以外）
+        if (!_isNavigating && PathsAreEqual(folderPath, CurrentFolderPath))
+        {
+            return;
+        }
+
+        await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            await LoadFolderCoreAsync(folderPath).ConfigureAwait(true);
+        }
+        finally
+        {
+            _navigationSemaphore.Release();
+        }
+    }
+
+    private async Task LoadFolderCoreAsync(string folderPath)
+    {
+        var previousPath = CurrentFolderPath;
+        var shouldAddToHistory = !_isNavigating && !string.IsNullOrWhiteSpace(previousPath);
+
         try
         {
             CurrentFolderPath = folderPath;
@@ -505,26 +632,46 @@ internal sealed class MainViewModel : BindableBase
                 Items.Count == 0 ? LocalizationService.GetString("Message.NoFilesFound") : null,
                 InfoBarSeverity.Informational);
             UpdateStatusBar();
+
+            // ロード成功後に履歴を更新
+            if (shouldAddToHistory)
+            {
+                PushToBackStack(previousPath!);
+                _navigationForwardStack.Clear();
+                UpdateNavigationProperties();
+            }
         }
         catch (UnauthorizedAccessException ex)
         {
             AppLog.Error($"Failed to access folder: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.AccessDeniedSeeLog"), InfoBarSeverity.Error);
+            // ロード失敗時は元のパスに戻す
+            CurrentFolderPath = previousPath;
+            throw;
         }
         catch (DirectoryNotFoundException ex)
         {
             AppLog.Error($"Folder not found: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FolderNotFoundSeeLog"), InfoBarSeverity.Error);
+            // ロード失敗時は元のパスに戻す
+            CurrentFolderPath = previousPath;
+            throw;
         }
         catch (PathTooLongException ex)
         {
             AppLog.Error($"Folder path too long: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FolderPathTooLongSeeLog"), InfoBarSeverity.Error);
+            // ロード失敗時は元のパスに戻す
+            CurrentFolderPath = previousPath;
+            throw;
         }
         catch (IOException ex)
         {
             AppLog.Error($"Failed to read folder: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+            // ロード失敗時は元のパスに戻す
+            CurrentFolderPath = previousPath;
+            throw;
         }
     }
 
@@ -989,5 +1136,77 @@ internal sealed class MainViewModel : BindableBase
         NotificationActionLabel = null;
         NotificationActionUrl = null;
         NotificationActionVisibility = Visibility.Collapsed;
+    }
+
+    private void UpdateNavigationProperties()
+    {
+        OnPropertyChanged(nameof(CanNavigateBack));
+        OnPropertyChanged(nameof(CanNavigateForward));
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return Path.GetFullPath(path)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static bool PathsAreEqual(string? path1, string? path2)
+    {
+        if (string.IsNullOrWhiteSpace(path1) || string.IsNullOrWhiteSpace(path2))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            NormalizePath(path1),
+            NormalizePath(path2),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void PushToBackStack(string path)
+    {
+        var normalizedPath = NormalizePath(path);
+
+        // 履歴サイズの上限チェック
+        if (_navigationBackStack.Count >= MaxNavigationHistorySize)
+        {
+            // スタックを一時的にリストに変換して古いものを削除
+            var items = _navigationBackStack.ToList();
+            items.RemoveAt(items.Count - 1); // 最も古い項目を削除
+            _navigationBackStack.Clear();
+            for (var i = items.Count - 1; i >= 0; i--)
+            {
+                _navigationBackStack.Push(items[i]);
+            }
+        }
+
+        _navigationBackStack.Push(normalizedPath);
+    }
+
+    private void PushToForwardStack(string path)
+    {
+        var normalizedPath = NormalizePath(path);
+
+        // 履歴サイズの上限チェック
+        if (_navigationForwardStack.Count >= MaxNavigationHistorySize)
+        {
+            // スタックを一時的にリストに変換して古いものを削除
+            var items = _navigationForwardStack.ToList();
+            items.RemoveAt(items.Count - 1); // 最も古い項目を削除
+            _navigationForwardStack.Clear();
+            for (var i = items.Count - 1; i >= 0; i--)
+            {
+                _navigationForwardStack.Push(items[i]);
+            }
+        }
+
+        _navigationForwardStack.Push(normalizedPath);
+    }
+
+    public void Dispose()
+    {
+        _navigationSemaphore.Dispose();
+        _metadataCts?.Cancel();
+        _metadataCts?.Dispose();
     }
 }

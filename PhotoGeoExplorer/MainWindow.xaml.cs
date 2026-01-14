@@ -1108,6 +1108,62 @@ public sealed partial class MainWindow : Window, IDisposable
         await _viewModel.OpenHomeAsync().ConfigureAwait(true);
     }
 
+    private async void OnNavigateBackClicked(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await _viewModel.NavigateBackAsync().ConfigureAwait(true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            AppLog.Error("Navigation back failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            AppLog.Error("Navigation back failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (PathTooLongException ex)
+        {
+            AppLog.Error("Navigation back failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (IOException ex)
+        {
+            AppLog.Error("Navigation back failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+    }
+
+    private async void OnNavigateForwardClicked(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await _viewModel.NavigateForwardAsync().ConfigureAwait(true);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            AppLog.Error("Navigation forward failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            AppLog.Error("Navigation forward failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (PathTooLongException ex)
+        {
+            AppLog.Error("Navigation forward failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+        catch (IOException ex)
+        {
+            AppLog.Error("Navigation forward failed", ex);
+            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
+        }
+    }
+
     private async void OnNavigateUpClicked(object sender, RoutedEventArgs e)
     {
         await _viewModel.NavigateUpAsync().ConfigureAwait(true);
@@ -1339,6 +1395,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
 
+        _viewModel?.Dispose();
 
         GC.SuppressFinalize(this);
     }

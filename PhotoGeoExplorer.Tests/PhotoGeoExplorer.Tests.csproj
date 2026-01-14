@@ -27,6 +27,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PhotoGeoExplorer.Core\PhotoGeoExplorer.Core.csproj" />
+    <ProjectReference Include="..\PhotoGeoExplorer\PhotoGeoExplorer.csproj" Condition="'$(GITHUB_ACTIONS)' != 'true' And '$(CI)' != 'true'" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(GITHUB_ACTIONS)' == 'true' Or '$(CI)' == 'true'">
+    <Compile Remove="MainViewModelTests.cs" />
   </ItemGroup>
 
 </Project>
