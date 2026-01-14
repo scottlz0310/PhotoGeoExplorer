@@ -1434,21 +1434,21 @@ public sealed partial class MainWindow : Window, IDisposable
         try
         {
             AppLog.Info("Manual update check triggered");
-            var updateService = new UpdateService();
-            var updateInfo = await updateService.CheckForUpdatesAsync().ConfigureAwait(true);
+            var currentVersion = typeof(App).Assembly.GetName().Version;
+            var updateResult = await UpdateService.CheckForUpdatesAsync(currentVersion, CancellationToken.None).ConfigureAwait(true);
             
-            if (updateInfo is null)
+            if (updateResult.IsUpdateAvailable)
+            {
+                var message = LocalizationService.Format("Dialog.UpdateCheck.UpdateAvailableDetail", updateResult.LatestVersion?.ToString() ?? "Unknown");
+                await ShowMessageDialogAsync(
+                    LocalizationService.GetString("Dialog.UpdateCheck.Title"),
+                    message).ConfigureAwait(true);
+            }
+            else
             {
                 await ShowMessageDialogAsync(
                     LocalizationService.GetString("Dialog.UpdateCheck.Title"),
                     LocalizationService.GetString("Dialog.UpdateCheck.NoUpdateDetail")).ConfigureAwait(true);
-            }
-            else
-            {
-                var message = LocalizationService.Format("Dialog.UpdateCheck.UpdateAvailableDetail", updateInfo.Version);
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.UpdateCheck.Title"),
-                    message).ConfigureAwait(true);
             }
         }
         catch (Exception ex)

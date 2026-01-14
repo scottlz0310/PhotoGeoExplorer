@@ -76,6 +76,63 @@ public sealed class FileSystemServiceTests
         }
     }
 
+    [Fact]
+    public async Task GetPhotoItemsAsyncHandlesEmptyFolder()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var service = new FileSystemService();
+            var items = await service.GetPhotoItemsAsync(root, imagesOnly: false, searchText: null).ConfigureAwait(true);
+
+            Assert.Empty(items);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task GetPhotoItemsAsyncHandlesEmptyFolderWithImagesOnly()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var service = new FileSystemService();
+            var items = await service.GetPhotoItemsAsync(root, imagesOnly: true, searchText: null).ConfigureAwait(true);
+
+            Assert.Empty(items);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task GetPhotoItemsAsyncLogsEmptyFolderCorrectly()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var service = new FileSystemService();
+            
+            // This should not throw and should log properly
+            var exception = await Record.ExceptionAsync(async () =>
+            {
+                var items = await service.GetPhotoItemsAsync(root, imagesOnly: false, searchText: null).ConfigureAwait(true);
+                Assert.Empty(items);
+            }).ConfigureAwait(true);
+
+            Assert.Null(exception);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorerTests", Guid.NewGuid().ToString("N"));
