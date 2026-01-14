@@ -504,11 +504,57 @@ public sealed partial class MainWindow : Window, IDisposable
             ? settings.FileViewMode
             : FileViewMode.Details;
 
-        if (!string.IsNullOrWhiteSpace(settings.LastFolderPath)
-            && Directory.Exists(settings.LastFolderPath))
+        if (!string.IsNullOrWhiteSpace(settings.LastFolderPath))
         {
-            await _viewModel.LoadFolderAsync(settings.LastFolderPath).ConfigureAwait(true);
+            var validPath = FindValidAncestorPath(settings.LastFolderPath);
+            if (!string.IsNullOrWhiteSpace(validPath))
+            {
+                await _viewModel.LoadFolderAsync(validPath).ConfigureAwait(true);
+                
+                if (!string.Equals(validPath, settings.LastFolderPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    AppLog.Info($"LastFolderPath recovered from '{settings.LastFolderPath}' to ancestor '{validPath}'");
+                }
+            }
         }
+    }
+
+    private static string? FindValidAncestorPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            var current = Path.GetFullPath(path);
+            
+            while (!string.IsNullOrWhiteSpace(current))
+            {
+                if (Directory.Exists(current))
+                {
+                    return current;
+                }
+
+                var parent = Directory.GetParent(current);
+                if (parent is null)
+                {
+                    break;
+                }
+
+                current = parent.FullName;
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException
+            or PathTooLongException
+            or System.Security.SecurityException
+            or NotSupportedException)
+        {
+            AppLog.Error($"Failed to find valid ancestor path for '{path}'", ex);
+        }
+
+        return null;
     }
 
     private void ScheduleSettingsSave()
