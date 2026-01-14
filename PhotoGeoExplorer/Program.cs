@@ -13,7 +13,7 @@ internal static class Program
     public static void Main(string[] args)
     {
         AppLog.Reset();
-        AppLog.Info("Program.Main starting.");
+        AppLog.Info($"Program.Main starting. SessionId: {AppLog.CurrentSessionId}");
 
         try
         {

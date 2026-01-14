@@ -63,17 +63,21 @@ public partial class App : Application
 
     private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
     {
-        AppLog.Error("UI thread unhandled exception.", e.Exception);
+        var exceptionInfo = $"Type: {e.Exception?.GetType().FullName ?? "Unknown"}, Message: {e.Exception?.Message ?? "Unknown"}";
+        AppLog.Error($"UI thread unhandled exception. {exceptionInfo}", e.Exception);
     }
 
     private void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
     {
-        AppLog.Error("AppDomain unhandled exception.", e.ExceptionObject as Exception);
+        var exception = e.ExceptionObject as Exception;
+        var exceptionInfo = $"IsTerminating: {e.IsTerminating}, Type: {exception?.GetType().FullName ?? "Unknown"}, Message: {exception?.Message ?? "Unknown"}";
+        AppLog.Error($"AppDomain unhandled exception. {exceptionInfo}", exception);
     }
 
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
-        AppLog.Error("Unobserved task exception.", e.Exception);
+        var exceptionInfo = $"Type: {e.Exception?.GetType().FullName ?? "Unknown"}, InnerExceptions: {e.Exception?.InnerExceptions.Count ?? 0}";
+        AppLog.Error($"Unobserved task exception. {exceptionInfo}", e.Exception);
     }
 
     private static void ApplyLanguageOverrideFromSettings()

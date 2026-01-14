@@ -608,6 +608,8 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         var previousPath = CurrentFolderPath;
         var shouldAddToHistory = !_isNavigating && !string.IsNullOrWhiteSpace(previousPath);
 
+        AppLog.Info($"LoadFolderCoreAsync: Loading folder '{folderPath}', previousPath='{previousPath ?? "(null)"}', isNavigating={_isNavigating}, selectedCount={SelectedCount}");
+
         try
         {
             CurrentFolderPath = folderPath;
@@ -618,16 +620,22 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             SetMetadataSummary(null, hasSelection: false);
             UpdateSelection(Array.Empty<PhotoListItem>());
 
+            AppLog.Info($"LoadFolderCoreAsync: Calling GetPhotoItemsAsync for '{folderPath}', ShowImagesOnly={ShowImagesOnly}, SearchText='{SearchText ?? "(null)"}'");
             var items = await _fileSystemService
                 .GetPhotoItemsAsync(folderPath, ShowImagesOnly, SearchText)
                 .ConfigureAwait(true);
+            AppLog.Info($"LoadFolderCoreAsync: GetPhotoItemsAsync returned {items.Count} items");
+            
             Items.Clear();
             var listItems = items.Select(CreateListItem).ToList();
+            AppLog.Info($"LoadFolderCoreAsync: Created {listItems.Count} list items, adding to Items collection");
+            
             foreach (var item in SortItems(listItems))
             {
                 Items.Add(item);
             }
 
+            AppLog.Info($"LoadFolderCoreAsync: Folder loaded successfully. Item count: {Items.Count}");
             SetStatus(
                 Items.Count == 0 ? LocalizationService.GetString("Message.NoFilesFound") : null,
                 InfoBarSeverity.Informational);
@@ -673,6 +681,22 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             CurrentFolderPath = previousPath;
             throw;
         }
+        catch (ArgumentException ex)
+        {
+            AppLog.Error($"Invalid argument when loading folder: {folderPath}, previousPath: {previousPath ?? "(null)"}, ItemsCount: {Items.Count}, ShowImagesOnly: {ShowImagesOnly}, SearchText: '{SearchText ?? "(null)"}'", ex);
+            SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+            // ロード失敗時は元のパスに戻す
+            CurrentFolderPath = previousPath;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error($"Unexpected exception when loading folder: {folderPath}, previousPath: {previousPath ?? "(null)"}, ItemsCount: {Items.Count}", ex);
+            SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+            // ロード失敗時は元のパスに戻す
+            CurrentFolderPath = previousPath;
+            throw;
+        }
     }
 
     private static PhotoListItem CreateListItem(PhotoItem item)
@@ -694,17 +718,17 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         }
         catch (ArgumentException ex)
         {
-            AppLog.Error("Failed to load thumbnail image.", ex);
+            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
             return null;
         }
         catch (IOException ex)
         {
-            AppLog.Error("Failed to load thumbnail image.", ex);
+            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
             return null;
         }
         catch (UriFormatException ex)
         {
-            AppLog.Error("Failed to load thumbnail image.", ex);
+            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
             return null;
         }
     }
@@ -727,14 +751,14 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         }
         catch (ArgumentException ex)
         {
-            AppLog.Error("Failed to load preview image.", ex);
+            AppLog.Error($"Failed to load preview image. FilePath: '{item.FilePath}'", ex);
             SelectedPreview = null;
             PreviewPlaceholderVisibility = Visibility.Visible;
             UpdateStatusBar();
         }
         catch (UriFormatException ex)
         {
-            AppLog.Error("Failed to load preview image.", ex);
+            AppLog.Error($"Failed to load preview image. FilePath: '{item.FilePath}'", ex);
             SelectedPreview = null;
             PreviewPlaceholderVisibility = Visibility.Visible;
             UpdateStatusBar();
