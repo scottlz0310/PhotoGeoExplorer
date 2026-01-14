@@ -623,18 +623,16 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             var items = await _fileSystemService
                 .GetPhotoItemsAsync(folderPath, ShowImagesOnly, SearchText)
                 .ConfigureAwait(true);
-            AppLog.Info($"LoadFolderCoreAsync: Retrieved {items.Count} items");
             
             Items.Clear();
             var listItems = items.Select(CreateListItem).ToList();
-            AppLog.Info($"LoadFolderCoreAsync: Created {listItems.Count} list items, adding to Items collection");
             
             foreach (var item in SortItems(listItems))
             {
                 Items.Add(item);
             }
 
-            AppLog.Info($"LoadFolderCoreAsync: Folder loaded successfully. Item count: {Items.Count}");
+            AppLog.Info($"LoadFolderCoreAsync: Folder '{folderPath}' loaded successfully. Item count: {Items.Count}");
             SetStatus(
                 Items.Count == 0 ? LocalizationService.GetString("Message.NoFilesFound") : null,
                 InfoBarSeverity.Informational);

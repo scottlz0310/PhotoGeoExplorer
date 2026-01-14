@@ -52,8 +52,6 @@ internal sealed class FileSystemService
                 directories.Add(new PhotoItem(info.FullName, 0, info.LastWriteTime, isFolder: true));
             }
 
-            AppLog.Info($"EnumerateFiles: Found {directories.Count} directories");
-
             foreach (var path in Directory.EnumerateFiles(folderPath))
             {
                 if (imagesOnly && !IsImage(path))
@@ -95,8 +93,6 @@ internal sealed class FileSystemService
                     pixelHeight));
             }
 
-            AppLog.Info($"EnumerateFiles: Found {files.Count} files");
-
             directories.Sort((left, right) => string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase));
             files.Sort((left, right) => string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase));
 
@@ -104,7 +100,7 @@ internal sealed class FileSystemService
             items.AddRange(directories);
             items.AddRange(files);
 
-            AppLog.Info($"EnumerateFiles: Returning {items.Count} total items ({directories.Count} dirs + {files.Count} files)");
+            AppLog.Info($"EnumerateFiles: Completed. Total: {items.Count} items ({directories.Count} dirs + {files.Count} files)");
             return items;
         }
         catch (Exception ex)

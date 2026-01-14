@@ -56,13 +56,9 @@ Stack Trace:
 ### 空フォルダ読み込み
 ```
 2026-01-14 14:30:20.456 +09:00 [a1b2c3d4] [T1] INFO LoadFolderCoreAsync: Loading folder 'C:\Users\Test\Empty', previousPath='C:\Users\Test\Pictures', isNavigating=False, selectedCount=0
-2026-01-14 14:30:20.467 +09:00 [a1b2c3d4] [T5] INFO GetPhotoItemsAsync: folderPath='C:\Users\Test\Empty', imagesOnly=True, searchText='(null)'
-2026-01-14 14:30:20.478 +09:00 [a1b2c3d4] [T5] INFO EnumerateFiles: Starting enumeration for 'C:\Users\Test\Empty'
-2026-01-14 14:30:20.489 +09:00 [a1b2c3d4] [T5] INFO EnumerateFiles: Found 0 directories
-2026-01-14 14:30:20.490 +09:00 [a1b2c3d4] [T5] INFO EnumerateFiles: Found 0 files
-2026-01-14 14:30:20.491 +09:00 [a1b2c3d4] [T5] INFO EnumerateFiles: Returning 0 total items (0 dirs + 0 files)
-2026-01-14 14:30:20.492 +09:00 [a1b2c3d4] [T5] INFO GetPhotoItemsAsync returned 0 items
-2026-01-14 14:30:20.493 +09:00 [a1b2c3d4] [T1] INFO LoadFolderCoreAsync: Folder loaded successfully. Item count: 0
+2026-01-14 14:30:20.478 +09:00 [a1b2c3d4] [T5] INFO EnumerateFiles: folderPath='C:\Users\Test\Empty', imagesOnly=True, searchText='(null)'
+2026-01-14 14:30:20.491 +09:00 [a1b2c3d4] [T5] INFO EnumerateFiles: Completed. Total: 0 items (0 dirs + 0 files)
+2026-01-14 14:30:20.493 +09:00 [a1b2c3d4] [T1] INFO LoadFolderCoreAsync: Folder 'C:\Users\Test\Empty' loaded successfully. Item count: 0
 ```
 
 ### エラー例

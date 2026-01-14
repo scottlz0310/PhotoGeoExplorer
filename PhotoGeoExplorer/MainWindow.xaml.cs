@@ -1417,7 +1417,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 AppLog.Info($"Created log directory: {logDirectory}");
             }
 
-            _ = Windows.System.Launcher.LaunchFolderPathAsync(logDirectory);
+            _ = await Windows.System.Launcher.LaunchFolderPathAsync(logDirectory).ConfigureAwait(true);
             AppLog.Info($"Opened log folder: {logDirectory}");
         }
         catch (Exception ex)
