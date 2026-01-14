@@ -1400,6 +1400,100 @@ public sealed partial class MainWindow : Window, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    private async void OnOpenLogFolderClicked(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var logDirectory = Path.GetDirectoryName(AppLog.LogFilePath);
+            if (string.IsNullOrWhiteSpace(logDirectory))
+            {
+                AppLog.Error("Log directory path is null or empty");
+                return;
+            }
+
+            if (!Directory.Exists(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+                AppLog.Info($"Created log directory: {logDirectory}");
+            }
+
+            _ = await Windows.System.Launcher.LaunchFolderPathAsync(logDirectory);
+            AppLog.Info($"Opened log folder: {logDirectory}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (IOException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (ArgumentException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+    }
+
+    private async void OnCheckUpdatesClicked(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            AppLog.Info("Manual update check triggered");
+            var currentVersion = typeof(App).Assembly.GetName().Version;
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var updateResult = await UpdateService.CheckForUpdatesAsync(currentVersion, cts.Token).ConfigureAwait(true);
+
+            if (updateResult.IsUpdateAvailable)
+            {
+                var message = LocalizationService.Format("Dialog.UpdateCheck.UpdateAvailableDetail", updateResult.LatestVersion?.ToString() ?? "Unknown");
+                await ShowMessageDialogAsync(
+                    LocalizationService.GetString("Dialog.UpdateCheck.Title"),
+                    message).ConfigureAwait(true);
+            }
+            else
+            {
+                await ShowMessageDialogAsync(
+                    LocalizationService.GetString("Dialog.UpdateCheck.Title"),
+                    LocalizationService.GetString("Dialog.UpdateCheck.NoUpdateDetail")).ConfigureAwait(true);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            AppLog.Info("Update check was cancelled (timeout or user action)");
+            await ShowMessageDialogAsync(
+                LocalizationService.GetString("Dialog.UpdateCheck.Title"),
+                LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            await HandleUpdateCheckFailureAsync(ex).ConfigureAwait(true);
+        }
+        catch (ArgumentException ex)
+        {
+            await HandleUpdateCheckFailureAsync(ex).ConfigureAwait(true);
+        }
+    }
+
+    private void HandleOpenLogFolderFailure(Exception ex)
+    {
+        AppLog.Error("Failed to open log folder", ex);
+        _viewModel.ShowNotificationMessage(
+            LocalizationService.GetString("Message.FailedOpenLogFolder"),
+            InfoBarSeverity.Error);
+    }
+
+    private async Task HandleUpdateCheckFailureAsync(Exception ex)
+    {
+        AppLog.Error("Failed to check for updates", ex);
+        await ShowMessageDialogAsync(
+            LocalizationService.GetString("Dialog.UpdateCheck.Title"),
+            LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
+    }
+
     private async void OnAboutClicked(object sender, RoutedEventArgs e)
     {
         var version = typeof(App).Assembly.GetName().Version?.ToString()

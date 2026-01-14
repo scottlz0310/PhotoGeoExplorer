@@ -35,67 +35,79 @@ internal sealed class FileSystemService
         var directories = new List<PhotoItem>();
         var files = new List<PhotoItem>();
 
-        foreach (var path in Directory.EnumerateDirectories(folderPath))
+        try
         {
-            var directoryName = Path.GetFileName(path);
-            if (searchText is not null
-                && !directoryName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
+            AppLog.Info($"EnumerateFiles: folderPath='{folderPath}', imagesOnly={imagesOnly}, searchText='{searchText ?? "(null)"}'");
 
-            var info = new DirectoryInfo(path);
-            directories.Add(new PhotoItem(info.FullName, 0, info.LastWriteTime, isFolder: true));
-        }
-
-        foreach (var path in Directory.EnumerateFiles(folderPath))
-        {
-            if (imagesOnly && !IsImage(path))
+            foreach (var path in Directory.EnumerateDirectories(folderPath))
             {
-                continue;
-            }
-
-            if (searchText is not null)
-            {
-                var fileName = Path.GetFileName(path);
-                if (!fileName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                var directoryName = Path.GetFileName(path);
+                if (searchText is not null
+                    && !directoryName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
+
+                var info = new DirectoryInfo(path);
+                directories.Add(new PhotoItem(info.FullName, 0, info.LastWriteTime, isFolder: true));
             }
 
-            var info = new FileInfo(path);
-            string? thumbnailPath = null;
-            int? pixelWidth = null;
-            int? pixelHeight = null;
-            if (IsImage(info.FullName))
+            foreach (var path in Directory.EnumerateFiles(folderPath))
             {
-                thumbnailPath = ThumbnailService.GetOrCreateThumbnailPath(
+                if (imagesOnly && !IsImage(path))
+                {
+                    continue;
+                }
+
+                if (searchText is not null)
+                {
+                    var fileName = Path.GetFileName(path);
+                    if (!fileName.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                }
+
+                var info = new FileInfo(path);
+                string? thumbnailPath = null;
+                int? pixelWidth = null;
+                int? pixelHeight = null;
+                if (IsImage(info.FullName))
+                {
+                    thumbnailPath = ThumbnailService.GetOrCreateThumbnailPath(
+                        info.FullName,
+                        info.LastWriteTimeUtc,
+                        out var width,
+                        out var height);
+                    pixelWidth = width;
+                    pixelHeight = height;
+                }
+
+                files.Add(new PhotoItem(
                     info.FullName,
-                    info.LastWriteTimeUtc,
-                    out var width,
-                    out var height);
-                pixelWidth = width;
-                pixelHeight = height;
+                    info.Length,
+                    info.LastWriteTime,
+                    isFolder: false,
+                    thumbnailPath,
+                    pixelWidth,
+                    pixelHeight));
             }
 
-            files.Add(new PhotoItem(
-                info.FullName,
-                info.Length,
-                info.LastWriteTime,
-                isFolder: false,
-                thumbnailPath,
-                pixelWidth,
-                pixelHeight));
+            directories.Sort((left, right) => string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase));
+            files.Sort((left, right) => string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase));
+
+            var items = new List<PhotoItem>(directories.Count + files.Count);
+            items.AddRange(directories);
+            items.AddRange(files);
+
+            AppLog.Info($"EnumerateFiles: Completed. Total: {items.Count} items ({directories.Count} dirs + {files.Count} files)");
+            return items;
         }
-
-        directories.Sort((left, right) => string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase));
-        files.Sort((left, right) => string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase));
-
-        var items = new List<PhotoItem>(directories.Count + files.Count);
-        items.AddRange(directories);
-        items.AddRange(files);
-        return items;
+        catch (Exception ex)
+        {
+            AppLog.Error($"EnumerateFiles: Exception during enumeration of '{folderPath}'", ex);
+            throw;
+        }
     }
 
     private bool IsImage(string path)

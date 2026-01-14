@@ -442,20 +442,21 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             _isNavigating = true;
             try
             {
-                await LoadFolderCoreAsync(previousPath).ConfigureAwait(true);
+                var loadSucceeded = await LoadFolderCoreAsync(previousPath).ConfigureAwait(true);
 
                 // ロード成功時のみ進む履歴に追加
-                if (!string.IsNullOrWhiteSpace(currentPath)
+                if (loadSucceeded
+                    && !string.IsNullOrWhiteSpace(currentPath)
                     && PathsAreEqual(CurrentFolderPath, previousPath))
                 {
                     PushToForwardStack(currentPath);
                 }
-            }
-            catch
-            {
-                // ロード失敗時は履歴を元に戻す
-                _navigationBackStack.Push(previousPath);
-                throw;
+                else if (!loadSucceeded)
+                {
+                    // ロード失敗時は履歴を元に戻す
+                    _navigationBackStack.Push(previousPath);
+                    AppLog.Error($"NavigateBackAsync failed to load path: {previousPath}");
+                }
             }
             finally
             {
@@ -491,20 +492,21 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             _isNavigating = true;
             try
             {
-                await LoadFolderCoreAsync(nextPath).ConfigureAwait(true);
+                var loadSucceeded = await LoadFolderCoreAsync(nextPath).ConfigureAwait(true);
 
                 // ロード成功時のみ戻る履歴に追加
-                if (!string.IsNullOrWhiteSpace(currentPath)
+                if (loadSucceeded
+                    && !string.IsNullOrWhiteSpace(currentPath)
                     && PathsAreEqual(CurrentFolderPath, nextPath))
                 {
                     PushToBackStack(currentPath);
                 }
-            }
-            catch
-            {
-                // ロード失敗時は履歴を元に戻す
-                _navigationForwardStack.Push(nextPath);
-                throw;
+                else if (!loadSucceeded)
+                {
+                    // ロード失敗時は履歴を元に戻す
+                    _navigationForwardStack.Push(nextPath);
+                    AppLog.Error($"NavigateForwardAsync failed to load path: {nextPath}");
+                }
             }
             finally
             {
@@ -526,7 +528,15 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             return;
         }
 
-        await LoadFolderAsync(CurrentFolderPath).ConfigureAwait(true);
+        await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            _ = await LoadFolderCoreAsync(CurrentFolderPath).ConfigureAwait(true);
+        }
+        finally
+        {
+            _navigationSemaphore.Release();
+        }
     }
 
     public void ToggleSort(FileSortColumn column)
@@ -595,7 +605,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         await _navigationSemaphore.WaitAsync().ConfigureAwait(true);
         try
         {
-            await LoadFolderCoreAsync(folderPath).ConfigureAwait(true);
+            _ = await LoadFolderCoreAsync(folderPath).ConfigureAwait(true);
         }
         finally
         {
@@ -603,10 +613,16 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         }
     }
 
-    private async Task LoadFolderCoreAsync(string folderPath)
+    private async Task<bool> LoadFolderCoreAsync(string folderPath)
     {
         var previousPath = CurrentFolderPath;
         var shouldAddToHistory = !_isNavigating && !string.IsNullOrWhiteSpace(previousPath);
+
+        AppLog.Info($"LoadFolderCoreAsync: Loading folder '{folderPath}', previousPath='{previousPath ?? "(null)"}', isNavigating={_isNavigating}, selectedCount={SelectedCount}");
+
+        // Capture previous UI state for rollback
+        var previousItems = Items.ToList();
+        var previousBreadcrumbs = BreadcrumbItems.ToList();
 
         try
         {
@@ -621,13 +637,16 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             var items = await _fileSystemService
                 .GetPhotoItemsAsync(folderPath, ShowImagesOnly, SearchText)
                 .ConfigureAwait(true);
+
             Items.Clear();
             var listItems = items.Select(CreateListItem).ToList();
+
             foreach (var item in SortItems(listItems))
             {
                 Items.Add(item);
             }
 
+            AppLog.Info($"LoadFolderCoreAsync: Folder '{folderPath}' loaded successfully. Item count: {Items.Count}");
             SetStatus(
                 Items.Count == 0 ? LocalizationService.GetString("Message.NoFilesFound") : null,
                 InfoBarSeverity.Informational);
@@ -640,39 +659,67 @@ internal sealed class MainViewModel : BindableBase, IDisposable
                 _navigationForwardStack.Clear();
                 UpdateNavigationProperties();
             }
+
+            return true;
         }
         catch (UnauthorizedAccessException ex)
         {
             AppLog.Error($"Failed to access folder: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.AccessDeniedSeeLog"), InfoBarSeverity.Error);
-            // ロード失敗時は元のパスに戻す
-            CurrentFolderPath = previousPath;
-            throw;
+            RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
         }
         catch (DirectoryNotFoundException ex)
         {
             AppLog.Error($"Folder not found: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FolderNotFoundSeeLog"), InfoBarSeverity.Error);
-            // ロード失敗時は元のパスに戻す
-            CurrentFolderPath = previousPath;
-            throw;
+            RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
         }
         catch (PathTooLongException ex)
         {
             AppLog.Error($"Folder path too long: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FolderPathTooLongSeeLog"), InfoBarSeverity.Error);
-            // ロード失敗時は元のパスに戻す
-            CurrentFolderPath = previousPath;
-            throw;
+            RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
         }
         catch (IOException ex)
         {
             AppLog.Error($"Failed to read folder: {folderPath}", ex);
             SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
-            // ロード失敗時は元のパスに戻す
-            CurrentFolderPath = previousPath;
-            throw;
+            RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
         }
+        catch (ArgumentException ex)
+        {
+            AppLog.Error($"Invalid folder path: {folderPath}", ex);
+            SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+            RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
+        }
+        catch (NotSupportedException ex)
+        {
+            AppLog.Error($"Unsupported folder path: {folderPath}", ex);
+            SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+            RestoreUIState(previousPath, previousItems, previousBreadcrumbs);
+        }
+
+        return false;
+    }
+
+    private void RestoreUIState(string? previousPath, List<PhotoListItem> previousItems, List<BreadcrumbSegment> previousBreadcrumbs)
+    {
+        // ロード失敗時は元の状態に戻す
+        CurrentFolderPath = previousPath;
+
+        Items.Clear();
+        foreach (var item in previousItems)
+        {
+            Items.Add(item);
+        }
+
+        BreadcrumbItems.Clear();
+        foreach (var breadcrumb in previousBreadcrumbs)
+        {
+            BreadcrumbItems.Add(breadcrumb);
+        }
+
+        UpdateStatusBar();
     }
 
     private static PhotoListItem CreateListItem(PhotoItem item)
@@ -694,17 +741,17 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         }
         catch (ArgumentException ex)
         {
-            AppLog.Error("Failed to load thumbnail image.", ex);
+            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
             return null;
         }
         catch (IOException ex)
         {
-            AppLog.Error("Failed to load thumbnail image.", ex);
+            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
             return null;
         }
         catch (UriFormatException ex)
         {
-            AppLog.Error("Failed to load thumbnail image.", ex);
+            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
             return null;
         }
     }
@@ -727,14 +774,14 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         }
         catch (ArgumentException ex)
         {
-            AppLog.Error("Failed to load preview image.", ex);
+            AppLog.Error($"Failed to load preview image. FilePath: '{item.FilePath}'", ex);
             SelectedPreview = null;
             PreviewPlaceholderVisibility = Visibility.Visible;
             UpdateStatusBar();
         }
         catch (UriFormatException ex)
         {
-            AppLog.Error("Failed to load preview image.", ex);
+            AppLog.Error($"Failed to load preview image. FilePath: '{item.FilePath}'", ex);
             SelectedPreview = null;
             PreviewPlaceholderVisibility = Visibility.Visible;
             UpdateStatusBar();
