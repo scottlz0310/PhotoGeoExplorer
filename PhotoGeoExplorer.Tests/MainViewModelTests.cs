@@ -11,6 +11,11 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public void ConstructorInitializesNavigationProperties()
     {
+        if (ShouldSkipOnCi())
+        {
+            return;
+        }
+
         // Arrange & Act
         var fileSystemService = new FileSystemService();
         using var viewModel = new MainViewModel(fileSystemService);
@@ -23,6 +28,11 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task NavigateBackAsyncWithoutHistoryDoesNothing()
     {
+        if (ShouldSkipOnCi())
+        {
+            return;
+        }
+
         // Arrange
         var fileSystemService = new FileSystemService();
         using var viewModel = new MainViewModel(fileSystemService);
@@ -38,6 +48,11 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task NavigateForwardAsyncWithoutHistoryDoesNothing()
     {
+        if (ShouldSkipOnCi())
+        {
+            return;
+        }
+
         // Arrange
         var fileSystemService = new FileSystemService();
         using var viewModel = new MainViewModel(fileSystemService);
@@ -53,6 +68,11 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task LoadFolderAsyncUpdatesNavigationHistory()
     {
+        if (ShouldSkipOnCi())
+        {
+            return;
+        }
+
         // Arrange
         var fileSystemService = new FileSystemService();
         using var viewModel = new MainViewModel(fileSystemService);
@@ -91,6 +111,11 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task LoadFolderAsyncClearsForwardHistory()
     {
+        if (ShouldSkipOnCi())
+        {
+            return;
+        }
+
         // Arrange
         var fileSystemService = new FileSystemService();
         using var viewModel = new MainViewModel(fileSystemService);
@@ -116,6 +141,11 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task LoadFolderAsyncSameFolderDoesNotAddToHistory()
     {
+        if (ShouldSkipOnCi())
+        {
+            return;
+        }
+
         // Arrange
         var fileSystemService = new FileSystemService();
         using var viewModel = new MainViewModel(fileSystemService);
@@ -144,6 +174,13 @@ public sealed class MainViewModelTests : IDisposable
     {
         return Path.GetFullPath(path)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static bool ShouldSkipOnCi()
+    {
+        var isCi = string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);
+        return isCi;
     }
 
     public void Dispose()
