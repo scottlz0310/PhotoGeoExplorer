@@ -522,6 +522,9 @@
   <data name="ExifEditor.Title" xml:space="preserve">
     <value>EXIF情報の編集</value>
   </data>
+  <data name="ExifEditor.UpdateDateCheckbox" xml:space="preserve">
+    <value>撮影日時を更新する</value>
+  </data>
   <data name="ExifEditor.TakenAtLabel" xml:space="preserve">
     <value>撮影日時</value>
   </data>

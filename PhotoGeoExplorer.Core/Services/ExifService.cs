@@ -146,7 +146,7 @@ internal static class ExifService
                     exifProfile.SetValue(ExifTag.DateTime, dateTimeString);
                 }
 
-                // Update GPS location if provided
+                // Update GPS location if provided, or remove if both are null
                 if (latitude.HasValue && longitude.HasValue)
                 {
                     // Set GPS version
@@ -184,10 +184,34 @@ internal static class ExifService
                         new ImageSharpRational((uint)(lonSeconds * 1000000), 1000000)
                     });
                 }
+                else if (!latitude.HasValue && !longitude.HasValue)
+                {
+                    // Remove GPS tags when clearing location
+                    exifProfile.RemoveValue(ExifTag.GPSVersionID);
+                    exifProfile.RemoveValue(ExifTag.GPSLatitudeRef);
+                    exifProfile.RemoveValue(ExifTag.GPSLatitude);
+                    exifProfile.RemoveValue(ExifTag.GPSLongitudeRef);
+                    exifProfile.RemoveValue(ExifTag.GPSLongitude);
+                }
 
-                // Save the image with updated EXIF data
+                // Save the image with updated EXIF data, preserving original quality
                 image.Metadata.ExifProfile = exifProfile;
-                image.Save(filePath, new JpegEncoder());
+
+                // Preserve original JPEG quality and settings
+                JpegEncoder encoder;
+
+                // Try to detect and preserve original quality
+                if (image.Metadata.GetJpegMetadata() is { } jpegMetadata)
+                {
+                    encoder = new JpegEncoder { Quality = jpegMetadata.Quality };
+                }
+                else
+                {
+                    // Use high quality as default to minimize quality loss
+                    encoder = new JpegEncoder { Quality = 95 };
+                }
+
+                image.Save(filePath, encoder);
 
                 // Delete backup file on success
                 File.Delete(backupPath);

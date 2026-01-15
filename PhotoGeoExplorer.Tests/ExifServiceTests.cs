@@ -111,6 +111,106 @@ public sealed class ExifServiceTests
     }
 
     [Fact]
+    public async Task UpdateMetadataAsync_ClearLocation_RemovesGPSTags()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var jpgPath = Path.Combine(root, "test.jpg");
+
+            // Create a simple JPEG image
+            using (var image = new Image<Rgba32>(100, 100))
+            {
+                await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
+            }
+
+            // First, add GPS data
+            await ExifService.UpdateMetadataAsync(
+                jpgPath,
+                null,
+                35.6762,
+                139.6503,
+                updateFileModifiedDate: false,
+                CancellationToken.None).ConfigureAwait(true);
+
+            var metadataWithGps = await ExifService.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
+            Assert.NotNull(metadataWithGps);
+            Assert.NotNull(metadataWithGps.Latitude);
+            Assert.NotNull(metadataWithGps.Longitude);
+
+            // Now clear the GPS data
+            var result = await ExifService.UpdateMetadataAsync(
+                jpgPath,
+                null,
+                null,
+                null,
+                updateFileModifiedDate: false,
+                CancellationToken.None).ConfigureAwait(true);
+
+            Assert.True(result);
+
+            // Verify GPS data is removed
+            var metadataWithoutGps = await ExifService.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
+            Assert.NotNull(metadataWithoutGps);
+            Assert.Null(metadataWithoutGps.Latitude);
+            Assert.Null(metadataWithoutGps.Longitude);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateMetadataAsync_OnlyUpdateLocation_PreservesDate()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var jpgPath = Path.Combine(root, "test.jpg");
+
+            // Create a simple JPEG image
+            using (var image = new Image<Rgba32>(100, 100))
+            {
+                await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
+            }
+
+            // Set initial date
+            var initialDate = new DateTimeOffset(2023, 1, 1, 10, 0, 0, TimeSpan.Zero);
+            await ExifService.UpdateMetadataAsync(
+                jpgPath,
+                initialDate,
+                null,
+                null,
+                updateFileModifiedDate: false,
+                CancellationToken.None).ConfigureAwait(true);
+
+            // Update only location, not date
+            await ExifService.UpdateMetadataAsync(
+                jpgPath,
+                null,
+                35.6762,
+                139.6503,
+                updateFileModifiedDate: false,
+                CancellationToken.None).ConfigureAwait(true);
+
+            // Verify date is preserved
+            var metadata = await ExifService.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
+            Assert.NotNull(metadata);
+            Assert.NotNull(metadata.TakenAt);
+            Assert.Equal(initialDate.Year, metadata.TakenAt.Value.Year);
+            Assert.Equal(initialDate.Month, metadata.TakenAt.Value.Month);
+            Assert.Equal(initialDate.Day, metadata.TakenAt.Value.Day);
+            Assert.NotNull(metadata.Latitude);
+            Assert.NotNull(metadata.Longitude);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
     public async Task UpdateMetadataAsync_NonExistentFile_ReturnsFalse()
     {
         var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent.jpg");

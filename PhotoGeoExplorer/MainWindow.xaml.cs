@@ -2808,6 +2808,14 @@ public sealed partial class MainWindow : Window, IDisposable
             MinWidth = 400
         };
 
+        // Update Date checkbox
+        var updateDateCheckBox = new CheckBox
+        {
+            Content = LocalizationService.GetString("ExifEditor.UpdateDateCheckbox"),
+            IsChecked = metadata?.TakenAt.HasValue ?? false
+        };
+        dialogContent.Children.Add(updateDateCheckBox);
+
         // Date Taken
         var takenAtLabel = new TextBlock
         {
@@ -2816,11 +2824,25 @@ public sealed partial class MainWindow : Window, IDisposable
         };
         var takenAtPicker = new DatePicker
         {
-            Date = metadata?.TakenAt?.Date ?? DateTimeOffset.Now.Date
+            Date = metadata?.TakenAt?.Date ?? DateTimeOffset.Now.Date,
+            IsEnabled = updateDateCheckBox.IsChecked ?? false
         };
         var takenAtTimePicker = new TimePicker
         {
-            Time = metadata?.TakenAt?.TimeOfDay ?? TimeSpan.Zero
+            Time = metadata?.TakenAt?.TimeOfDay ?? TimeSpan.Zero,
+            IsEnabled = updateDateCheckBox.IsChecked ?? false
+        };
+
+        // Enable/disable date pickers based on checkbox
+        updateDateCheckBox.Checked += (s, e) =>
+        {
+            takenAtPicker.IsEnabled = true;
+            takenAtTimePicker.IsEnabled = true;
+        };
+        updateDateCheckBox.Unchecked += (s, e) =>
+        {
+            takenAtPicker.IsEnabled = false;
+            takenAtTimePicker.IsEnabled = false;
         };
 
         dialogContent.Children.Add(takenAtLabel);
@@ -2918,9 +2940,13 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         // Parse input values
-        var newTakenAt = new DateTimeOffset(
-            takenAtPicker.Date.Date.Add(takenAtTimePicker.Time),
-            DateTimeOffset.Now.Offset);
+        DateTimeOffset? newTakenAt = null;
+        if (updateDateCheckBox.IsChecked ?? false)
+        {
+            newTakenAt = new DateTimeOffset(
+                takenAtPicker.Date.Date.Add(takenAtTimePicker.Time),
+                DateTimeOffset.Now.Offset);
+        }
 
         double? newLatitude = null;
         if (!string.IsNullOrWhiteSpace(latitudeBox.Text) &&
