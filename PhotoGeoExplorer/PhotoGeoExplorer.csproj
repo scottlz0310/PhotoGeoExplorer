@@ -39,6 +39,8 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260101001" />
     <PackageReference Include="Mapsui" Version="5.0.2" />
     <PackageReference Include="Mapsui.WinUI" Version="5.0.2" />
+    <PackageReference Include="Mapsui.Nts" Version="5.0.2" />
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
   </ItemGroup>
 
   <ItemGroup>

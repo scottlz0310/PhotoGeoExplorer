@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using BruTile.Cache;
 using Mapsui;
 using Mapsui.Layers;
+using Mapsui.Nts;
+using Mapsui.Nts.Extensions;
 using Mapsui.Projections;
 using Mapsui.Styles;
 using Mapsui.Tiling;
@@ -20,6 +22,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Windows.Globalization;
+using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
@@ -74,6 +77,9 @@ public sealed partial class MainWindow : Window, IDisposable
     private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
     private PhotoMetadata? _flyoutMetadata;
+    private bool _mapRectangleSelecting;
+    private MPoint? _mapRectangleStart;
+    private MemoryLayer? _rectangleSelectionLayer;
 
     public MainWindow()
     {
@@ -1429,6 +1435,9 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        _rectangleSelectionLayer?.Dispose();
+        _rectangleSelectionLayer = null;
+
         _markerLayer?.Dispose();
         _markerLayer = null;
 
@@ -2964,5 +2973,210 @@ public sealed partial class MainWindow : Window, IDisposable
     private static string GenerateGoogleMapsUrl(double latitude, double longitude)
     {
         return $"https://www.google.com/maps?q={latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},{longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+    }
+
+    private void OnMapPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (MapControl is null || _map is null)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(MapControl);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        // Ctrl キーが押されている場合のみ矩形選択を有効化
+        var ctrlPressed = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+        if (!ctrlPressed)
+        {
+            return;
+        }
+
+        _mapRectangleSelecting = true;
+        var screenPos = point.Position;
+        _mapRectangleStart = MapControl.Map?.Navigator?.Viewport?.ScreenToWorld(screenPos.X, screenPos.Y);
+        MapControl.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void OnMapPointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_mapRectangleSelecting || MapControl is null || _map is null || _mapRectangleStart is null)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(MapControl);
+        var screenPos = point.Position;
+        var worldEnd = MapControl.Map?.Navigator?.Viewport?.ScreenToWorld(screenPos.X, screenPos.Y);
+        if (worldEnd is null)
+        {
+            return;
+        }
+
+        UpdateRectangleSelectionLayer(_mapRectangleStart, worldEnd);
+        e.Handled = true;
+    }
+
+    private void OnMapPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_mapRectangleSelecting || MapControl is null || _map is null || _mapRectangleStart is null)
+        {
+            return;
+        }
+
+        _mapRectangleSelecting = false;
+        MapControl.ReleasePointerCapture(e.Pointer);
+
+        var point = e.GetCurrentPoint(MapControl);
+        var screenPos = point.Position;
+        var worldEnd = MapControl.Map?.Navigator?.Viewport?.ScreenToWorld(screenPos.X, screenPos.Y);
+        if (worldEnd is null)
+        {
+            ClearRectangleSelectionLayer();
+            return;
+        }
+
+        var minX = Math.Min(_mapRectangleStart.X, worldEnd.X);
+        var maxX = Math.Max(_mapRectangleStart.X, worldEnd.X);
+        var minY = Math.Min(_mapRectangleStart.Y, worldEnd.Y);
+        var maxY = Math.Max(_mapRectangleStart.Y, worldEnd.Y);
+        var selectionBounds = new MRect(minX, minY, maxX, maxY);
+
+        SelectPhotosInRectangle(selectionBounds);
+        ClearRectangleSelectionLayer();
+        _mapRectangleStart = null;
+        e.Handled = true;
+    }
+
+    private void OnMapPointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        _mapRectangleSelecting = false;
+        _mapRectangleStart = null;
+        ClearRectangleSelectionLayer();
+    }
+
+    private void UpdateRectangleSelectionLayer(MPoint start, MPoint end)
+    {
+        if (_map is null)
+        {
+            return;
+        }
+
+        var minX = Math.Min(start.X, end.X);
+        var maxX = Math.Max(start.X, end.X);
+        var minY = Math.Min(start.Y, end.Y);
+        var maxY = Math.Max(start.Y, end.Y);
+
+        var polygon = new Polygon(new LinearRing(new[]
+        {
+            new Coordinate(minX, minY),
+            new Coordinate(maxX, minY),
+            new Coordinate(maxX, maxY),
+            new Coordinate(minX, maxY),
+            new Coordinate(minX, minY)
+        }));
+
+        var feature = new GeometryFeature
+        {
+            Geometry = polygon
+        };
+
+        var polygonStyle = new VectorStyle
+        {
+            Fill = new Brush(Color.FromArgb(64, 0, 120, 215)),
+            Outline = new Pen(Color.FromArgb(255, 0, 120, 215), 2)
+        };
+
+        feature.Styles.Add(polygonStyle);
+
+        if (_rectangleSelectionLayer is null)
+        {
+            _rectangleSelectionLayer = new MemoryLayer
+            {
+                Name = "RectangleSelection",
+                Features = new[] { feature },
+                Style = null
+            };
+            _map.Layers.Add(_rectangleSelectionLayer);
+        }
+        else
+        {
+            _rectangleSelectionLayer.Features = new[] { feature };
+        }
+
+        _map.Refresh();
+    }
+
+    private void ClearRectangleSelectionLayer()
+    {
+        if (_map is null || _rectangleSelectionLayer is null)
+        {
+            return;
+        }
+
+        _map.Layers.Remove(_rectangleSelectionLayer);
+        _rectangleSelectionLayer.Dispose();
+        _rectangleSelectionLayer = null;
+        _map.Refresh();
+    }
+
+    private void SelectPhotosInRectangle(MRect selectionBounds)
+    {
+        if (_markerLayer is null || _map is null)
+        {
+            return;
+        }
+
+        var selectedItems = new List<PhotoListItem>();
+
+        foreach (var feature in _markerLayer.Features)
+        {
+            if (feature is not PointFeature pointFeature)
+            {
+                continue;
+            }
+
+            var point = pointFeature.Point;
+            if (point is null)
+            {
+                continue;
+            }
+
+            if (point.X >= selectionBounds.Min.X && point.X <= selectionBounds.Max.X
+                && point.Y >= selectionBounds.Min.Y && point.Y <= selectionBounds.Max.Y)
+            {
+                var itemObj = feature[PhotoItemKey];
+                if (itemObj is PhotoItem photoItem)
+                {
+                    var listItem = _viewModel.Items.FirstOrDefault(item =>
+                        !item.IsFolder && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
+                    if (listItem is not null)
+                    {
+                        selectedItems.Add(listItem);
+                    }
+                }
+            }
+        }
+
+        if (selectedItems.Count > 0)
+        {
+            _viewModel.UpdateSelection(selectedItems);
+            if (selectedItems.Count > 0)
+            {
+                _viewModel.SelectedItem = selectedItems[0];
+            }
+
+            var listView = GetFileListView();
+            if (listView is not null && selectedItems.Count > 0)
+            {
+                listView.ScrollIntoView(selectedItems[0]);
+            }
+        }
     }
 }

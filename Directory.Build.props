@@ -5,5 +5,6 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 </Project>

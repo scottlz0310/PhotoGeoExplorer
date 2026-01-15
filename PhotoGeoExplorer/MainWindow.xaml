@@ -719,7 +719,14 @@
                     <Grid Grid.Row="1" Margin="0,8,0,0">
                         <Border Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="6" />
                         <Grid x:Name="MapHost">
-                            <mapsui:MapControl x:Name="MapControl" AutomationProperties.AutomationId="MapControl" Info="OnMapInfoReceived" />
+                            <mapsui:MapControl 
+                                x:Name="MapControl" 
+                                AutomationProperties.AutomationId="MapControl" 
+                                Info="OnMapInfoReceived"
+                                PointerPressed="OnMapPointerPressed"
+                                PointerMoved="OnMapPointerMoved"
+                                PointerReleased="OnMapPointerReleased"
+                                PointerCaptureLost="OnMapPointerCaptureLost" />
                         </Grid>
                         <Border
                             x:Name="MapStatusOverlay"
