@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -725,7 +726,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
 
     private static PhotoListItem CreateListItem(PhotoItem item)
     {
-        var thumbnail = _isTestEnvironment.Value ? null : CreateThumbnailImage(item.ThumbnailPath);
+        var thumbnail = CanInitializeBitmapImage() ? CreateThumbnailImage(item.ThumbnailPath) : null;
         return new PhotoListItem(item, thumbnail);
     }
 
@@ -779,6 +780,16 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             || name.Contains("xunit", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool CanInitializeBitmapImage()
+    {
+        if (_isTestEnvironment.Value)
+        {
+            return false;
+        }
+
+        return DispatcherQueue.GetForCurrentThread() is not null;
+    }
+
     private void UpdatePreview(PhotoListItem? item)
     {
         if (ShouldSkipPreviewUpdate(item))
@@ -815,7 +826,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
 
     private static bool ShouldSkipPreviewUpdate(PhotoListItem? item)
     {
-        return item is null || item.IsFolder || _isTestEnvironment.Value;
+        return item is null || item.IsFolder || !CanInitializeBitmapImage();
     }
 
     private async Task LoadMetadataAsync(PhotoListItem? item)
