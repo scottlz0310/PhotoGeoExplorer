@@ -16,7 +16,7 @@ namespace PhotoGeoExplorer.ViewModels;
 internal sealed class MainViewModel : BindableBase, IDisposable
 {
     private const int MaxNavigationHistorySize = 100;
-    private static readonly bool IsTestEnvironment = DetectTestEnvironment();
+    private static readonly Lazy<bool> _isTestEnvironment = new(DetectTestEnvironment);
     private readonly FileSystemService _fileSystemService;
     private readonly List<PhotoListItem> _selectedItems = new();
     private readonly Stack<string> _navigationBackStack = new();
@@ -725,7 +725,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
 
     private static PhotoListItem CreateListItem(PhotoItem item)
     {
-        var thumbnail = IsTestEnvironment ? null : CreateThumbnailImage(item.ThumbnailPath);
+        var thumbnail = _isTestEnvironment.Value ? null : CreateThumbnailImage(item.ThumbnailPath);
         return new PhotoListItem(item, thumbnail);
     }
 
@@ -759,6 +759,15 @@ internal sealed class MainViewModel : BindableBase, IDisposable
 
     private static bool DetectTestEnvironment()
     {
+        // 環境変数による検出を優先（より信頼性が高い）
+        var ci = Environment.GetEnvironmentVariable("CI");
+        var githubActions = Environment.GetEnvironmentVariable("GITHUB_ACTIONS");
+        if (!string.IsNullOrEmpty(ci) || !string.IsNullOrEmpty(githubActions))
+        {
+            return true;
+        }
+
+        // AppDomain 名による検出（フォールバック）
         var name = AppDomain.CurrentDomain.FriendlyName;
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -772,7 +781,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
 
     private void UpdatePreview(PhotoListItem? item)
     {
-        if (item is null || item.IsFolder || IsTestEnvironment)
+        if (ShouldSkipPreviewUpdate(item))
         {
             SelectedPreview = null;
             PreviewPlaceholderVisibility = Visibility.Visible;
@@ -782,24 +791,29 @@ internal sealed class MainViewModel : BindableBase, IDisposable
 
         try
         {
-            SelectedPreview = new BitmapImage(new Uri(item.FilePath));
+            SelectedPreview = new BitmapImage(new Uri(item!.FilePath));
             PreviewPlaceholderVisibility = Visibility.Collapsed;
             UpdateStatusBar();
         }
         catch (ArgumentException ex)
         {
-            AppLog.Error($"Failed to load preview image. FilePath: '{item.FilePath}'", ex);
+            AppLog.Error($"Failed to load preview image. FilePath: '{item!.FilePath}'", ex);
             SelectedPreview = null;
             PreviewPlaceholderVisibility = Visibility.Visible;
             UpdateStatusBar();
         }
         catch (UriFormatException ex)
         {
-            AppLog.Error($"Failed to load preview image. FilePath: '{item.FilePath}'", ex);
+            AppLog.Error($"Failed to load preview image. FilePath: '{item!.FilePath}'", ex);
             SelectedPreview = null;
             PreviewPlaceholderVisibility = Visibility.Visible;
             UpdateStatusBar();
         }
+    }
+
+    private static bool ShouldSkipPreviewUpdate(PhotoListItem? item)
+    {
+        return item is null || item.IsFolder || _isTestEnvironment.Value;
     }
 
     private async Task LoadMetadataAsync(PhotoListItem? item)
