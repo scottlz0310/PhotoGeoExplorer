@@ -516,4 +516,55 @@
   <data name="Message.LaunchBrowserFailed" xml:space="preserve">
     <value>ブラウザの起動に失敗しました。</value>
   </data>
+  <data name="Menu.EditExif" xml:space="preserve">
+    <value>EXIF編集...</value>
+  </data>
+  <data name="ExifEditor.Title" xml:space="preserve">
+    <value>EXIF情報の編集</value>
+  </data>
+  <data name="ExifEditor.UpdateDateCheckbox" xml:space="preserve">
+    <value>撮影日時を更新する</value>
+  </data>
+  <data name="ExifEditor.TakenAtLabel" xml:space="preserve">
+    <value>撮影日時</value>
+  </data>
+  <data name="ExifEditor.LatitudeLabel" xml:space="preserve">
+    <value>緯度</value>
+  </data>
+  <data name="ExifEditor.LongitudeLabel" xml:space="preserve">
+    <value>経度</value>
+  </data>
+  <data name="ExifEditor.UpdateFileDate" xml:space="preserve">
+    <value>ファイル更新日時を撮影日時に揃える</value>
+  </data>
+  <data name="ExifEditor.GetLocationFromMap" xml:space="preserve">
+    <value>地図から位置情報を取得</value>
+  </data>
+  <data name="ExifEditor.ClearLocation" xml:space="preserve">
+    <value>位置情報をクリア</value>
+  </data>
+  <data name="ExifEditor.SaveButton" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="Message.ExifUpdateSuccess" xml:space="preserve">
+    <value>EXIF情報を更新しました。</value>
+  </data>
+  <data name="Message.ExifUpdateFailed" xml:space="preserve">
+    <value>EXIF情報の更新に失敗しました。</value>
+  </data>
+  <data name="Message.ExifEditorMultipleFiles" xml:space="preserve">
+    <value>EXIF編集は1つのファイルのみ選択してください。</value>
+  </data>
+  <data name="Message.ExifEditorFolderSelected" xml:space="preserve">
+    <value>EXIF編集は画像ファイルのみ対応しています。</value>
+  </data>
+  <data name="Message.ExifPickLocationInstruction" xml:space="preserve">
+    <value>地図をクリックして位置情報を指定してください。右クリックでキャンセルします。</value>
+  </data>
+  <data name="Message.ExifPickLocationCanceled" xml:space="preserve">
+    <value>位置情報の選択をキャンセルしました。</value>
+  </data>
+  <data name="Message.ExifPickLocationUnavailable" xml:space="preserve">
+    <value>地図が利用できないため位置情報を取得できません。</value>
+  </data>
 </root>

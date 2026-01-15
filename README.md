@@ -70,6 +70,16 @@ dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64 -p:TreatWarningsAsE
 lefthook install
 ```
 
+## テスト
+
+```powershell
+dotnet test PhotoGeoExplorer.sln -c Release -p:Platform=x64
+```
+
+E2E は通常スキップします。UIA (FlaUI) による WinUI 自動化は、デスクトップの対話セッションが必要で
+環境依存の不安定さがあるため、日常の品質確認は手動テストを重視する方針です。
+実行する場合は `PHOTO_GEO_EXPLORER_RUN_E2E=1` を指定して手動環境で実行してください。
+
 ## リリース成果物
 
 タグの push (例: `v1.3.0`) を契機に、`win-x64` 向けの MSI インストーラーを作成します。

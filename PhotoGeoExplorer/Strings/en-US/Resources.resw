@@ -516,4 +516,55 @@
   <data name="Message.LaunchBrowserFailed" xml:space="preserve">
     <value>Failed to launch browser.</value>
   </data>
+  <data name="Menu.EditExif" xml:space="preserve">
+    <value>Edit EXIF...</value>
+  </data>
+  <data name="ExifEditor.Title" xml:space="preserve">
+    <value>Edit EXIF Metadata</value>
+  </data>
+  <data name="ExifEditor.UpdateDateCheckbox" xml:space="preserve">
+    <value>Update date taken</value>
+  </data>
+  <data name="ExifEditor.TakenAtLabel" xml:space="preserve">
+    <value>Date Taken</value>
+  </data>
+  <data name="ExifEditor.LatitudeLabel" xml:space="preserve">
+    <value>Latitude</value>
+  </data>
+  <data name="ExifEditor.LongitudeLabel" xml:space="preserve">
+    <value>Longitude</value>
+  </data>
+  <data name="ExifEditor.UpdateFileDate" xml:space="preserve">
+    <value>Update file modified date to match date taken</value>
+  </data>
+  <data name="ExifEditor.GetLocationFromMap" xml:space="preserve">
+    <value>Get Location from Map</value>
+  </data>
+  <data name="ExifEditor.ClearLocation" xml:space="preserve">
+    <value>Clear Location</value>
+  </data>
+  <data name="ExifEditor.SaveButton" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Message.ExifUpdateSuccess" xml:space="preserve">
+    <value>EXIF metadata updated successfully.</value>
+  </data>
+  <data name="Message.ExifUpdateFailed" xml:space="preserve">
+    <value>Failed to update EXIF metadata.</value>
+  </data>
+  <data name="Message.ExifEditorMultipleFiles" xml:space="preserve">
+    <value>Please select only one file to edit EXIF metadata.</value>
+  </data>
+  <data name="Message.ExifEditorFolderSelected" xml:space="preserve">
+    <value>EXIF editing is only supported for image files.</value>
+  </data>
+  <data name="Message.ExifPickLocationInstruction" xml:space="preserve">
+    <value>Click the map to choose a location. Right-click to cancel.</value>
+  </data>
+  <data name="Message.ExifPickLocationCanceled" xml:space="preserve">
+    <value>Location selection was canceled.</value>
+  </data>
+  <data name="Message.ExifPickLocationUnavailable" xml:space="preserve">
+    <value>Map is unavailable, so location selection cannot start.</value>
+  </data>
 </root>
