@@ -220,9 +220,11 @@ public sealed class LastFolderPathRecoveryTests
         }
         catch (IOException)
         {
+            // Intentionally empty - cleanup should not fail tests
         }
         catch (UnauthorizedAccessException)
         {
+            // Intentionally empty - cleanup should not fail tests
         }
     }
 }
