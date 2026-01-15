@@ -155,9 +155,10 @@ internal static class ExifService
                     // Set latitude
                     var latRef = latitude.Value >= 0 ? "N" : "S";
                     var absLat = Math.Abs(latitude.Value);
-                    var latDegrees = (int)absLat;
-                    var latMinutes = (int)((absLat - latDegrees) * 60);
-                    var latSeconds = ((absLat - latDegrees) * 60 - latMinutes) * 60;
+                    var latDegrees = Math.Abs((int)absLat);
+                    var latRemainder = (absLat - latDegrees) * 60;
+                    var latMinutes = Math.Abs((int)latRemainder);
+                    var latSeconds = Math.Abs((latRemainder - latMinutes) * 60);
 
                     exifProfile.SetValue(ExifTag.GPSLatitudeRef, latRef);
                     exifProfile.SetValue(ExifTag.GPSLatitude, new ImageSharpRational[]
@@ -170,9 +171,10 @@ internal static class ExifService
                     // Set longitude
                     var lonRef = longitude.Value >= 0 ? "E" : "W";
                     var absLon = Math.Abs(longitude.Value);
-                    var lonDegrees = (int)absLon;
-                    var lonMinutes = (int)((absLon - lonDegrees) * 60);
-                    var lonSeconds = ((absLon - lonDegrees) * 60 - lonMinutes) * 60;
+                    var lonDegrees = Math.Abs((int)absLon);
+                    var lonRemainder = (absLon - lonDegrees) * 60;
+                    var lonMinutes = Math.Abs((int)lonRemainder);
+                    var lonSeconds = Math.Abs((lonRemainder - lonMinutes) * 60);
 
                     exifProfile.SetValue(ExifTag.GPSLongitudeRef, lonRef);
                     exifProfile.SetValue(ExifTag.GPSLongitude, new ImageSharpRational[]

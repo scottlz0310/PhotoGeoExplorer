@@ -2415,7 +2415,7 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             Text = LocalizationService.GetString("Menu.EditExif"),
             Icon = new SymbolIcon(Symbol.Edit),
-            IsEnabled = _viewModel.CanRenameSelection
+            IsEnabled = _viewModel.CanRenameSelection && IsJpegFile(_viewModel.SelectedItem)
         };
         editExifItem.Click += OnEditExifClicked;
 
@@ -3439,5 +3439,17 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             listView.ScrollIntoView(selectedItems[0]);
         }
+    }
+
+    private static bool IsJpegFile(PhotoListItem? item)
+    {
+        if (item is null || item.IsFolder)
+        {
+            return false;
+        }
+
+        var extension = Path.GetExtension(item.FilePath);
+        return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase);
     }
 }
