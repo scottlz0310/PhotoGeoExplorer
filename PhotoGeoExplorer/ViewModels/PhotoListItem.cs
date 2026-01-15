@@ -7,10 +7,11 @@ namespace PhotoGeoExplorer.ViewModels;
 
 internal sealed class PhotoListItem
 {
-    public PhotoListItem(PhotoItem item, BitmapImage? thumbnail)
+    public PhotoListItem(PhotoItem item, BitmapImage? thumbnail, string? toolTipText = null)
     {
         Item = item ?? throw new ArgumentNullException(nameof(item));
         Thumbnail = thumbnail;
+        ToolTipText = toolTipText;
     }
 
     public PhotoItem Item { get; }
@@ -21,6 +22,7 @@ internal sealed class PhotoListItem
     public string ResolutionText => Item.ResolutionText;
     public bool IsFolder => Item.IsFolder;
     public BitmapImage? Thumbnail { get; }
+    public string? ToolTipText { get; }
     public Visibility ThumbnailVisibility => IsFolder ? Visibility.Collapsed : Visibility.Visible;
     public Visibility FolderIconVisibility => IsFolder ? Visibility.Visible : Visibility.Collapsed;
 }

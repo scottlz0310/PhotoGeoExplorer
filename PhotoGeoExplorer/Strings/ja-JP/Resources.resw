@@ -567,4 +567,19 @@
   <data name="Message.ExifPickLocationUnavailable" xml:space="preserve">
     <value>地図が利用できないため位置情報を取得できません。</value>
   </data>
+  <data name="ToolTip.FileName" xml:space="preserve">
+    <value>ファイル名</value>
+  </data>
+  <data name="ToolTip.Size" xml:space="preserve">
+    <value>サイズ</value>
+  </data>
+  <data name="ToolTip.Resolution" xml:space="preserve">
+    <value>解像度</value>
+  </data>
+  <data name="ToolTip.ModifiedAt" xml:space="preserve">
+    <value>更新日時</value>
+  </data>
+  <data name="ToolTip.FullPath" xml:space="preserve">
+    <value>パス</value>
+  </data>
 </root>

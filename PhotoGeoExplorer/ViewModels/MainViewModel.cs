@@ -727,7 +727,43 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     private static PhotoListItem CreateListItem(PhotoItem item)
     {
         var thumbnail = CanInitializeBitmapImage() ? CreateThumbnailImage(item.ThumbnailPath) : null;
-        return new PhotoListItem(item, thumbnail);
+        var toolTipText = GenerateToolTipText(item);
+        return new PhotoListItem(item, thumbnail, toolTipText);
+    }
+
+    private static string GenerateToolTipText(PhotoItem item)
+    {
+        var lines = new System.Collections.Generic.List<string>();
+
+        // ファイル名
+        lines.Add($"{LocalizationService.GetString("ToolTip.FileName")}: {item.FileName}");
+
+        // フォルダの場合はファイル名と更新日時のみ
+        if (item.IsFolder)
+        {
+            lines.Add($"{LocalizationService.GetString("ToolTip.ModifiedAt")}: {item.ModifiedAtText}");
+            return string.Join("\n", lines);
+        }
+
+        // ファイルサイズ
+        if (!string.IsNullOrWhiteSpace(item.SizeText))
+        {
+            lines.Add($"{LocalizationService.GetString("ToolTip.Size")}: {item.SizeText}");
+        }
+
+        // 解像度
+        if (!string.IsNullOrWhiteSpace(item.ResolutionText))
+        {
+            lines.Add($"{LocalizationService.GetString("ToolTip.Resolution")}: {item.ResolutionText}");
+        }
+
+        // 更新日時
+        lines.Add($"{LocalizationService.GetString("ToolTip.ModifiedAt")}: {item.ModifiedAtText}");
+
+        // フルパス
+        lines.Add($"{LocalizationService.GetString("ToolTip.FullPath")}: {item.FilePath}");
+
+        return string.Join("\n", lines);
     }
 
     private static BitmapImage? CreateThumbnailImage(string? thumbnailPath)
