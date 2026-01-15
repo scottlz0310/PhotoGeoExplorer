@@ -12,7 +12,7 @@
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.Resources>
             <DataTemplate x:Key="IconItemTemplate">
-                <StackPanel Width="140" Margin="0,0,8,8" Spacing="6">
+                <StackPanel Width="140" Margin="0,0,8,8" Spacing="6" ToolTipService.ToolTip="{Binding ToolTipText}">
                     <Border
                         Width="120"
                         Height="120"
@@ -37,7 +37,7 @@
                 </StackPanel>
             </DataTemplate>
             <DataTemplate x:Key="ListItemTemplate">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Spacing="8">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Spacing="8" ToolTipService.ToolTip="{Binding ToolTipText}">
                     <Border
                         Width="40"
                         Height="40"
@@ -62,7 +62,7 @@
                 </StackPanel>
             </DataTemplate>
         <DataTemplate x:Key="DetailsItemTemplate">
-            <Grid Margin="0,0,0,4">
+            <Grid Margin="0,0,0,4" ToolTipService.ToolTip="{Binding ToolTipText}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
