@@ -68,6 +68,11 @@ internal static class LocalizationService
 
     private static bool IsTestHost()
     {
+        if (IsCiEnvironment())
+        {
+            return true;
+        }
+
         var name = AppDomain.CurrentDomain.FriendlyName;
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -75,6 +80,13 @@ internal static class LocalizationService
         }
 
         return name.Contains("testhost", StringComparison.OrdinalIgnoreCase)
-            || name.Contains("vstest", StringComparison.OrdinalIgnoreCase);
+            || name.Contains("vstest", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("xunit", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsCiEnvironment()
+    {
+        return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CI"))
+            || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"));
     }
 }
