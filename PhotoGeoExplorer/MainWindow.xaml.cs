@@ -7,9 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BruTile.Cache;
 using Mapsui;
+using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Nts;
-using Mapsui.Nts.Extensions;
 using Mapsui.Projections;
 using Mapsui.Styles;
 using Mapsui.Tiling;
@@ -68,7 +68,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private GridLength _storedSplitterWidth;
     private double _storedMapRowMinHeight;
     private bool _previewDragging;
-    private Point _previewDragStart;
+    private Windows.Foundation.Point _previewDragStart;
     private double _previewStartHorizontalOffset;
     private double _previewStartVerticalOffset;
     private List<PhotoListItem>? _dragItems;
@@ -82,6 +82,8 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _mapRectangleSelecting;
     private MPoint? _mapRectangleStart;
     private MemoryLayer? _rectangleSelectionLayer;
+    private bool _mapPanLockBeforeSelection;
+    private bool _mapPanLockActive;
 
     public MainWindow()
     {
@@ -2999,60 +3001,71 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
+        var worldStart = GetWorldPosition(e);
+        if (worldStart is null)
+        {
+            return;
+        }
+
+        LockMapPan();
         _mapRectangleSelecting = true;
-        var screenPos = point.Position;
-        _mapRectangleStart = MapControl.Map?.Navigator?.Viewport?.ScreenToWorld(screenPos.X, screenPos.Y);
+        _mapRectangleStart = worldStart;
         MapControl.CapturePointer(e.Pointer);
         e.Handled = true;
     }
 
     private void OnMapPointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (!_mapRectangleSelecting || MapControl is null || _map is null || _mapRectangleStart is null)
+        var rectangleStart = _mapRectangleStart;
+        if (!_mapRectangleSelecting || MapControl is null || _map is null || rectangleStart is null)
         {
             return;
         }
 
-        var point = e.GetCurrentPoint(MapControl);
-        var screenPos = point.Position;
-        var worldEnd = MapControl.Map?.Navigator?.Viewport?.ScreenToWorld(screenPos.X, screenPos.Y);
+        var worldEnd = GetWorldPosition(e);
         if (worldEnd is null)
         {
             return;
         }
 
-        UpdateRectangleSelectionLayer(_mapRectangleStart, worldEnd);
+        UpdateRectangleSelectionLayer(rectangleStart, worldEnd);
         e.Handled = true;
     }
 
     private void OnMapPointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (!_mapRectangleSelecting || MapControl is null || _map is null || _mapRectangleStart is null)
+        if (MapControl is null || _map is null)
         {
             return;
         }
 
+        var rectangleStart = _mapRectangleStart;
         _mapRectangleSelecting = false;
+        _mapRectangleStart = null;
         MapControl.ReleasePointerCapture(e.Pointer);
+        RestoreMapPanLock();
 
-        var point = e.GetCurrentPoint(MapControl);
-        var screenPos = point.Position;
-        var worldEnd = MapControl.Map?.Navigator?.Viewport?.ScreenToWorld(screenPos.X, screenPos.Y);
+        if (rectangleStart is null)
+        {
+            ClearRectangleSelectionLayer();
+            return;
+        }
+
+        var worldEnd = GetWorldPosition(e);
         if (worldEnd is null)
         {
             ClearRectangleSelectionLayer();
             return;
         }
 
-        var minX = Math.Min(_mapRectangleStart.X, worldEnd.X);
-        var maxX = Math.Max(_mapRectangleStart.X, worldEnd.X);
-        var minY = Math.Min(_mapRectangleStart.Y, worldEnd.Y);
-        var maxY = Math.Max(_mapRectangleStart.Y, worldEnd.Y);
+        var minX = Math.Min(rectangleStart.X, worldEnd.X);
+        var maxX = Math.Max(rectangleStart.X, worldEnd.X);
+        var minY = Math.Min(rectangleStart.Y, worldEnd.Y);
+        var maxY = Math.Max(rectangleStart.Y, worldEnd.Y);
         var selectionBounds = new MRect(minX, minY, maxX, maxY);
 
         SelectPhotosInRectangle(selectionBounds);
         ClearRectangleSelectionLayer();
-        _mapRectangleStart = null;
         e.Handled = true;
     }
 
@@ -3061,6 +3074,50 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapRectangleSelecting = false;
         _mapRectangleStart = null;
         ClearRectangleSelectionLayer();
+        RestoreMapPanLock();
+    }
+
+    private void LockMapPan()
+    {
+        if (MapControl?.Map?.Navigator is not { } navigator)
+        {
+            return;
+        }
+
+        if (!_mapPanLockActive)
+        {
+            _mapPanLockBeforeSelection = navigator.PanLock;
+            _mapPanLockActive = true;
+        }
+
+        navigator.PanLock = true;
+    }
+
+    private void RestoreMapPanLock()
+    {
+        if (!_mapPanLockActive)
+        {
+            return;
+        }
+
+        if (MapControl?.Map?.Navigator is not { } navigator)
+        {
+            return;
+        }
+
+        navigator.PanLock = _mapPanLockBeforeSelection;
+        _mapPanLockActive = false;
+    }
+
+    private MPoint? GetWorldPosition(PointerRoutedEventArgs e)
+    {
+        if (MapControl?.Map?.Navigator is not { } navigator)
+        {
+            return null;
+        }
+
+        var screenPos = e.GetCurrentPoint(MapControl).Position;
+        return navigator.Viewport.ScreenToWorld(screenPos.X, screenPos.Y);
     }
 
     private void UpdateRectangleSelectionLayer(MPoint start, MPoint end)
@@ -3166,16 +3223,25 @@ public sealed partial class MainWindow : Window, IDisposable
             }
         }
 
-        if (selectedItems.Count > 0)
+        var listView = GetFileListView();
+        if (listView is not null)
+        {
+            listView.SelectedItems.Clear();
+            foreach (var selectedItem in selectedItems)
+            {
+                listView.SelectedItems.Add(selectedItem);
+            }
+        }
+        else
         {
             _viewModel.UpdateSelection(selectedItems);
-            _viewModel.SelectedItem = selectedItems[0];
+        }
 
-            var listView = GetFileListView();
-            if (listView is not null)
-            {
-                listView.ScrollIntoView(selectedItems[0]);
-            }
+        _viewModel.SelectedItem = selectedItems.Count > 0 ? selectedItems[0] : null;
+
+        if (selectedItems.Count > 0 && listView is not null)
+        {
+            listView.ScrollIntoView(selectedItems[0]);
         }
     }
 }
