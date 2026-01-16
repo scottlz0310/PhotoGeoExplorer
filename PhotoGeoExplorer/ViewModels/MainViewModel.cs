@@ -1509,11 +1509,16 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         ApplyPendingThumbnailUpdates();
     }
 
+    private bool IsGenerationComplete()
+    {
+        var completed = Volatile.Read(ref _thumbnailGenerationCompleted);
+        return completed >= _thumbnailGenerationTotal;
+    }
+
     private void ApplyPendingThumbnailUpdates()
     {
         // まず、生成完了チェックを実行（キューの有無に関わらず）
-        var completed = Volatile.Read(ref _thumbnailGenerationCompleted);
-        var shouldStopTimer = completed >= _thumbnailGenerationTotal;
+        var shouldStopTimer = IsGenerationComplete();
 
         List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height)> updates;
 
@@ -1525,7 +1530,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
                 if (shouldStopTimer && _thumbnailUpdateTimer is not null)
                 {
                     _thumbnailUpdateTimer.Stop();
-                    AppLog.Info("ApplyPendingThumbnailUpdates: All thumbnails generated (queue empty), stopping timer");
+                    AppLog.Info("ApplyPendingThumbnailUpdates: All thumbnails completed or failed, stopping timer (queue empty)");
                 }
                 return;
             }
