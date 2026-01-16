@@ -16,6 +16,7 @@ using Mapsui.Styles;
 using Mapsui.Tiling;
 using Mapsui.Tiling.Layers;
 using Mapsui.UI.WinUI;
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -90,6 +91,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _isExifPickPointerActive;
     private Windows.Foundation.Point? _exifPickPointerStart;
     private Window? _helpHtmlWindow;
+    private WebView2? _helpHtmlWebView;
 
     public MainWindow()
     {
@@ -1445,6 +1447,8 @@ public sealed partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        CloseHelpHtmlWindow();
+
         _rectangleSelectionLayer?.Dispose();
         _rectangleSelectionLayer = null;
 
@@ -2841,10 +2845,9 @@ public sealed partial class MainWindow : Window, IDisposable
 
         if (_helpHtmlWindow is not null)
         {
-            if (_helpHtmlWindow.Content is Grid { Children.Count: > 0 } grid
-                && grid.Children[0] is WebView2 existingWebView)
+            if (_helpHtmlWebView is not null)
             {
-                existingWebView.Source = uri;
+                _helpHtmlWebView.Source = uri;
             }
 
             _helpHtmlWindow.Activate();
@@ -2852,6 +2855,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         var webView = CreateHelpHtmlWebView(uri);
+        _helpHtmlWebView = webView;
         var container = new Grid();
         container.Children.Add(webView);
 
@@ -2860,7 +2864,7 @@ public sealed partial class MainWindow : Window, IDisposable
             Title = LocalizationService.GetString("Dialog.Help.Html.Title"),
             Content = container
         };
-        window.Closed += (_, _) => _helpHtmlWindow = null;
+        window.Closed += (_, _) => CleanupHelpHtmlWindow();
         _helpHtmlWindow = window;
         window.Activate();
         TryResizeHelpWindow(window, 980, 720);
@@ -2895,6 +2899,55 @@ public sealed partial class MainWindow : Window, IDisposable
             LocalizationService.GetString("Dialog.Help.HtmlMissing.Detail")).ConfigureAwait(true);
     }
 
+    private void CleanupHelpHtmlWindow()
+    {
+        CloseHelpHtmlWebView();
+        _helpHtmlWindow = null;
+    }
+
+    private void CloseHelpHtmlWindow()
+    {
+        if (_helpHtmlWindow is null)
+        {
+            CleanupHelpHtmlWindow();
+            return;
+        }
+
+        try
+        {
+            _helpHtmlWindow.Close();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException
+            or System.Runtime.InteropServices.COMException
+            or UnauthorizedAccessException)
+        {
+            AppLog.Error("Failed to close help window.", ex);
+            CleanupHelpHtmlWindow();
+        }
+    }
+
+    private void CloseHelpHtmlWebView()
+    {
+        if (_helpHtmlWebView is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _helpHtmlWebView.Close();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException
+            or System.Runtime.InteropServices.COMException)
+        {
+            AppLog.Error("Failed to close help WebView2.", ex);
+        }
+        finally
+        {
+            _helpHtmlWebView = null;
+        }
+    }
+
     private static void TryResizeHelpWindow(Window window, int width, int height)
     {
         try
@@ -2913,7 +2966,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private static AppWindow GetAppWindow(Window window)
     {
         var hwnd = WindowNative.GetWindowHandle(window);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         return AppWindow.GetFromWindowId(windowId);
     }
 
