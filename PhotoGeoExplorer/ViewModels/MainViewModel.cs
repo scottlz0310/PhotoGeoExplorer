@@ -1530,7 +1530,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
                 if (shouldStopTimer && _thumbnailUpdateTimer is not null)
                 {
                     _thumbnailUpdateTimer.Stop();
-                    AppLog.Info("ApplyPendingThumbnailUpdates: All thumbnails completed or failed, stopping timer (queue empty)");
+                    AppLog.Info("ApplyPendingThumbnailUpdates: All thumbnail generation tasks finished, stopping timer (queue empty)");
                 }
                 return;
             }
@@ -1555,7 +1555,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             AppLog.Info($"ApplyPendingThumbnailUpdates: Applied {successCount} thumbnail updates");
         }
 
-        // 生成完了後にキューも空なら、タイマーを停止
+        // 生成完了チェック後、キューも確認してタイマーを停止
         if (shouldStopTimer)
         {
             lock (_pendingThumbnailUpdatesLock)
@@ -1563,7 +1563,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
                 if (_pendingThumbnailUpdates.Count == 0 && _thumbnailUpdateTimer is not null)
                 {
                     _thumbnailUpdateTimer.Stop();
-                    AppLog.Info("ApplyPendingThumbnailUpdates: All thumbnails generated, stopping timer");
+                    AppLog.Info("ApplyPendingThumbnailUpdates: All thumbnail generation tasks finished, stopping timer");
                 }
             }
         }
