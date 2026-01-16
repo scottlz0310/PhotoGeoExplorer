@@ -14,9 +14,12 @@ namespace PhotoGeoExplorer;
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public partial class App : Application
 {
+    private const int MinimumSplashDurationMs = 2000;
     private Window? _window;
     private SplashWindow? _splashWindow;
     private string? _startupFilePath;
+    private DateTimeOffset _splashShownAt;
+    private bool _splashCloseRequested;
 
     public App()
     {
@@ -32,8 +35,12 @@ public partial class App : Application
         AppLog.Info("App launched.");
         ApplyLanguageOverrideFromSettings();
         _startupFilePath = GetFileActivationPath();
-        _splashWindow = new SplashWindow();
-        _splashWindow.Activate();
+        if (!IsPackaged())
+        {
+            _splashWindow = new SplashWindow();
+            _splashWindow.Activate();
+            _splashShownAt = DateTimeOffset.UtcNow;
+        }
 
         var mainWindow = new MainWindow();
         _window = mainWindow;
@@ -47,18 +54,43 @@ public partial class App : Application
 
     private void OnMainWindowActivated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs e)
     {
-        if (_splashWindow is null)
-        {
-            return;
-        }
-
-        _splashWindow.Close();
-        _splashWindow = null;
-
         if (_window is not null)
         {
             _window.Activated -= OnMainWindowActivated;
         }
+
+        if (_splashWindow is not null)
+        {
+            _ = CloseSplashAsync();
+        }
+    }
+
+    private async Task CloseSplashAsync()
+    {
+        if (_splashCloseRequested)
+        {
+            return;
+        }
+
+        _splashCloseRequested = true;
+        var splashWindow = _splashWindow;
+        if (splashWindow is null)
+        {
+            return;
+        }
+
+        var elapsed = DateTimeOffset.UtcNow - _splashShownAt;
+        var remaining = TimeSpan.FromMilliseconds(MinimumSplashDurationMs) - elapsed;
+        if (remaining > TimeSpan.Zero)
+        {
+            await Task.Delay(remaining).ConfigureAwait(false);
+        }
+
+        splashWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            splashWindow.Close();
+        });
+        _splashWindow = null;
     }
 
     private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
@@ -143,5 +175,22 @@ public partial class App : Application
         }
 
         return files[0].Path;
+    }
+
+    private static bool IsPackaged()
+    {
+        try
+        {
+            _ = Windows.ApplicationModel.Package.Current;
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            return false;
+        }
     }
 }
