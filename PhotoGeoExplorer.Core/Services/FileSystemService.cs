@@ -69,18 +69,24 @@ internal sealed class FileSystemService
                 }
 
                 var info = new FileInfo(path);
+                
+                // キャッシュ済みサムネイルのみ取得（新規生成はしない）
                 string? thumbnailPath = null;
                 int? pixelWidth = null;
                 int? pixelHeight = null;
                 if (IsImage(info.FullName))
                 {
-                    thumbnailPath = ThumbnailService.GetOrCreateThumbnailPath(
+                    thumbnailPath = ThumbnailService.GetCachedThumbnailPath(
                         info.FullName,
-                        info.LastWriteTimeUtc,
-                        out var width,
-                        out var height);
-                    pixelWidth = width;
-                    pixelHeight = height;
+                        info.LastWriteTimeUtc);
+                    
+                    // キャッシュがある場合は解像度も取得
+                    if (thumbnailPath is not null)
+                    {
+                        var size = ThumbnailService.GetImageSize(info.FullName);
+                        pixelWidth = size.Width;
+                        pixelHeight = size.Height;
+                    }
                 }
 
                 files.Add(new PhotoItem(

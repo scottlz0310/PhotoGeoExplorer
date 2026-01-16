@@ -31,6 +31,14 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Visibility="{Binding FolderIconVisibility}" />
+                            <FontIcon
+                                Glyph="&#xE91B;"
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                                FontSize="24"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding PlaceholderVisibility}" />
                         </Grid>
                     </Border>
                     <TextBlock Text="{Binding FileName}" TextWrapping="Wrap" />
@@ -56,6 +64,14 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Visibility="{Binding FolderIconVisibility}" />
+                            <FontIcon
+                                Glyph="&#xE91B;"
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                                FontSize="16"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding PlaceholderVisibility}" />
                         </Grid>
                     </Border>
                     <TextBlock Text="{Binding FileName}" VerticalAlignment="Center" />
@@ -88,6 +104,16 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 Visibility="{Binding FolderIconVisibility}" />
+                            <FontIcon
+                                Glyph="&#xE91B;"
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                                FontSize="20"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="{Binding PlaceholderVisibility}" />
+                        </Grid>
+                    </Border>
                         </Grid>
                     </Border>
                     <TextBlock

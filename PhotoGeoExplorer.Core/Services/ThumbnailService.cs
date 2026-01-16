@@ -19,6 +19,35 @@ internal static class ThumbnailService
         "Cache",
         "Thumbnails");
 
+    public static string GetThumbnailCacheKey(string filePath, DateTime lastWriteUtc)
+    {
+        ArgumentNullException.ThrowIfNull(filePath);
+
+        var cacheKey = $"{filePath}|{lastWriteUtc.Ticks}|{MaxThumbnailSize}|{ThumbnailJpegQuality}|{ThumbnailCacheVersion}";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(cacheKey)));
+    }
+
+    public static bool ThumbnailCacheExists(string cacheKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheKey);
+
+        var thumbnailPath = Path.Combine(CacheDirectory, $"{cacheKey}.jpg");
+        return File.Exists(thumbnailPath);
+    }
+
+    public static string? GetCachedThumbnailPath(string filePath, DateTime lastWriteUtc)
+    {
+        ArgumentNullException.ThrowIfNull(filePath);
+
+        var cacheKey = GetThumbnailCacheKey(filePath, lastWriteUtc);
+        if (!ThumbnailCacheExists(cacheKey))
+        {
+            return null;
+        }
+
+        return Path.Combine(CacheDirectory, $"{cacheKey}.jpg");
+    }
+
     public static string? GetOrCreateThumbnailPath(string filePath, DateTime lastWriteUtc, out int? width, out int? height)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -26,8 +55,7 @@ internal static class ThumbnailService
         width = null;
         height = null;
 
-        var cacheKey = $"{filePath}|{lastWriteUtc.Ticks}|{MaxThumbnailSize}|{ThumbnailJpegQuality}|{ThumbnailCacheVersion}";
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(cacheKey)));
+        var hash = GetThumbnailCacheKey(filePath, lastWriteUtc);
         var thumbnailPath = Path.Combine(CacheDirectory, $"{hash}.jpg");
 
         if (File.Exists(thumbnailPath))
@@ -80,6 +108,17 @@ internal static class ThumbnailService
         }
 
         return File.Exists(thumbnailPath) ? thumbnailPath : null;
+    }
+
+    public static (string? ThumbnailPath, int? Width, int? Height) GenerateThumbnail(string filePath, DateTime lastWriteUtc)
+    {
+        return (GetOrCreateThumbnailPath(filePath, lastWriteUtc, out var width, out var height), width, height);
+    }
+
+    public static (int? Width, int? Height) GetImageSize(string filePath)
+    {
+        TryGetImageSize(filePath, out var width, out var height);
+        return (width, height);
     }
 
     private static void TryGetImageSize(string filePath, out int? width, out int? height)
