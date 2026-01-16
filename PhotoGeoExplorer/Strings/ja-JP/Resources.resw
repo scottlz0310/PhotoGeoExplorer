@@ -144,6 +144,15 @@
   <data name="MenuHelp.Title" xml:space="preserve">
     <value>ヘルプ</value>
   </data>
+  <data name="MenuHelpGettingStarted.Text" xml:space="preserve">
+    <value>初回起動ガイド</value>
+  </data>
+  <data name="MenuHelpBasics.Text" xml:space="preserve">
+    <value>基本操作</value>
+  </data>
+  <data name="MenuHelpHtmlWindow.Text" xml:space="preserve">
+    <value>詳細ヘルプ</value>
+  </data>
   <data name="MenuHelpOpenLogFolder.Text" xml:space="preserve">
     <value>ログフォルダーを開く</value>
   </data>
@@ -374,6 +383,35 @@
   </data>
   <data name="Dialog.About.Detail" xml:space="preserve">
     <value>PhotoGeoExplorer {0} - 写真と地図の閲覧アプリ</value>
+  </data>
+  <data name="Dialog.Help.GettingStarted.Title" xml:space="preserve">
+    <value>初回起動ガイド</value>
+  </data>
+  <data name="Dialog.Help.GettingStarted.Detail" xml:space="preserve">
+    <value>・[ファイル] &gt; [フォルダーを開く...] で写真のあるフォルダーを選択します。
+・フォルダーはドラッグ＆ドロップでも開けます。
+・写真を選ぶと右側にプレビューと地図が表示されます。
+・位置情報がある写真のみ地図にピンが表示されます。
+・必要に応じて、画像の関連付けを Windows で設定するとダブルクリックで起動できます。</value>
+  </data>
+  <data name="Dialog.Help.Basics.Title" xml:space="preserve">
+    <value>基本操作</value>
+  </data>
+  <data name="Dialog.Help.Basics.Detail" xml:space="preserve">
+    <value>・左のファイルブラウザーでフォルダー移動・ファイル選択を行います。
+・表示モード(アイコン/リスト/詳細)は[表示]メニューから変更できます。
+・複数選択は Ctrl/Shift を使います。
+・プレビューのボタンで拡大/縮小/フィット/最大化ができます。
+・地図はドラッグで移動、ホイールで拡大縮小、ピンのクリックで詳細を確認できます。</value>
+  </data>
+  <data name="Dialog.Help.Html.Title" xml:space="preserve">
+    <value>ヘルプ（HTML）</value>
+  </data>
+  <data name="Dialog.Help.HtmlMissing.Title" xml:space="preserve">
+    <value>ヘルプを開けません</value>
+  </data>
+  <data name="Dialog.Help.HtmlMissing.Detail" xml:space="preserve">
+    <value>ヘルプの HTML ファイルが見つかりません。再インストール後に再試行してください。</value>
   </data>
   <data name="Dialog.UpdateCheck.Title" xml:space="preserve">
     <value>更新の確認</value>

@@ -89,6 +89,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _isPickingExifLocation;
     private bool _isExifPickPointerActive;
     private Windows.Foundation.Point? _exifPickPointerStart;
+    private Window? _helpHtmlWindow;
 
     public MainWindow()
     {
@@ -1563,6 +1564,25 @@ public sealed partial class MainWindow : Window, IDisposable
             LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
     }
 
+    private async void OnHelpGettingStartedClicked(object sender, RoutedEventArgs e)
+    {
+        await ShowHelpDialogAsync(
+            "Dialog.Help.GettingStarted.Title",
+            "Dialog.Help.GettingStarted.Detail").ConfigureAwait(true);
+    }
+
+    private async void OnHelpBasicsClicked(object sender, RoutedEventArgs e)
+    {
+        await ShowHelpDialogAsync(
+            "Dialog.Help.Basics.Title",
+            "Dialog.Help.Basics.Detail").ConfigureAwait(true);
+    }
+
+    private async void OnHelpHtmlWindowClicked(object sender, RoutedEventArgs e)
+    {
+        await OpenHelpHtmlWindowAsync().ConfigureAwait(true);
+    }
+
     private async void OnAboutClicked(object sender, RoutedEventArgs e)
     {
         var version = typeof(App).Assembly.GetName().Version?.ToString()
@@ -2781,6 +2801,120 @@ public sealed partial class MainWindow : Window, IDisposable
         };
 
         await dialog.ShowAsync().AsTask().ConfigureAwait(true);
+    }
+
+    private async Task ShowHelpDialogAsync(string titleKey, string detailKey)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = LocalizationService.GetString(titleKey),
+            Content = CreateHelpDialogContent(LocalizationService.GetString(detailKey)),
+            CloseButtonText = LocalizationService.GetString("Common.Ok"),
+            XamlRoot = RootGrid.XamlRoot
+        };
+
+        await dialog.ShowAsync().AsTask().ConfigureAwait(true);
+    }
+
+    private static ScrollViewer CreateHelpDialogContent(string message)
+    {
+        return new ScrollViewer
+        {
+            MaxHeight = 420,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap
+            }
+        };
+    }
+
+    private async Task OpenHelpHtmlWindowAsync()
+    {
+        var uri = TryGetHelpHtmlUri();
+        if (uri is null)
+        {
+            await ShowHelpHtmlMissingDialogAsync().ConfigureAwait(true);
+            return;
+        }
+
+        if (_helpHtmlWindow is not null)
+        {
+            if (_helpHtmlWindow.Content is Grid { Children.Count: > 0 } grid
+                && grid.Children[0] is WebView2 existingWebView)
+            {
+                existingWebView.Source = uri;
+            }
+
+            _helpHtmlWindow.Activate();
+            return;
+        }
+
+        var webView = CreateHelpHtmlWebView(uri);
+        var container = new Grid();
+        container.Children.Add(webView);
+
+        var window = new Window
+        {
+            Title = LocalizationService.GetString("Dialog.Help.Html.Title"),
+            Content = container
+        };
+        window.Closed += (_, _) => _helpHtmlWindow = null;
+        _helpHtmlWindow = window;
+        window.Activate();
+        TryResizeHelpWindow(window, 980, 720);
+    }
+
+    private static WebView2 CreateHelpHtmlWebView(Uri uri)
+    {
+        return new WebView2
+        {
+            Source = uri,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
+    }
+
+    private static Uri? TryGetHelpHtmlUri()
+    {
+        var helpPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "help", "index.html");
+        if (!File.Exists(helpPath))
+        {
+            AppLog.Error($"Help HTML not found: {helpPath}");
+            return null;
+        }
+
+        return new Uri(helpPath);
+    }
+
+    private async Task ShowHelpHtmlMissingDialogAsync()
+    {
+        await ShowMessageDialogAsync(
+            LocalizationService.GetString("Dialog.Help.HtmlMissing.Title"),
+            LocalizationService.GetString("Dialog.Help.HtmlMissing.Detail")).ConfigureAwait(true);
+    }
+
+    private static void TryResizeHelpWindow(Window window, int width, int height)
+    {
+        try
+        {
+            var appWindow = GetAppWindow(window);
+            appWindow.Resize(new SizeInt32(width, height));
+        }
+        catch (Exception ex) when (ex is ArgumentException
+            or InvalidOperationException
+            or System.Runtime.InteropServices.COMException)
+        {
+            AppLog.Error("Failed to resize help window.", ex);
+        }
+    }
+
+    private static AppWindow GetAppWindow(Window window)
+    {
+        var hwnd = WindowNative.GetWindowHandle(window);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+        return AppWindow.GetFromWindowId(windowId);
     }
 
     private async void OnEditExifClicked(object sender, RoutedEventArgs e)

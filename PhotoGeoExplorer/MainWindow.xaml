@@ -279,6 +279,10 @@
                 <MenuFlyoutItem Text="Import settings..." Click="OnImportSettingsClicked" x:Uid="MenuSettingsImport" />
             </MenuBarItem>
             <MenuBarItem Title="Help" x:Uid="MenuHelp">
+                <MenuFlyoutItem Text="Getting started" Click="OnHelpGettingStartedClicked" x:Uid="MenuHelpGettingStarted" />
+                <MenuFlyoutItem Text="Basic operations" Click="OnHelpBasicsClicked" x:Uid="MenuHelpBasics" />
+                <MenuFlyoutItem Text="Detailed help (HTML)" Click="OnHelpHtmlWindowClicked" x:Uid="MenuHelpHtmlWindow" />
+                <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="Open Log Folder" Click="OnOpenLogFolderClicked" x:Uid="MenuHelpOpenLogFolder" />
                 <MenuFlyoutItem Text="Check for updates" Click="OnCheckUpdatesClicked" x:Uid="MenuHelpCheckUpdates" />
                 <MenuFlyoutSeparator />
