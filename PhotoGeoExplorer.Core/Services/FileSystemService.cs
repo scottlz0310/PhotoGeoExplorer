@@ -69,7 +69,7 @@ internal sealed class FileSystemService
                 }
 
                 var info = new FileInfo(path);
-                
+
                 // キャッシュ済みサムネイルのみ取得（新規生成はしない）
                 string? thumbnailPath = null;
                 int? pixelWidth = null;
@@ -79,7 +79,7 @@ internal sealed class FileSystemService
                     thumbnailPath = ThumbnailService.GetCachedThumbnailPath(
                         info.FullName,
                         info.LastWriteTimeUtc);
-                    
+
                     // キャッシュがある場合は解像度も取得
                     if (thumbnailPath is not null)
                     {

@@ -48,7 +48,7 @@ internal sealed class PhotoListItem : BindableBase
     }
     public bool IsFolder => Item.IsFolder;
     public string? ToolTipText { get; }
-    
+
     public BitmapImage? Thumbnail
     {
         get => _thumbnail;
@@ -67,7 +67,7 @@ internal sealed class PhotoListItem : BindableBase
     public int? PixelHeight => _pixelHeight;
 
     public bool HasThumbnail => _thumbnail is not null;
-    
+
     public Visibility ThumbnailVisibility => IsFolder || _thumbnail is null ? Visibility.Collapsed : Visibility.Visible;
     public Visibility PlaceholderVisibility => IsFolder || _thumbnail is not null ? Visibility.Collapsed : Visibility.Visible;
     public Visibility FolderIconVisibility => IsFolder ? Visibility.Visible : Visibility.Collapsed;
@@ -81,7 +81,7 @@ internal sealed class PhotoListItem : BindableBase
         }
 
         Thumbnail = thumbnail;
-        
+
         // 解像度を更新
         if (width.HasValue && height.HasValue)
         {
@@ -91,7 +91,7 @@ internal sealed class PhotoListItem : BindableBase
             OnPropertyChanged(nameof(PixelHeight));
             OnPropertyChanged(nameof(ResolutionText));
         }
-        
+
         OnPropertyChanged(nameof(HasThumbnail));
         OnPropertyChanged(nameof(ThumbnailVisibility));
         OnPropertyChanged(nameof(PlaceholderVisibility));

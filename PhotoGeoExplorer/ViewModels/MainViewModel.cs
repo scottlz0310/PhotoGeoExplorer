@@ -755,7 +755,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     {
         var thumbnail = CanInitializeBitmapImage() ? CreateThumbnailImage(item.ThumbnailPath) : null;
         var toolTipText = GenerateToolTipText(item);
-        
+
         // サムネイルキーを生成（画像ファイルのみ）
         string? thumbnailKey = null;
         if (!item.IsFolder && IsImageFile(item.FilePath))
@@ -766,7 +766,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
                 thumbnailKey = ThumbnailService.GetThumbnailCacheKey(item.FilePath, fileInfo.LastWriteTimeUtc);
             }
         }
-        
+
         return new PhotoListItem(item, thumbnail, toolTipText, thumbnailKey);
     }
 
@@ -1488,9 +1488,17 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         {
             // キャンセルは正常
         }
-        catch (Exception ex)
+        catch (UnauthorizedAccessException ex)
         {
-            AppLog.Error($"GenerateThumbnailAsync: Failed for {listItem.FileName}", ex);
+            AppLog.Error($"GenerateThumbnailAsync: Access denied for {listItem.FileName}", ex);
+        }
+        catch (IOException ex)
+        {
+            AppLog.Error($"GenerateThumbnailAsync: IO error for {listItem.FileName}", ex);
+        }
+        catch (NotSupportedException ex)
+        {
+            AppLog.Error($"GenerateThumbnailAsync: Unsupported operation for {listItem.FileName}", ex);
         }
         finally
         {
@@ -1498,7 +1506,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             {
                 _thumbnailsInProgress.Remove(key);
             }
-            
+
             // 完了カウントをインクリメント
             Interlocked.Increment(ref _thumbnailGenerationCompleted);
         }
