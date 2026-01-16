@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PhotoGeoExplorer ヘルプ</title>
+  <title>PhotoGeoExplorer 詳細ヘルプ</title>
   <style>
     :root {
       color-scheme: light;
@@ -67,6 +67,10 @@
       margin-top: 0;
       font-size: 18px;
     }
+    section h3 {
+      margin: 12px 0 6px;
+      font-size: 15px;
+    }
     ul {
       margin: 8px 0 0 18px;
       padding: 0;
@@ -79,64 +83,192 @@
       font-size: 13px;
       margin-top: 8px;
     }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #e7f0ff;
+      color: #0b4db3;
+      margin-right: 6px;
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>PhotoGeoExplorer ヘルプ</h1>
-    <p>写真の場所を地図で確認するための基本ガイド</p>
+    <h1>PhotoGeoExplorer 詳細ヘルプ</h1>
+    <p>写真の場所を地図で確認・整理するためのガイド</p>
   </header>
   <main>
     <nav>
-      <a href="#getting-started">初回起動ガイド</a>
-      <a href="#basics">基本操作</a>
-      <a href="#tips">便利な使い方</a>
-      <a href="#troubleshooting">トラブルシューティング</a>
+      <a href="#overview">概要</a>
+      <a href="#requirements">対応環境と形式</a>
+      <a href="#getting-started">初回起動</a>
+      <a href="#screen">画面の見方</a>
+      <a href="#navigation">ナビゲーション</a>
+      <a href="#file-ops">ファイル操作</a>
+      <a href="#search-filter">検索・表示</a>
+      <a href="#preview">プレビュー</a>
+      <a href="#map">地図</a>
+      <a href="#selection">複数選択</a>
+      <a href="#exif">EXIF編集</a>
+      <a href="#settings">設定</a>
+      <a href="#support">ログ/更新/問い合わせ</a>
+      <a href="#privacy">プライバシー</a>
     </nav>
 
-    <section id="getting-started">
-      <h2>初回起動ガイド</h2>
+    <section id="overview">
+      <h2>概要</h2>
+      <p>PhotoGeoExplorer は写真の位置情報 (EXIF/GPS) を地図上に表示し、撮影場所を整理しやすくする Windows デスクトップアプリです。</p>
       <ul>
-        <li>メニューの [ファイル] &gt; [フォルダーを開く...] から写真のあるフォルダーを選びます。</li>
+        <li>写真の一覧・プレビュー・地図表示を1つの画面で確認できます。</li>
+        <li>地図上のピンから撮影日時やカメラ情報を確認できます。</li>
+        <li>必要に応じて EXIF 情報の編集も行えます (JPEGのみ)。</li>
+      </ul>
+    </section>
+
+    <section id="requirements">
+      <h2>対応環境と形式</h2>
+      <h3>動作環境</h3>
+      <ul>
+        <li>Windows 10/11</li>
+        <li>WebView2 Runtime (詳細ヘルプの表示に使用)</li>
+      </ul>
+      <h3>対応する画像形式</h3>
+      <ul>
+        <li>.jpg / .jpeg / .png / .gif / .bmp / .tif / .tiff / .heic / .webp</li>
+      </ul>
+      <h3>ファイル関連付け</h3>
+      <ul>
+        <li>.jpg / .jpeg / .png / .heic を既定アプリとして関連付け可能です。</li>
+        <li>関連付けた画像を開くと、同じフォルダーが自動で読み込まれます。</li>
+      </ul>
+    </section>
+
+    <section id="getting-started">
+      <h2>初回起動</h2>
+      <ul>
+        <li>メニューの [ファイル] &gt; [フォルダーを開く...] で写真のあるフォルダーを選びます。</li>
         <li>フォルダーはドラッグ&amp;ドロップでも開けます。</li>
         <li>写真を選ぶと右側にプレビューと地図が表示されます。</li>
         <li>位置情報がある写真のみ地図にピンが表示されます。</li>
-        <li>必要に応じて Windows の既定のアプリで .jpg/.jpeg を PhotoGeoExplorer に関連付けると便利です。</li>
+        <li>前回開いていたフォルダーは起動時に復元されます (見つからない場合は近い親フォルダーにフォールバックします)。</li>
       </ul>
-      <p class="note">※ PoC のため内容は今後調整予定です。</p>
     </section>
 
-    <section id="basics">
-      <h2>基本操作</h2>
+    <section id="screen">
+      <h2>画面の見方</h2>
       <ul>
-        <li>左のファイルブラウザーでフォルダー移動・ファイル選択を行います。</li>
-        <li>表示モード (アイコン/リスト/詳細) は [表示] メニューから変更できます。</li>
-        <li>複数選択は Ctrl/Shift を使います。</li>
-        <li>プレビューのボタンで拡大/縮小/フィット/最大化ができます。</li>
-        <li>地図はドラッグで移動、ホイールで拡大縮小、ピンのクリックで詳細を確認できます。</li>
+        <li><span class="tag">左</span> ファイルブラウザー: フォルダー移動、検索、一覧表示。</li>
+        <li><span class="tag">右上</span> 画像プレビュー: 写真の確認、ズーム、最大化。</li>
+        <li><span class="tag">右下</span> 地図: 位置情報の表示と操作。</li>
+        <li><span class="tag">下部</span> ステータスバー: 件数/選択数/GPS情報の状態。</li>
       </ul>
     </section>
 
-    <section id="tips">
-      <h2>便利な使い方</h2>
+    <section id="navigation">
+      <h2>ナビゲーション</h2>
+      <ul>
+        <li>戻る/進むボタンで、最近開いたフォルダー履歴を移動できます。</li>
+        <li>「上へ」「ホーム」ボタンで素早く移動できます。</li>
+        <li>パンくずリストの区切り「&gt;」をクリックすると子階層を開けます。</li>
+      </ul>
+    </section>
+
+    <section id="file-ops">
+      <h2>ファイル操作</h2>
+      <ul>
+        <li>新しいフォルダーの作成、名前変更、移動、削除が行えます。</li>
+        <li>ドラッグ&amp;ドロップでファイル/フォルダーを移動できます。</li>
+        <li>フォルダー移動はダブルクリックで行います。</li>
+      </ul>
+    </section>
+
+    <section id="search-filter">
+      <h2>検索・表示</h2>
       <ul>
         <li>検索ボックスでファイル名の絞り込みができます。</li>
         <li>[フィルター] や [表示] &gt; [画像のみ表示] で対象を絞り込めます。</li>
-        <li>地図タイルや初期倍率は [設定] から変更できます。</li>
-        <li>写真を右クリックして EXIF 編集で撮影日時/位置情報を調整できます (JPEGのみ)。</li>
-        <li>地図上で Ctrl を押しながらドラッグすると範囲選択ができます。</li>
+        <li>表示モード (アイコン/リスト/詳細) は [表示] メニューから変更できます。</li>
+        <li>詳細表示ではマウスオーバーで追加情報を確認できます。</li>
       </ul>
     </section>
 
-    <section id="troubleshooting">
-      <h2>トラブルシューティング</h2>
+    <section id="preview">
+      <h2>プレビュー操作</h2>
       <ul>
-        <li>写真が表示されない: フォルダーを再選択するか、フィルターをリセットしてください。</li>
-        <li>地図にピンが出ない: 位置情報がない写真は表示されません。</li>
-        <li>地図が表示されない: ネットワーク環境を確認し、必要ならログを確認してください。</li>
-        <li>ファイル操作に失敗する: アクセス権限やパスを確認してください。</li>
-        <li>EXIF 編集が使えない: JPEG 画像のみ対応しています。</li>
+        <li>プレビュー上部のボタンで拡大/縮小/フィット/最大化ができます。</li>
+        <li>前後ナビゲーションで次の写真へ移動できます。</li>
+        <li>最大化時は地図領域が自動的に再配置されます。</li>
       </ul>
+    </section>
+
+    <section id="map">
+      <h2>地図操作</h2>
+      <ul>
+        <li>ドラッグで移動、ホイールで拡大縮小できます。</li>
+        <li>ピンをクリックすると撮影日時/カメラ/ファイル名/解像度を確認できます。</li>
+        <li>ピンをクリックすると対応する写真が一覧で選択されます。</li>
+        <li>ピンの詳細から Google Maps で位置を開くことができます。</li>
+        <li>地図タイルは OpenStreetMap / Esri WorldImagery（衛星画像）を切り替えできます。</li>
+        <li>地図タイルはローカルキャッシュされ、再表示が高速化されます。</li>
+      </ul>
+    </section>
+
+    <section id="selection">
+      <h2>複数選択・矩形選択</h2>
+      <ul>
+        <li>Ctrl/Shift で複数選択できます。</li>
+        <li>地図上で Ctrl を押しながらドラッグすると矩形選択ができます。</li>
+        <li>矩形内の写真が一括選択され、左の一覧にも反映されます。</li>
+      </ul>
+    </section>
+
+    <section id="exif">
+      <h2>EXIF 編集</h2>
+      <ul>
+        <li>写真を右クリックして [EXIF編集...] を選択します (JPEGのみ)。</li>
+        <li>撮影日時/緯度/経度の編集ができます。</li>
+        <li>[地図から位置情報を取得] を選ぶと、地図クリックで位置を設定できます。</li>
+        <li>位置選択中は右クリックでキャンセルできます。</li>
+      </ul>
+    </section>
+
+    <section id="settings">
+      <h2>設定</h2>
+      <ul>
+        <li>言語/テーマの切り替えが可能です (変更後は再起動が必要です)。</li>
+        <li>地図の初期倍率、タイルソースを変更できます。</li>
+        <li>設定のエクスポート/インポートに対応しています。</li>
+      </ul>
+    </section>
+
+    <section id="support">
+      <h2>ログ/更新/問い合わせ</h2>
+      <h3>ログの確認</h3>
+      <ul>
+        <li>ヘルプ &gt; ログフォルダーを開く からログを確認できます。</li>
+        <li>ログの場所: <code>%LocalAppData%\PhotoGeoExplorer\Logs\app.log</code></li>
+      </ul>
+      <h3>更新の確認</h3>
+      <ul>
+        <li>ヘルプ &gt; アップデートを確認 から GitHub Release を確認します。</li>
+      </ul>
+      <h3>問い合わせ</h3>
+      <ul>
+        <li>不具合報告は GitHub Issues を利用できます。</li>
+        <li>再現手順とログを添えて連絡してください。</li>
+      </ul>
+    </section>
+
+    <section id="privacy">
+      <h2>プライバシー</h2>
+      <ul>
+        <li>写真や設定は端末内で処理され、外部に送信されません。</li>
+        <li>地図タイルは OpenStreetMap / Esri のサーバーから取得します。</li>
+        <li>詳細はプライバシーポリシーをご確認ください。</li>
+      </ul>
+      <p class="note">プライバシーポリシー: <a href="https://scottlz0310.github.io/PhotoGeoExplorer/privacy-policy.html">https://scottlz0310.github.io/PhotoGeoExplorer/privacy-policy.html</a></p>
     </section>
   </main>
 </body>

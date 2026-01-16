@@ -23,6 +23,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Web.WebView2.Core;
 using Microsoft.Windows.Globalization;
 using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
@@ -2870,14 +2871,18 @@ public sealed partial class MainWindow : Window, IDisposable
         TryResizeHelpWindow(window, 980, 720);
     }
 
-    private static WebView2 CreateHelpHtmlWebView(Uri uri)
+    private WebView2 CreateHelpHtmlWebView(Uri uri)
     {
-        return new WebView2
+        var webView = new WebView2
         {
             Source = uri,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch
         };
+
+        webView.NavigationStarting += OnHelpWebViewNavigationStarting;
+        webView.CoreWebView2Initialized += OnHelpWebViewInitialized;
+        return webView;
     }
 
     private static Uri? TryGetHelpHtmlUri()
@@ -2935,6 +2940,12 @@ public sealed partial class MainWindow : Window, IDisposable
 
         try
         {
+            _helpHtmlWebView.NavigationStarting -= OnHelpWebViewNavigationStarting;
+            _helpHtmlWebView.CoreWebView2Initialized -= OnHelpWebViewInitialized;
+            if (_helpHtmlWebView.CoreWebView2 is not null)
+            {
+                _helpHtmlWebView.CoreWebView2.NewWindowRequested -= OnHelpWebViewNewWindowRequested;
+            }
             _helpHtmlWebView.Close();
         }
         catch (Exception ex) when (ex is InvalidOperationException
@@ -2945,6 +2956,76 @@ public sealed partial class MainWindow : Window, IDisposable
         finally
         {
             _helpHtmlWebView = null;
+        }
+    }
+
+    private void OnHelpWebViewInitialized(WebView2 sender, CoreWebView2InitializedEventArgs args)
+    {
+        if (args.Exception is not null)
+        {
+            AppLog.Error("Help WebView2 initialization failed.", args.Exception);
+            return;
+        }
+
+        sender.CoreWebView2.NewWindowRequested += OnHelpWebViewNewWindowRequested;
+    }
+
+    private void OnHelpWebViewNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs args)
+    {
+        if (TryGetExternalUri(args.Uri, out var uri))
+        {
+            args.Handled = true;
+            _ = OpenExternalUriAsync(uri);
+        }
+    }
+
+    private void OnHelpWebViewNavigationStarting(WebView2 sender, CoreWebView2NavigationStartingEventArgs args)
+    {
+        if (TryGetExternalUri(args.Uri, out var uri))
+        {
+            args.Cancel = true;
+            _ = OpenExternalUriAsync(uri);
+        }
+    }
+
+    private static bool TryGetExternalUri(string? uriString, out Uri uri)
+    {
+        uri = null!;
+        if (string.IsNullOrWhiteSpace(uriString))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(uriString, UriKind.Absolute, out var parsed))
+        {
+            return false;
+        }
+
+        if (string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            uri = parsed;
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task OpenExternalUriAsync(Uri uri)
+    {
+        try
+        {
+            await Launcher.LaunchUriAsync(uri);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException
+            or UnauthorizedAccessException
+            or System.Runtime.InteropServices.COMException
+            or ArgumentException)
+        {
+            AppLog.Error("Failed to launch help link.", ex);
+            _viewModel.ShowNotificationMessage(
+                LocalizationService.GetString("Message.LaunchBrowserFailed"),
+                InfoBarSeverity.Error);
         }
     }
 
