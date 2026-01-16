@@ -149,8 +149,9 @@ public sealed class MainViewModelTests : IDisposable
 
         // Assert
         var item = viewModel.Items.Single(current => !current.IsFolder);
-        Assert.NotNull(item.Item.ThumbnailPath);
         Assert.Null(item.Thumbnail);
+        Assert.Null(item.Item.ThumbnailPath);
+        Assert.NotNull(item.ThumbnailKey);
     }
 
     [Fact]

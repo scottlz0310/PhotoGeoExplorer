@@ -7,7 +7,7 @@ namespace PhotoGeoExplorer.Tests;
 public sealed class FileSystemIntegrationTests
 {
     [Fact]
-    public async Task GetPhotoItemsAsyncCreatesThumbnailForImage()
+    public async Task GetPhotoItemsAsyncReturnsCachedThumbnailForImage()
     {
         var root = CreateTempDirectory();
         string? thumbnailPath = null;
@@ -25,11 +25,24 @@ public sealed class FileSystemIntegrationTests
 
             var item = Assert.Single(items);
             Assert.False(item.IsFolder);
-            Assert.NotNull(item.ThumbnailPath);
-            thumbnailPath = item.ThumbnailPath;
+            Assert.Null(item.ThumbnailPath);
+            Assert.Null(item.PixelWidth);
+            Assert.Null(item.PixelHeight);
+
+            var fileInfo = new FileInfo(imagePath);
+            var result = ThumbnailService.GenerateThumbnail(imagePath, fileInfo.LastWriteTimeUtc);
+            thumbnailPath = result.ThumbnailPath;
+            Assert.NotNull(thumbnailPath);
             Assert.True(File.Exists(thumbnailPath));
-            Assert.Equal(1, item.PixelWidth);
-            Assert.Equal(1, item.PixelHeight);
+            Assert.Equal(1, result.Width);
+            Assert.Equal(1, result.Height);
+
+            var cachedItems = await service.GetPhotoItemsAsync(root, imagesOnly: true, searchText: null).ConfigureAwait(true);
+            var cachedItem = Assert.Single(cachedItems);
+            Assert.NotNull(cachedItem.ThumbnailPath);
+            Assert.True(File.Exists(cachedItem.ThumbnailPath));
+            Assert.Equal(1, cachedItem.PixelWidth);
+            Assert.Equal(1, cachedItem.PixelHeight);
         }
         finally
         {

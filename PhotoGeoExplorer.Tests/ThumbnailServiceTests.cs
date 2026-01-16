@@ -62,7 +62,7 @@ public sealed class ThumbnailServiceTests
     [Fact]
     public void ThumbnailCacheExistsThrowsForNullOrEmptyKey()
     {
-        Assert.Throws<ArgumentException>(() => ThumbnailService.ThumbnailCacheExists(null!));
+        Assert.Throws<ArgumentNullException>(() => ThumbnailService.ThumbnailCacheExists(null!));
         Assert.Throws<ArgumentException>(() => ThumbnailService.ThumbnailCacheExists(string.Empty));
         Assert.Throws<ArgumentException>(() => ThumbnailService.ThumbnailCacheExists("   "));
     }
