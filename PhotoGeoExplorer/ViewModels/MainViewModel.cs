@@ -736,6 +736,19 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         UpdateStatusBar();
     }
 
+    private static readonly HashSet<string> _imageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".bmp",
+        ".tif",
+        ".tiff",
+        ".heic",
+        ".webp"
+    };
+
     private static PhotoListItem CreateListItem(PhotoItem item)
     {
         var thumbnail = CanInitializeBitmapImage() ? CreateThumbnailImage(item.ThumbnailPath) : null;
@@ -758,15 +771,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     private static bool IsImageFile(string filePath)
     {
         var extension = Path.GetExtension(filePath);
-        return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".gif", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".tif", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".tiff", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".heic", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".webp", StringComparison.OrdinalIgnoreCase);
+        return _imageExtensions.Contains(extension);
     }
 
     private static string GenerateToolTipText(PhotoItem item)
