@@ -31,3 +31,6 @@
 
 - runFullTrust は WinUI 3 デスクトップアプリで必須のため、Partner Center の審査ノートに用途を明記します。
 - Optional [88] は依存ライブラリ由来の警告が要因で、オンライン審査は通過済みです。
+- WACK レポートでは `PhotoGeoExplorer.exe` に `shell32.dll!ShellExecuteW` が検出されます（外部ブラウザ/エクスプローラー起動の `Launcher.LaunchUriAsync` / `LaunchFolderPathAsync` 起因）。
+- `Microsoft.WindowsAppRuntime.Bootstrap.dll` 側にも `ShellExecuteExW` 参照があり、ランタイム同梱分の影響が残ります。
+- UX 維持のため現状は許容し、Required になった場合のみ削減を検討します。
