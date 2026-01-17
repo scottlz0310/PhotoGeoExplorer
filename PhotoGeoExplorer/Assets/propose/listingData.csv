@@ -1,4 +1,4 @@
-Field,ID,Type (種類),default,en-us,ja-jp
+﻿Field,ID,Type (種類),default,en-us,ja-jp
 Description,2,テキスト,,"PhotoGeoExplorer is a Windows desktop application that displays geotagged photos on a map, allowing you to organize and explore your pictures by shooting location.
 This app requires the .NET Desktop Runtime to run. It is automatically provided when installing from the Microsoft Store.
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
@@ -17,12 +17,12 @@ Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
 VoiceTitle,7,テキスト,,,
-ShortDescription,8,テキスト,,"Organize geotagged photos on a map, edit EXIF GPS/date, and browse folders fast with smooth previews.",ジオタグ写真を地図で整理・探索。EXIF の GPS/日時編集と高速なフォルダ閲覧に対応。
+ShortDescription,8,テキスト,,"Organize geotagged photos on a map, edit EXIF GPS/date, and browse folders fast.",ジオタグ写真を地図で整理・探索。EXIF の GPS/日時編集と高速なフォルダ閲覧に対応。
 DevStudio,9,テキスト,,,
 CopyrightTrademarkInformation,12,テキスト,,,
 AdditionalLicenseTerms,13,テキスト,,,
-DesktopScreenshot1,100,相対パス (またはパートナー センターにあるファイルへの URL),,screenshot1.png,screenshot1.png
-DesktopScreenshot2,101,相対パス (またはパートナー センターにあるファイルへの URL),,screenshot2.png,screenshot2.png
+DesktopScreenshot1,100,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700409674/listings/1152922700023391143/listingassets/3036529865526698531,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700409674/listings/1152922700023391145/listingassets/3059110377706524836
+DesktopScreenshot2,101,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700409674/listings/1152922700023391143/listingassets/3012603195106338262,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700409674/listings/1152922700023391145/listingassets/3005765492191873640
 DesktopScreenshot3,102,相対パス (またはパートナー センターにあるファイルへの URL),,,
 DesktopScreenshot4,103,相対パス (またはパートナー センターにあるファイルへの URL),,,
 DesktopScreenshot5,104,相対パス (またはパートナー センターにあるファイルへの URL),,,
@@ -51,8 +51,8 @@ DesktopScreenshot27,126,相対パス (またはパートナー センターに�
 DesktopScreenshot28,127,相対パス (またはパートナー センターにあるファイルへの URL),,,
 DesktopScreenshot29,128,相対パス (またはパートナー センターにあるファイルへの URL),,,
 DesktopScreenshot30,129,相対パス (またはパートナー センターにあるファイルへの URL),,,
-DesktopScreenshotCaption1,150,テキスト,,List view with OpenStreetMap and map pins,ファイルリスト表示 / OpenStreetMap タイル
-DesktopScreenshotCaption2,151,テキスト,,Thumbnail grid with satellite imagery,サムネイルグリッド表示 / 衛星画像タイル
+DesktopScreenshotCaption1,150,テキスト,,,
+DesktopScreenshotCaption2,151,テキスト,,,
 DesktopScreenshotCaption3,152,テキスト,,,
 DesktopScreenshotCaption4,153,テキスト,,,
 DesktopScreenshotCaption5,154,テキスト,,,
@@ -305,8 +305,8 @@ StoreLogo720x1080,600,相対パス (またはパートナー センターにあ�
 StoreLogo1080x1080,601,相対パス (またはパートナー センターにあるファイルへの URL),,,
 StoreLogo300x300,602,相対パス (またはパートナー センターにあるファイルへの URL),,,
 OverrideLogosForWin10,603,True/False,,FALSE,FALSE
-StoreLogoOverride150x150,604,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700361349/listings/1152922700023391143/listingassets/3062318914074060723,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700361349/listings/1152922700023391145/listingassets/3027405229620931277
-StoreLogoOverride71x71,605,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700361349/listings/1152922700023391143/listingassets/3017241834041047814,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700361349/listings/1152922700023391145/listingassets/3050289451384130082
+StoreLogoOverride150x150,604,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700409674/listings/1152922700023391143/listingassets/3062318914074060723,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700409674/listings/1152922700023391145/listingassets/3027405229620931277
+StoreLogoOverride71x71,605,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700409674/listings/1152922700023391143/listingassets/3017241834041047814,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700409674/listings/1152922700023391145/listingassets/3050289451384130082
 PromoImage1920x1080,606,相対パス (またはパートナー センターにあるファイルへの URL),,,
 PromoImage2400x1200,607,相対パス (またはパートナー センターにあるファイルへの URL),,,
 XboxBrandedKeyArt584x800,608,相対パス (またはパートナー センターにあるファイルへの URL),,,
@@ -315,16 +315,16 @@ XboxFeaturedPromo1080x1080,610,相対パス (またはパートナー センタ�
 OptionalPromo358x358,611,相対パス (またはパートナー センターにあるファイルへの URL),,,
 OptionalPromo1000x800,612,相対パス (またはパートナー センターにあるファイルへの URL),,,
 OptionalPromo414x180,613,相対パス (またはパートナー センターにあるファイルへの URL),,,
-Feature1,700,テキスト,,"- File browser (folder selection, search/image filtering, breadcrumbs, view switching)",- ファイルブラウザ（フォルダ選択、検索/画像フィルタ、パンくず、表示切替）
-Feature2,701,テキスト,,"- File operations (create new folder/move/rename/delete, drag & drop)",- ファイル操作（新規フォルダ/移動/リネーム/削除、ドラッグ&ドロップ）
-Feature3,702,テキスト,,"- EXIF/GPS extraction, multi-selection map markers, and auto fit",- EXIF/GPS 抽出、複数選択の地図マーカー表示と自動フィット
-Feature4,703,テキスト,,"- Tooltip on map marker click (capture date/time, camera, filename, resolution, Google Maps link)",- 地図マーカークリック時のツールチップ（撮影日時、カメラ、ファイル名、解像度、Google Maps リンク）
-Feature5,704,テキスト,,"- Switch between satellite tiles (Esri WorldImagery) and OpenStreetMap",- 衛星地図タイル（Esri WorldImagery）と OpenStreetMap の切り替え
-Feature6,705,テキスト,,"- Image preview (zoom/pan/maximize, previous/next navigation)",- 画像プレビュー（ズーム/パン/最大化、前後ナビ）
-Feature7,706,テキスト,,"- Mapsui-based map rendering and offline tile cache",- Mapsui による地図表示とオフラインタイルキャッシュ
-Feature8,707,テキスト,,"- Settings persistence, language/theme switching, settings export/import",- 設定の永続化、言語/テーマ切替、設定のエクスポート/インポート
-Feature9,708,テキスト,,"- File associations for .jpg/.jpeg/.png/.heic and launch with preview/map sync",- .jpg/.jpeg/.png/.heic のファイル関連付けと起動時のプレビュー/地図同期
-Feature10,709,テキスト,,- App log output to `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log`,- `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` へのアプリログ出力
+Feature1,700,テキスト,,"- File browser (folder selection, search/image filtering, breadcrumbs, view switching)","- ファイルブラウザ（フォルダ選択、検索/画像フィルタ、パンくず、表示切替）"
+Feature2,701,テキスト,,"- File operations (create new folder/move/rename/delete, drag & drop)","- ファイル操作（新規フォルダ/移動/リネーム/削除、ドラッグ&ドロップ）"
+Feature3,702,テキスト,,"- EXIF/GPS extraction, multi-selection map markers, and auto fit","- EXIF/GPS 抽出、複数選択の地図マーカー表示と自動フィット"
+Feature4,703,テキスト,,"- Tooltip on map marker click (capture date/time, camera, filename, resolution, Google Maps link)","- 地図マーカークリック時のツールチップ（撮影日時、カメラ、ファイル名、解像度、Google Maps リンク）"
+Feature5,704,テキスト,,"- Switch between satellite tiles (Esri WorldImagery) and OpenStreetMap","- 衛星地図タイル（Esri WorldImagery）と OpenStreetMap の切り替え"
+Feature6,705,テキスト,,"- Image preview (zoom/pan/maximize, previous/next navigation)","- 画像プレビュー（ズーム/パン/最大化、前後ナビ）"
+Feature7,706,テキスト,,"- Mapsui-based map rendering and offline tile cache","- Mapsui による地図表示とオフラインタイルキャッシュ"
+Feature8,707,テキスト,,"- Settings persistence, language/theme switching, settings export/import","- 設定の永続化、言語/テーマ切替、設定のエクスポート/インポート"
+Feature9,708,テキスト,,"- File associations for .jpg/.jpeg/.png/.heic and launch with preview/map sync","- .jpg/.jpeg/.png/.heic のファイル関連付けと起動時のプレビュー/地図同期"
+Feature10,709,テキスト,,"- App log output to `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log`","- `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` へのアプリログ出力"
 Feature11,710,テキスト,,,
 Feature12,711,テキスト,,,
 Feature13,712,テキスト,,,
@@ -440,3 +440,27 @@ TrailerAudioDescription12,1081,相対パス (またはパートナー センタ�
 TrailerAudioDescription13,1082,相対パス (またはパートナー センターにあるファイルへの URL),,,
 TrailerAudioDescription14,1083,相対パス (またはパートナー センターにあるファイルへの URL),,,
 TrailerAudioDescription15,1084,相対パス (またはパートナー センターにあるファイルへの URL),,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
+,,,,,
