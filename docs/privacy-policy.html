@@ -40,11 +40,21 @@
             font-style: italic;
         }
 
+        .lang-switch {
+            margin: 12px 0 20px;
+        }
+
         .highlight {
             background-color: #e8f4fd;
             padding: 15px;
             border-left: 4px solid #1E90FF;
             margin: 20px 0;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 40px 0;
         }
 
         a {
@@ -69,120 +79,236 @@
 
 <body>
     <div class="container">
-        <h1>プライバシーポリシー</h1>
-        <p class="last-updated">最終更新日: 2026年1月2日</p>
+        <h1>プライバシーポリシー / Privacy Policy</h1>
+        <p class="last-updated">最終更新日: 2026年1月2日 / Last updated: January 2, 2026</p>
+        <p class="lang-switch"><a href="#ja">日本語</a> | <a href="#en">English</a></p>
 
-        <div class="highlight">
-            <strong>要約:</strong> PhotoGeoExplorer はプライバシーを重視したデスクトップアプリです。データは端末内で処理され、個人情報を収集・保存・共有しません。
-        </div>
+        <section id="ja">
+            <div class="highlight">
+                <strong>要約:</strong> PhotoGeoExplorer はプライバシーを重視したデスクトップアプリです。データは端末内で処理され、個人情報を収集・保存・共有しません。
+            </div>
 
-        <h2>1. はじめに</h2>
-        <p>
-            PhotoGeoExplorer（以下「本アプリ」）は、写真の位置情報を地図上で表示・探索する Windows
-            デスクトップアプリです。本ポリシーでは、本アプリがどのようにデータを取り扱い、プライバシーを保護するかを説明します。
-        </p>
+            <h2>1. はじめに</h2>
+            <p>
+                PhotoGeoExplorer（以下「本アプリ」）は、写真の位置情報を地図上で表示・探索する Windows
+                デスクトップアプリです。本ポリシーでは、本アプリがどのようにデータを取り扱い、プライバシーを保護するかを説明します。
+            </p>
 
-        <h2>2. 収集しない情報</h2>
-        <p>
-            本アプリはプライバシーを重視して設計されています。本アプリは次のことを行いません。
-        </p>
-        <ul>
-            <li><strong>個人情報の収集</strong></li>
-            <li><strong>利用状況や行動のトラッキング</strong></li>
-            <li><strong>アカウント登録・ログインの要求</strong></li>
-            <li><strong>写真やデータのサーバーへのアップロード</strong></li>
-            <li><strong>第三者への個人情報の共有</strong></li>
-        </ul>
+            <h2>2. 収集しない情報</h2>
+            <p>
+                本アプリはプライバシーを重視して設計されています。本アプリは次のことを行いません。
+            </p>
+            <ul>
+                <li><strong>個人情報の収集</strong></li>
+                <li><strong>利用状況や行動のトラッキング</strong></li>
+                <li><strong>アカウント登録・ログインの要求</strong></li>
+                <li><strong>写真やデータのサーバーへのアップロード</strong></li>
+                <li><strong>第三者への個人情報の共有</strong></li>
+            </ul>
 
-        <h2>3. 端末内でのデータ処理</h2>
-        <p>
-            本アプリのデータ処理は、すべてお使いの端末内で完結します。
-        </p>
-        <ul>
-            <li><strong>写真ファイル:</strong> 本アプリは、あなたが明示的に選択したフォルダー内の写真のみを読み取ります。写真は端末内に留まり、アップロードされません。</li>
-            <li><strong>EXIF メタデータ:</strong> 位置情報表示のために、写真内の EXIF/GPS データを読み取ります。処理は端末内で行われ、外部へ送信されません。</li>
-            <li><strong>設定:</strong> 言語・テーマなどの設定は、端末内の <code>%LocalAppData%\PhotoGeoExplorer\settings.json</code>
-                に保存されます。</li>
-            <li><strong>ログ:</strong> トラブルシュート目的で、端末内の <code>%LocalAppData%\PhotoGeoExplorer\Logs\app.log</code>
-                にアプリログが保存されます。</li>
-            <li><strong>地図タイルキャッシュ:</strong> 地図表示のために取得したタイルは、性能向上と通信量削減のため
-                <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> にキャッシュされます。</li>
-        </ul>
+            <h2>3. 端末内でのデータ処理</h2>
+            <p>
+                本アプリのデータ処理は、すべてお使いの端末内で完結します。
+            </p>
+            <ul>
+                <li><strong>写真ファイル:</strong> 本アプリは、あなたが明示的に選択したフォルダー内の写真のみを読み取ります。写真は端末内に留まり、アップロードされません。</li>
+                <li><strong>EXIF メタデータ:</strong> 位置情報表示のために、写真内の EXIF/GPS データを読み取ります。処理は端末内で行われ、外部へ送信されません。</li>
+                <li><strong>設定:</strong> 言語・テーマなどの設定は、端末内の <code>%LocalAppData%\PhotoGeoExplorer\settings.json</code>
+                    に保存されます。</li>
+                <li><strong>ログ:</strong> トラブルシュート目的で、端末内の <code>%LocalAppData%\PhotoGeoExplorer\Logs\app.log</code>
+                    にアプリログが保存されます。</li>
+                <li><strong>地図タイルキャッシュ:</strong> 地図表示のために取得したタイルは、性能向上と通信量削減のため
+                    <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> にキャッシュされます。</li>
+            </ul>
 
-        <h2>4. インターネット通信</h2>
-        <p>
-            本アプリは、次の目的に限って最小限のインターネット通信を行います。
-        </p>
-        <ul>
-            <li><strong>地図タイル:</strong> 地図表示のため、OpenStreetMap または Esri WorldImagery
-                のサーバーから地図タイルを取得します。これらのリクエストに個人情報は含めません。</li>
-            <li><strong>更新チェック:</strong> 新バージョン確認のため、GitHub Releases を参照します。これらのリクエストに個人情報や写真データは含めません。</li>
-        </ul>
-        <p>
-            初回の地図タイルがキャッシュされた後は、オフラインでも利用できます（地図の新規取得は除く）。
-        </p>
+            <h2>4. インターネット通信</h2>
+            <p>
+                本アプリは、次の目的に限って最小限のインターネット通信を行います。
+            </p>
+            <ul>
+                <li><strong>地図タイル:</strong> 地図表示のため、OpenStreetMap または Esri WorldImagery
+                    のサーバーから地図タイルを取得します。これらのリクエストに個人情報は含めません。</li>
+                <li><strong>更新チェック:</strong> 新バージョン確認のため、GitHub Releases を参照します。これらのリクエストに個人情報や写真データは含めません。</li>
+            </ul>
+            <p>
+                初回の地図タイルがキャッシュされた後は、オフラインでも利用できます（地図の新規取得は除く）。
+            </p>
 
-        <h2>5. 第三者サービス</h2>
-        <p>
-            本アプリは次の第三者サービスを利用しますが、個人情報を共有しません。
-        </p>
-        <ul>
-            <li><strong>OpenStreetMap:</strong> 地図タイルを <a href="https://www.openstreetmap.org/" target="_blank"
-                    rel="noopener noreferrer">OpenStreetMap</a> のタイルサーバーから取得します。詳しくは <a
-                    href="https://wiki.openstreetmap.org/wiki/Privacy_Policy" target="_blank"
-                    rel="noopener noreferrer">Privacy Policy</a> を参照してください。</li>
-            <li><strong>Esri WorldImagery:</strong> 衛星画像タイルを <a href="https://www.esri.com/" target="_blank"
-                    rel="noopener noreferrer">Esri</a> のサーバーから取得します。詳しくは <a
-                    href="https://www.esri.com/en-us/privacy/overview" target="_blank" rel="noopener noreferrer">Privacy
-                    Policy</a> を参照してください。</li>
-            <li><strong>GitHub:</strong> 更新チェックは GitHub API 経由で行われます。詳しくは <a
-                    href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement"
-                    target="_blank" rel="noopener noreferrer">GitHub Privacy Statement</a> を参照してください。</li>
-        </ul>
+            <h2>5. 第三者サービス</h2>
+            <p>
+                本アプリは次の第三者サービスを利用しますが、個人情報を共有しません。
+            </p>
+            <ul>
+                <li><strong>OpenStreetMap:</strong> 地図タイルを <a href="https://www.openstreetmap.org/" target="_blank"
+                        rel="noopener noreferrer">OpenStreetMap</a> のタイルサーバーから取得します。詳しくは <a
+                        href="https://wiki.openstreetmap.org/wiki/Privacy_Policy" target="_blank"
+                        rel="noopener noreferrer">Privacy Policy</a> を参照してください。</li>
+                <li><strong>Esri WorldImagery:</strong> 衛星画像タイルを <a href="https://www.esri.com/" target="_blank"
+                        rel="noopener noreferrer">Esri</a> のサーバーから取得します。詳しくは <a
+                        href="https://www.esri.com/en-us/privacy/overview" target="_blank" rel="noopener noreferrer">Privacy
+                        Policy</a> を参照してください。</li>
+                <li><strong>GitHub:</strong> 更新チェックは GitHub API 経由で行われます。詳しくは <a
+                        href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement"
+                        target="_blank" rel="noopener noreferrer">GitHub Privacy Statement</a> を参照してください。</li>
+            </ul>
 
-        <h2>6. Google Maps 連携</h2>
-        <p>
-            本アプリには、写真の位置をブラウザーで Google Maps を開く任意機能があります。「Google Maps で開く」をクリックした場合、緯度・経度がブラウザーの Google Maps
-            に渡されます。この操作はあなたが明示的に行う場合にのみ実行されます。詳しくは <a href="https://policies.google.com/privacy" target="_blank"
-                rel="noopener noreferrer">Google のプライバシーポリシー</a> を参照してください。
-        </p>
+            <h2>6. Google Maps 連携</h2>
+            <p>
+                本アプリには、写真の位置をブラウザーで Google Maps を開く任意機能があります。「Google Maps で開く」をクリックした場合、緯度・経度がブラウザーの Google Maps
+                に渡されます。この操作はあなたが明示的に行う場合にのみ実行されます。詳しくは <a href="https://policies.google.com/privacy" target="_blank"
+                    rel="noopener noreferrer">Google のプライバシーポリシー</a> を参照してください。
+            </p>
 
-        <h2>7. データの安全性</h2>
-        <p>
-            データは端末内に保存されるため、端末のセキュリティ管理は基本的にユーザーの責任となります。
-        </p>
-        <ul>
-            <li>Windows とセキュリティソフトを最新の状態に保つ</li>
-            <li>写真フォルダーのアクセス権限を適切に管理する</li>
-            <li>重要な写真は定期的にバックアップする</li>
-        </ul>
+            <h2>7. データの安全性</h2>
+            <p>
+                データは端末内に保存されるため、端末のセキュリティ管理は基本的にユーザーの責任となります。
+            </p>
+            <ul>
+                <li>Windows とセキュリティソフトを最新の状態に保つ</li>
+                <li>写真フォルダーのアクセス権限を適切に管理する</li>
+                <li>重要な写真は定期的にバックアップする</li>
+            </ul>
 
-        <h2>8. 子どものプライバシー</h2>
-        <p>
-            本アプリは、子どもから個人情報を意図的に収集することはありません。本アプリは一般向けであり、アカウント登録等も不要です。
-        </p>
+            <h2>8. 子どものプライバシー</h2>
+            <p>
+                本アプリは、子どもから個人情報を意図的に収集することはありません。本アプリは一般向けであり、アカウント登録等も不要です。
+            </p>
 
-        <h2>9. 本ポリシーの変更</h2>
-        <p>
-            本ポリシーは必要に応じて更新される場合があります。変更がある場合は本ページに掲載し、「最終更新日」を更新します。変更後に本アプリを継続して利用することで、更新後の内容に同意したものとみなされます。
-        </p>
+            <h2>9. 本ポリシーの変更</h2>
+            <p>
+                本ポリシーは必要に応じて更新される場合があります。変更がある場合は本ページに掲載し、「最終更新日」を更新します。変更後に本アプリを継続して利用することで、更新後の内容に同意したものとみなされます。
+            </p>
 
-        <h2>10. オープンソース</h2>
-        <p>
-            PhotoGeoExplorer は MIT License のオープンソースソフトウェアです。ソースコードは <a
-                href="https://github.com/scottlz0310/PhotoGeoExplorer" target="_blank"
-                rel="noopener noreferrer">github.com/scottlz0310/PhotoGeoExplorer</a> で確認できます。
-        </p>
+            <h2>10. オープンソース</h2>
+            <p>
+                PhotoGeoExplorer は MIT License のオープンソースソフトウェアです。ソースコードは <a
+                    href="https://github.com/scottlz0310/PhotoGeoExplorer" target="_blank"
+                    rel="noopener noreferrer">github.com/scottlz0310/PhotoGeoExplorer</a> で確認できます。
+            </p>
 
-        <h2>11. お問い合わせ</h2>
-        <p>
-            本ポリシーまたは本アプリに関するお問い合わせは、次までご連絡ください。
-        </p>
-        <ul>
-            <li><strong>Email:</strong> <a href="mailto:scott.lz0310@gmail.com">scott.lz0310@gmail.com</a></li>
-            <li><strong>GitHub Issues:</strong> <a href="https://github.com/scottlz0310/PhotoGeoExplorer/issues"
-                    target="_blank" rel="noopener noreferrer">github.com/scottlz0310/PhotoGeoExplorer/issues</a></li>
-        </ul>
+            <h2>11. お問い合わせ</h2>
+            <p>
+                本ポリシーまたは本アプリに関するお問い合わせは、次までご連絡ください。
+            </p>
+            <ul>
+                <li><strong>Email:</strong> <a href="mailto:scott.lz0310@gmail.com">scott.lz0310@gmail.com</a></li>
+                <li><strong>GitHub Issues:</strong> <a href="https://github.com/scottlz0310/PhotoGeoExplorer/issues"
+                        target="_blank" rel="noopener noreferrer">github.com/scottlz0310/PhotoGeoExplorer/issues</a></li>
+            </ul>
+        </section>
+
+        <hr class="divider" />
+
+        <section id="en">
+            <div class="highlight">
+                <strong>Summary:</strong> PhotoGeoExplorer is a privacy-focused desktop app. Your data is processed locally and no personal information is collected, stored, or shared.
+            </div>
+
+            <h2>1. Introduction</h2>
+            <p>
+                PhotoGeoExplorer (the "App") is a Windows desktop application that displays and explores photo location information on a map.
+                This policy explains how the App handles data and protects your privacy.
+            </p>
+
+            <h2>2. Information We Do Not Collect</h2>
+            <p>
+                The App is designed with privacy in mind. We do not:
+            </p>
+            <ul>
+                <li><strong>Collect personal information</strong></li>
+                <li><strong>Track usage or behavior</strong></li>
+                <li><strong>Require account creation or sign-in</strong></li>
+                <li><strong>Upload photos or data to a server</strong></li>
+                <li><strong>Share personal information with third parties</strong></li>
+            </ul>
+
+            <h2>3. Local Data Processing</h2>
+            <p>
+                All data processing is performed locally on your device.
+            </p>
+            <ul>
+                <li><strong>Photo files:</strong> The App reads only photos in folders you explicitly select. Photos remain on your device and are never uploaded.</li>
+                <li><strong>EXIF metadata:</strong> EXIF/GPS data is read to display locations. Processing is local and not transmitted externally.</li>
+                <li><strong>Settings:</strong> Language/theme settings are stored at <code>%LocalAppData%\PhotoGeoExplorer\settings.json</code>.</li>
+                <li><strong>Logs:</strong> For troubleshooting, logs are stored at <code>%LocalAppData%\PhotoGeoExplorer\Logs\app.log</code>.</li>
+                <li><strong>Map tile cache:</strong> Tiles are cached at <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> to improve performance and reduce network traffic.</li>
+            </ul>
+
+            <h2>4. Network Communication</h2>
+            <p>
+                The App performs minimal network access only for the purposes below:
+            </p>
+            <ul>
+                <li><strong>Map tiles:</strong> Map tiles are fetched from OpenStreetMap or Esri WorldImagery servers. These requests do not include personal information.</li>
+                <li><strong>Update checks:</strong> GitHub Releases are queried for new versions. These requests do not include personal information or photo data.</li>
+            </ul>
+            <p>
+                Once map tiles are cached, the App can be used offline (except for fetching new tiles).
+            </p>
+
+            <h2>5. Third-Party Services</h2>
+            <p>
+                The App uses the following services without sharing personal information:
+            </p>
+            <ul>
+                <li><strong>OpenStreetMap:</strong> Map tiles are fetched from <a href="https://www.openstreetmap.org/" target="_blank"
+                        rel="noopener noreferrer">OpenStreetMap</a>. See their <a
+                        href="https://wiki.openstreetmap.org/wiki/Privacy_Policy" target="_blank"
+                        rel="noopener noreferrer">Privacy Policy</a>.</li>
+                <li><strong>Esri WorldImagery:</strong> Satellite tiles are fetched from <a href="https://www.esri.com/" target="_blank"
+                        rel="noopener noreferrer">Esri</a>. See their <a
+                        href="https://www.esri.com/en-us/privacy/overview" target="_blank" rel="noopener noreferrer">Privacy
+                        Policy</a>.</li>
+                <li><strong>GitHub:</strong> Update checks use GitHub APIs. See the <a
+                        href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement"
+                        target="_blank" rel="noopener noreferrer">GitHub Privacy Statement</a>.</li>
+            </ul>
+
+            <h2>6. Google Maps Integration</h2>
+            <p>
+                The App includes an optional feature to open photo locations in Google Maps. When you click "Open in Google Maps",
+                latitude and longitude are passed to Google Maps in your browser. This occurs only when you explicitly choose to do so.
+                See <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google's Privacy Policy</a>.
+            </p>
+
+            <h2>7. Data Security</h2>
+            <p>
+                Because all data is stored locally, device security is the user's responsibility.
+            </p>
+            <ul>
+                <li>Keep Windows and security software up to date</li>
+                <li>Manage access permissions for your photo folders</li>
+                <li>Back up important photos regularly</li>
+            </ul>
+
+            <h2>8. Children's Privacy</h2>
+            <p>
+                The App does not knowingly collect personal information from children. It is intended for general audiences and does not require accounts.
+            </p>
+
+            <h2>9. Policy Changes</h2>
+            <p>
+                This policy may be updated as needed. When changes occur, we will update the "Last updated" date on this page.
+                Continuing to use the App after changes indicates acceptance of the updated policy.
+            </p>
+
+            <h2>10. Open Source</h2>
+            <p>
+                PhotoGeoExplorer is open source under the MIT License. Source code is available at <a
+                    href="https://github.com/scottlz0310/PhotoGeoExplorer" target="_blank"
+                    rel="noopener noreferrer">github.com/scottlz0310/PhotoGeoExplorer</a>.
+            </p>
+
+            <h2>11. Contact</h2>
+            <p>
+                For questions about this policy or the App, contact:
+            </p>
+            <ul>
+                <li><strong>Email:</strong> <a href="mailto:scott.lz0310@gmail.com">scott.lz0310@gmail.com</a></li>
+                <li><strong>GitHub Issues:</strong> <a href="https://github.com/scottlz0310/PhotoGeoExplorer/issues"
+                        target="_blank" rel="noopener noreferrer">github.com/scottlz0310/PhotoGeoExplorer/issues</a></li>
+            </ul>
+        </section>
 
         <footer>
             <p>PhotoGeoExplorer &copy; 2026 | <a href="https://github.com/scottlz0310/PhotoGeoExplorer"
