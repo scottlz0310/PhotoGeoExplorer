@@ -530,9 +530,9 @@ public sealed partial class MainWindow : Window, IDisposable
 
         // Skip LastFolderPath restoration when file activation path is specified.
         // File activation should take priority over saved folder restoration.
-        if (!string.IsNullOrWhiteSpace(_startupFilePath))
+        if (!string.IsNullOrWhiteSpace(_startupFilePath) && File.Exists(_startupFilePath))
         {
-            AppLog.Info("Skipping LastFolderPath restoration because startup file path is specified.");
+            AppLog.Info("Skipping LastFolderPath restoration because a valid startup file path is specified.");
             return;
         }
 
