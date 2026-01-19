@@ -2373,14 +2373,14 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        // If a single folder is selected, navigate into it (like double-click)
+        // 単一フォルダが選択されている場合、そのフォルダに遷移する（ダブルクリックと同じ動作）
         if (_viewModel.SelectedItems.Count == 1 && _viewModel.SelectedItems[0].IsFolder)
         {
             await _viewModel.LoadFolderAsync(_viewModel.SelectedItems[0].FilePath).ConfigureAwait(true);
             return;
         }
 
-        // Otherwise, move the selected items to a destination folder
+        // それ以外の場合、選択された項目を移動先フォルダへ移動する
         var destination = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
         if (destination is null)
         {
