@@ -5,7 +5,7 @@ namespace PhotoGeoExplorer.Tests;
 public sealed class LocalizationServiceTests
 {
     [Fact]
-    public void GetString_WithNullKey_ReturnsEmptyString()
+    public void GetStringWithNullKeyReturnsEmptyString()
     {
         var result = LocalizationService.GetString(null!);
 
@@ -13,7 +13,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void GetString_WithEmptyKey_ReturnsEmptyString()
+    public void GetStringWithEmptyKeyReturnsEmptyString()
     {
         var result = LocalizationService.GetString(string.Empty);
 
@@ -21,7 +21,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void GetString_WithWhitespaceKey_ReturnsEmptyString()
+    public void GetStringWithWhitespaceKeyReturnsEmptyString()
     {
         var result = LocalizationService.GetString("   ");
 
@@ -29,7 +29,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void GetString_WithValidKey_ReturnsKeyInTestEnvironment()
+    public void GetStringWithValidKeyReturnsKeyInTestEnvironment()
     {
         // In test environment, ResourceManager is null, so the key is returned as-is
         var key = "TestKey";
@@ -40,7 +40,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void GetString_WithDottedKey_ReturnsKeyInTestEnvironment()
+    public void GetStringWithDottedKeyReturnsKeyInTestEnvironment()
     {
         // Tests that dotted keys are handled (normalized to slashes internally)
         var key = "MainWindow.Title";
@@ -51,7 +51,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void Format_WithNullKey_ReturnsEmptyString()
+    public void FormatWithNullKeyReturnsEmptyString()
     {
         var result = LocalizationService.Format(null!, "arg1");
 
@@ -59,7 +59,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void Format_WithEmptyKey_ReturnsEmptyString()
+    public void FormatWithEmptyKeyReturnsEmptyString()
     {
         var result = LocalizationService.Format(string.Empty, "arg1");
 
@@ -67,7 +67,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void Format_WithValidKeyAndArgs_FormatsCorrectly()
+    public void FormatWithValidKeyAndArgsFormatsCorrectly()
     {
         // In test environment, key is returned as format string
         var key = "Hello {0}, you have {1} messages";
@@ -78,7 +78,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void Format_WithNoArgs_ReturnsKeyAsIs()
+    public void FormatWithNoArgsReturnsKeyAsIs()
     {
         var key = "SimpleMessage";
 
@@ -88,7 +88,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void Format_WithSingleArg_FormatsCorrectly()
+    public void FormatWithSingleArgFormatsCorrectly()
     {
         var key = "Welcome {0}!";
 
@@ -98,7 +98,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public async Task GetString_IsThreadSafe()
+    public async Task GetStringIsThreadSafe()
     {
         // Verifies that concurrent access doesn't throw exceptions
         var tasks = new List<Task>();
@@ -117,7 +117,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public async Task Format_IsThreadSafe()
+    public async Task FormatIsThreadSafe()
     {
         // Verifies that concurrent Format calls don't throw exceptions
         var tasks = new List<Task>();
@@ -136,7 +136,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void GetString_WithSpecialCharacters_ReturnsKey()
+    public void GetStringWithSpecialCharactersReturnsKey()
     {
         var key = "Key.With.Dots.And/Slashes";
 
@@ -146,7 +146,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void GetString_CalledMultipleTimes_ReturnsSameResult()
+    public void GetStringCalledMultipleTimesReturnsSameResult()
     {
         var key = "ConsistentKey";
 
@@ -159,7 +159,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void Format_WithNumericArgs_FormatsWithCurrentCulture()
+    public void FormatWithNumericArgsFormatsWithCurrentCulture()
     {
         var key = "Value: {0:N2}";
 
@@ -171,7 +171,7 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void Format_WithDateArgs_FormatsWithCurrentCulture()
+    public void FormatWithDateArgsFormatsWithCurrentCulture()
     {
         var key = "Date: {0:d}";
         var date = new DateTime(2024, 1, 15);
