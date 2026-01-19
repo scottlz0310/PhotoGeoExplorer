@@ -2373,6 +2373,14 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
+        // If a single folder is selected, navigate into it (like double-click)
+        if (_viewModel.SelectedItems.Count == 1 && _viewModel.SelectedItems[0].IsFolder)
+        {
+            await _viewModel.LoadFolderAsync(_viewModel.SelectedItems[0].FilePath).ConfigureAwait(true);
+            return;
+        }
+
+        // Otherwise, move the selected items to a destination folder
         var destination = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
         if (destination is null)
         {
