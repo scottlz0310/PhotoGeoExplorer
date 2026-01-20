@@ -91,6 +91,9 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _isPickingExifLocation;
     private bool _isExifPickPointerActive;
     private Windows.Foundation.Point? _exifPickPointerStart;
+    private bool _restoreMapStatusAfterExifPick;
+    private Visibility _exifPickPreviousStatusOverlayVisibility = Visibility.Collapsed;
+    private Visibility _exifPickPreviousStatusPanelVisibility = Visibility.Collapsed;
     private Window? _helpHtmlWindow;
     private WebView2? _helpHtmlWebView;
     private readonly bool _settingsFileExistsAtStartup;
@@ -3413,6 +3416,44 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
+    private void HideMapStatusForExifPick()
+    {
+        if (MapStatusOverlay is null || MapStatusPanel is null)
+        {
+            return;
+        }
+
+        if (MapStatusOverlay.Visibility == Visibility.Collapsed && MapStatusPanel.Visibility == Visibility.Collapsed)
+        {
+            return;
+        }
+
+        _restoreMapStatusAfterExifPick = true;
+        _exifPickPreviousStatusOverlayVisibility = MapStatusOverlay.Visibility;
+        _exifPickPreviousStatusPanelVisibility = MapStatusPanel.Visibility;
+        MapStatusOverlay.Visibility = Visibility.Collapsed;
+        MapStatusPanel.Visibility = Visibility.Collapsed;
+    }
+
+    private void RestoreMapStatusAfterExifPick()
+    {
+        if (!_restoreMapStatusAfterExifPick)
+        {
+            return;
+        }
+
+        _restoreMapStatusAfterExifPick = false;
+        if (MapStatusOverlay is not null)
+        {
+            MapStatusOverlay.Visibility = _exifPickPreviousStatusOverlayVisibility;
+        }
+
+        if (MapStatusPanel is not null)
+        {
+            MapStatusPanel.Visibility = _exifPickPreviousStatusPanelVisibility;
+        }
+    }
+
     private Task<(double Latitude, double Longitude)?> PickExifLocationAsync()
     {
         if (MapControl is null || _map is null)
@@ -3429,6 +3470,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         _isPickingExifLocation = true;
+        HideMapStatusForExifPick();
         _exifLocationPicker = new TaskCompletionSource<(double Latitude, double Longitude)?>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         _viewModel.ShowNotificationMessage(
@@ -3445,6 +3487,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         _isPickingExifLocation = false;
+        RestoreMapStatusAfterExifPick();
         var picker = _exifLocationPicker;
         _exifLocationPicker = null;
         _viewModel.ShowNotificationMessage(string.Empty, Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational);
@@ -3459,6 +3502,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         _isPickingExifLocation = false;
+        RestoreMapStatusAfterExifPick();
         var picker = _exifLocationPicker;
         _exifLocationPicker = null;
         _viewModel.ShowNotificationMessage(
