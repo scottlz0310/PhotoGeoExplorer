@@ -43,7 +43,7 @@ public sealed class StartupPathResolutionTests
     /// Acceptance Criteria: ファイルパス引数あり起動時に、そのファイルの親フォルダが最優先で開かれる
     /// </remarks>
     [Fact]
-    public void ValidFilePathArgument_ReturnsParentFolder()
+    public void ValidFilePathArgumentReturnsParentFolder()
     {
         // Arrange
         var tempRoot = CreateTempDirectory();
@@ -73,7 +73,7 @@ public sealed class StartupPathResolutionTests
     /// Acceptance Criteria: 引数が無効な場合に、復元ロジックへフォールバックする
     /// </remarks>
     [Fact]
-    public void InvalidFilePathArgument_FallsBackToParentFolder()
+    public void InvalidFilePathArgumentFallsBackToParentFolder()
     {
         // Arrange
         var tempRoot = CreateTempDirectory();
@@ -102,7 +102,7 @@ public sealed class StartupPathResolutionTests
     /// Acceptance Criteria: 引数なし起動時にのみ、前回終了フォルダ復元が適用される
     /// </remarks>
     [Fact]
-    public void NoArgument_ShouldApplyLastFolderPathRestoration()
+    public void NoArgumentShouldApplyLastFolderPathRestoration()
     {
         // Arrange
         var tempRoot = CreateTempDirectory();
@@ -132,7 +132,7 @@ public sealed class StartupPathResolutionTests
     /// 起動引数が無効で、LastFolderPath も無効な場合、祖先フォルダへフォールバックすることを検証。
     /// </summary>
     [Fact]
-    public void InvalidArgumentAndInvalidLastFolderPath_FallsBackToAncestor()
+    public void InvalidArgumentAndInvalidLastFolderPathFallsBackToAncestor()
     {
         // Arrange
         var tempRoot = CreateTempDirectory();
@@ -173,7 +173,7 @@ public sealed class StartupPathResolutionTests
     /// 実際の Move ボタンの動作は MainViewModelTests で検証されます。
     /// </remarks>
     [Fact]
-    public void SingleFolderSelection_ShouldBeValidNavigationTarget()
+    public void SingleFolderSelectionShouldBeValidNavigationTarget()
     {
         // Arrange
         var tempRoot = CreateTempDirectory();
@@ -199,7 +199,7 @@ public sealed class StartupPathResolutionTests
     /// 複数項目選択時は Move ボタンが移動先選択ダイアログを開く動作のための前提条件テスト。
     /// </summary>
     [Fact]
-    public void MultipleItemSelection_ShouldNotTriggerNavigation()
+    public void MultipleItemSelectionShouldNotTriggerNavigation()
     {
         // Arrange
         var tempRoot = CreateTempDirectory();
@@ -249,7 +249,7 @@ public sealed class StartupPathResolutionTests
     /// - E2E テスト: PHOTO_GEO_EXPLORER_E2E_FOLDER 環境変数を設定してテスト
     /// </remarks>
     [Fact]
-    public void FileActivationDocumentation_ShouldBeAvailable()
+    public void FileActivationDocumentationShouldBeAvailable()
     {
         // このテストはドキュメント目的。常に成功する。
         // 実際のファイル関連付けテストは手動または E2E テストで行う。
