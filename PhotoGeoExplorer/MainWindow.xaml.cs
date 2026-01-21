@@ -528,7 +528,17 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapDefaultZoomLevel = NormalizeMapZoomLevel(settings.MapDefaultZoomLevel);
         _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
         UpdateMapZoomMenuChecks(_mapDefaultZoomLevel);
-        _mapTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
+
+        var savedTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
+        if (savedTileSource != _mapTileSource)
+        {
+            // 設定で保存されたタイルソースが現在のものと異なる場合、切り替えを実行
+            SwitchTileLayer(savedTileSource);
+        }
+        else
+        {
+            _mapTileSource = savedTileSource;
+        }
         UpdateMapTileSourceMenuChecks(_mapTileSource);
 
         _viewModel.ShowImagesOnly = settings.ShowImagesOnly;
