@@ -5,8 +5,8 @@
 ## 公開状況
 
 - 公開済み: https://apps.microsoft.com/detail/9P0WNR54441B
-- 公開バージョン: v1.5.0
-- 次回リリース: v1.5.1（準備中）
+- 公開バージョン: v1.5.2
+- 次回リリース: v1.5.3（準備中）
 - Store ID: 9P0WNR54441B
 
 ## Partner Center 設定
@@ -91,37 +91,45 @@
 - [x] 署名済み MSIX パッケージの作成
 - [x] Windows App Cert Kit でのテスト
 
-#### Store アップロード用（推奨）
+#### Store 提出用パッケージビルド
 
-次のコマンドで、Store へアップロード可能な `*.msixupload` を生成します（署名は Store 側で行う想定のため無効化）。
+以下のコマンドで WACK テスト用の msixbundle と Store 提出用の msixupload を同時に生成します。
 
 ```powershell
 dotnet publish .\PhotoGeoExplorer\PhotoGeoExplorer.csproj -c Release -p:Platform=x64 `
-  -p:WindowsPackageType=MSIX -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Always -p:AppxBundlePlatforms=x64 `
-  -p:UapAppxPackageBuildMode=StoreUpload -p:AppxPackageSigningEnabled=false -p:AppxSymbolPackageEnabled=false
+  -p:WindowsPackageType=MSIX `
+  -p:GenerateAppxPackageOnBuild=true `
+  -p:UapAppxPackageBuildMode=StoreUpload `
+  -p:AppxBundle=Always `
+  -p:AppxBundlePlatforms=x64 `
+  -p:AppxPackageSigningEnabled=false `
+  -p:AppxSymbolPackageEnabled=false
 ```
 
-生成物（例）:
+生成物（`PhotoGeoExplorer\AppPackages\PhotoGeoExplorer_<version>_Test\` 配下）:
 
-- `PhotoGeoExplorer\AppPackages\PhotoGeoExplorer_1.5.1.0_x64_bundle.msixupload`
+| ファイル | 用途 |
+|---------|------|
+| `PhotoGeoExplorer_<version>_x64.msixbundle` | WACK テスト用 |
+| `PhotoGeoExplorer_<version>_x64_bundle.msixupload` | Partner Center 提出用 |
 
-補足:
+#### WACK テスト実行
 
-- `AppxSymbolPackageEnabled=false` は、開発環境によりシンボル生成に必要なツールが不足している場合でもパッケージ生成を通すための設定です。
+管理者権限の PowerShell で実行:
+
+```powershell
+.\wack\run-wack.ps1
+.\wack\analyze-wack.ps1
+```
+
+結果サマリーは `docs/WACK-TestResults.md` に記録します。
 
 #### ローカル動作確認用（任意）
 
-ローカルでインストールして動作確認する場合は、`*_Test` フォルダー配下の `*.msix` を利用します。
-署名付きテストパッケージの生成/導入は `wack/signed-test-package.md` の手順を参照します。
+ローカルでサイドローディングして動作確認する場合は、署名付きテストパッケージを使用します。
+詳細は `wack/signed-test-package.md` を参照してください。
 
-- 例: `PhotoGeoExplorer\AppPackages\PhotoGeoExplorer_1.5.1.0_Test\PhotoGeoExplorer_1.5.1.0_x64.msix`
-
-#### Windows App Certification Kit (WACK)
-
-- Windows App Certification Kit を起動し、生成した `*.msixupload`（または `*.msix`）を指定してテストを実行します。
-- 失敗した項目は審査で指摘されやすいので、レポートを保存して原因対応します。
-- `wack/run-wack.ps1` を使うとローカル環境向けのプロファイル設定を含めて実行できます。
-- 結果サマリーは `docs/WACK-TestResults.md` に記録します。
+- 例: `PhotoGeoExplorer\AppPackages\PhotoGeoExplorer_1.5.3.0_Test\PhotoGeoExplorer_1.5.3.0_x64.msix`
 
 ### CI/CD パイプライン
 

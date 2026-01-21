@@ -9,10 +9,10 @@
     <WindowsPackageType Condition="'$(WindowsPackageType)'==''">None</WindowsPackageType>
     <Platforms>x64;ARM64</Platforms>
     <RootNamespace>PhotoGeoExplorer</RootNamespace>
-    <Version>1.5.2</Version>
-    <AssemblyVersion>1.5.2.0</AssemblyVersion>
-    <FileVersion>1.5.2.0</FileVersion>
-    <InformationalVersion>1.5.2</InformationalVersion>
+    <Version>1.5.3</Version>
+    <AssemblyVersion>1.5.3.0</AssemblyVersion>
+    <FileVersion>1.5.3.0</FileVersion>
+    <InformationalVersion>1.5.3</InformationalVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <WindowsSdkPackageVersion>10.0.26100.81</WindowsSdkPackageVersion>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
@@ -28,6 +28,8 @@
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
+    <!-- Localization: Default language for PRI generation -->
+    <DefaultLanguage>en-US</DefaultLanguage>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
