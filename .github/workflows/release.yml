@@ -32,13 +32,6 @@ jobs:
             exit 1
           }
 
-          [xml]$wix = Get-Content -Path "PhotoGeoExplorer.Installer/PhotoGeoExplorer.Installer.wixproj" -Raw
-          $productVersion = ($wix.Project.PropertyGroup.ProductVersion | Select-Object -First 1).Trim()
-          if ($productVersion -ne $version) {
-            Write-Error "Installer ProductVersion ($productVersion) must match tag ($version)."
-            exit 1
-          }
-
           [xml]$manifest = Get-Content -Path "PhotoGeoExplorer/Package.appxmanifest" -Raw
           $manifestVersion = $manifest.Package.Identity.Version
           $expectedManifest = "$version.0"
@@ -88,15 +81,15 @@ jobs:
       - name: Restore
         run: dotnet restore PhotoGeoExplorer.sln
 
-      - name: Build MSI
-        run: dotnet build PhotoGeoExplorer.Installer\PhotoGeoExplorer.Installer.wixproj -c Release -p:Platform=x64
+      - name: Build MSIX Bundle
+        run: dotnet publish PhotoGeoExplorer\PhotoGeoExplorer.csproj -c Release -p:Platform=x64 -p:AppxBundle=Always -p:AppxBundlePlatforms=x64 -p:UapAppxPackageBuildMode=StoreUpload -p:AppxPackageSigningEnabled=false -p:GenerateAppxPackageOnBuild=true
 
-      - name: Collect installer artifacts
+      - name: Collect artifacts
         shell: pwsh
         run: |
-          $packages = Get-ChildItem -Path PhotoGeoExplorer.Installer -Recurse -File -Include *.msi
+          $packages = Get-ChildItem -Path PhotoGeoExplorer\AppPackages -Recurse -File -Include *.msixupload
           if (-not $packages) {
-            Write-Error "No installer packages found."
+            Write-Error "No msixupload packages found."
             exit 1
           }
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null

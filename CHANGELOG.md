@@ -4,6 +4,16 @@
 
 ## [1.5.5] - Unreleased
 
+### 変更
+- MSI インストーラープロジェクト (`PhotoGeoExplorer.Installer`) を削除し、配布形式を Microsoft Store (MSIX) に一本化。
+- 開発用スクリプトを `scripts/DevInstall.ps1` に統合・刷新。
+  - `install.ps1`, `uninstall.ps1` を廃止。
+  - `-Clean` オプションでアンインストールと証明書削除を一括実行可能に。
+- WACK テストスクリプト (`scripts/RunWackTests.ps1`) の安定性を向上。
+  - テスト環境の隔離を行い、TAEF ログエラーを回避。
+  - テスト結果のサマリー表示機能 (`scripts/AnalyzeWackReport.ps1`) を復元・統合。
+- ドキュメント構成を整理し、古いドキュメントを `docs/archive/` へ移動。
+
 ### 修正
 - マルチモニター環境で異なるDPIスケーリング（100%/150%等）のモニター間でウィンドウを移動した際に、画像プレビューが予期せず拡大される問題を修正。(#55)
   - `ApplyPreviewFit()` から不要な `RasterizationScale` 除算を削除。

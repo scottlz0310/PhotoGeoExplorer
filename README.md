@@ -44,7 +44,19 @@ Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します�
 - Visual Studio 2026 (WinUI 3 ワークロード。IDE で使う場合は任意)
 - WebView2 Runtime
 
-## ビルド
+詳細は [Developer Guide](docs/DeveloperGuide.md) を参照してください。
+
+## 開発インストール (Local Dev Install)
+
+Store 提出用パッケージ相当をローカルでビルド・署名・インストールするには、以下のスクリプトを使用します（Windows SDK が必要です）。
+
+```powershell
+.\scripts\DevInstall.ps1 -Build
+```
+
+## ビルド (Core Build)
+
+コマンドラインでの単純ビルド:
 
 ```powershell
 dotnet restore PhotoGeoExplorer.sln
@@ -92,28 +104,25 @@ Microsoft Store 版は公開済みです: https://apps.microsoft.com/detail/9P0W
 
 ## MSI インストール
 
-配布済み MSI を実行してインストールしてください。
-
-```powershell
-msiexec /i PhotoGeoExplorer.msi
-```
+MSI インストーラーによる配布は v1.5.1 で終了しました。
+以降は Microsoft Store または上記の手順でインストールしてください。
 
 ## MSIX (試験的)
 
-MSIX を使う場合は、証明書の信頼登録が必要です。配布済み MSIX と CER を同じフォルダ（カレントディレクトリまたは `scripts/`）に置き、次のスクリプトで導入できます。
+MSIX を使う場合は、証明書の信頼登録が必要です。以下のスクリプトで、署名済みパッケージの生成とインストール（証明書含）を一括で行えます。
 
 ```powershell
-./scripts/install.ps1
+./scripts/DevInstall.ps1
 ```
 
-削除する場合は:
+アンインストールする場合:
 
 ```powershell
-./scripts/uninstall.ps1
+./scripts/DevInstall.ps1 -Clean
 ```
 
-管理者権限で LocalMachine にインポートする場合は `-Machine` を付けます。
-署名付きテストパッケージの生成/導入手順は `wack/signed-test-package.md` を参照してください。
+管理者権限で動作し、証明書は LocalMachine にインポートされます。
+ストア向けパッケージ生成やテストの詳細は `docs/DeveloperGuide.md` を参照してください。
 
 ## ライセンス
 

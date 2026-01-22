@@ -1,17 +1,87 @@
-# Microsoft Store 公開準備
+# Microsoft Store 運用ガイド
 
-このドキュメントは、Microsoft Store 公開に向けた準備項目のチェックリストです。
+このドキュメントでは、Microsoft Store への継続的なアップデートフローと、初回公開時の準備履歴をまとめています。
 
-## 公開状況
+## 🔄 継続アップデートフロー
+
+継続的なバージョンアップ、Store 提出、リスティング情報の更新手順です。
+
+### 1. Store 提出用ビルドの作成
+
+開発環境 (`scripts/DevInstall.ps1`) と同じコマンドで、Store 提出用の `msixupload` を生成します。
+
+```powershell
+.\scripts\DevInstall.ps1 -Build
+```
+
+`-Build` オプションを指定すると、内部で `dotnet publish ... UapAppxPackageBuildMode=StoreUpload` が実行されます。
+
+**生成物**:
+- `PhotoGeoExplorer\AppPackages` 配下の `PhotoGeoExplorer_x.y.z.0_x64_bundle.msixupload`
+  - これが **Partner Center に提出するファイル** です。
+- 同時にローカルインストールも行われるため、動作確認を兼ねることができます。
+
+### 2. WACK (Windows App Certification Kit) テスト
+
+提出前にローカルで検証を行います。以下のスクリプトで、最新のバンドルを自動検出してテストを実行・分析します。
+
+```powershell
+.\scripts\RunWackTests.ps1
+```
+
+**手動手順**:
+1. 生成された `msixbundle` を検出
+2. `appcert.exe` で Store App プロファイルのテストを実行
+3. 結果 (XML) を `scripts/wack_reports/` に保存し、合否を表示
+
+結果サマリーを `docs/WACK-TestResults.md` に追記してください。
+
+### 3. Store リスティングの準備 (Assets & Listing Data)
+
+メタデータやアセットの更新は、Partner Center 上で手動入力するか、CSV インポートを利用します。
+
+#### アセットの準備
+- `PhotoGeoExplorer/Assets/propose/` フォルダを作業用として使用
+- 新機能の **スクリーンショット**（1920x1080 推奨）を配置
+- 必要に応じてファイル名を連番などに整理
+
+#### Listing Data (CSV) の更新
+Partner Center から現在の情報をエクスポートし、修正してインポートする方法が確実です。
+
+1. **エクスポート**: Partner Center > アプリ > Store リスティング > エクスポート
+2. **編集**: `listingdata.csv` を編集（VS Code 等の UTF-8 BOM 対応エディタ推奨）
+   - `Description`: バージョンアップ内容を反映
+   - `ReleaseNotes`: 今回の変更点
+   - 改行は `&#x0D;&#x0A;` でエスケープ
+3. **インポート**:
+   - `propose` フォルダ内に編集した CSV と画像ファイルを配置
+   - Partner Center のインポート機能で **フォルダごと** アップロード
+
+### 4. Partner Center への提出
+
+1. Partner Center > アプリ > **運用** > **新しい提出** を作成
+2. **パッケージ**: `msixupload` ファイルをドラッグ＆ドロップ
+   - 古いパッケージは削除
+3. **Store リスティング**: インポートした情報や手動入力内容を確認
+4. **審査ノート**: テスト用アカウント情報や動作確認手順（必要な場合）
+5. **提出**: 「Certification」へ進む
+
+---
+
+## 📅 初回公開・準備履歴 (Reference)
+
+以下は初回公開時 (v1.5.0頃) のチェックリストと設定記録です。
+
+### 公開状況
 
 - 公開済み: https://apps.microsoft.com/detail/9P0WNR54441B
 - 公開バージョン: v1.5.2
 - 次回リリース: v1.5.3（準備中）
 - Store ID: 9P0WNR54441B
 
-## Partner Center 設定
+### Partner Center 設定
 
-### アプリ登録
+#### アプリ登録
 
 - [x] Microsoft Partner Center アカウント登録完了
 - [x] アプリ名の予約完了（PhotoGeoExplorer）
@@ -115,21 +185,20 @@ dotnet publish .\PhotoGeoExplorer\PhotoGeoExplorer.csproj -c Release -p:Platform
 
 #### WACK テスト実行
 
-管理者権限の PowerShell で実行:
-
-```powershell
-.\wack\run-wack.ps1
-.\wack\analyze-wack.ps1
-```
+Windows App Cert Kit を起動し、生成された `msixbundle` を選択してテストを実行します。
 
 結果サマリーは `docs/WACK-TestResults.md` に記録します。
 
 #### ローカル動作確認用（任意）
 
-ローカルでサイドローディングして動作確認する場合は、署名付きテストパッケージを使用します。
-詳細は `wack/signed-test-package.md` を参照してください。
+Store提出用のパッケージをローカルでサイドローディングして動作確認するには、以下のコマンドを使用します。
+ビルドから署名、インストールまでを自動化しています。
 
-- 例: `PhotoGeoExplorer\AppPackages\PhotoGeoExplorer_1.5.3.0_Test\PhotoGeoExplorer_1.5.3.0_x64.msix`
+```powershell
+.\scripts\DevInstall.ps1 -Build
+```
+
+`-Build` を省略すると、最後にビルドされた既存の `msixupload` を使用します。
 
 ### CI/CD パイプライン
 
