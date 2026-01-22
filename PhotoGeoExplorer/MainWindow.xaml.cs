@@ -212,8 +212,15 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        _lastRasterizationScale = RootGrid.XamlRoot.RasterizationScale;
-        RootGrid.XamlRoot.Changed += OnXamlRootChanged;
+        var xamlRoot = RootGrid.XamlRoot;
+        if (xamlRoot is null)
+        {
+            AppLog.Error("XamlRoot became null after EnsureXamlRootAsync succeeded.");
+            return;
+        }
+
+        _lastRasterizationScale = xamlRoot.RasterizationScale;
+        xamlRoot.Changed += OnXamlRootChanged;
         AppLog.Info($"Subscribed to XamlRoot.Changed. Initial RasterizationScale: {_lastRasterizationScale}");
     }
 
