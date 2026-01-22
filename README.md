@@ -109,20 +109,20 @@ MSI インストーラーによる配布は v1.5.1 で終了しました。
 
 ## MSIX (試験的)
 
-MSIX を使う場合は、証明書の信頼登録が必要です。配布済み MSIX と CER を同じフォルダ（カレントディレクトリまたは `scripts/`）に置き、次のスクリプトで導入できます。
+MSIX を使う場合は、証明書の信頼登録が必要です。以下のスクリプトで、署名済みパッケージの生成とインストール（証明書含）を一括で行えます。
 
 ```powershell
-./scripts/install.ps1
+./scripts/DevInstall.ps1
 ```
 
-削除する場合は:
+アンインストールする場合:
 
 ```powershell
-./scripts/uninstall.ps1
+./scripts/DevInstall.ps1 -Clean
 ```
 
-管理者権限で LocalMachine にインポートする場合は `-Machine` を付けます。
-署名付きテストパッケージの生成/導入手順は `wack/signed-test-package.md` を参照してください。
+管理者権限で動作し、証明書は LocalMachine にインポートされます。
+ストア向けパッケージ生成やテストの詳細は `docs/DeveloperGuide.md` を参照してください。
 
 ## ライセンス
 

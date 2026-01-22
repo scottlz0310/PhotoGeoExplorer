@@ -54,7 +54,7 @@ if ($Clean) {
     } finally {
         $store.Close()
     }
-    
+
     # Also check CurrentUser just in case
     $storeUser = New-Object System.Security.Cryptography.X509Certificates.X509Store "TrustedPeople", "CurrentUser"
     $storeUser.Open("ReadWrite")
@@ -69,11 +69,11 @@ if ($Clean) {
     }
 
     Write-Host "Cleanup complete." -ForegroundColor Green
-    # If only clean was requested (and not build), exit. 
+    # If only clean was requested (and not build), exit.
     # But usually clean is used combined with build or standalone.
-    # For now, let's treat -Clean as "Clean resources". 
+    # For now, let's treat -Clean as "Clean resources".
     # If the user wants to Clean AND Build, they can pass -Clean -Build.
-    
+
     if (-not $Build) { exit }
 }
 $appPackagesDir = Join-Path $projectRoot 'PhotoGeoExplorer\AppPackages'
