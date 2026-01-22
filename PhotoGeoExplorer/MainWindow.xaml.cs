@@ -98,6 +98,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private WebView2? _helpHtmlWebView;
     private readonly bool _settingsFileExistsAtStartup;
     private bool _showQuickStartOnStartup;
+    private double _lastRasterizationScale = 1.0;
 
     public MainWindow()
     {
@@ -136,6 +137,9 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             await ShowQuickStartIfNeededAsync().ConfigureAwait(true);
         });
+
+        // マルチモニターDPI変更を検出するために XamlRoot.Changed をサブスクライブ
+        await SubscribeToXamlRootChangedAsync().ConfigureAwait(true);
     }
 
     private void EnsureWindowSize()
@@ -197,6 +201,28 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             AppLog.Error("Failed to set window icon.", ex);
         }
+    }
+
+    private async Task SubscribeToXamlRootChangedAsync()
+    {
+        // XamlRoot が利用可能になるまで待機してから XamlRoot.Changed をサブスクライブ
+        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
+        {
+            AppLog.Error("Failed to subscribe to XamlRoot.Changed: XamlRoot is null.");
+            return;
+        }
+
+        // XamlRoot をローカル変数に格納（EnsureXamlRootAsync と使用の間に null になる可能性への防御）
+        var xamlRoot = RootGrid.XamlRoot;
+        if (xamlRoot is null)
+        {
+            AppLog.Error("XamlRoot became null after EnsureXamlRootAsync succeeded.");
+            return;
+        }
+
+        _lastRasterizationScale = xamlRoot.RasterizationScale;
+        xamlRoot.Changed += OnXamlRootChanged;
+        AppLog.Info($"Subscribed to XamlRoot.Changed. Initial RasterizationScale: {_lastRasterizationScale}");
     }
 
     private Task InitializeMapAsync()
@@ -1085,6 +1111,41 @@ public sealed partial class MainWindow : Window, IDisposable
         _previewDragging = false;
     }
 
+    /// <summary>
+    /// マルチモニター環境でウィンドウを異なるDPIのモニターに移動した際に呼ばれます。
+    /// 画像プレビューのズームファクターを補正して、視覚的なサイズを維持します。
+    /// </summary>
+    private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args)
+    {
+        var newScale = sender.RasterizationScale;
+        if (Math.Abs(newScale - _lastRasterizationScale) < 0.0001)
+        {
+            return;
+        }
+
+        AppLog.Info($"RasterizationScale changed: {_lastRasterizationScale} -> {newScale}");
+
+        // FitToWindow モードの場合は ApplyPreviewFit を呼び直すだけで適切にフィットする
+        if (_previewFitToWindow)
+        {
+            _lastRasterizationScale = newScale;
+            ApplyPreviewFit();
+            return;
+        }
+
+        // ユーザーが手動でズームしている場合は、ZoomFactor を補正して視覚的サイズを維持
+        if (PreviewScrollViewer is not null && _lastRasterizationScale > 0)
+        {
+            var currentZoom = PreviewScrollViewer.ZoomFactor;
+            var correctedZoom = (float)(currentZoom * _lastRasterizationScale / newScale);
+            var clamped = Math.Clamp(correctedZoom, PreviewScrollViewer.MinZoomFactor, PreviewScrollViewer.MaxZoomFactor);
+            PreviewScrollViewer.ChangeView(null, null, clamped, true);
+            AppLog.Info($"Preview zoom corrected: {currentZoom} -> {clamped}");
+        }
+
+        _lastRasterizationScale = newScale;
+    }
+
     private void ApplyPreviewFit()
     {
         if (PreviewScrollViewer is null || PreviewImage?.Source is not BitmapImage bitmap)
@@ -1104,9 +1165,10 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        var rasterScale = RootGrid?.XamlRoot?.RasterizationScale ?? 1.0;
-        var imageWidth = bitmap.PixelWidth / rasterScale;
-        var imageHeight = bitmap.PixelHeight / rasterScale;
+        // WinUI の Image 要素は BitmapImage.PixelWidth/Height をそのまま DIP 単位として扱う
+        // (DecodePixelWidth/Height を設定しない限り、DPI による補正は不要)
+        var imageWidth = (double)bitmap.PixelWidth;
+        var imageHeight = (double)bitmap.PixelHeight;
         if (imageWidth <= 0 || imageHeight <= 0)
         {
             return;
@@ -1481,6 +1543,12 @@ public sealed partial class MainWindow : Window, IDisposable
     public void Dispose()
     {
         CloseHelpHtmlWindow();
+
+        // XamlRoot.Changed イベントをアンサブスクライブ
+        if (RootGrid?.XamlRoot is not null)
+        {
+            RootGrid.XamlRoot.Changed -= OnXamlRootChanged;
+        }
 
         _rectangleSelectionLayer?.Dispose();
         _rectangleSelectionLayer = null;
