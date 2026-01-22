@@ -1,6 +1,15 @@
 # WACK (Windows App Certification Kit) Test Runner
 # This script automatically runs WACK tests on the latest MSIX package
 
+# Check for administrator privileges (WACK requires admin)
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host '管理者権限で再起動します (UAC の許可が必要です)…' -ForegroundColor Yellow
+    $scriptPath = $MyInvocation.MyCommand.Path
+    Start-Process -FilePath 'powershell.exe' -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Verb RunAs
+    exit
+}
+
 # Navigate to project root (parent of wack folder)
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $scriptDir

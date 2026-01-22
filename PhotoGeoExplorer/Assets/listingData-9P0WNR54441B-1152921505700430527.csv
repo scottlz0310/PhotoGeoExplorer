@@ -4,22 +4,19 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.5.3)
-- Fixed startup failure on some Japanese domestic PCs in Microsoft Store version
-- Fixed crash when displaying dialogs before window initialization
-- Fixed map tile settings (Esri WorldImagery) not persisting after restart (#58)
+ReleaseNotes,3,テキスト,,"Release Notes (v1.5.4)
+- Fixed Japanese UI not displaying in Microsoft Store version
+- (v1.5.3) Fixed startup failure on some Japanese domestic PCs
+- (v1.5.3) Fixed crash when displaying dialogs before window initialization
+- (v1.5.3) Fixed map tile settings (Esri WorldImagery) not persisting after restart (#58)
 - (v1.5.0) Added EXIF editing for date/time and GPS, plus map rectangle selection
-- (v1.5.0) Added map tile switching and marker tooltips","リリースノート（v1.5.3）
-- Microsoft Store 版で一部の環境（国内メーカーPC等）において起動に失敗する問題を修正
-- ウィンドウ初期化前にダイアログ表示でクラッシュする問題を修正
-- マップタイル設定（Esri WorldImagery）が再起動後に反映されない問題を修正 (#58)
+- (v1.5.0) Added map tile switching and marker tooltips","リリースノート（v1.5.4）
+- Microsoft Store 版で日本語 UI が表示されない問題を修正
+- (v1.5.3) 一部の環境（国内メーカーPC等）において起動に失敗する問題を修正
+- (v1.5.3) ウィンドウ初期化前にダイアログ表示でクラッシュする問題を修正
+- (v1.5.3) マップタイル設定（Esri WorldImagery）が再起動後に反映されない問題を修正 (#58)
 - (v1.5.0) EXIF の日時/GPS 編集と地図上の矩形選択を追加
-- (v1.5.0) 地図タイル切替とマーカーのツールチップ表示を追加""
-Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
-ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
-SortTitle,6,テキスト,,,
-VoiceTitle,7,テキスト,,,
-ShortDescription,8,テキスト,,""Organize geotagged photos on a map, edit EXIF GPS/date, and browse folders fast."
+- (v1.5.0) 地図タイル切替とマーカーのツールチップ表示を追加"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
@@ -28,10 +25,10 @@ ShortDescription,8,テキスト,,"Organize geotagged photos on a map, edit EXIF 
 DevStudio,9,テキスト,,,
 CopyrightTrademarkInformation,12,テキスト,,,
 AdditionalLicenseTerms,13,テキスト,,,
-DesktopScreenshot1,100,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3009324143025302198,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3009324143025302198
-DesktopScreenshot2,101,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3041845363192122898,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3041845363192122898
-DesktopScreenshot3,102,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3037737268962906415,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3037737268962906415
-DesktopScreenshot4,103,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3001936840612962455,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3001936840612962455
+DesktopScreenshot1,100,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3009324143025302198,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3009324143025302198
+DesktopScreenshot2,101,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3041845363192122898,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3041845363192122898
+DesktopScreenshot3,102,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3037737268962906415,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3037737268962906415
+DesktopScreenshot4,103,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3001936840612962455,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3001936840612962455
 DesktopScreenshot5,104,相対パス (またはパートナー センターにあるファイルへの URL),,,
 DesktopScreenshot6,105,相対パス (またはパートナー センターにあるファイルへの URL),,,
 DesktopScreenshot7,106,相対パス (またはパートナー センターにあるファイルへの URL),,,
@@ -308,12 +305,12 @@ SurfaceHubScreenshotCaption27,576,テキスト,,,
 SurfaceHubScreenshotCaption28,577,テキスト,,,
 SurfaceHubScreenshotCaption29,578,テキスト,,,
 SurfaceHubScreenshotCaption30,579,テキスト,,,
-StoreLogo720x1080,600,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3060630843540767061,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3060630843540767061
-StoreLogo1080x1080,601,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3030537689261874938,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3030537689261874938
-StoreLogo300x300,602,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3024217852751581499,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3024217852751581499
+StoreLogo720x1080,600,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3060630843540767061,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3060630843540767061
+StoreLogo1080x1080,601,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3030537689261874938,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3030537689261874938
+StoreLogo300x300,602,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3024217852751581499,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3024217852751581499
 OverrideLogosForWin10,603,True/False,,True,True
-StoreLogoOverride150x150,604,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3057028170901335408,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3057028170901335408
-StoreLogoOverride71x71,605,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391143/listingassets/3036529808716725235,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700427394/listings/1152922700023391145/listingassets/3036529808716725235
+StoreLogoOverride150x150,604,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3057028170901335408,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3057028170901335408
+StoreLogoOverride71x71,605,相対パス (またはパートナー センターにあるファイルへの URL),,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391143/listingassets/3036529808716725235,https://developer.microsoft.com/en-us/dashboard/apps/9P0WNR54441B/submissions/1152921505700430527/listings/1152922700023391145/listingassets/3036529808716725235
 PromoImage1920x1080,606,相対パス (またはパートナー センターにあるファイルへの URL),,,
 PromoImage2400x1200,607,相対パス (またはパートナー センターにあるファイルへの URL),,,
 XboxBrandedKeyArt584x800,608,相対パス (またはパートナー センターにあるファイルへの URL),,,

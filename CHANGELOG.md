@@ -2,6 +2,18 @@
 
 このプロジェクトの主な変更点をここに記録します。
 
+## [1.5.4] - 2026-01-22
+
+### 修正
+- Microsoft Store 版で日本語 UI が表示されない問題を修正。
+  - `AppxDefaultResourceQualifiers` を追加し、AppxManifest.xml の Resources に ja-JP が出力されるように修正。
+
+### 改善
+- Store 提出用パッケージ (msixupload) からローカルテスト用の署名済みパッケージを生成するスクリプトを追加。
+  - `wack/build-from-upload.ps1`: msixupload を展開し、自己署名を付与
+  - `wack/install-from-upload.ps1`: 生成したパッケージをインストール
+  - 旧スクリプト (`build-signed-test.ps1`, `install-signed-test.ps1`) は削除
+
 ## [1.5.3] - 2026-01-21
 
 ### 修正

@@ -9,10 +9,10 @@
     <WindowsPackageType Condition="'$(WindowsPackageType)'==''">None</WindowsPackageType>
     <Platforms>x64;ARM64</Platforms>
     <RootNamespace>PhotoGeoExplorer</RootNamespace>
-    <Version>1.5.3</Version>
-    <AssemblyVersion>1.5.3.0</AssemblyVersion>
-    <FileVersion>1.5.3.0</FileVersion>
-    <InformationalVersion>1.5.3</InformationalVersion>
+    <Version>1.5.4</Version>
+    <AssemblyVersion>1.5.4.0</AssemblyVersion>
+    <FileVersion>1.5.4.0</FileVersion>
+    <InformationalVersion>1.5.4</InformationalVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <WindowsSdkPackageVersion>10.0.26100.81</WindowsSdkPackageVersion>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
@@ -28,8 +28,12 @@
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
-    <!-- Localization: Default language for PRI generation -->
+    <!-- Localization: Default language and supported languages for PRI/MSIX generation -->
+    <!-- Store 配信時に AppxManifest.xml の Resources に en-US/ja-JP が出力される -->
     <DefaultLanguage>en-US</DefaultLanguage>
+    <Languages>en-US;ja-JP</Languages>
+    <!-- MakePri に言語リソースを明示的に指定 -->
+    <AppxDefaultResourceQualifiers>Language=en-US;ja-JP</AppxDefaultResourceQualifiers>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">

@@ -4,7 +4,7 @@
     <OutputType>Package</OutputType>
     <Platform>x64</Platform>
     <Platforms>x64</Platforms>
-    <ProductVersion>1.5.3</ProductVersion>
+    <ProductVersion>1.5.4</ProductVersion>
     <Manufacturer>PhotoGeoExplorer</Manufacturer>
     <UpgradeCode>73f7c932-60ca-4456-83d6-228e9a567fa7</UpgradeCode>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
