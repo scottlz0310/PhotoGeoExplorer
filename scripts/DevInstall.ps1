@@ -69,7 +69,7 @@ if ($Clean) {
     }
 
     Write-Host "Cleanup complete." -ForegroundColor Green
-    
+
     if (-not $Build) { exit }
 }
 

@@ -82,7 +82,7 @@ Write-Host "Using WACK: $AppCert" -ForegroundColor Gray
 $AppPackagesDir = Join-Path $ProjectRoot 'PhotoGeoExplorer\AppPackages'
 
 # Priority 1: Signed LocalDebug package
-$Candidate = Get-ChildItem -Path $AppPackagesDir -Recurse -Filter "PhotoGeoExplorer_LocalDebug.msix" -ErrorAction SilentlyContinue | 
+$Candidate = Get-ChildItem -Path $AppPackagesDir -Recurse -Filter "PhotoGeoExplorer_LocalDebug.msix" -ErrorAction SilentlyContinue |
              Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
 # Priority 2: Any recent bundle or msix
