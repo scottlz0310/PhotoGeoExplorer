@@ -14,7 +14,7 @@
     If set, runs dotnet publish before signing.
 
 .PARAMETER Clean
-    If set, cleans previous artifacts in temp folders.
+    If set, cleans previous artifacts in temp folders and removes the installed app/certificate.
 #>
 param(
     [switch]$Build,
@@ -28,6 +28,54 @@ $scriptDir = $PSScriptRoot
 $projectRoot = Split-Path -Parent $scriptDir
 $certDir = Join-Path $scriptDir 'certs'
 $workDir = Join-Path $scriptDir 'temp'
+$bundleArtifactsDir = Join-Path $projectRoot 'BundleArtifacts'
+$appPackagesDir = Join-Path $projectRoot 'PhotoGeoExplorer\AppPackages'
+$certSubject = "CN=PhotoGeoExplorer_LocalDebug"
+$pkgName = "scottlz0310.PhotoGeoExplorer"
+
+# --- Clean / Uninstall ---
+if ($Clean) {
+    Write-Host "Cleaning up artifacts..." -ForegroundColor Yellow
+    if (Test-Path $workDir) { Remove-Item -Recurse -Force $workDir }
+    if (Test-Path $bundleArtifactsDir) { Remove-Item -Recurse -Force $bundleArtifactsDir }
+
+    Write-Host "Uninstalling App ($pkgName)..." -ForegroundColor Yellow
+    Get-AppxPackage $pkgName -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue
+
+    Write-Host "Removing Certificate ($certSubject)..." -ForegroundColor Yellow
+    $store = New-Object System.Security.Cryptography.X509Certificates.X509Store "TrustedPeople", "LocalMachine"
+    $store.Open("ReadWrite")
+    try {
+        $certs = $store.Certificates | Where-Object { $_.Subject -eq $certSubject }
+        foreach ($c in $certs) {
+            Write-Host "Removing from LocalMachine\TrustedPeople: $($c.Thumbprint)"
+            $store.Remove($c)
+        }
+    } finally {
+        $store.Close()
+    }
+    
+    # Also check CurrentUser just in case
+    $storeUser = New-Object System.Security.Cryptography.X509Certificates.X509Store "TrustedPeople", "CurrentUser"
+    $storeUser.Open("ReadWrite")
+    try {
+        $certsUser = $storeUser.Certificates | Where-Object { $_.Subject -eq $certSubject }
+        foreach ($c in $certsUser) {
+             Write-Host "Removing from CurrentUser\TrustedPeople: $($c.Thumbprint)"
+             $storeUser.Remove($c)
+        }
+    } finally {
+        $storeUser.Close()
+    }
+
+    Write-Host "Cleanup complete." -ForegroundColor Green
+    # If only clean was requested (and not build), exit. 
+    # But usually clean is used combined with build or standalone.
+    # For now, let's treat -Clean as "Clean resources". 
+    # If the user wants to Clean AND Build, they can pass -Clean -Build.
+    
+    if (-not $Build) { exit }
+}
 $appPackagesDir = Join-Path $projectRoot 'PhotoGeoExplorer\AppPackages'
 $certName = 'PhotoGeoExplorer_LocalDebug'
 $certSubject = "CN=PhotoGeoExplorer Local Debug"
