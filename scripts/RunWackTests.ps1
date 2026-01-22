@@ -93,9 +93,16 @@ Write-Host "Report will be saved to: $ReportXml" -ForegroundColor Gray
 Write-Host "Resetting WACK state..." -ForegroundColor Gray
 Start-Process -FilePath $AppCert -ArgumentList "reset" -Wait
 
-# Use "Store App" validation settings
-# Note: WinUI 3 Desktop apps in MSIX are treated as Store apps.
-$Args = @("test", "-apptype", "calt", "-packagepath", $TargetPackage.FullName, "-reportoutputpath", $ReportXml)
+# Uninstall existing app to prevent installation conflicts during WACK test
+$pkgName = "scottlz0310.PhotoGeoExplorer"
+if (Get-AppxPackage $pkgName) {
+    Write-Host "Uninstalling existing package ($pkgName) to ensure clean test..." -ForegroundColor Yellow
+    Get-AppxPackage $pkgName | Remove-AppxPackage
+}
+
+# Run WACK
+# Removed "-apptype calt" as it causes issues with MSIX on some WACK versions (WACK auto-detects)
+$Args = @("test", "-packagepath", $TargetPackage.FullName, "-reportoutputpath", $ReportXml)
 
 Write-Host "Executing command: $AppCert $Args" -ForegroundColor Gray
 $Process = Start-Process -FilePath $AppCert -ArgumentList $Args -PassThru -Wait
