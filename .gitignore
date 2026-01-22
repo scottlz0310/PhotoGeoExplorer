@@ -120,3 +120,6 @@ wack/certs/
 scripts/temp/
 scripts/certs/
 
+
+scripts/wack_reports/
+scripts/wack_work/
