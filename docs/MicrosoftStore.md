@@ -23,12 +23,18 @@
 
 ### 2. WACK (Windows App Certification Kit) テスト
 
-提出前にローカルで検証を行います。
+提出前にローカルで検証を行います。以下のスクリプトで、最新のバンドルを自動検出してテストを実行・分析します。
 
-1. Windows App Cert Kit を起動
-2. 生成された `msixbundle`（`upload` ファイルではなく、同ディレクトリの `_Test` フォルダ内にあるバンドル）を選択
-3. テストを実行し、結果を保存
-4. 結果サマリーを `docs/WACK-TestResults.md` に追記（任意）
+```powershell
+.\scripts\RunWackTests.ps1
+```
+
+**手動手順**:
+1. 生成された `msixbundle` を検出
+2. `appcert.exe` で Store App プロファイルのテストを実行
+3. 結果 (XML) を `scripts/wack_reports/` に保存し、合否を表示
+
+結果サマリーを `docs/WACK-TestResults.md` に追記してください。
 
 ### 3. Store リスティングの準備 (Assets & Listing Data)
 
