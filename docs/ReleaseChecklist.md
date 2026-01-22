@@ -3,7 +3,6 @@
 ## 事前準備（タグ作成前）
 
 - [ ] `PhotoGeoExplorer/PhotoGeoExplorer.csproj` の `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` を更新
-- [ ] `PhotoGeoExplorer.Installer/PhotoGeoExplorer.Installer.wixproj` の `ProductVersion` を更新
 - [ ] `PhotoGeoExplorer/Package.appxmanifest` の `Identity Version` を更新（例: `1.2.3.0`）
 - [ ] `CHANGELOG.md` に該当バージョンのセクションを追加
 - [ ] リリースノートに含める内容を整理（tasks.md の完了/未完了、docs の要点）
@@ -13,7 +12,7 @@
 
 - [ ] `vX.Y.Z` タグを作成して push
 - [ ] GitHub Release が自動作成されていることを確認
-- [ ] MSI アーティファクトが添付されていることを確認
+- [ ] MSIX Bundle アーティファクトが添付されていることを確認
 - [ ] リリースノートを手動編集（必要に応じて）
 - [ ] Store アップロード用の `*.msixupload` を生成
 - [ ] WACK を実行して結果を記録

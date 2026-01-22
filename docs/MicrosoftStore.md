@@ -115,21 +115,20 @@ dotnet publish .\PhotoGeoExplorer\PhotoGeoExplorer.csproj -c Release -p:Platform
 
 #### WACK テスト実行
 
-管理者権限の PowerShell で実行:
-
-```powershell
-.\wack\run-wack.ps1
-.\wack\analyze-wack.ps1
-```
+Windows App Cert Kit を起動し、生成された `msixbundle` を選択してテストを実行します。
 
 結果サマリーは `docs/WACK-TestResults.md` に記録します。
 
 #### ローカル動作確認用（任意）
 
-ローカルでサイドローディングして動作確認する場合は、署名付きテストパッケージを使用します。
-詳細は `wack/signed-test-package.md` を参照してください。
+Store提出用のパッケージをローカルでサイドローディングして動作確認するには、以下のコマンドを使用します。
+ビルドから署名、インストールまでを自動化しています。
 
-- 例: `PhotoGeoExplorer\AppPackages\PhotoGeoExplorer_1.5.3.0_Test\PhotoGeoExplorer_1.5.3.0_x64.msix`
+```powershell
+.\scripts\DevInstall.ps1 -Build
+```
+
+`-Build` を省略すると、最後にビルドされた既存の `msixupload` を使用します。
 
 ### CI/CD パイプライン
 
