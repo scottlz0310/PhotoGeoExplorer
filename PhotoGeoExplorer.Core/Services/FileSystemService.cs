@@ -99,8 +99,8 @@ internal sealed class FileSystemService
                     pixelHeight));
             }
 
-            directories.Sort((left, right) => string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase));
-            files.Sort((left, right) => string.Compare(left.FileName, right.FileName, StringComparison.OrdinalIgnoreCase));
+            directories.Sort((left, right) => NaturalSortComparer.Instance.Compare(left.FileName, right.FileName));
+            files.Sort((left, right) => NaturalSortComparer.Instance.Compare(left.FileName, right.FileName));
 
             var items = new List<PhotoItem>(directories.Count + files.Count);
             items.AddRange(directories);
@@ -157,7 +157,7 @@ internal sealed class FileSystemService
             AppLog.Error($"Failed to read child folders: {folderPath}", ex);
         }
 
-        children.Sort((left, right) => string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase));
+        children.Sort((left, right) => NaturalSortComparer.Instance.Compare(left.Name, right.Name));
         return children;
     }
 }

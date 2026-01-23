@@ -1093,8 +1093,8 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         ordered = _sortColumn switch
         {
             FileSortColumn.Name => _sortDirection == SortDirection.Ascending
-                ? ordered.ThenBy(item => item.FileName, StringComparer.CurrentCultureIgnoreCase)
-                : ordered.ThenByDescending(item => item.FileName, StringComparer.CurrentCultureIgnoreCase),
+                ? ordered.ThenBy(item => item.FileName, NaturalSortComparer.Instance)
+                : ordered.ThenByDescending(item => item.FileName, NaturalSortComparer.Instance),
             FileSortColumn.ModifiedAt => _sortDirection == SortDirection.Ascending
                 ? ordered.ThenBy(item => item.Item.ModifiedAt)
                 : ordered.ThenByDescending(item => item.Item.ModifiedAt),
@@ -1109,7 +1109,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
 
         if (_sortColumn != FileSortColumn.Name)
         {
-            ordered = ordered.ThenBy(item => item.FileName, StringComparer.CurrentCultureIgnoreCase);
+            ordered = ordered.ThenBy(item => item.FileName, NaturalSortComparer.Instance);
         }
 
         return ordered.ToList();
