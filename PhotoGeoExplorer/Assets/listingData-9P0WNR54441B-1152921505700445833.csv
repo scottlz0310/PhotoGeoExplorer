@@ -9,14 +9,14 @@ ReleaseNotes,3,テキスト,,"Release Notes (v1.5.5)
 - Fixed image preview scaling issue when moving windows across monitors with different DPI
 - (v1.5.4) Fixed Japanese UI not displaying in Microsoft Store version
 - (v1.5.3) Fixed startup failure on some Japanese domestic PCs
-- (v1.5.3) Fixed crash when displaying dialogs before window initialization
+- (v1.5.3) Fixed map tile settings (Esri WorldImagery) not persisting after restart (#58)
 - (v1.5.0) Added EXIF editing for date/time and GPS, plus map rectangle selection
 - (v1.5.0) Added map tile switching and marker tooltips","リリースノート（v1.5.5）
 - ファイル一覧のソート順を Windows Explorer 準拠の自然順ソートに変更（1, 2, 3, 11 の順に並ぶように）
 - マルチモニター環境で異なる DPI のモニター間でウィンドウを移動した際のプレビュー拡大問題を修正
 - (v1.5.4) Microsoft Store 版で日本語 UI が表示されない問題を修正
 - (v1.5.3) 一部の環境（国内メーカーPC等）において起動に失敗する問題を修正
-- (v1.5.3) ウィンドウ初期化前にダイアログ表示でクラッシュする問題を修正
+- (v1.5.3) マップタイル設定（Esri WorldImagery）が再起動後に反映されない問題を修正 (#58)
 - (v1.5.0) EXIF の日時/GPS 編集と地図上の矩形選択を追加
 - (v1.5.0) 地図タイル切替とマーカーのツールチップ表示を追加"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
