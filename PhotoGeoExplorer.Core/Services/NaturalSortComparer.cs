@@ -47,7 +47,6 @@ internal sealed class NaturalSortComparer : IComparer<string?>
         }
 
         // Windows API を使用して自然順比較
-        // CA1401: Windows Explorer 準拠の自然順ソートを実現するため、Windows API (StrCmpLogicalW) の使用が必須
         return StrCmpLogicalW(x, y);
     }
 
@@ -66,6 +65,6 @@ internal sealed class NaturalSortComparer : IComparer<string?>
     [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [SuppressMessage("Interoperability", "CA1401:P/Invokes should not be visible", Justification = "Windows Explorer 準拠の自然順ソートを実現するため、Windows API の使用が必須です。マネージド コードでは同等の動作を実現できません。")]
-    [SuppressMessage("Interoperability", "SYSLIB1054:Use 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/Invoke marshalling code at compile time", Justification = "LibraryImport は .NET 7+ の機能ですが、このプロジェクトでは従来の DllImport を使用します。")]
+    [SuppressMessage("Interoperability", "SYSLIB1054:Use 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/Invoke marshalling code at compile time", Justification = "このプロジェクトでは従来の DllImport を使用する方針です。LibraryImport への移行は将来的な検討事項です。")]
     private static extern int StrCmpLogicalW(string psz1, string psz2);
 }

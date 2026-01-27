@@ -61,7 +61,8 @@ public sealed class NaturalSortComparerTests
     public void CompareHandlesNullValues()
     {
         // Arrange & Act & Assert
-        // CA1508: null と null の比較は意図的なテストケース（null ハンドリングの検証）
+        // CA1508: コンパイル時に結果が確定する条件分岐を検出する警告
+        // このテストは null ハンドリングの動作を検証するため、意図的に null 同士を比較しています
 #pragma warning disable CA1508 // Avoid dead conditional code
         Assert.Equal(0, NaturalSortComparer.Instance.Compare(null, null));
 #pragma warning restore CA1508 // Avoid dead conditional code
