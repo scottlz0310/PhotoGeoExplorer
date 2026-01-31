@@ -35,6 +35,7 @@
 ## コーディングスタイルと命名規則
 - C# は 4 スペースインデント。`MainWindow.xaml` と `*.cs` の既存ルールに合わせます。
 - 型と公開メンバーは `PascalCase`、ローカル/フィールドは `camelCase`。private フィールドは `_field` 形式。
+- public / internal / protected の識別子（特にテストメソッド名）にアンダースコアは使わない（CA1707 対応）。private フィールド先頭の `_` は例外。
 - 非同期メソッドは `Async` で終える（例: `InitializeMapAsync`）。
 - XAML 名は `PascalCase`（例: `MapStatusText`）。
 - 解析は厳格です（`Directory.Build.props` で `AnalysisLevel=latest`、警告はエラー扱い）。

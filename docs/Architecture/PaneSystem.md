@@ -5,14 +5,14 @@
 PhotoGeoExplorer では、MainWindow の肥大化（4000行超）を防ぐため、**Shell + Pane** アーキテクチャを採用します。
 
 - **MainWindow (Shell)**: レイアウトとペイン配置のみを担当
-- **Pane (UserControl)**: 機能単位のUI + ViewModel + Service
+- **Pane (View)**: 機能単位のUI + ViewModel + Service（Viewは UserControl または DataTemplate）
 
 このドキュメントは、新しいPaneの作成方法と、アーキテクチャの責務境界を定義します。
 
 **サンプル実装:**
 - [`PhotoGeoExplorer/Panes/Settings/`](../../PhotoGeoExplorer/Panes/Settings/) - 設定Paneのサンプル実装
   - `SettingsPaneViewModel.cs` - ViewModel の実装例
-  - `SettingsPaneView.xaml` / `SettingsPaneView.xaml.cs` - View の実装例
+  - `SettingsPaneView.xaml` - View の実装例（ResourceDictionary + DataTemplate / `SettingsPaneTemplate`）
 - [`PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs) - ViewModel のテスト例
 
 ## アーキテクチャ原則
@@ -119,9 +119,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 }
 ```
 
-### 2. View (UserControl) を作成
+### 2. View を作成（UserControl もしくは DataTemplate）
 
-**MapPaneView.xaml**
+**MapPaneView.xaml（UserControl 例）**
 
 ```xml
 <UserControl
@@ -138,7 +138,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 </UserControl>
 ```
 
-**MapPaneView.xaml.cs**
+**MapPaneView.xaml.cs（UserControl 例）**
 
 ```csharp
 using Microsoft.UI.Xaml.Controls;
@@ -150,11 +150,29 @@ public sealed partial class MapPaneView : UserControl
     public MapPaneView()
     {
         InitializeComponent();
-    }
+}
 }
 ```
 
-### 3. MainWindow.xaml に DataTemplate を追加
+**MapPaneView.xaml（DataTemplate 例）**
+
+```xml
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:PhotoGeoExplorer.Panes.Map">
+    <DataTemplate x:Key="MapPaneTemplate" x:DataType="vm:MapPaneViewModel">
+        <Grid>
+            <TextBlock Text="{Binding Title}" />
+            <!-- 地図表示のUIコントロール -->
+        </Grid>
+    </DataTemplate>
+</ResourceDictionary>
+```
+
+### 3. MainWindow.xaml に DataTemplate を追加 / 参照
+
+**UserControl を使う場合（MainWindow 側でテンプレート定義）**
 
 ```xml
 <Window.Resources>
@@ -162,6 +180,23 @@ public sealed partial class MapPaneView : UserControl
         <panes:MapPaneView DataContext="{Binding}" />
     </DataTemplate>
 </Window.Resources>
+```
+
+**DataTemplate を ResourceDictionary に置く場合（マージして参照）**
+
+```xml
+<Window.Resources>
+    <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="ms-appx:///Panes/Map/MapPaneView.xaml" />
+        </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+</Window.Resources>
+
+<!-- 使用例: -->
+<ContentControl
+    Content="{Binding CurrentPane}"
+    ContentTemplate="{StaticResource MapPaneTemplate}" />
 ```
 
 ### 4. MainWindow で Pane を表示
@@ -332,3 +367,4 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
 ## 更新履歴
 
 - **2026-01-31**: 初版作成（PR#1: 土台構築）
+- **2026-01-31**: View を DataTemplate（ResourceDictionary）でも扱えるように追記
