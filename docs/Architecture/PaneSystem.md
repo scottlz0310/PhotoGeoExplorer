@@ -10,10 +10,12 @@ PhotoGeoExplorer では、MainWindow の肥大化（4000行超）を防ぐため
 このドキュメントは、新しいPaneの作成方法と、アーキテクチャの責務境界を定義します。
 
 **サンプル実装:**
-- [`PhotoGeoExplorer/Panes/Settings/`](../../PhotoGeoExplorer/Panes/Settings/) - 設定Paneのサンプル実装
-  - `SettingsPaneViewModel.cs` - ViewModel の実装例
-  - `SettingsPaneView.xaml` - View の実装例（ResourceDictionary + DataTemplate / `SettingsPaneTemplate`）
-- [`PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs) - ViewModel のテスト例
+- [`PhotoGeoExplorer/Panes/Settings/`](../../PhotoGeoExplorer/Panes/Settings/) - 設定Paneの実装
+  - `SettingsPaneViewModel.cs` - ViewModel の実装（状態管理、コマンド、サービス連携）
+  - `SettingsPaneService.cs` - Service の実装（I/O処理の分離）
+  - `SettingsPaneView.xaml` - View の実装（ResourceDictionary + DataTemplate / `SettingsPaneTemplate`）
+- [`PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs) - ViewModel のテスト
+- [`PhotoGeoExplorer.Tests/SettingsPaneServiceTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneServiceTests.cs) - Service のテスト
 
 ## アーキテクチャ原則
 
@@ -84,27 +86,95 @@ PhotoGeoExplorer では、MainWindow の肥大化（4000行超）を防ぐため
 
 ## Pane の作成方法
 
+### 0. Service を作成（ビジネスロジックとI/O処理）
+
+Pane に対応する Service を作成し、I/O処理とビジネスロジックを分離します。
+
+```csharp
+using System;
+using System.Threading.Tasks;
+using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Services;
+
+namespace PhotoGeoExplorer.Panes.Settings;
+
+/// <summary>
+/// 設定Pane専用のサービス
+/// I/O処理とビジネスロジックを分離
+/// </summary>
+internal sealed class SettingsPaneService
+{
+    private readonly SettingsService _settingsService;
+
+    public SettingsPaneService()
+        : this(new SettingsService())
+    {
+    }
+
+    internal SettingsPaneService(SettingsService settingsService)
+    {
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+    }
+
+    public Task<AppSettings> LoadSettingsAsync()
+    {
+        return _settingsService.LoadAsync();
+    }
+
+    public Task SaveSettingsAsync(AppSettings settings)
+    {
+        if (settings is null)
+        {
+            throw new ArgumentNullException(nameof(settings));
+        }
+
+        return _settingsService.SaveAsync(settings);
+    }
+}
+```
+
 ### 1. ViewModel を作成
 
 `PaneViewModelBase` を継承し、`IPaneViewModel` を実装します。
 
 ```csharp
+using System;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using PhotoGeoExplorer.ViewModels;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Settings;
 
-internal sealed class MapPaneViewModel : PaneViewModelBase
+internal sealed class SettingsPaneViewModel : PaneViewModelBase
 {
-    public MapPaneViewModel()
+    private readonly SettingsPaneService _service;
+    private string? _language;
+
+    public SettingsPaneViewModel()
+        : this(new SettingsPaneService())
     {
-        Title = "Map";
     }
+
+    internal SettingsPaneViewModel(SettingsPaneService service)
+    {
+        _service = service ?? throw new ArgumentNullException(nameof(service));
+        Title = "Settings";
+        SaveCommand = new RelayCommand(async () => await SaveAsync().ConfigureAwait(false));
+    }
+
+    public string? Language
+    {
+        get => _language;
+        set => SetProperty(ref _language, value);
+    }
+
+    public ICommand SaveCommand { get; }
 
     protected override async Task OnInitializeAsync()
     {
-        // 初期化処理（非同期）
-        await Task.CompletedTask;
+        // 設定の読み込み
+        var settings = await _service.LoadSettingsAsync().ConfigureAwait(false);
+        Language = settings.Language;
     }
 
     protected override void OnCleanup()
@@ -115,6 +185,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     protected override void OnActiveChanged()
     {
         // IsActiveが変更されたときの処理
+    }
+
+    private async Task SaveAsync()
+    {
+        // 設定の保存
+        var settings = new AppSettings { Language = Language };
+        await _service.SaveSettingsAsync(settings).ConfigureAwait(false);
     }
 }
 ```
@@ -201,8 +278,132 @@ public sealed partial class MapPaneView : UserControl
 
 ### 4. MainWindow で Pane を表示
 
+**MainWindow.xaml に DataTemplate を追加**
+
 ```xml
+<Window.Resources>
+    <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <!-- Settings Pane の DataTemplate を読み込み -->
+            <ResourceDictionary Source="ms-appx:///Panes/Settings/SettingsPaneView.xaml" />
+        </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+</Window.Resources>
+```
+
+**MainWindow.xaml.cs で Pane を初期化**
+
+```csharp
+// MainWindow.xaml.cs
+public sealed partial class MainWindow : Window
+{
+    private SettingsPaneViewModel? _settingsPane;
+
+    private void InitializePanes()
+    {
+        // Settings Pane を初期化
+        _settingsPane = new SettingsPaneViewModel();
+        
+        // 初期化処理（必要に応じて非同期で実行）
+        _ = _settingsPane.InitializeAsync();
+    }
+
+    private void ShowSettingsPane()
+    {
+        // Settings Pane を表示する場合
+        // ContentControl の Content に設定
+        // または MainViewModel の CurrentPane プロパティに設定
+    }
+}
+```
+
+**メニューやコマンドから Pane を表示**
+
+```xml
+<!-- MainWindow.xaml -->
+<MenuBarItem Title="Settings">
+    <MenuFlyoutItem Text="Open Settings..." Click="OnOpenSettingsClicked" />
+</MenuBarItem>
+```
+
+```csharp
+// MainWindow.xaml.cs
+private void OnOpenSettingsClicked(object sender, RoutedEventArgs e)
+{
+    ShowSettingsPane();
+}
+```
+
+## MainWindow との統合パターン
+
+### パターン1: ContentControl による表示切替
+
+MainWindow に ContentControl を配置し、CurrentPane プロパティで切り替える方法。
+
+```xml
+<!-- MainWindow.xaml -->
 <ContentControl Content="{Binding CurrentPane}" />
+```
+
+```csharp
+// MainViewModel.cs
+public class MainViewModel : BindableBase
+{
+    private IPaneViewModel? _currentPane;
+
+    public IPaneViewModel? CurrentPane
+    {
+        get => _currentPane;
+        set => SetProperty(ref _currentPane, value);
+    }
+
+    public void ShowSettingsPane(SettingsPaneViewModel settingsPane)
+    {
+        CurrentPane = settingsPane;
+    }
+}
+```
+
+### パターン2: ダイアログやフライアウトとして表示
+
+設定Paneをダイアログとして表示する場合。
+
+```csharp
+private async Task ShowSettingsDialogAsync()
+{
+    var dialog = new ContentDialog
+    {
+        Title = "Settings",
+        Content = _settingsPane, // SettingsPaneViewModel
+        CloseButtonText = "Close",
+        XamlRoot = Content.XamlRoot
+    };
+
+    await dialog.ShowAsync();
+}
+```
+
+### パターン3: 専用ウィンドウとして表示
+
+設定Paneを別ウィンドウで表示する場合。
+
+```csharp
+private void ShowSettingsWindow()
+{
+    var window = new Window
+    {
+        Title = "Settings"
+    };
+    
+    var content = new ContentControl
+    {
+        Content = _settingsPane,
+        ContentTemplate = (DataTemplate)Resources["SettingsPaneTemplate"]
+    };
+    
+    window.Content = content;
+    window.Activate();
+}
 ```
 
 ## 命名規則
