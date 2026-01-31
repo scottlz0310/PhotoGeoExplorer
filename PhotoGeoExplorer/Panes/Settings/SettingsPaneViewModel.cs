@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.ViewModels;
@@ -169,6 +170,11 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
     }
 
     /// <summary>
+    /// 変更状態の表示用 Visibility
+    /// </summary>
+    public Visibility IsDirtyVisibility => IsDirty ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
     /// 保存コマンド
     /// </summary>
     public ICommand SaveCommand { get; }
@@ -195,8 +201,17 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             var settings = await _service.LoadSettingsAsync().ConfigureAwait(false);
             
             // UI スレッドで設定を適用
+            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            if (dispatcherQueue is null)
+            {
+                // テスト環境またはバックグラウンドスレッドの場合
+                ApplySettings(settings);
+                IsDirty = false;
+                return;
+            }
+
             var tcs = new TaskCompletionSource<bool>();
-            Application.Current.DispatcherQueue.TryEnqueue(() =>
+            dispatcherQueue.TryEnqueue(() =>
             {
                 try
                 {
@@ -261,6 +276,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
     private void MarkDirty()
     {
         IsDirty = true;
+        OnPropertyChanged(nameof(IsDirtyVisibility));
         (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
@@ -272,21 +288,33 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             await _service.SaveSettingsAsync(settings).ConfigureAwait(false);
             
             // UI スレッドで状態を更新
-            var tcs = new TaskCompletionSource<bool>();
-            Application.Current.DispatcherQueue.TryEnqueue(() =>
+            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            if (dispatcherQueue is null)
             {
-                try
+                // テスト環境またはバックグラウンドスレッドの場合
+                IsDirty = false;
+                OnPropertyChanged(nameof(IsDirtyVisibility));
+                (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+            else
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                dispatcherQueue.TryEnqueue(() =>
                 {
-                    IsDirty = false;
-                    (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                    tcs.SetResult(true);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                }
-            });
-            await tcs.Task.ConfigureAwait(false);
+                    try
+                    {
+                        IsDirty = false;
+                        OnPropertyChanged(nameof(IsDirtyVisibility));
+                        (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                        tcs.SetResult(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.SetException(ex);
+                    }
+                });
+                await tcs.Task.ConfigureAwait(false);
+            }
             
             AppLog.Info("Settings saved successfully.");
         }
@@ -303,22 +331,35 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             var defaultSettings = _service.CreateDefaultSettings();
             
             // UI スレッドで設定を適用
-            var tcs = new TaskCompletionSource<bool>();
-            Application.Current.DispatcherQueue.TryEnqueue(() =>
+            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            if (dispatcherQueue is null)
             {
-                try
+                // テスト環境またはバックグラウンドスレッドの場合
+                ApplySettings(defaultSettings);
+                IsDirty = true;
+                OnPropertyChanged(nameof(IsDirtyVisibility));
+                (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+            else
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                dispatcherQueue.TryEnqueue(() =>
                 {
-                    ApplySettings(defaultSettings);
-                    IsDirty = true;
-                    (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                    tcs.SetResult(true);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                }
-            });
-            await tcs.Task.ConfigureAwait(false);
+                    try
+                    {
+                        ApplySettings(defaultSettings);
+                        IsDirty = true;
+                        OnPropertyChanged(nameof(IsDirtyVisibility));
+                        (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                        tcs.SetResult(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.SetException(ex);
+                    }
+                });
+                await tcs.Task.ConfigureAwait(false);
+            }
             
             AppLog.Info("Settings reset to defaults.");
         }
@@ -360,21 +401,31 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             if (settings is not null)
             {
                 // UI スレッドで設定を適用
-                var tcs = new TaskCompletionSource<bool>();
-                Application.Current.DispatcherQueue.TryEnqueue(() =>
+                var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+                if (dispatcherQueue is null)
                 {
-                    try
+                    // テスト環境またはバックグラウンドスレッドの場合
+                    ApplySettings(settings);
+                    MarkDirty();
+                }
+                else
+                {
+                    var tcs = new TaskCompletionSource<bool>();
+                    dispatcherQueue.TryEnqueue(() =>
                     {
-                        ApplySettings(settings);
-                        MarkDirty();
-                        tcs.SetResult(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.SetException(ex);
-                    }
-                });
-                await tcs.Task.ConfigureAwait(false);
+                        try
+                        {
+                            ApplySettings(settings);
+                            MarkDirty();
+                            tcs.SetResult(true);
+                        }
+                        catch (Exception ex)
+                        {
+                            tcs.SetException(ex);
+                        }
+                    });
+                    await tcs.Task.ConfigureAwait(false);
+                }
                 
                 AppLog.Info($"Settings imported from {filePath}");
             }
@@ -383,69 +434,5 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         {
             AppLog.Error($"Failed to import settings from {filePath}", ex);
         }
-    }
-}
-
-/// <summary>
-/// シンプルな RelayCommand 実装
-/// </summary>
-internal sealed class RelayCommand : ICommand
-{
-    private readonly Func<Task> _execute;
-    private readonly Func<bool>? _canExecute;
-
-    public RelayCommand(Func<Task> execute, Func<bool>? canExecute = null)
-    {
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        _canExecute = canExecute;
-    }
-
-    public event EventHandler? CanExecuteChanged;
-
-    public bool CanExecute(object? parameter)
-    {
-        return _canExecute?.Invoke() ?? true;
-    }
-
-    public async void Execute(object? parameter)
-    {
-        await _execute().ConfigureAwait(false);
-    }
-
-    public void RaiseCanExecuteChanged()
-    {
-        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-    }
-}
-
-/// <summary>
-/// パラメータ付き RelayCommand 実装
-/// </summary>
-internal sealed class RelayCommand<T> : ICommand
-{
-    private readonly Func<T?, Task> _execute;
-    private readonly Func<T?, bool>? _canExecute;
-
-    public RelayCommand(Func<T?, Task> execute, Func<T?, bool>? canExecute = null)
-    {
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-        _canExecute = canExecute;
-    }
-
-    public event EventHandler? CanExecuteChanged;
-
-    public bool CanExecute(object? parameter)
-    {
-        return _canExecute?.Invoke((T?)parameter) ?? true;
-    }
-
-    public async void Execute(object? parameter)
-    {
-        await _execute((T?)parameter).ConfigureAwait(false);
-    }
-
-    public void RaiseCanExecuteChanged()
-    {
-        CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }

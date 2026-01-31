@@ -35,7 +35,7 @@
                     <TextBlock
                         Text="（変更あり）"
                         VerticalAlignment="Center"
-                        Visibility="{Binding IsDirty}"
+                        Visibility="{Binding IsDirtyVisibility}"
                         Foreground="{ThemeResource SystemAccentColor}"
                         Margin="8,0,0,0" />
                 </StackPanel>
@@ -50,7 +50,8 @@
                         <ComboBox
                             x:Name="LanguageComboBox"
                             Header="表示言語"
-                            SelectedIndex="0"
+                            SelectedValuePath="Tag"
+                            SelectedValue="{Binding Language, Mode=TwoWay}"
                             MinWidth="200">
                             <ComboBoxItem Content="システムデフォルト" Tag="" />
                             <ComboBoxItem Content="日本語" Tag="ja-JP" />
@@ -69,10 +70,10 @@
                             Style="{ThemeResource SubtitleTextBlockStyle}" />
                         <RadioButtons
                             Header="テーマ"
-                            SelectedIndex="0">
-                            <RadioButton Content="システムデフォルト" Tag="System" />
-                            <RadioButton Content="ライトモード" Tag="Light" />
-                            <RadioButton Content="ダークモード" Tag="Dark" />
+                            SelectedIndex="{Binding Theme, Mode=TwoWay}">
+                            <RadioButton Content="システムデフォルト" />
+                            <RadioButton Content="ライトモード" />
+                            <RadioButton Content="ダークモード" />
                         </RadioButtons>
                     </StackPanel>
 
@@ -127,13 +128,17 @@
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button
                                 Content="エクスポート..."
-                                Command="{Binding ExportCommand}" />
+                                Command="{Binding ExportCommand}"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="MainWindow統合時に実装予定" />
                             <Button
                                 Content="インポート..."
-                                Command="{Binding ImportCommand}" />
+                                Command="{Binding ImportCommand}"
+                                IsEnabled="False"
+                                ToolTipService.ToolTip="MainWindow統合時に実装予定" />
                         </StackPanel>
                         <TextBlock
-                            Text="設定をファイルにエクスポートしたり、ファイルからインポートすることができます。"
+                            Text="設定をファイルにエクスポートしたり、ファイルからインポートすることができます。（MainWindow統合時に有効化）"
                             Style="{ThemeResource CaptionTextBlockStyle}"
                             Opacity="0.7"
                             TextWrapping="Wrap" />
