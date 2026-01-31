@@ -38,7 +38,7 @@ public class PaneViewModelBaseTests
     }
 
     [Fact]
-    public void Title_CanBeSet()
+    public void TitleCanBeSet()
     {
         // Arrange & Act
         var vm = new TestPaneViewModel();
@@ -48,7 +48,7 @@ public class PaneViewModelBaseTests
     }
 
     [Fact]
-    public void IsActive_DefaultsToFalse()
+    public void IsActiveDefaultsToFalse()
     {
         // Arrange & Act
         var vm = new TestPaneViewModel();
@@ -58,7 +58,7 @@ public class PaneViewModelBaseTests
     }
 
     [Fact]
-    public void IsActive_CanBeSet()
+    public void IsActiveCanBeSet()
     {
         // Arrange
         var vm = new TestPaneViewModel();
@@ -72,7 +72,7 @@ public class PaneViewModelBaseTests
     }
 
     [Fact]
-    public async Task InitializeAsync_CallsOnInitializeAsync()
+    public async Task InitializeAsyncCallsOnInitializeAsync()
     {
         // Arrange
         var vm = new TestPaneViewModel();
@@ -85,7 +85,7 @@ public class PaneViewModelBaseTests
     }
 
     [Fact]
-    public async Task InitializeAsync_OnlyInitializesOnce()
+    public async Task InitializeAsyncOnlyInitializesOnce()
     {
         // Arrange
         var vm = new TestPaneViewModel();
@@ -100,7 +100,7 @@ public class PaneViewModelBaseTests
     }
 
     [Fact]
-    public void Cleanup_CallsOnCleanup()
+    public void CleanupCallsOnCleanup()
     {
         // Arrange
         var vm = new TestPaneViewModel();
@@ -113,7 +113,7 @@ public class PaneViewModelBaseTests
     }
 
     [Fact]
-    public async Task Cleanup_ResetsInitializedState()
+    public async Task CleanupResetsInitializedState()
     {
         // Arrange
         var vm = new TestPaneViewModel();

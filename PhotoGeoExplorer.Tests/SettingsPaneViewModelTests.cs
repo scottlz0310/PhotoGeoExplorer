@@ -10,7 +10,7 @@ namespace PhotoGeoExplorer.Tests;
 public class SettingsPaneViewModelTests
 {
     [Fact]
-    public void Constructor_SetsTitle()
+    public void ConstructorSetsTitle()
     {
         // Arrange & Act
         var vm = new SettingsPaneViewModel();
@@ -20,7 +20,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public void LanguageSetting_DefaultValue()
+    public void LanguageSettingDefaultValue()
     {
         // Arrange & Act
         var vm = new SettingsPaneViewModel();
@@ -30,7 +30,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public void LanguageSetting_CanBeSet()
+    public void LanguageSettingCanBeSet()
     {
         // Arrange
         var vm = new SettingsPaneViewModel();
@@ -43,7 +43,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public void LanguageSetting_RaisesPropertyChanged()
+    public void LanguageSettingRaisesPropertyChanged()
     {
         // Arrange
         var vm = new SettingsPaneViewModel();
@@ -64,7 +64,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public void ThemeSetting_DefaultValue()
+    public void ThemeSettingDefaultValue()
     {
         // Arrange & Act
         var vm = new SettingsPaneViewModel();
@@ -74,7 +74,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public void ThemeSetting_CanBeSet()
+    public void ThemeSettingCanBeSet()
     {
         // Arrange
         var vm = new SettingsPaneViewModel();
@@ -87,7 +87,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public void ThemeSetting_RaisesPropertyChanged()
+    public void ThemeSettingRaisesPropertyChanged()
     {
         // Arrange
         var vm = new SettingsPaneViewModel();
@@ -108,7 +108,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public async Task InitializeAsync_Succeeds()
+    public async Task InitializeAsyncSucceeds()
     {
         // Arrange
         var vm = new SettingsPaneViewModel();
@@ -118,7 +118,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public void Cleanup_DoesNotThrow()
+    public void CleanupDoesNotThrow()
     {
         // Arrange
         var vm = new SettingsPaneViewModel();
@@ -128,7 +128,7 @@ public class SettingsPaneViewModelTests
     }
 
     [Fact]
-    public void IsActive_CanBeToggled()
+    public void IsActiveCanBeToggled()
     {
         // Arrange
         var vm = new SettingsPaneViewModel();

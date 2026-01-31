@@ -9,7 +9,7 @@ namespace PhotoGeoExplorer.Tests;
 public class WorkspaceStateTests
 {
     [Fact]
-    public void CurrentFolderPath_DefaultsToNull()
+    public void CurrentFolderPathDefaultsToNull()
     {
         // Arrange & Act
         var state = new WorkspaceState();
@@ -19,7 +19,7 @@ public class WorkspaceStateTests
     }
 
     [Fact]
-    public void CurrentFolderPath_CanBeSet()
+    public void CurrentFolderPathCanBeSet()
     {
         // Arrange
         var state = new WorkspaceState();
@@ -33,7 +33,7 @@ public class WorkspaceStateTests
     }
 
     [Fact]
-    public void CurrentFolderPath_RaisesPropertyChanged()
+    public void CurrentFolderPathRaisesPropertyChanged()
     {
         // Arrange
         var state = new WorkspaceState();
@@ -54,7 +54,7 @@ public class WorkspaceStateTests
     }
 
     [Fact]
-    public void SelectedPhotoCount_DefaultsToZero()
+    public void SelectedPhotoCountDefaultsToZero()
     {
         // Arrange & Act
         var state = new WorkspaceState();
@@ -64,7 +64,7 @@ public class WorkspaceStateTests
     }
 
     [Fact]
-    public void SelectedPhotoCount_CanBeSet()
+    public void SelectedPhotoCountCanBeSet()
     {
         // Arrange
         var state = new WorkspaceState();
@@ -77,7 +77,7 @@ public class WorkspaceStateTests
     }
 
     [Fact]
-    public void SelectedPhotoCount_RaisesPropertyChanged()
+    public void SelectedPhotoCountRaisesPropertyChanged()
     {
         // Arrange
         var state = new WorkspaceState();
