@@ -168,6 +168,8 @@
                 <MenuFlyoutItem Text="Show images only" Click="OnToggleImagesOnlyClicked" x:Uid="MenuViewImagesOnly" />
             </MenuBarItem>
             <MenuBarItem Title="Settings" x:Uid="MenuSettings">
+                <MenuFlyoutItem Text="Settings (development)" Click="OnOpenSettingsPaneClicked" x:Uid="MenuSettingsOpenPaneDev" />
+                <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="Reset filters" Click="OnResetFiltersClicked" IsEnabled="{Binding HasActiveFilters}" x:Uid="MenuSettingsResetFilters" />
                 <MenuFlyoutSubItem Text="Language" x:Uid="MenuSettingsLanguage">
                     <RadioMenuFlyoutItem

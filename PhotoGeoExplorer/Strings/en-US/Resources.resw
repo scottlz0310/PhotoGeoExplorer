@@ -75,6 +75,9 @@
   <data name="MenuSettings.Title" xml:space="preserve">
     <value>Settings</value>
   </data>
+  <data name="MenuSettingsOpenPaneDev.Text" xml:space="preserve">
+    <value>Settings (development)</value>
+  </data>
   <data name="MenuSettingsResetFilters.Text" xml:space="preserve">
     <value>Reset filters</value>
   </data>

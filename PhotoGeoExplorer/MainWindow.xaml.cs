@@ -27,6 +27,7 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Windows.Globalization;
 using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
 using System.ComponentModel;
@@ -1351,6 +1352,48 @@ public sealed partial class MainWindow : Window, IDisposable
     private async void OnOpenFolderClicked(object sender, RoutedEventArgs e)
     {
         await OpenFolderPickerAsync().ConfigureAwait(true);
+    }
+
+    private async void OnOpenSettingsPaneClicked(object sender, RoutedEventArgs e)
+    {
+        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
+        {
+            return;
+        }
+
+        if (Application.Current.Resources["SettingsPaneTemplate"] is not DataTemplate template)
+        {
+            AppLog.Error("Settings pane template not found.");
+            return;
+        }
+
+        var viewModel = new SettingsPaneViewModel();
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+        viewModel.IsActive = true;
+
+        var content = new ContentControl
+        {
+            Content = viewModel,
+            ContentTemplate = template
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = LocalizationService.GetString("MenuSettingsOpenPaneDev.Text"),
+            Content = content,
+            CloseButtonText = LocalizationService.GetString("Common.Ok"),
+            XamlRoot = RootGrid.XamlRoot
+        };
+
+        try
+        {
+            await dialog.ShowAsync().AsTask().ConfigureAwait(true);
+        }
+        finally
+        {
+            viewModel.IsActive = false;
+            viewModel.Cleanup();
+        }
     }
 
     private async void OnResetFiltersClicked(object sender, RoutedEventArgs e)
