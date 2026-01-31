@@ -1,10 +1,10 @@
-# PR: Pane System フェーズ2（設定Pane移植の標準化）
+# PR: Pane System フェーズ2（設定 Pane 移植の標準化）
 
 ## 概要
-Phase1で導入したPane基盤を使い、設定Paneの移植を通して標準形（構成・命名・DI・テスト）を確立する。
+Phase1で導入したPane基盤を使い、設定 Pane の移植を通して標準形（構成・命名・DI・テスト）を確立する。
 
 ## 変更内容
-- SettingsPaneViewModel の実装強化
+- SettingsPaneViewModel の状態管理とコマンド実装
 - SettingsPaneService を追加
 - MainWindow から設定ロジックを分離
 - Pane切替と DataTemplate の統合
@@ -22,4 +22,3 @@ dotnet test PhotoGeoExplorer.Tests --filter FullyQualifiedName~SettingsPaneViewM
 
 ## 関連 Issue
 - (このPRで作成する Phase2 Issue)
-
