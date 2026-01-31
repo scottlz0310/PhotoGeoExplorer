@@ -114,7 +114,7 @@ public class SettingsPaneViewModelTests
         var vm = new SettingsPaneViewModel();
 
         // Act & Assert (should not throw)
-        await vm.InitializeAsync();
+        await vm.InitializeAsync().ConfigureAwait(true);
     }
 
     [Fact]

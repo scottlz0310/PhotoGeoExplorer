@@ -78,7 +78,7 @@ public class PaneViewModelBaseTests
         var vm = new TestPaneViewModel();
 
         // Act
-        await vm.InitializeAsync();
+        await vm.InitializeAsync().ConfigureAwait(true);
 
         // Assert
         Assert.Equal(1, vm.InitializeCallCount);
@@ -91,9 +91,9 @@ public class PaneViewModelBaseTests
         var vm = new TestPaneViewModel();
 
         // Act
-        await vm.InitializeAsync();
-        await vm.InitializeAsync();
-        await vm.InitializeAsync();
+        await vm.InitializeAsync().ConfigureAwait(true);
+        await vm.InitializeAsync().ConfigureAwait(true);
+        await vm.InitializeAsync().ConfigureAwait(true);
 
         // Assert
         Assert.Equal(1, vm.InitializeCallCount);
@@ -117,11 +117,11 @@ public class PaneViewModelBaseTests
     {
         // Arrange
         var vm = new TestPaneViewModel();
-        await vm.InitializeAsync();
+        await vm.InitializeAsync().ConfigureAwait(true);
 
         // Act
         vm.Cleanup();
-        await vm.InitializeAsync();
+        await vm.InitializeAsync().ConfigureAwait(true);
 
         // Assert
         Assert.Equal(2, vm.InitializeCallCount);

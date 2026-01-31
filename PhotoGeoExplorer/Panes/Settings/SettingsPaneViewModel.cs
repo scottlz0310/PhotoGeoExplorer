@@ -35,11 +35,11 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         set => SetProperty(ref _themeSetting, value);
     }
 
-    protected override async Task OnInitializeAsync()
+    protected override Task OnInitializeAsync()
     {
         // 設定の読み込みをここで実行
         // 例: SettingsService からの読み込み
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     protected override void OnCleanup()
