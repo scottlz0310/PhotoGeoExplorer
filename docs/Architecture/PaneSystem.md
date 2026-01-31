@@ -311,11 +311,20 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
 - [x] `WorkspaceState` 作成
 - [x] アーキテクチャドキュメント整備
 
-### フェーズ2: 標準形の確立（次のPR）
+### フェーズ2: 標準形の確立（完了）
 
-- [ ] 独立Paneを1つ移植（例: 設定Pane）
-- [ ] 命名/構成/DIの標準を確立
-- [ ] 「次からこの型で増やせば良い」を共有
+- [x] 独立Paneを1つ移植（設定Pane）
+  - [x] SettingsPaneViewModel の実装（状態管理とコマンド）
+  - [x] SettingsPaneService の作成（I/O処理の分離）
+  - [x] Export/Import/Reset 機能の実装
+  - [x] 単体テストの追加（SettingsPaneViewModel, SettingsPaneService）
+- [x] 命名/構成/DIの標準を確立
+  - [x] `{機能名}PaneViewModel` の命名規則
+  - [x] `{機能名}PaneService` の命名規則  
+  - [x] コンストラクタインジェクションによるDI
+- [x] 「次からこの型で増やせば良い」を共有
+  - [x] サンプル実装を実運用レベルに昇格
+  - [x] テストパターンの確立
 
 ### フェーズ3: 段階的移行（その後のPR群）
 
