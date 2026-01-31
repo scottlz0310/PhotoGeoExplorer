@@ -31,9 +31,14 @@ internal sealed class RelayCommand : ICommand
         {
             await _execute().ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            AppLog.Info("RelayCommand execution canceled.");
+        }
         catch (Exception ex)
         {
             AppLog.Error("RelayCommand execution failed.", ex);
+            throw;
         }
     }
 
@@ -70,9 +75,14 @@ internal sealed class RelayCommand<T> : ICommand
         {
             await _execute((T?)parameter).ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            AppLog.Info("RelayCommand<T> execution canceled.");
+        }
         catch (Exception ex)
         {
             AppLog.Error("RelayCommand<T> execution failed.", ex);
+            throw;
         }
     }
 

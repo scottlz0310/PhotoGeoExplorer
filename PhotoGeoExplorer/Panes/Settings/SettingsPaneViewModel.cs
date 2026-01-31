@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Dispatching;
@@ -14,7 +16,7 @@ namespace PhotoGeoExplorer.Panes.Settings;
 /// </summary>
 internal sealed class SettingsPaneViewModel : PaneViewModelBase
 {
-    private readonly SettingsPaneService _service;
+    private readonly ISettingsPaneService _service;
     private string? _language;
     private ThemePreference _theme = ThemePreference.System;
     private int _mapDefaultZoomLevel = 14;
@@ -30,7 +32,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
     {
     }
 
-    internal SettingsPaneViewModel(SettingsPaneService service)
+    internal SettingsPaneViewModel(ISettingsPaneService service)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         Title = "Settings";
@@ -199,7 +201,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         try
         {
             var settings = await _service.LoadSettingsAsync().ConfigureAwait(false);
-            
+
             // UI スレッドで設定を適用
             var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
             if (dispatcherQueue is null)
@@ -222,11 +224,12 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
                 catch (Exception ex)
                 {
                     tcs.SetException(ex);
+                    throw;
                 }
             });
             await tcs.Task.ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {
             AppLog.Error("Failed to load settings in SettingsPaneViewModel.", ex);
         }
@@ -286,7 +289,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         {
             var settings = BuildSettings();
             await _service.SaveSettingsAsync(settings).ConfigureAwait(false);
-            
+
             // UI スレッドで状態を更新
             var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
             if (dispatcherQueue is null)
@@ -311,14 +314,15 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
                     catch (Exception ex)
                     {
                         tcs.SetException(ex);
+                        throw;
                     }
                 });
                 await tcs.Task.ConfigureAwait(false);
             }
-            
+
             AppLog.Info("Settings saved successfully.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {
             AppLog.Error("Failed to save settings.", ex);
         }
@@ -329,7 +333,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         try
         {
             var defaultSettings = _service.CreateDefaultSettings();
-            
+
             // UI スレッドで設定を適用
             var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
             if (dispatcherQueue is null)
@@ -356,14 +360,15 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
                     catch (Exception ex)
                     {
                         tcs.SetException(ex);
+                        throw;
                     }
                 });
                 await tcs.Task.ConfigureAwait(false);
             }
-            
+
             AppLog.Info("Settings reset to defaults.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {
             AppLog.Error("Failed to reset settings.", ex);
         }
@@ -382,7 +387,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             await _service.ExportSettingsAsync(settings, filePath).ConfigureAwait(false);
             AppLog.Info($"Settings exported to {filePath}");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {
             AppLog.Error($"Failed to export settings to {filePath}", ex);
         }
@@ -422,15 +427,16 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
                         catch (Exception ex)
                         {
                             tcs.SetException(ex);
+                            throw;
                         }
                     });
                     await tcs.Task.ConfigureAwait(false);
                 }
-                
+
                 AppLog.Info($"Settings imported from {filePath}");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
         {
             AppLog.Error($"Failed to import settings from {filePath}", ex);
         }
