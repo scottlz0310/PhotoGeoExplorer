@@ -2,11 +2,11 @@
 
 ## 概要
 Pane System のフェーズ2として、既存の設定UIを独立Paneへ移植し、標準的な構成・命名・DIの型を確立します。
-Phase1で導入したベース（`IPaneViewModel` / `PaneViewModelBase` / `WorkspaceState`）を利用し、
+フェーズ1で導入したベース（`IPaneViewModel` / `PaneViewModelBase` / `WorkspaceState`）を利用し、
 「次からこの型で増やせば良い」状態を完成させることが目的です。
 
 ## 背景
-- PR#71 で Phase1（基盤構築）が完了
+- PR#71 でフェーズ1（基盤構築）が完了
 - `docs/Architecture/PaneSystem.md` のフェーズ2に合わせて、標準形を決定する必要がある
 
 ## 目的
@@ -31,7 +31,7 @@ Phase1で導入したベース（`IPaneViewModel` / `PaneViewModelBase` / `Works
 
 ## 受け入れ条件
 - 設定関連の新規ロジックがMainWindowに追加されていない
-- 設定 Pane が独立して初期化/破棄できる
+- 設定 Pane が独立して初期化/クリーンアップできる
 - テストが1件以上追加される
 - `PaneSystem.md` のフェーズ2が完了状態になる
 
