@@ -37,6 +37,17 @@ Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します�
 - EXIF 抽出に MetadataExtractor
 - サムネイル/画像処理に SixLabors.ImageSharp
 
+## アーキテクチャ
+
+PhotoGeoExplorer は **Shell + Pane** アーキテクチャを採用しています：
+
+- **MainWindow (Shell)**: レイアウトとペイン配置のみを担当
+- **Pane (UserControl)**: 機能単位のUI + ViewModel + Service
+
+この設計により、MainWindow の肥大化を防ぎ、機能の独立性とテスト容易性を確保しています。
+
+詳細は [`docs/Architecture/PaneSystem.md`](docs/Architecture/PaneSystem.md) を参照してください。
+
 ## 前提条件
 
 - Windows 10/11
