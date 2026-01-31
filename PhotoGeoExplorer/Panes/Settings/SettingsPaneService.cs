@@ -9,7 +9,7 @@ namespace PhotoGeoExplorer.Panes.Settings;
 /// 設定Pane専用のサービス
 /// I/O処理とビジネスロジックを分離
 /// </summary>
-internal sealed class SettingsPaneService
+internal sealed class SettingsPaneService : ISettingsPaneService
 {
     private readonly SettingsService _settingsService;
 
@@ -20,7 +20,8 @@ internal sealed class SettingsPaneService
 
     internal SettingsPaneService(SettingsService settingsService)
     {
-        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        ArgumentNullException.ThrowIfNull(settingsService);
+        _settingsService = settingsService;
     }
 
     /// <summary>
@@ -36,10 +37,7 @@ internal sealed class SettingsPaneService
     /// </summary>
     public Task SaveSettingsAsync(AppSettings settings)
     {
-        if (settings is null)
-        {
-            throw new ArgumentNullException(nameof(settings));
-        }
+        ArgumentNullException.ThrowIfNull(settings);
 
         return _settingsService.SaveAsync(settings);
     }
@@ -49,10 +47,7 @@ internal sealed class SettingsPaneService
     /// </summary>
     public Task ExportSettingsAsync(AppSettings settings, string filePath)
     {
-        if (settings is null)
-        {
-            throw new ArgumentNullException(nameof(settings));
-        }
+        ArgumentNullException.ThrowIfNull(settings);
 
         if (string.IsNullOrWhiteSpace(filePath))
         {
