@@ -9,6 +9,12 @@ PhotoGeoExplorer では、MainWindow の肥大化（4000行超）を防ぐため
 
 このドキュメントは、新しいPaneの作成方法と、アーキテクチャの責務境界を定義します。
 
+**サンプル実装:**
+- [`PhotoGeoExplorer/Panes/Settings/`](../../PhotoGeoExplorer/Panes/Settings/) - 設定Paneのサンプル実装
+  - `SettingsPaneViewModel.cs` - ViewModel の実装例
+  - `SettingsPaneView.xaml` / `SettingsPaneView.xaml.cs` - View の実装例
+- [`PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs) - ViewModel のテスト例
+
 ## アーキテクチャ原則
 
 ### MainWindow の責務（Shell専任）

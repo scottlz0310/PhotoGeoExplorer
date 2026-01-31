@@ -48,6 +48,9 @@ PhotoGeoExplorer は **Shell + Pane** アーキテクチャを採用していま
 
 詳細は [`docs/Architecture/PaneSystem.md`](docs/Architecture/PaneSystem.md) を参照してください。
 
+**サンプル実装:**
+- [`PhotoGeoExplorer/Panes/Settings/`](PhotoGeoExplorer/Panes/Settings/) - 設定Paneのサンプル実装
+
 ## 前提条件
 
 - Windows 10/11

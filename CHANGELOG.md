@@ -2,6 +2,22 @@
 
 このプロジェクトの主な変更点をここに記録します。
 
+## [Unreleased]
+
+### 追加
+- Shell + Pane アーキテクチャの導入（ISSUE #70）
+  - `IPaneViewModel` インターフェースと `PaneViewModelBase` 基底クラス
+  - ペイン間共有状態を管理する `WorkspaceState`
+  - Pane 作成ガイドライン（`docs/Architecture/PaneSystem.md`）
+  - サンプル実装：`SettingsPaneView` / `SettingsPaneViewModel`
+  - PRテンプレートにアーキテクチャガードレールを追加
+- 新規ディレクトリ構造
+  - `/PhotoGeoExplorer/Panes` - 機能単位のUI + ViewModel
+  - `/PhotoGeoExplorer/State` - 共有状態管理
+
+### 変更
+- README.md にアーキテクチャセクションを追加
+
 ## [1.5.5] - 2026-01-23
 
 ### 変更
