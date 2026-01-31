@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.State;

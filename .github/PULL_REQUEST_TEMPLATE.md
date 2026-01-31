@@ -28,7 +28,7 @@
 ### アーキテクチャガードレール（必須）
 
 > **注意**: 以下の項目は Pane System アーキテクチャを守るための必須チェックです。
-> 詳細は [`docs/Architecture/PaneSystem.md`](../docs/Architecture/PaneSystem.md) を参照してください。
+> 詳細は [`docs/Architecture/PaneSystem.md`](docs/Architecture/PaneSystem.md) を参照してください。
 
 - [ ] **MainWindowに新規ロジックを追加していない**
   - [ ] Shell以外のロジック（業務ロジック、状態管理、I/O、イベントハンドラの増殖）を追加していない
