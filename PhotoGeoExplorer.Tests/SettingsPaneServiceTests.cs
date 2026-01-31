@@ -29,7 +29,7 @@ public class SettingsPaneServiceTests
         var service = new SettingsPaneService(settingsService);
 
         // Act
-        var settings = await service.LoadSettingsAsync().ConfigureAwait(false);
+        var settings = await service.LoadSettingsAsync().ConfigureAwait(true);
 
         // Assert
         Assert.NotNull(settings);
@@ -45,7 +45,7 @@ public class SettingsPaneServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            async () => await service.SaveSettingsAsync(null!).ConfigureAwait(false)).ConfigureAwait(false);
+            async () => await service.SaveSettingsAsync(null!).ConfigureAwait(true)).ConfigureAwait(true);
     }
 
     [Fact]
@@ -62,10 +62,10 @@ public class SettingsPaneServiceTests
         };
 
         // Act
-        await service.SaveSettingsAsync(settings).ConfigureAwait(false);
+        await service.SaveSettingsAsync(settings).ConfigureAwait(true);
 
         // Assert
-        var loaded = await service.LoadSettingsAsync().ConfigureAwait(false);
+        var loaded = await service.LoadSettingsAsync().ConfigureAwait(true);
         Assert.Equal("ja-JP", loaded.Language);
         Assert.Equal(ThemePreference.Dark, loaded.Theme);
 
@@ -104,7 +104,7 @@ public class SettingsPaneServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            async () => await service.ExportSettingsAsync(null!, exportPath).ConfigureAwait(false)).ConfigureAwait(false);
+            async () => await service.ExportSettingsAsync(null!, exportPath).ConfigureAwait(true)).ConfigureAwait(true);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class SettingsPaneServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await service.ExportSettingsAsync(settings, string.Empty).ConfigureAwait(false)).ConfigureAwait(false);
+            async () => await service.ExportSettingsAsync(settings, string.Empty).ConfigureAwait(true)).ConfigureAwait(true);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class SettingsPaneServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            async () => await service.ImportSettingsAsync(string.Empty).ConfigureAwait(false)).ConfigureAwait(false);
+            async () => await service.ImportSettingsAsync(string.Empty).ConfigureAwait(true)).ConfigureAwait(true);
     }
 
     [Fact]
@@ -152,8 +152,8 @@ public class SettingsPaneServiceTests
         try
         {
             // Act
-            await service.ExportSettingsAsync(settings, exportPath).ConfigureAwait(false);
-            var imported = await service.ImportSettingsAsync(exportPath).ConfigureAwait(false);
+            await service.ExportSettingsAsync(settings, exportPath).ConfigureAwait(true);
+            var imported = await service.ImportSettingsAsync(exportPath).ConfigureAwait(true);
 
             // Assert
             Assert.NotNull(imported);

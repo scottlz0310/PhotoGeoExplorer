@@ -1,8 +1,6 @@
-using System.IO;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Settings;
-using PhotoGeoExplorer.Services;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -12,27 +10,32 @@ namespace PhotoGeoExplorer.Tests;
 /// </summary>
 public class SettingsPaneViewModelTests
 {
-    private sealed class MockSettingsPaneService : SettingsPaneService
+    private sealed class MockSettingsPaneService : ISettingsPaneService
     {
         private AppSettings _settings = new();
 
-        public MockSettingsPaneService()
-            : base(new SettingsService(Path.Combine(Path.GetTempPath(), $"test-settings-{System.Guid.NewGuid()}.json")))
-        {
-        }
-
-        public new Task<AppSettings> LoadSettingsAsync()
+        public Task<AppSettings> LoadSettingsAsync()
         {
             return Task.FromResult(_settings);
         }
 
-        public new Task SaveSettingsAsync(AppSettings settings)
+        public Task SaveSettingsAsync(AppSettings settings)
         {
             _settings = settings;
             return Task.CompletedTask;
         }
 
-        public new AppSettings CreateDefaultSettings()
+        public Task ExportSettingsAsync(AppSettings settings, string filePath)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<AppSettings?> ImportSettingsAsync(string filePath)
+        {
+            return Task.FromResult<AppSettings?>(new AppSettings());
+        }
+
+        public AppSettings CreateDefaultSettings()
         {
             return new AppSettings();
         }
