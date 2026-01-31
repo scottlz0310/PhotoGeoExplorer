@@ -1,127 +1,217 @@
 using System.Threading.Tasks;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Settings;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
 
 /// <summary>
-/// SettingsPaneViewModel のテスト（サンプル実装）
+/// SettingsPaneViewModel のテスト
 /// </summary>
 public class SettingsPaneViewModelTests
 {
+    private sealed class MockSettingsPaneService : ISettingsPaneService
+    {
+        private AppSettings _settings = new();
+
+        public Task<AppSettings> LoadSettingsAsync()
+        {
+            return Task.FromResult(_settings);
+        }
+
+        public Task SaveSettingsAsync(AppSettings settings)
+        {
+            _settings = settings;
+            return Task.CompletedTask;
+        }
+
+        public Task ExportSettingsAsync(AppSettings settings, string filePath)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<AppSettings?> ImportSettingsAsync(string filePath)
+        {
+            return Task.FromResult<AppSettings?>(new AppSettings());
+        }
+
+        public AppSettings CreateDefaultSettings()
+        {
+            return new AppSettings();
+        }
+    }
+
     [Fact]
     public void ConstructorSetsTitle()
     {
-        // Arrange & Act
-        var vm = new SettingsPaneViewModel();
+        // Arrange
+        var service = new MockSettingsPaneService();
+
+        // Act
+        var vm = new SettingsPaneViewModel(service);
 
         // Assert
         Assert.Equal("Settings", vm.Title);
     }
 
     [Fact]
-    public void LanguageSettingDefaultValue()
-    {
-        // Arrange & Act
-        var vm = new SettingsPaneViewModel();
-
-        // Assert
-        Assert.Equal("System Default", vm.LanguageSetting);
-    }
-
-    [Fact]
-    public void LanguageSettingCanBeSet()
+    public void LanguagePropertyDefaultValue()
     {
         // Arrange
-        var vm = new SettingsPaneViewModel();
+        var service = new MockSettingsPaneService();
 
         // Act
-        vm.LanguageSetting = "English";
+        var vm = new SettingsPaneViewModel(service);
 
         // Assert
-        Assert.Equal("English", vm.LanguageSetting);
+        Assert.Null(vm.Language);
     }
 
     [Fact]
-    public void LanguageSettingRaisesPropertyChanged()
+    public void LanguagePropertyCanBeSet()
     {
         // Arrange
-        var vm = new SettingsPaneViewModel();
+        var service = new MockSettingsPaneService();
+        var vm = new SettingsPaneViewModel(service);
+
+        // Act
+        vm.Language = "en-US";
+
+        // Assert
+        Assert.Equal("en-US", vm.Language);
+    }
+
+    [Fact]
+    public void LanguagePropertyRaisesPropertyChanged()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+        var vm = new SettingsPaneViewModel(service);
         var propertyChangedRaised = false;
         vm.PropertyChanged += (sender, args) =>
         {
-            if (args.PropertyName == nameof(SettingsPaneViewModel.LanguageSetting))
+            if (args.PropertyName == nameof(SettingsPaneViewModel.Language))
             {
                 propertyChangedRaised = true;
             }
         };
 
         // Act
-        vm.LanguageSetting = "Japanese";
+        vm.Language = "ja-JP";
 
         // Assert
         Assert.True(propertyChangedRaised);
     }
 
     [Fact]
-    public void ThemeSettingDefaultValue()
-    {
-        // Arrange & Act
-        var vm = new SettingsPaneViewModel();
-
-        // Assert
-        Assert.Equal("System Default", vm.ThemeSetting);
-    }
-
-    [Fact]
-    public void ThemeSettingCanBeSet()
+    public void ThemePropertyDefaultValue()
     {
         // Arrange
-        var vm = new SettingsPaneViewModel();
+        var service = new MockSettingsPaneService();
 
         // Act
-        vm.ThemeSetting = "Dark";
+        var vm = new SettingsPaneViewModel(service);
 
         // Assert
-        Assert.Equal("Dark", vm.ThemeSetting);
+        Assert.Equal(ThemePreference.System, vm.Theme);
     }
 
     [Fact]
-    public void ThemeSettingRaisesPropertyChanged()
+    public void ThemePropertyCanBeSet()
     {
         // Arrange
-        var vm = new SettingsPaneViewModel();
+        var service = new MockSettingsPaneService();
+        var vm = new SettingsPaneViewModel(service);
+
+        // Act
+        vm.Theme = ThemePreference.Dark;
+
+        // Assert
+        Assert.Equal(ThemePreference.Dark, vm.Theme);
+    }
+
+    [Fact]
+    public void ThemePropertyRaisesPropertyChanged()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+        var vm = new SettingsPaneViewModel(service);
         var propertyChangedRaised = false;
         vm.PropertyChanged += (sender, args) =>
         {
-            if (args.PropertyName == nameof(SettingsPaneViewModel.ThemeSetting))
+            if (args.PropertyName == nameof(SettingsPaneViewModel.Theme))
             {
                 propertyChangedRaised = true;
             }
         };
 
         // Act
-        vm.ThemeSetting = "Light";
+        vm.Theme = ThemePreference.Light;
 
         // Assert
         Assert.True(propertyChangedRaised);
     }
 
     [Fact]
-    public async Task InitializeAsyncSucceeds()
+    public void MapDefaultZoomLevelPropertyDefaultValue()
     {
         // Arrange
-        var vm = new SettingsPaneViewModel();
+        var service = new MockSettingsPaneService();
 
-        // Act & Assert (should not throw)
-        await vm.InitializeAsync().ConfigureAwait(true);
+        // Act
+        var vm = new SettingsPaneViewModel(service);
+
+        // Assert
+        Assert.Equal(14, vm.MapDefaultZoomLevel);
+    }
+
+    [Fact]
+    public void MapDefaultZoomLevelPropertyCanBeSet()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+        var vm = new SettingsPaneViewModel(service);
+
+        // Act
+        vm.MapDefaultZoomLevel = 12;
+
+        // Assert
+        Assert.Equal(12, vm.MapDefaultZoomLevel);
+    }
+
+    [Fact]
+    public void IsDirtyIsFalseByDefault()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+
+        // Act
+        var vm = new SettingsPaneViewModel(service);
+
+        // Assert
+        Assert.False(vm.IsDirty);
+    }
+
+    [Fact]
+    public void SettingPropertyChangeMarksAsDirty()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+        var vm = new SettingsPaneViewModel(service);
+
+        // Act
+        vm.Language = "en-US";
+
+        // Assert
+        Assert.True(vm.IsDirty);
     }
 
     [Fact]
     public void CleanupDoesNotThrow()
     {
         // Arrange
-        var vm = new SettingsPaneViewModel();
+        var service = new MockSettingsPaneService();
+        var vm = new SettingsPaneViewModel(service);
 
         // Act & Assert (should not throw)
         vm.Cleanup();
@@ -131,7 +221,8 @@ public class SettingsPaneViewModelTests
     public void IsActiveCanBeToggled()
     {
         // Arrange
-        var vm = new SettingsPaneViewModel();
+        var service = new MockSettingsPaneService();
+        var vm = new SettingsPaneViewModel(service);
 
         // Act
         vm.IsActive = true;
@@ -144,5 +235,57 @@ public class SettingsPaneViewModelTests
 
         // Assert
         Assert.False(vm.IsActive);
+    }
+
+    [Fact]
+    public void SaveCommandIsNotNull()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+
+        // Act
+        var vm = new SettingsPaneViewModel(service);
+
+        // Assert
+        Assert.NotNull(vm.SaveCommand);
+    }
+
+    [Fact]
+    public void ResetCommandIsNotNull()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+
+        // Act
+        var vm = new SettingsPaneViewModel(service);
+
+        // Assert
+        Assert.NotNull(vm.ResetCommand);
+    }
+
+    [Fact]
+    public void ExportCommandIsNotNull()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+
+        // Act
+        var vm = new SettingsPaneViewModel(service);
+
+        // Assert
+        Assert.NotNull(vm.ExportCommand);
+    }
+
+    [Fact]
+    public void ImportCommandIsNotNull()
+    {
+        // Arrange
+        var service = new MockSettingsPaneService();
+
+        // Act
+        var vm = new SettingsPaneViewModel(service);
+
+        // Assert
+        Assert.NotNull(vm.ImportCommand);
     }
 }
