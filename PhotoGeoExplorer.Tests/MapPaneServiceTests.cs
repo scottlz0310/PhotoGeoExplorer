@@ -1,10 +1,8 @@
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
-using PhotoGeoExplorer.Services;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -109,7 +107,7 @@ public class MapPaneServiceTests
     {
         // Arrange
         var service = new MapPaneService();
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
@@ -122,7 +120,7 @@ public class MapPaneServiceTests
         // Arrange
         var service = new MapPaneService();
         var items = Array.Empty<PhotoGeoExplorer.ViewModels.PhotoListItem>();
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
 
         // Act
         var result = await service.LoadPhotoMetadataAsync(items, cts.Token).ConfigureAwait(true);

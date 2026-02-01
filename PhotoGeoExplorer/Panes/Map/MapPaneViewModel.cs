@@ -15,7 +15,6 @@ using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
@@ -31,6 +30,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private const string PhotoMetadataKey = "PhotoMetadata";
     private const string PhotoItemKey = "PhotoItem";
     private const int DefaultMapZoomLevel = 14;
+    private const string UserAgent = "PhotoGeoExplorer/1.4.0 (scott.lz0310@gmail.com)";
     private static readonly int[] MapZoomLevelOptions = { 8, 10, 12, 14, 16, 18 };
 
     private readonly IMapPaneService _service;
@@ -147,7 +147,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             }
 
             var tcs = new TaskCompletionSource<bool>();
-            dispatcherQueue.TryEnqueue(() =>
+            var enqueued = dispatcherQueue.TryEnqueue(() =>
             {
                 try
                 {
@@ -174,6 +174,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
                     tcs.SetException(ex);
                 }
             });
+
+            if (!enqueued)
+            {
+                AppLog.Error("Failed to enqueue map initialization.");
+                tcs.SetException(new InvalidOperationException("Failed to enqueue map initialization."));
+            }
+
             await tcs.Task.ConfigureAwait(false);
         }
         catch (InvalidOperationException ex)
@@ -192,11 +199,14 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
 
+        _markerLayer?.Dispose();
+        _markerLayer = null;
+
         _baseTileLayer?.Dispose();
         _baseTileLayer = null;
 
         _map?.Dispose();
-        _map = null;
+        Map = null;
     }
 
     /// <summary>
@@ -231,59 +241,56 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
-        // メタデータ読み込みが必要な場合
-        if (imageItems.Count > 1)
+        // メタデータ読み込みが必要な場合（1件以上選択時）
+        var cts = new CancellationTokenSource();
+        _mapUpdateCts = cts;
+
+        IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)> metadataItems;
+        try
         {
-            var cts = new CancellationTokenSource();
-            _mapUpdateCts = cts;
-
-            IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)> metadataItems;
-            try
-            {
-                metadataItems = await _service.LoadPhotoMetadataAsync(imageItems, cts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-
-            if (cts.IsCancellationRequested)
-            {
-                return;
-            }
-
-            var points = new List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)>();
-            foreach (var (item, metadata) in metadataItems)
-            {
-                if (metadata is null || !TryGetValidLocation(metadata, out var latitude, out var longitude))
-                {
-                    continue;
-                }
-
-                points.Add((latitude, longitude, metadata, item.Item));
-            }
-
-            if (points.Count == 0)
-            {
-                ClearMapMarkers();
-                ShowStatus(
-                    LocalizationService.GetString("MapStatus.LocationMissingTitle"),
-                    LocalizationService.GetString("MapStatus.LocationMissingSelectionDetail"),
-                    Symbol.Map);
-                return;
-            }
-
-            if (points.Count == 1)
-            {
-                var single = points[0];
-                SetMapMarker(single.Latitude, single.Longitude, single.Metadata, single.Item);
-                HideStatus();
-                return;
-            }
-
-            SetMapMarkers(points);
-            HideStatus();
+            metadataItems = await _service.LoadPhotoMetadataAsync(imageItems, cts.Token).ConfigureAwait(true);
         }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        var points = new List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)>();
+        foreach (var (item, metadata) in metadataItems)
+        {
+            if (metadata is null || !TryGetValidLocation(metadata, out var latitude, out var longitude))
+            {
+                continue;
+            }
+
+            points.Add((latitude, longitude, metadata, item.Item));
+        }
+
+        if (points.Count == 0)
+        {
+            ClearMapMarkers();
+            ShowStatus(
+                LocalizationService.GetString("MapStatus.LocationMissingTitle"),
+                LocalizationService.GetString("MapStatus.LocationMissingSelectionDetail"),
+                Symbol.Map);
+            return;
+        }
+
+        if (points.Count == 1)
+        {
+            var single = points[0];
+            SetMapMarker(single.Latitude, single.Longitude, single.Metadata, single.Item);
+            HideStatus();
+            return;
+        }
+
+        SetMapMarkers(points);
+        HideStatus();
     }
 
     /// <summary>
@@ -298,8 +305,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         try
         {
-            const string userAgent = "PhotoGeoExplorer/1.4.0 (scott.lz0310@gmail.com)";
-            var newTileLayer = _service.CreateTileLayer(newSource, userAgent);
+            var newTileLayer = _service.CreateTileLayer(newSource, UserAgent);
 
             if (_baseTileLayer is not null)
             {
@@ -327,8 +333,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
-        const string userAgent = "PhotoGeoExplorer/1.4.0 (scott.lz0310@gmail.com)";
-        var (map, tileLayer, markerLayer) = _service.InitializeMap(_currentTileSource, userAgent);
+        var (map, tileLayer, markerLayer) = _service.InitializeMap(_currentTileSource, UserAgent);
 
         _map = map;
         _baseTileLayer = tileLayer;
