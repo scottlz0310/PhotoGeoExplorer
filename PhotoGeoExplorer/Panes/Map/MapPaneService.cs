@@ -19,19 +19,6 @@ namespace PhotoGeoExplorer.Panes.Map;
 /// </summary>
 internal sealed class MapPaneService : IMapPaneService
 {
-    private readonly ExifService _exifService;
-
-    public MapPaneService()
-        : this(new ExifService())
-    {
-    }
-
-    internal MapPaneService(ExifService exifService)
-    {
-        ArgumentNullException.ThrowIfNull(exifService);
-        _exifService = exifService;
-    }
-
     /// <inheritdoc/>
     public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
         MapTileSourceType tileSource,
@@ -89,9 +76,7 @@ internal sealed class MapPaneService : IMapPaneService
             PhotoMetadata? metadata = null;
             try
             {
-                metadata = await Task.Run(
-                    () => _exifService.ExtractMetadata(item.Item.Path),
-                    cancellationToken).ConfigureAwait(false);
+                metadata = await ExifService.GetMetadataAsync(item.Item.FilePath, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -99,7 +84,7 @@ internal sealed class MapPaneService : IMapPaneService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
             {
-                AppLog.Error($"Failed to load metadata for {item.Item.Path}", ex);
+                AppLog.Error($"Failed to load metadata for {item.Item.FilePath}", ex);
             }
 
             results.Add((item, metadata));

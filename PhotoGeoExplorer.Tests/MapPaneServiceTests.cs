@@ -13,13 +13,6 @@ namespace PhotoGeoExplorer.Tests;
 public class MapPaneServiceTests
 {
     [Fact]
-    public void ConstructorThrowsWhenExifServiceIsNull()
-    {
-        // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new MapPaneService(null!));
-    }
-
-    [Fact]
     public void InitializeMapReturnsMapWithLayers()
     {
         // Arrange
@@ -97,9 +90,9 @@ public class MapPaneServiceTests
 
         // Assert
         Assert.NotNull(path);
-        Assert.Contains("PhotoGeoExplorer", path);
-        Assert.Contains("Cache", path);
-        Assert.Contains("Tiles", path);
+        Assert.Contains("PhotoGeoExplorer", path, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Cache", path, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Tiles", path, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
