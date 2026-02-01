@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
@@ -138,7 +139,20 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         try
         {
             // UI スレッドで地図を初期化
-            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            DispatcherQueue? dispatcherQueue = null;
+            const int ClassNotRegisteredHresult = unchecked((int)0x80040154);
+            try
+            {
+                dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            }
+            catch (COMException ex) when (ex.HResult == ClassNotRegisteredHresult)
+            {
+                // テスト環境の場合は初期化をスキップ
+                AppLog.Info("DispatcherQueue is not available. Skipping map initialization.");
+                IsMapInitialized = true;
+                return;
+            }
+
             if (dispatcherQueue is null)
             {
                 // テスト環境の場合は初期化をスキップ
