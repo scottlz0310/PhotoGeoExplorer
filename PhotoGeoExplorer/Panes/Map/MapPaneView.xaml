@@ -4,7 +4,7 @@
     xmlns:local="using:PhotoGeoExplorer.Panes.Map"
     xmlns:mapsui="using:Mapsui.UI.WinUI">
 
-    <DataTemplate x:Key="MapPaneViewTemplate" x:DataType="local:MapPaneViewModel">
+    <DataTemplate x:Key="MapPaneTemplate" x:DataType="local:MapPaneViewModel">
         <Grid>
             <!-- 地図コントロール -->
             <mapsui:MapControl x:Name="MapControl" Map="{x:Bind Map, Mode=OneWay}" />

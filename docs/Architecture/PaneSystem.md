@@ -14,8 +14,14 @@ PhotoGeoExplorer では、MainWindow の肥大化（4000行超）を防ぐため
   - `SettingsPaneViewModel.cs` - ViewModel の実装（状態管理、コマンド、サービス連携）
   - `SettingsPaneService.cs` - Service の実装（I/O処理の分離）
   - `SettingsPaneView.xaml` - View の実装（ResourceDictionary + DataTemplate / `SettingsPaneTemplate`）
+- [`PhotoGeoExplorer/Panes/Map/`](../../PhotoGeoExplorer/Panes/Map/) - 地図Paneの実装
+  - `MapPaneViewModel.cs` - ViewModel の実装（地図状態管理、マーカー表示、ズーム制御）
+  - `MapPaneService.cs` - Service の実装（タイルキャッシュ管理、座標計算）
+  - `MapPaneView.xaml` - View の実装（ResourceDictionary + DataTemplate / `MapPaneTemplate`）
 - [`PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs) - ViewModel のテスト
 - [`PhotoGeoExplorer.Tests/SettingsPaneServiceTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneServiceTests.cs) - Service のテスト
+- [`PhotoGeoExplorer.Tests/MapPaneViewModelTests.cs`](../../PhotoGeoExplorer.Tests/MapPaneViewModelTests.cs) - ViewModel のテスト
+- [`PhotoGeoExplorer.Tests/MapPaneServiceTests.cs`](../../PhotoGeoExplorer.Tests/MapPaneServiceTests.cs) - Service のテスト
 
 ## アーキテクチャ原則
 
@@ -529,7 +535,13 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
 
 ### フェーズ3: 段階的移行（その後のPR群）
 
-- [ ] Map Pane の移植
+- [x] Map Pane の移植（フェーズ3-1完了）
+  - [x] MapPaneViewModel の実装（地図状態管理、マーカー表示、ズーム制御）
+  - [x] MapPaneService の実装（タイルキャッシュ管理、座標計算）
+  - [x] MapPaneView.xaml の実装（DataTemplate / `MapPaneTemplate`）
+  - [x] WorkspaceState 拡張（SelectedPhotos プロパティ追加）
+  - [x] 単体テストの追加（MapPaneViewModel, MapPaneService）
+  - [ ] MainWindow からの地図関連コードの移行（フェーズ3-2）
 - [ ] Preview Pane の移植
 - [ ] FileBrowser Pane の移植
 - [ ] その他の機能を順次移行
