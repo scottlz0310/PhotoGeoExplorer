@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Dispatching;
@@ -19,6 +20,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private const float MaxZoomFactor = 6.0f;
     private const float ZoomInMultiplier = 1.2f;
     private const float ZoomOutMultiplier = 1f / 1.2f;
+    private const int ClassNotRegisteredHresult = unchecked((int)0x80040154);
 
     private readonly IPreviewPaneService _service;
     private readonly WorkspaceState _workspaceState;
@@ -267,7 +269,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         if (selectedPhotos is null || selectedPhotos.Count == 0)
         {
             // UI スレッドでクリア
-            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            var dispatcherQueue = TryGetDispatcherQueue();
             if (dispatcherQueue is null)
             {
                 CurrentImage = null;
@@ -276,7 +278,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             }
             else
             {
-                var tcs = new TaskCompletionSource<bool>();
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 dispatcherQueue.TryEnqueue(() =>
                 {
                     try
@@ -284,13 +286,14 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
                         CurrentImage = null;
                         MetadataSummary = null;
                         _currentFilePath = null;
-                        tcs.SetResult(true);
+                        tcs.TrySetResult(true);
                     }
+#pragma warning disable CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
                     catch (Exception ex)
                     {
-                        tcs.SetException(ex);
-                        throw;
+                        tcs.TrySetException(ex);
                     }
+#pragma warning restore CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
                 });
                 await tcs.Task.ConfigureAwait(false);
             }
@@ -311,41 +314,47 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
         _currentFilePath = filePath;
 
+        var image = await _service.LoadImageAsync(filePath).ConfigureAwait(false);
+        var metadata = selectedPhoto.Metadata;
+
+        // UI スレッドで更新
+        var dispatcherQueue = TryGetDispatcherQueue();
+        if (dispatcherQueue is null)
+        {
+            CurrentImage = image;
+            MetadataSummary = BuildMetadataSummary(metadata);
+        }
+        else
+        {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            dispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    CurrentImage = image;
+                    MetadataSummary = BuildMetadataSummary(metadata);
+                    tcs.TrySetResult(true);
+                }
+#pragma warning disable CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+#pragma warning restore CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
+            });
+            await tcs.Task.ConfigureAwait(false);
+        }
+    }
+
+    private static DispatcherQueue? TryGetDispatcherQueue()
+    {
         try
         {
-            var image = await _service.LoadImageAsync(filePath).ConfigureAwait(false);
-            var metadata = selectedPhoto.Metadata;
-
-            // UI スレッドで更新
-            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-            if (dispatcherQueue is null)
-            {
-                CurrentImage = image;
-                MetadataSummary = BuildMetadataSummary(metadata);
-            }
-            else
-            {
-                var tcs = new TaskCompletionSource<bool>();
-                dispatcherQueue.TryEnqueue(() =>
-                {
-                    try
-                    {
-                        CurrentImage = image;
-                        MetadataSummary = BuildMetadataSummary(metadata);
-                        tcs.SetResult(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.SetException(ex);
-                        throw;
-                    }
-                });
-                await tcs.Task.ConfigureAwait(false);
-            }
+            return DispatcherQueue.GetForCurrentThread();
         }
-        catch (Exception ex)
+        catch (COMException ex) when (ex.HResult == ClassNotRegisteredHresult)
         {
-            AppLog.Error($"Failed to load preview image: {filePath}", ex);
+            return null;
         }
     }
 
