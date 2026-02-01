@@ -541,8 +541,17 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
   - [x] MapPaneView.xaml の実装（DataTemplate / `MapPaneTemplate`）
   - [x] WorkspaceState 拡張（SelectedPhotos プロパティ追加）
   - [x] 単体テストの追加（MapPaneViewModel, MapPaneService）
-  - [ ] MainWindow からの地図関連コードの移行（フェーズ3-2）
-- [ ] Preview Pane の移植
+  - [ ] MainWindow からの地図関連コードの移行（将来のフェーズ）
+- [ ] Preview Pane の移植（フェーズ3-2進行中）
+  - [x] PreviewPaneViewModel の実装（画像表示、ズーム/パン制御）
+  - [x] PreviewPaneService の実装（画像ロード、フィッティング計算、DPI対応）
+  - [x] PreviewPaneView.xaml の実装（DataTemplate / `PreviewPaneTemplate`）
+  - [x] PreviewPaneView.xaml.cs の実装（ScrollViewer イベント処理）
+  - [x] WorkspaceState 連携（SelectedPhotos を監視して画像ロード）
+  - [x] 単体テストの追加（PreviewPaneViewModel, PreviewPaneService）
+  - [ ] MainWindow との統合（PreviewPane の配置と既存コードの削除）
+  - [ ] 最大化機能の実装
+  - [ ] 前後ナビゲーション機能の実装（WorkspaceState 拡張が必要）
 - [ ] FileBrowser Pane の移植
 - [ ] その他の機能を順次移行
 
