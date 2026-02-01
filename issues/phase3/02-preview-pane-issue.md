@@ -9,6 +9,12 @@ Pane System のフェーズ3として、Preview（画像プレビュー）機能
 - PR でフェーズ2（設定Pane移植）が完了し、標準形が確立
 - `docs/Architecture/PaneSystem.md` のフェーズ3に該当
 
+## 引き継ぎメモ（PR#82 後）
+- **WorkspaceState 連携は未配線**（MapPaneViewModel は `UpdateMarkersFromSelectionAsync(...)` 経由で選択を受け取る設計）。Phase3-2 で PreviewPane を移植する際に、**選択写真の共有経路を統一する設計**を決めること。
+- `UserAgentProvider` が追加済み。外部アクセス時の User-Agent は **同一プロバイダを再利用**すること。
+- MapPane の初期化は **DispatcherQueue 未登録環境で安全にスキップ**する実装になっている。PreviewPane でも **テスト環境/ヘッドレス環境対策**を検討すること。
+- テストは副作用を避けるため、**I/O を発生させるパスは注入可能にする方針**（MapPaneService でキャッシュルート注入済み）。PreviewPane の I/O も同様に設計すること。
+
 ## 目的
 - Preview 機能を独立した Pane として移植
 - MainWindow から画像プレビュー関連のロジックを分離

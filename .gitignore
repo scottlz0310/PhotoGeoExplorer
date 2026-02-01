@@ -27,6 +27,7 @@
 
 # Logs
 *.log
+*.binlog
 
 # Auto-generated entries from templates
 !.vscode/extensions.json
