@@ -8,6 +8,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <controls:XamlControlsResources />
                 <ResourceDictionary Source="ms-appx:///Panes/Settings/SettingsPaneView.xaml" />
+                <ResourceDictionary Source="ms-appx:///Panes/Map/MapPaneView.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

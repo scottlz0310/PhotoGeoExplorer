@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.State;
@@ -10,6 +11,7 @@ internal sealed class WorkspaceState : BindableBase
 {
     private string? _currentFolderPath;
     private int _selectedPhotoCount;
+    private IReadOnlyList<PhotoListItem>? _selectedPhotos;
 
     /// <summary>
     /// 現在選択されているフォルダのパス
@@ -29,6 +31,13 @@ internal sealed class WorkspaceState : BindableBase
         set => SetProperty(ref _selectedPhotoCount, value);
     }
 
-    // 将来的な拡張用のプレースホルダー
-    // 例: 選択されている写真のリスト、地図の状態など
+    /// <summary>
+    /// 現在選択されている写真のリスト
+    /// Map Pane などで位置情報を表示するために使用
+    /// </summary>
+    public IReadOnlyList<PhotoListItem>? SelectedPhotos
+    {
+        get => _selectedPhotos;
+        set => SetProperty(ref _selectedPhotos, value);
+    }
 }
