@@ -191,7 +191,7 @@ public class PreviewPaneServiceTests
         var service = new PreviewPaneService();
 
         // Act
-        var result = await service.LoadImageAsync(null!);
+        var result = await service.LoadImageAsync(null!).ConfigureAwait(false);
 
         // Assert
         Assert.Null(result);
@@ -204,7 +204,7 @@ public class PreviewPaneServiceTests
         var service = new PreviewPaneService();
 
         // Act
-        var result = await service.LoadImageAsync(string.Empty);
+        var result = await service.LoadImageAsync(string.Empty).ConfigureAwait(false);
 
         // Assert
         Assert.Null(result);
@@ -218,7 +218,7 @@ public class PreviewPaneServiceTests
         var nonExistentPath = "/tmp/nonexistent_image.jpg";
 
         // Act
-        var result = await service.LoadImageAsync(nonExistentPath);
+        var result = await service.LoadImageAsync(nonExistentPath).ConfigureAwait(false);
 
         // Assert
         Assert.Null(result);

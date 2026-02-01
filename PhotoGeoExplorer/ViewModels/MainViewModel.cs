@@ -103,7 +103,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             {
                 OnPropertyChanged(nameof(CanCreateFolder));
                 OnPropertyChanged(nameof(CanMoveToParentSelection));
-                
+
                 // WorkspaceState にフォルダパスを反映
                 WorkspaceState.CurrentFolderPath = value;
             }
