@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
@@ -16,21 +17,29 @@ public class MapPaneServiceTests
     public void InitializeMapReturnsMapWithLayers()
     {
         // Arrange
-        var service = new MapPaneService();
+        var cacheRoot = CreateTempCacheRoot();
+        var service = new MapPaneService(cacheRoot);
         const string userAgent = "PhotoGeoExplorer/Test";
 
-        // Act
-        var (map, tileLayer, markerLayer) = service.InitializeMap(MapTileSourceType.OpenStreetMap, userAgent);
+        try
+        {
+            // Act
+            var (map, tileLayer, markerLayer) = service.InitializeMap(MapTileSourceType.OpenStreetMap, userAgent);
 
-        // Assert
-        Assert.NotNull(map);
-        Assert.NotNull(tileLayer);
-        Assert.NotNull(markerLayer);
-        Assert.Equal(2, map.Layers.Count); // タイルレイヤー + マーカーレイヤー
-        Assert.Equal("PhotoMarkers", markerLayer.Name);
+            // Assert
+            Assert.NotNull(map);
+            Assert.NotNull(tileLayer);
+            Assert.NotNull(markerLayer);
+            Assert.Equal(2, map.Layers.Count); // タイルレイヤー + マーカーレイヤー
+            Assert.Equal("PhotoMarkers", markerLayer.Name);
 
-        // Cleanup
-        map.Dispose();
+            // Cleanup
+            map.Dispose();
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
     }
 
     [Fact]
@@ -47,36 +56,52 @@ public class MapPaneServiceTests
     public void CreateTileLayerReturnsOpenStreetMapLayer()
     {
         // Arrange
-        var service = new MapPaneService();
+        var cacheRoot = CreateTempCacheRoot();
+        var service = new MapPaneService(cacheRoot);
         const string userAgent = "PhotoGeoExplorer/Test";
 
-        // Act
-        var layer = service.CreateTileLayer(MapTileSourceType.OpenStreetMap, userAgent);
+        try
+        {
+            // Act
+            var layer = service.CreateTileLayer(MapTileSourceType.OpenStreetMap, userAgent);
 
-        // Assert
-        Assert.NotNull(layer);
-        Assert.Equal("OpenStreetMap", layer.Name);
+            // Assert
+            Assert.NotNull(layer);
+            Assert.Equal("OpenStreetMap", layer.Name);
 
-        // Cleanup
-        layer.Dispose();
+            // Cleanup
+            layer.Dispose();
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
     }
 
     [Fact]
     public void CreateTileLayerReturnsEsriWorldImageryLayer()
     {
         // Arrange
-        var service = new MapPaneService();
+        var cacheRoot = CreateTempCacheRoot();
+        var service = new MapPaneService(cacheRoot);
         const string userAgent = "PhotoGeoExplorer/Test";
 
-        // Act
-        var layer = service.CreateTileLayer(MapTileSourceType.EsriWorldImagery, userAgent);
+        try
+        {
+            // Act
+            var layer = service.CreateTileLayer(MapTileSourceType.EsriWorldImagery, userAgent);
 
-        // Assert
-        Assert.NotNull(layer);
-        Assert.Equal("Esri WorldImagery", layer.Name);
+            // Assert
+            Assert.NotNull(layer);
+            Assert.Equal("Esri WorldImagery", layer.Name);
 
-        // Cleanup
-        layer.Dispose();
+            // Cleanup
+            layer.Dispose();
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
     }
 
     [Fact]
@@ -121,5 +146,20 @@ public class MapPaneServiceTests
         // Assert
         Assert.NotNull(result);
         Assert.Empty(result);
+    }
+
+    private static string CreateTempCacheRoot()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorer.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static void DeleteTempCacheRoot(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
     }
 }

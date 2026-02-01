@@ -31,7 +31,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private const string PhotoMetadataKey = "PhotoMetadata";
     private const string PhotoItemKey = "PhotoItem";
     private const int DefaultMapZoomLevel = 14;
-    private const string UserAgent = "PhotoGeoExplorer/1.4.0 (scott.lz0310@gmail.com)";
     private static readonly int[] MapZoomLevelOptions = { 8, 10, 12, 14, 16, 18 };
 
     private readonly IMapPaneService _service;
@@ -160,39 +159,32 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
                 return;
             }
 
-            var tcs = new TaskCompletionSource<bool>();
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var enqueued = dispatcherQueue.TryEnqueue(() =>
             {
                 try
                 {
                     InitializeMapCore();
                     IsMapInitialized = true;
-                    tcs.SetResult(true);
+                    tcs.TrySetResult(true);
                 }
-                catch (InvalidOperationException ex)
+#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
+                catch (Exception ex)
                 {
                     AppLog.Error("Failed to initialize map in MapPaneViewModel.", ex);
                     ShowStatus(
                         LocalizationService.GetString("MapStatus.InitFailedTitle"),
                         LocalizationService.GetString("MapStatus.SeeLogDetail"),
                         Symbol.Map);
-                    tcs.SetException(ex);
+                    tcs.TrySetException(ex);
                 }
-                catch (NotSupportedException ex)
-                {
-                    AppLog.Error("Failed to initialize map in MapPaneViewModel.", ex);
-                    ShowStatus(
-                        LocalizationService.GetString("MapStatus.InitFailedTitle"),
-                        LocalizationService.GetString("MapStatus.SeeLogDetail"),
-                        Symbol.Map);
-                    tcs.SetException(ex);
-                }
+#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
             });
 
             if (!enqueued)
             {
                 AppLog.Error("Failed to enqueue map initialization.");
-                tcs.SetException(new InvalidOperationException("Failed to enqueue map initialization."));
+                tcs.TrySetException(new InvalidOperationException("Failed to enqueue map initialization."));
             }
 
             await tcs.Task.ConfigureAwait(false);
@@ -319,7 +311,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         try
         {
-            var newTileLayer = _service.CreateTileLayer(newSource, UserAgent);
+            var newTileLayer = _service.CreateTileLayer(newSource, UserAgentProvider.UserAgent);
 
             if (_baseTileLayer is not null)
             {
@@ -347,7 +339,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
-        var (map, tileLayer, markerLayer) = _service.InitializeMap(_currentTileSource, UserAgent);
+        var (map, tileLayer, markerLayer) = _service.InitializeMap(_currentTileSource, UserAgentProvider.UserAgent);
 
         _map = map;
         _baseTileLayer = tileLayer;

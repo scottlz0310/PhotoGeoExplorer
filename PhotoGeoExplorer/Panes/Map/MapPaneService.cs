@@ -19,6 +19,24 @@ namespace PhotoGeoExplorer.Panes.Map;
 /// </summary>
 internal sealed class MapPaneService : IMapPaneService
 {
+    private const int MetadataLoadMaxConcurrency = 4;
+    private readonly string _tileCacheRootDirectory;
+
+    public MapPaneService()
+        : this(GetDefaultTileCacheRootDirectory())
+    {
+    }
+
+    internal MapPaneService(string tileCacheRootDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(tileCacheRootDirectory))
+        {
+            throw new ArgumentException("Tile cache root directory is required.", nameof(tileCacheRootDirectory));
+        }
+
+        _tileCacheRootDirectory = tileCacheRootDirectory;
+    }
+
     /// <inheritdoc/>
     public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
         MapTileSourceType tileSource,
@@ -64,37 +82,70 @@ internal sealed class MapPaneService : IMapPaneService
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(items);
-
-        var results = new List<(PhotoListItem Item, PhotoMetadata? Metadata)>();
-        foreach (var item in items)
+        if (items.Count == 0)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-
-            PhotoMetadata? metadata = null;
-            try
-            {
-                metadata = await ExifService.GetMetadataAsync(item.Item.FilePath, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                AppLog.Error($"Failed to load metadata for {item.Item.FilePath}", ex);
-            }
-
-            results.Add((item, metadata));
+            return Array.Empty<(PhotoListItem Item, PhotoMetadata? Metadata)>();
         }
 
+        var concurrency = Math.Clamp(Environment.ProcessorCount, 1, MetadataLoadMaxConcurrency);
+        concurrency = Math.Min(concurrency, items.Count);
+
+        using var semaphore = new SemaphoreSlim(concurrency, concurrency);
+        var tasks = new Task<(PhotoListItem Item, PhotoMetadata? Metadata)>[items.Count];
+        for (var index = 0; index < items.Count; index++)
+        {
+            var item = items[index];
+            tasks[index] = LoadMetadataForItemAsync(item, semaphore, cancellationToken);
+        }
+
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         return results;
     }
 
     /// <inheritdoc/>
     public string GetTileCacheRootDirectory()
+    {
+        return _tileCacheRootDirectory;
+    }
+
+    private static async Task<(PhotoListItem Item, PhotoMetadata? Metadata)> LoadMetadataForItemAsync(
+        PhotoListItem item,
+        SemaphoreSlim semaphore,
+        CancellationToken cancellationToken)
+    {
+        var acquired = false;
+        try
+        {
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            acquired = true;
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return (item, null);
+            }
+
+            var metadata = await ExifService.GetMetadataAsync(item.Item.FilePath, cancellationToken).ConfigureAwait(false);
+            return (item, metadata);
+        }
+        catch (OperationCanceledException)
+        {
+            return (item, null);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            AppLog.Error($"Failed to load metadata for {item.Item.FilePath}", ex);
+            return (item, null);
+        }
+        finally
+        {
+            if (acquired)
+            {
+                semaphore.Release();
+            }
+        }
+    }
+
+    private static string GetDefaultTileCacheRootDirectory()
     {
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
