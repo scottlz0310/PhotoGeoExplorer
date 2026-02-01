@@ -1,10 +1,13 @@
 using System;
+using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
+using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 
@@ -44,11 +47,11 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         Title = "Preview";
 
-        FitCommand = new RelayCommand(ExecuteFit);
-        ZoomInCommand = new RelayCommand(ExecuteZoomIn);
-        ZoomOutCommand = new RelayCommand(ExecuteZoomOut);
-        NextCommand = new RelayCommand(ExecuteNext, CanExecuteNext);
-        PreviousCommand = new RelayCommand(ExecutePrevious, CanExecutePrevious);
+        FitCommand = new RelayCommand(ExecuteFitAsync);
+        ZoomInCommand = new RelayCommand(ExecuteZoomInAsync);
+        ZoomOutCommand = new RelayCommand(ExecuteZoomOutAsync);
+        NextCommand = new RelayCommand(ExecuteNextAsync, CanExecuteNext);
+        PreviousCommand = new RelayCommand(ExecutePreviousAsync, CanExecutePrevious);
 
         // WorkspaceState の変更を監視
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
@@ -269,8 +272,8 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         if (selectedPhotos is null || selectedPhotos.Count == 0)
         {
             // UI スレッドでクリア
-            var dispatcherQueue = TryGetDispatcherQueue();
-            if (dispatcherQueue is null)
+            var clearQueue = TryGetDispatcherQueue();
+            if (clearQueue is null)
             {
                 CurrentImage = null;
                 MetadataSummary = null;
@@ -279,7 +282,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             else
             {
                 var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                dispatcherQueue.TryEnqueue(() =>
+                clearQueue.TryEnqueue(() =>
                 {
                     try
                     {
@@ -306,7 +309,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             return;
         }
 
-        var filePath = selectedPhoto.FullPath;
+        var filePath = selectedPhoto.FilePath;
         if (string.IsNullOrWhiteSpace(filePath) || filePath == _currentFilePath)
         {
             return;
@@ -315,14 +318,14 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         _currentFilePath = filePath;
 
         var image = await _service.LoadImageAsync(filePath).ConfigureAwait(false);
-        var metadata = selectedPhoto.Metadata;
+        var metadata = await ExifService.GetMetadataAsync(filePath, CancellationToken.None).ConfigureAwait(false);
 
         // UI スレッドで更新
         var dispatcherQueue = TryGetDispatcherQueue();
         if (dispatcherQueue is null)
         {
             CurrentImage = image;
-            MetadataSummary = BuildMetadataSummary(metadata);
+            MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
         }
         else
         {
@@ -332,7 +335,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
                 try
                 {
                     CurrentImage = image;
-                    MetadataSummary = BuildMetadataSummary(metadata);
+                    MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
                     tcs.TrySetResult(true);
                 }
 #pragma warning disable CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
@@ -358,21 +361,21 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         }
     }
 
-    private static string? BuildMetadataSummary(Models.PhotoMetadata? metadata)
+    private static string? BuildMetadataSummary(Models.PhotoMetadata? metadata, PhotoListItem? selectedPhoto)
     {
-        if (metadata is null)
+        if (metadata is null && selectedPhoto is null)
         {
             return null;
         }
 
         var parts = new System.Collections.Generic.List<string>();
 
-        if (metadata.TakenAt.HasValue)
+        if (metadata?.TakenAt.HasValue == true)
         {
-            parts.Add(metadata.TakenAt.Value.ToString("yyyy/MM/dd HH:mm:ss"));
+            parts.Add(metadata.TakenAt.Value.ToString("yyyy/MM/dd HH:mm:ss", CultureInfo.CurrentCulture));
         }
 
-        if (!string.IsNullOrWhiteSpace(metadata.CameraMake) || !string.IsNullOrWhiteSpace(metadata.CameraModel))
+        if (!string.IsNullOrWhiteSpace(metadata?.CameraMake) || !string.IsNullOrWhiteSpace(metadata?.CameraModel))
         {
             var camera = string.IsNullOrWhiteSpace(metadata.CameraMake)
                 ? metadata.CameraModel
@@ -382,40 +385,48 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             parts.Add(camera ?? string.Empty);
         }
 
-        if (metadata.Width.HasValue && metadata.Height.HasValue)
+        if (selectedPhoto?.PixelWidth is int width && selectedPhoto.PixelHeight is int height)
         {
-            parts.Add($"{metadata.Width}x{metadata.Height}");
+            if (width > 0 && height > 0)
+            {
+                parts.Add($"{width}x{height}");
+            }
         }
 
         return parts.Count > 0 ? string.Join(" | ", parts) : null;
     }
 
-    private void ExecuteFit()
+    private Task ExecuteFitAsync()
     {
         FitToWindow = true;
         // ビューポートサイズは View 側から OnViewportSizeChanged で通知される
+        return Task.CompletedTask;
     }
 
-    private void ExecuteZoomIn()
+    private Task ExecuteZoomInAsync()
     {
         AdjustZoom(ZoomInMultiplier);
+        return Task.CompletedTask;
     }
 
-    private void ExecuteZoomOut()
+    private Task ExecuteZoomOutAsync()
     {
         AdjustZoom(ZoomOutMultiplier);
+        return Task.CompletedTask;
     }
 
-    private void ExecuteNext()
+    private Task ExecuteNextAsync()
     {
         // MainViewModel の SelectNext を呼ぶ必要がある
         // TODO: WorkspaceState に CurrentPhotoIndex を追加して連携
+        return Task.CompletedTask;
     }
 
-    private void ExecutePrevious()
+    private Task ExecutePreviousAsync()
     {
         // MainViewModel の SelectPrevious を呼ぶ必要がある
         // TODO: WorkspaceState に CurrentPhotoIndex を追加して連携
+        return Task.CompletedTask;
     }
 
     private bool CanExecuteNext()

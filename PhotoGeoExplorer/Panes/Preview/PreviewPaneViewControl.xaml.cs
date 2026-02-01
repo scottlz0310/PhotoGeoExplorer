@@ -5,17 +5,17 @@ using Microsoft.UI.Xaml.Input;
 namespace PhotoGeoExplorer.Panes.Preview;
 
 /// <summary>
-/// PreviewPaneView のコードビハインド
+/// PreviewPaneViewControl のコードビハインド
 /// ScrollViewer のイベントを ViewModel に橋渡しする
 /// </summary>
-internal sealed partial class PreviewPaneView : ResourceDictionary
+internal sealed partial class PreviewPaneViewControl : UserControl
 {
     private bool _isDragging;
     private Windows.Foundation.Point _dragStart;
     private double _dragStartHorizontalOffset;
     private double _dragStartVerticalOffset;
 
-    public PreviewPaneView()
+    public PreviewPaneViewControl()
     {
         InitializeComponent();
     }

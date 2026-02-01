@@ -1,0 +1,83 @@
+<UserControl
+    x:Class="PhotoGeoExplorer.Panes.Preview.PreviewPaneViewControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ヘッダーとツールバー -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Spacing="2">
+                <TextBlock Text="Image Preview" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock
+                    Text="{Binding MetadataSummary}"
+                    Visibility="{Binding MetadataVisibility}"
+                    Opacity="0.7"
+                    FontSize="12" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Command="{Binding FitCommand}" ToolTipService.ToolTip="ウィンドウに合わせる">
+                    <SymbolIcon Symbol="View" />
+                </Button>
+                <Button Command="{Binding ZoomInCommand}" ToolTipService.ToolTip="拡大">
+                    <SymbolIcon Symbol="ZoomIn" />
+                </Button>
+                <Button Command="{Binding ZoomOutCommand}" ToolTipService.ToolTip="縮小">
+                    <SymbolIcon Symbol="ZoomOut" />
+                </Button>
+                <Button Command="{Binding PreviousCommand}" ToolTipService.ToolTip="前の画像">
+                    <SymbolIcon Symbol="Back" />
+                </Button>
+                <Button Command="{Binding NextCommand}" ToolTipService.ToolTip="次の画像">
+                    <SymbolIcon Symbol="Forward" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- プレビューエリア -->
+        <Border
+            Grid.Row="1"
+            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            CornerRadius="6">
+            <Grid>
+                <ScrollViewer
+                    x:Name="PreviewScrollViewer"
+                    ZoomMode="Enabled"
+                    MinZoomFactor="0.1"
+                    MaxZoomFactor="6"
+                    HorizontalScrollMode="Disabled"
+                    VerticalScrollMode="Disabled"
+                    IsScrollInertiaEnabled="False"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto"
+                    SizeChanged="OnScrollViewerSizeChanged"
+                    PointerWheelChanged="OnPointerWheelChanged"
+                    PointerPressed="OnPointerPressed"
+                    PointerMoved="OnPointerMoved"
+                    PointerReleased="OnPointerReleased"
+                    PointerCaptureLost="OnPointerCaptureLost">
+                    <Image
+                        x:Name="PreviewImage"
+                        Source="{Binding CurrentImage}"
+                        Stretch="Uniform"
+                        ImageOpened="OnImageOpened" />
+                </ScrollViewer>
+                <TextBlock
+                    Text="Select a photo to preview."
+                    Visibility="{Binding PlaceholderVisibility}"
+                    Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    IsHitTestVisible="False"
+                    TextWrapping="Wrap" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

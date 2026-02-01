@@ -12,7 +12,7 @@ namespace PhotoGeoExplorer.Tests;
 public class PreviewPaneServiceTests
 {
     [Fact]
-    public void CalculateFitZoomFactor_ValidInput_ReturnsCorrectZoom()
+    public void CalculateFitZoomFactorValidInputReturnsCorrectZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -29,7 +29,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateFitZoomFactor_PortraitImage_ReturnsCorrectZoom()
+    public void CalculateFitZoomFactorPortraitImageReturnsCorrectZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -46,7 +46,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateFitZoomFactor_SmallImage_ClampsToMinZoom()
+    public void CalculateFitZoomFactorSmallImageClampsToMinZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -63,7 +63,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateFitZoomFactor_LargeViewport_ClampsToMaxZoom()
+    public void CalculateFitZoomFactorLargeViewportClampsToMaxZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -80,7 +80,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateFitZoomFactor_ZeroImageSize_ReturnsDefaultZoom()
+    public void CalculateFitZoomFactorZeroImageSizeReturnsDefaultZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -93,7 +93,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateFitZoomFactor_ZeroViewportSize_ReturnsDefaultZoom()
+    public void CalculateFitZoomFactorZeroViewportSizeReturnsDefaultZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -106,7 +106,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateDpiCorrectedZoom_ValidInput_ReturnsCorrectZoom()
+    public void CalculateDpiCorrectedZoomValidInputReturnsCorrectZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -123,7 +123,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateDpiCorrectedZoom_ClampsToMinZoom()
+    public void CalculateDpiCorrectedZoomClampsToMinZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -140,7 +140,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateDpiCorrectedZoom_ClampsToMaxZoom()
+    public void CalculateDpiCorrectedZoomClampsToMaxZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -157,7 +157,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateDpiCorrectedZoom_ZeroOldScale_ReturnsCurrentZoom()
+    public void CalculateDpiCorrectedZoomZeroOldScaleReturnsCurrentZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -171,7 +171,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public void CalculateDpiCorrectedZoom_ZeroNewScale_ReturnsCurrentZoom()
+    public void CalculateDpiCorrectedZoomZeroNewScaleReturnsCurrentZoom()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -185,7 +185,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public async Task LoadImageAsync_NullFilePath_ReturnsNull()
+    public async Task LoadImageAsyncNullFilePathReturnsNull()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -198,7 +198,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public async Task LoadImageAsync_EmptyFilePath_ReturnsNull()
+    public async Task LoadImageAsyncEmptyFilePathReturnsNull()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -211,7 +211,7 @@ public class PreviewPaneServiceTests
     }
 
     [Fact]
-    public async Task LoadImageAsync_NonExistentFile_ReturnsNull()
+    public async Task LoadImageAsyncNonExistentFileReturnsNull()
     {
         // Arrange
         var service = new PreviewPaneService();
@@ -224,3 +224,4 @@ public class PreviewPaneServiceTests
         Assert.Null(result);
     }
 }
+

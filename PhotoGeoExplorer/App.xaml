@@ -3,7 +3,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
-    xmlns:map="using:PhotoGeoExplorer.Panes.Map">
+    xmlns:map="using:PhotoGeoExplorer.Panes.Map"
+    xmlns:preview="using:PhotoGeoExplorer.Panes.Preview">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -11,6 +12,9 @@
                 <ResourceDictionary Source="ms-appx:///Panes/Settings/SettingsPaneView.xaml" />
                 <map:MapPaneView />
             </ResourceDictionary.MergedDictionaries>
+            <DataTemplate x:Key="PreviewPaneTemplate">
+                <preview:PreviewPaneViewControl />
+            </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
