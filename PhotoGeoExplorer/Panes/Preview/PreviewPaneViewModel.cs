@@ -223,7 +223,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
         AppLog.Info($"RasterizationScale changed: {RasterizationScale} -> {newScale}");
 
-        if (FitToWindow && CurrentImage is not null)
+        if (FitToWindow)
         {
             // FitToWindow モードの場合は、後で再計算されるのでスケールだけ更新
             RasterizationScale = newScale;
