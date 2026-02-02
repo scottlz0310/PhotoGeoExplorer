@@ -74,14 +74,25 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     private bool _isNavigating;
 
     public MainViewModel(FileSystemService fileSystemService)
+        : this(fileSystemService, new State.WorkspaceState())
+    {
+    }
+
+    internal MainViewModel(FileSystemService fileSystemService, State.WorkspaceState workspaceState)
     {
         _fileSystemService = fileSystemService ?? throw new ArgumentNullException(nameof(fileSystemService));
+        WorkspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         Items = new ObservableCollection<PhotoListItem>();
         BreadcrumbItems = new ObservableCollection<BreadcrumbSegment>();
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
     public ObservableCollection<BreadcrumbSegment> BreadcrumbItems { get; }
+
+    /// <summary>
+    /// ペイン間で共有される状態
+    /// </summary>
+    public State.WorkspaceState WorkspaceState { get; }
 
     public string? CurrentFolderPath
     {
@@ -92,6 +103,9 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             {
                 OnPropertyChanged(nameof(CanCreateFolder));
                 OnPropertyChanged(nameof(CanMoveToParentSelection));
+
+                // WorkspaceState にフォルダパスを反映
+                WorkspaceState.CurrentFolderPath = value;
             }
         }
     }
@@ -1066,6 +1080,10 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         }
 
         SelectedCount = _selectedItems.Count;
+
+        // WorkspaceState に選択状態を反映
+        WorkspaceState.SelectedPhotoCount = _selectedItems.Count;
+        WorkspaceState.SelectedPhotos = _selectedItems.AsReadOnly();
     }
 
     private void ApplySorting()

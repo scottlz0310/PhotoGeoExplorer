@@ -27,6 +27,7 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Windows.Globalization;
 using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Preview;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
@@ -53,6 +54,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private static readonly Color SelectionOutlineColor = Color.FromArgb(255, 0, 120, 215);
     private readonly MainViewModel _viewModel;
     private readonly SettingsService _settingsService;
+    private readonly PreviewPaneViewModel _previewPaneViewModel;
     private bool _layoutStored;
     private bool _mapInitialized;
     private Map? _map;
@@ -106,6 +108,7 @@ public sealed partial class MainWindow : Window, IDisposable
         InitializeComponent();
         _viewModel = new MainViewModel(new FileSystemService());
         _settingsService = new SettingsService();
+        _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         _settingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         RootGrid.DataContext = _viewModel;
         Title = LocalizationService.GetString("MainWindow.Title");
@@ -1612,6 +1615,8 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapUpdateCts?.Cancel();
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
+
+        _previewPaneViewModel?.Cleanup();
 
         _viewModel?.Dispose();
 
