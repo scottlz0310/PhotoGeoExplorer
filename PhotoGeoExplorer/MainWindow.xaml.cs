@@ -1616,6 +1616,8 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
 
+        _previewPaneViewModel?.Cleanup();
+
         _viewModel?.Dispose();
 
         GC.SuppressFinalize(this);

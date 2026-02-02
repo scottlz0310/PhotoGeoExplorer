@@ -76,7 +76,6 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         viewModel.ZoomAtPoint(point.Properties.MouseWheelDelta, scrollViewer.ViewportWidth, scrollViewer.ViewportHeight);
 
         // カーソル位置を基準にズーム
-        var multiplier = point.Properties.MouseWheelDelta > 0 ? 1.1f : 1f / 1.1f;
         var current = scrollViewer.ZoomFactor;
         var target = viewModel.ZoomFactor;
 

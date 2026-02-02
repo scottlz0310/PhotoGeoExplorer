@@ -291,12 +291,12 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
                         _currentFilePath = null;
                         tcs.TrySetResult(true);
                     }
-#pragma warning disable CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
+#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
                     catch (Exception ex)
                     {
                         tcs.TrySetException(ex);
                     }
-#pragma warning restore CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
+#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
                 });
                 await tcs.Task.ConfigureAwait(false);
             }
@@ -338,12 +338,12 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
                     MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
                     tcs.TrySetResult(true);
                 }
-#pragma warning disable CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
+#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
                 catch (Exception ex)
                 {
                     tcs.TrySetException(ex);
                 }
-#pragma warning restore CA1031 // UIコールバック内ではTCSを確実に完了させるため、例外を捕捉する。
+#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
             });
             await tcs.Task.ConfigureAwait(false);
         }
@@ -385,12 +385,12 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             parts.Add(camera ?? string.Empty);
         }
 
-        if (selectedPhoto?.PixelWidth is int width && selectedPhoto.PixelHeight is int height)
+        if (selectedPhoto?.PixelWidth is int width &&
+            selectedPhoto.PixelHeight is int height &&
+            width > 0 &&
+            height > 0)
         {
-            if (width > 0 && height > 0)
-            {
-                parts.Add($"{width}x{height}");
-            }
+            parts.Add($"{width}x{height}");
         }
 
         return parts.Count > 0 ? string.Join(" | ", parts) : null;
