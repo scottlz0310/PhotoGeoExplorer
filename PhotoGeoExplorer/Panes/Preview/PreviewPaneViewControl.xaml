@@ -15,27 +15,36 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Spacing="2">
-                <TextBlock Text="Image Preview" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Text="Image Preview" FontSize="20" FontWeight="SemiBold" x:Uid="PreviewHeader" />
                 <TextBlock
                     Text="{Binding MetadataSummary}"
                     Visibility="{Binding MetadataVisibility}"
                     Opacity="0.7"
+                    AutomationProperties.AutomationId="MetadataSummaryText"
                     FontSize="12" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Button Command="{Binding FitCommand}" ToolTipService.ToolTip="ウィンドウに合わせる">
+                <Button Command="{Binding FitCommand}" ToolTipService.ToolTip="ウィンドウに合わせる" x:Uid="PreviewFitButton">
                     <SymbolIcon Symbol="View" />
                 </Button>
-                <Button Command="{Binding ZoomInCommand}" ToolTipService.ToolTip="拡大">
+                <Button Command="{Binding ZoomInCommand}" ToolTipService.ToolTip="拡大" x:Uid="PreviewZoomInButton">
                     <SymbolIcon Symbol="ZoomIn" />
                 </Button>
-                <Button Command="{Binding ZoomOutCommand}" ToolTipService.ToolTip="縮小">
+                <Button Command="{Binding ZoomOutCommand}" ToolTipService.ToolTip="縮小" x:Uid="PreviewZoomOutButton">
                     <SymbolIcon Symbol="ZoomOut" />
                 </Button>
-                <Button Command="{Binding PreviousCommand}" ToolTipService.ToolTip="前の画像">
+                <ToggleButton
+                    x:Name="MaximizeToggleButton"
+                    Checked="OnMaximizeChecked"
+                    Unchecked="OnMaximizeUnchecked"
+                    ToolTipService.ToolTip="最大化"
+                    x:Uid="PreviewMaximizeButton">
+                    <SymbolIcon Symbol="FullScreen" />
+                </ToggleButton>
+                <Button Command="{Binding PreviousCommand}" ToolTipService.ToolTip="前の画像" x:Uid="PreviewPreviousButton">
                     <SymbolIcon Symbol="Back" />
                 </Button>
-                <Button Command="{Binding NextCommand}" ToolTipService.ToolTip="次の画像">
+                <Button Command="{Binding NextCommand}" ToolTipService.ToolTip="次の画像" x:Uid="PreviewNextButton">
                     <SymbolIcon Symbol="Forward" />
                 </Button>
             </StackPanel>
@@ -67,6 +76,7 @@
                         x:Name="PreviewImage"
                         Source="{Binding CurrentImage}"
                         Stretch="Uniform"
+                        AutomationProperties.AutomationId="PreviewImage"
                         ImageOpened="OnImageOpened" />
                 </ScrollViewer>
                 <TextBlock
@@ -76,7 +86,8 @@
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     IsHitTestVisible="False"
-                    TextWrapping="Wrap" />
+                    TextWrapping="Wrap"
+                    x:Uid="PreviewPlaceholder" />
             </Grid>
         </Border>
     </Grid>

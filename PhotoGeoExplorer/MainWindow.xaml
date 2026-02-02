@@ -7,6 +7,7 @@
     xmlns:mapsui="using:Mapsui.UI.WinUI"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
+    xmlns:preview="using:PhotoGeoExplorer.Panes.Preview"
     mc:Ignorable="d"
     Title="PhotoGeoExplorer">
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
@@ -590,91 +591,10 @@
                     <RowDefinition x:Name="MapRow" Height="*" MinHeight="200" />
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Grid Grid.Row="0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="Image Preview" FontSize="20" FontWeight="SemiBold" x:Uid="PreviewHeader" />
-                            <TextBlock
-                                Text="{Binding MetadataSummary}"
-                                Visibility="{Binding MetadataVisibility}"
-                                Opacity="0.7"
-                                AutomationProperties.AutomationId="MetadataSummaryText"
-                                FontSize="12" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Button Click="OnPreviewFitClicked" ToolTipService.ToolTip="ウィンドウに合わせる" x:Uid="PreviewFitButton">
-                                <SymbolIcon Symbol="View" />
-                            </Button>
-                            <Button Click="OnPreviewZoomInClicked" ToolTipService.ToolTip="拡大" x:Uid="PreviewZoomInButton">
-                                <SymbolIcon Symbol="ZoomIn" />
-                            </Button>
-                            <Button Click="OnPreviewZoomOutClicked" ToolTipService.ToolTip="縮小" x:Uid="PreviewZoomOutButton">
-                                <SymbolIcon Symbol="ZoomOut" />
-                            </Button>
-                            <ToggleButton
-                                Checked="OnPreviewMaximizeChecked"
-                                Unchecked="OnPreviewMaximizeUnchecked"
-                                ToolTipService.ToolTip="最大化"
-                                x:Uid="PreviewMaximizeButton">
-                                <SymbolIcon Symbol="FullScreen" />
-                            </ToggleButton>
-                            <Button Click="OnPreviewPreviousClicked" ToolTipService.ToolTip="前の画像" x:Uid="PreviewPreviousButton">
-                                <SymbolIcon Symbol="Back" />
-                            </Button>
-                            <Button Click="OnPreviewNextClicked" ToolTipService.ToolTip="次の画像" x:Uid="PreviewNextButton">
-                                <SymbolIcon Symbol="Forward" />
-                            </Button>
-                        </StackPanel>
-                    </Grid>
-                    <Border
-                        Grid.Row="1"
-                        Margin="0,8,0,0"
-                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                        CornerRadius="6">
-                        <Grid>
-                            <ScrollViewer
-                                x:Name="PreviewScrollViewer"
-                                ZoomMode="Enabled"
-                                MinZoomFactor="0.1"
-                                MaxZoomFactor="6"
-                                HorizontalScrollMode="Disabled"
-                                VerticalScrollMode="Disabled"
-                                IsScrollInertiaEnabled="False"
-                                HorizontalScrollBarVisibility="Auto"
-                                VerticalScrollBarVisibility="Auto"
-                                SizeChanged="OnPreviewScrollViewerSizeChanged"
-                                PointerWheelChanged="OnPreviewPointerWheelChanged"
-                                PointerPressed="OnPreviewPointerPressed"
-                                PointerMoved="OnPreviewPointerMoved"
-                                PointerReleased="OnPreviewPointerReleased"
-                                PointerCaptureLost="OnPreviewPointerCaptureLost">
-                                <Image
-                                    x:Name="PreviewImage"
-                                    Source="{Binding SelectedPreview}"
-                                    Stretch="Uniform"
-                                    AutomationProperties.AutomationId="PreviewImage"
-                                    ImageOpened="OnPreviewImageOpened" />
-                            </ScrollViewer>
-                            <TextBlock
-                                Text="Select a photo to preview."
-                                Visibility="{Binding PreviewPlaceholderVisibility}"
-                                Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                IsHitTestVisible="False"
-                                TextWrapping="Wrap"
-                                x:Uid="PreviewPlaceholder" />
-                        </Grid>
-                    </Border>
-                </Grid>
+                <!-- PreviewPane を UserControl として配置 -->
+                <preview:PreviewPaneViewControl
+                    x:Name="PreviewPaneControl"
+                    Grid.Row="0" />
 
                 <primitives:Thumb
                     x:Name="MapRowSplitter"

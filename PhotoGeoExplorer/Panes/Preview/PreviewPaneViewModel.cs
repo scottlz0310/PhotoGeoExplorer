@@ -264,6 +264,26 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         {
             await LoadSelectedPhotoAsync().ConfigureAwait(false);
         }
+
+        // ナビゲーションボタンの状態を更新
+        if (e.PropertyName == nameof(WorkspaceState.CurrentPhotoIndex) ||
+            e.PropertyName == nameof(WorkspaceState.PhotoListCount))
+        {
+            UpdateNavigationCommands();
+        }
+    }
+
+    private void UpdateNavigationCommands()
+    {
+        if (NextCommand is RelayCommand nextCommand)
+        {
+            nextCommand.RaiseCanExecuteChanged();
+        }
+
+        if (PreviousCommand is RelayCommand previousCommand)
+        {
+            previousCommand.RaiseCanExecuteChanged();
+        }
     }
 
     private async Task LoadSelectedPhotoAsync()
@@ -417,27 +437,23 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
     private Task ExecuteNextAsync()
     {
-        // MainViewModel の SelectNext を呼ぶ必要がある
-        // TODO: WorkspaceState に CurrentPhotoIndex を追加して連携
+        _workspaceState.SelectNext();
         return Task.CompletedTask;
     }
 
     private Task ExecutePreviousAsync()
     {
-        // MainViewModel の SelectPrevious を呼ぶ必要がある
-        // TODO: WorkspaceState に CurrentPhotoIndex を追加して連携
+        _workspaceState.SelectPrevious();
         return Task.CompletedTask;
     }
 
     private bool CanExecuteNext()
     {
-        // TODO: WorkspaceState から判断
-        return false;
+        return _workspaceState.CanSelectNext;
     }
 
     private bool CanExecutePrevious()
     {
-        // TODO: WorkspaceState から判断
-        return false;
+        return _workspaceState.CanSelectPrevious;
     }
 }

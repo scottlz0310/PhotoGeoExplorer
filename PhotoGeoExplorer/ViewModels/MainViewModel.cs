@@ -84,6 +84,10 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         WorkspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         Items = new ObservableCollection<PhotoListItem>();
         BreadcrumbItems = new ObservableCollection<BreadcrumbSegment>();
+
+        // WorkspaceState にナビゲーションコールバックを設定
+        WorkspaceState.SelectNextAction = SelectNext;
+        WorkspaceState.SelectPreviousAction = SelectPrevious;
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -1084,6 +1088,29 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         // WorkspaceState に選択状態を反映
         WorkspaceState.SelectedPhotoCount = _selectedItems.Count;
         WorkspaceState.SelectedPhotos = _selectedItems.AsReadOnly();
+
+        // 写真リストとインデックスを更新
+        UpdatePhotoListInfo();
+    }
+
+    private void UpdatePhotoListInfo()
+    {
+        // フォルダを除いた写真のみのリストを作成
+        var photoItems = Items.Where(item => !item.IsFolder).ToList();
+        WorkspaceState.PhotoListCount = photoItems.Count;
+
+        // 現在選択されている写真のインデックスを計算
+        if (_selectedItems.Count == 1 && !_selectedItems[0].IsFolder)
+        {
+            var selectedPhoto = _selectedItems[0];
+            var index = photoItems.FindIndex(item =>
+                string.Equals(item.FilePath, selectedPhoto.FilePath, StringComparison.OrdinalIgnoreCase));
+            WorkspaceState.CurrentPhotoIndex = index;
+        }
+        else
+        {
+            WorkspaceState.CurrentPhotoIndex = -1;
+        }
     }
 
     private void ApplySorting()

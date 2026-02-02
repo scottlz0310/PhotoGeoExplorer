@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -15,6 +16,11 @@ internal sealed partial class PreviewPaneViewControl : UserControl
     private double _dragStartHorizontalOffset;
     private double _dragStartVerticalOffset;
 
+    /// <summary>
+    /// 最大化状態が変更されたときに発生するイベント
+    /// </summary>
+    public event EventHandler<bool>? MaximizeChanged;
+
     public PreviewPaneViewControl()
     {
         InitializeComponent();
@@ -27,7 +33,7 @@ internal sealed partial class PreviewPaneViewControl : UserControl
             return;
         }
 
-        if (scrollViewer.DataContext is not PreviewPaneViewModel viewModel)
+        if (DataContext is not PreviewPaneViewModel viewModel)
         {
             return;
         }
@@ -37,21 +43,15 @@ internal sealed partial class PreviewPaneViewControl : UserControl
 
     private void OnImageOpened(object sender, RoutedEventArgs e)
     {
-        if (e.OriginalSource is not Image image)
+        if (DataContext is not PreviewPaneViewModel viewModel)
         {
             return;
         }
 
-        var scrollViewer = FindParent<ScrollViewer>(image);
-        if (scrollViewer?.DataContext is not PreviewPaneViewModel viewModel)
-        {
-            return;
-        }
-
-        viewModel.OnImageOpened(scrollViewer.ViewportWidth, scrollViewer.ViewportHeight);
+        viewModel.OnImageOpened(PreviewScrollViewer.ViewportWidth, PreviewScrollViewer.ViewportHeight);
 
         // ViewModel の ZoomFactor を ScrollViewer に反映
-        scrollViewer.ChangeView(0, 0, viewModel.ZoomFactor, disableAnimation: true);
+        PreviewScrollViewer.ChangeView(0, 0, viewModel.ZoomFactor, disableAnimation: true);
     }
 
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
@@ -61,7 +61,7 @@ internal sealed partial class PreviewPaneViewControl : UserControl
             return;
         }
 
-        if (scrollViewer.DataContext is not PreviewPaneViewModel viewModel)
+        if (DataContext is not PreviewPaneViewModel viewModel)
         {
             return;
         }
@@ -150,20 +150,13 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         _isDragging = false;
     }
 
-    private static T? FindParent<T>(DependencyObject child)
-        where T : DependencyObject
+    private void OnMaximizeChecked(object sender, RoutedEventArgs e)
     {
-        var parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(child);
-        while (parent is not null)
-        {
-            if (parent is T typedParent)
-            {
-                return typedParent;
-            }
+        MaximizeChanged?.Invoke(this, true);
+    }
 
-            parent = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(parent);
-        }
-
-        return null;
+    private void OnMaximizeUnchecked(object sender, RoutedEventArgs e)
+    {
+        MaximizeChanged?.Invoke(this, false);
     }
 }
