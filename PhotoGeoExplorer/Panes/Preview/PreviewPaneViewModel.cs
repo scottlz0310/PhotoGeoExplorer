@@ -29,6 +29,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private readonly WorkspaceState _workspaceState;
     private readonly RelayCommand _nextCommand;
     private readonly RelayCommand _previousCommand;
+    private DispatcherQueue? _uiDispatcherQueue;
     private BitmapImage? _currentImage;
     private Visibility _placeholderVisibility = Visibility.Visible;
     private string? _metadataSummary;
@@ -59,6 +60,11 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
     }
 
+    internal void InitializeDispatcherQueue(DispatcherQueue dispatcherQueue)
+    {
+        _uiDispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
+    }
+
     /// <summary>
     /// 現在表示中の画像
     /// </summary>
@@ -71,6 +77,10 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             {
                 PlaceholderVisibility = value is null ? Visibility.Visible : Visibility.Collapsed;
                 OnPropertyChanged(nameof(HasImage));
+                if (value is not null)
+                {
+                    FitToWindow = true;
+                }
             }
         }
     }
@@ -164,6 +174,8 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     /// 前の画像コマンド
     /// </summary>
     public ICommand PreviousCommand => _previousCommand;
+
+    public event EventHandler? FitRequested;
 
     /// <summary>
     /// ScrollViewer のビューポートサイズが変更されたときに呼ばれる
@@ -364,8 +376,13 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         }
     }
 
-    private static DispatcherQueue? TryGetDispatcherQueue()
+    private DispatcherQueue? TryGetDispatcherQueue()
     {
+        if (_uiDispatcherQueue is not null)
+        {
+            return _uiDispatcherQueue;
+        }
+
         try
         {
             return DispatcherQueue.GetForCurrentThread();
@@ -414,6 +431,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private Task ExecuteFitAsync()
     {
         FitToWindow = true;
+        FitRequested?.Invoke(this, EventArgs.Empty);
         // ビューポートサイズは View 側から OnViewportSizeChanged で通知される
         return Task.CompletedTask;
     }

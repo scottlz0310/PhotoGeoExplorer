@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -11,6 +12,7 @@ namespace PhotoGeoExplorer.Panes.Preview;
 /// </summary>
 internal sealed partial class PreviewPaneViewControl : UserControl
 {
+    private PreviewPaneViewModel? _viewModel;
     private bool _isDragging;
     private Windows.Foundation.Point _dragStart;
     private double _dragStartHorizontalOffset;
@@ -24,6 +26,76 @@ internal sealed partial class PreviewPaneViewControl : UserControl
     public PreviewPaneViewControl()
     {
         InitializeComponent();
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        AttachViewModel(DataContext as PreviewPaneViewModel);
+    }
+
+    private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
+    {
+        AttachViewModel(args.NewValue as PreviewPaneViewModel);
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _viewModel.FitRequested -= OnViewModelFitRequested;
+        _viewModel = null;
+    }
+
+    private void OnViewModelFitRequested(object? sender, EventArgs e)
+    {
+        ApplyFitIfNeeded(resetOffsets: true);
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(PreviewPaneViewModel.ZoomFactor))
+        {
+            return;
+        }
+
+        var viewModel = _viewModel;
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            PreviewScrollViewer.ChangeView(null, null, viewModel.ZoomFactor, disableAnimation: true);
+        });
+    }
+
+    private void AttachViewModel(PreviewPaneViewModel? viewModel)
+    {
+        if (ReferenceEquals(_viewModel, viewModel))
+        {
+            return;
+        }
+
+        if (_viewModel is not null)
+        {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel.FitRequested -= OnViewModelFitRequested;
+        }
+
+        _viewModel = viewModel;
+        if (viewModel is null)
+        {
+            return;
+        }
+
+        viewModel.InitializeDispatcherQueue(DispatcherQueue);
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        viewModel.FitRequested += OnViewModelFitRequested;
     }
 
     private void OnScrollViewerSizeChanged(object sender, SizeChangedEventArgs e)
@@ -43,15 +115,40 @@ internal sealed partial class PreviewPaneViewControl : UserControl
 
     private void OnImageOpened(object sender, RoutedEventArgs e)
     {
-        if (DataContext is not PreviewPaneViewModel viewModel)
+        ApplyFitIfNeeded(resetOffsets: true);
+    }
+
+    private void OnImageSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        ApplyFitIfNeeded(resetOffsets: true);
+    }
+
+    private void ApplyFitIfNeeded(bool resetOffsets)
+    {
+        var viewModel = _viewModel;
+        if (viewModel is null || !viewModel.FitToWindow)
         {
             return;
         }
 
-        viewModel.OnImageOpened(PreviewScrollViewer.ViewportWidth, PreviewScrollViewer.ViewportHeight);
+        if (PreviewImage.Source is null)
+        {
+            return;
+        }
 
-        // ViewModel の ZoomFactor を ScrollViewer に反映
-        PreviewScrollViewer.ChangeView(0, 0, viewModel.ZoomFactor, disableAnimation: true);
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            viewModel.OnViewportSizeChanged(PreviewScrollViewer.ViewportWidth, PreviewScrollViewer.ViewportHeight);
+            if (resetOffsets)
+            {
+                PreviewScrollViewer.ChangeView(0, 0, viewModel.ZoomFactor, disableAnimation: true);
+            }
+            else
+            {
+                PreviewScrollViewer.ChangeView(null, null, viewModel.ZoomFactor, disableAnimation: true);
+            }
+        });
+
     }
 
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)

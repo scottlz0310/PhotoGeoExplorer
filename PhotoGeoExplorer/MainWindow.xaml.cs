@@ -68,6 +68,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private CancellationTokenSource? _settingsCts;
     private GridLength _storedDetailWidth;
     private GridLength _storedFileBrowserWidth;
+    private GridLength _storedPreviewRowHeight;
     private GridLength _storedMapRowHeight;
     private GridLength _storedMapSplitterHeight;
     private GridLength _storedSplitterWidth;
@@ -994,6 +995,7 @@ public sealed partial class MainWindow : Window, IDisposable
             _storedFileBrowserWidth = FileBrowserColumn.Width;
             _storedSplitterWidth = SplitterColumn.Width;
             _storedDetailWidth = DetailColumn.Width;
+            _storedPreviewRowHeight = PreviewRow.Height;
             _storedMapRowHeight = MapRow.Height;
             _storedMapSplitterHeight = MapSplitterRow.Height;
             _storedMapRowMinHeight = MapRow.MinHeight;
@@ -1006,6 +1008,7 @@ public sealed partial class MainWindow : Window, IDisposable
             FileBrowserColumn.Width = new GridLength(0);
             SplitterColumn.Width = new GridLength(0);
             DetailColumn.Width = new GridLength(1, GridUnitType.Star);
+            PreviewRow.Height = new GridLength(1, GridUnitType.Star);
             MapRow.Height = new GridLength(0);
             MapSplitterRow.Height = new GridLength(0);
             MapRow.MinHeight = 0;
@@ -1019,6 +1022,7 @@ public sealed partial class MainWindow : Window, IDisposable
             FileBrowserColumn.Width = _storedFileBrowserWidth;
             SplitterColumn.Width = _storedSplitterWidth;
             DetailColumn.Width = _storedDetailWidth;
+            PreviewRow.Height = _storedPreviewRowHeight;
             MapRow.Height = _storedMapRowHeight;
             MapSplitterRow.Height = _storedMapSplitterHeight;
             MapRow.MinHeight = _storedMapRowMinHeight;
