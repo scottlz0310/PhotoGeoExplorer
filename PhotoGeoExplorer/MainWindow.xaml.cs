@@ -60,7 +60,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private Map? _map;
     private Mapsui.Tiling.Layers.TileLayer? _baseTileLayer;
     private MemoryLayer? _markerLayer;
-    private bool _previewFitToWindow = true;
     private bool _previewMaximized;
     private bool _windowSized;
     private bool _windowIconSet;
@@ -69,14 +68,11 @@ public sealed partial class MainWindow : Window, IDisposable
     private CancellationTokenSource? _settingsCts;
     private GridLength _storedDetailWidth;
     private GridLength _storedFileBrowserWidth;
+    private GridLength _storedPreviewRowHeight;
     private GridLength _storedMapRowHeight;
     private GridLength _storedMapSplitterHeight;
     private GridLength _storedSplitterWidth;
     private double _storedMapRowMinHeight;
-    private bool _previewDragging;
-    private Windows.Foundation.Point _previewDragStart;
-    private double _previewStartHorizontalOffset;
-    private double _previewStartVerticalOffset;
     private List<PhotoListItem>? _dragItems;
     private bool _isApplyingSettings;
     private string? _languageOverride;
@@ -111,11 +107,18 @@ public sealed partial class MainWindow : Window, IDisposable
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         _settingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         RootGrid.DataContext = _viewModel;
+        PreviewPaneControl.DataContext = _previewPaneViewModel;
+        PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         Title = LocalizationService.GetString("MainWindow.Title");
         AppLog.Info("MainWindow constructed.");
         Activated += OnActivated;
         Closed += OnClosed;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+    }
+
+    private void OnPreviewMaximizeChanged(object? sender, bool maximize)
+    {
+        TogglePreviewMaximize(maximize);
     }
 
     private async void OnActivated(object sender, WindowActivatedEventArgs args)
@@ -960,161 +963,6 @@ public sealed partial class MainWindow : Window, IDisposable
         return await Task.WhenAll(tasks).ConfigureAwait(true);
     }
 
-    private void OnPreviewImageOpened(object sender, RoutedEventArgs e)
-    {
-        _previewFitToWindow = true;
-        ApplyPreviewFit();
-    }
-
-    private void OnPreviewScrollViewerSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        if (_previewFitToWindow)
-        {
-            ApplyPreviewFit();
-        }
-    }
-
-    private void OnPreviewFitClicked(object sender, RoutedEventArgs e)
-    {
-        _previewFitToWindow = true;
-        ApplyPreviewFit();
-    }
-
-    private void OnPreviewZoomInClicked(object sender, RoutedEventArgs e)
-    {
-        _previewFitToWindow = false;
-        AdjustPreviewZoom(1.2f);
-    }
-
-    private void OnPreviewZoomOutClicked(object sender, RoutedEventArgs e)
-    {
-        _previewFitToWindow = false;
-        AdjustPreviewZoom(1f / 1.2f);
-    }
-
-    private void OnPreviewMaximizeChecked(object sender, RoutedEventArgs e)
-    {
-        TogglePreviewMaximize(true);
-    }
-
-    private void OnPreviewMaximizeUnchecked(object sender, RoutedEventArgs e)
-    {
-        TogglePreviewMaximize(false);
-    }
-
-    private void OnPreviewNextClicked(object sender, RoutedEventArgs e)
-    {
-        _viewModel.SelectNext();
-    }
-
-    private void OnPreviewPreviousClicked(object sender, RoutedEventArgs e)
-    {
-        _viewModel.SelectPrevious();
-    }
-
-    private void AdjustPreviewZoom(float multiplier)
-    {
-        if (PreviewScrollViewer is null)
-        {
-            return;
-        }
-
-        var current = PreviewScrollViewer.ZoomFactor;
-        var target = current * multiplier;
-        var clamped = Math.Clamp(target, PreviewScrollViewer.MinZoomFactor, PreviewScrollViewer.MaxZoomFactor);
-        PreviewScrollViewer.ChangeView(null, null, clamped, true);
-    }
-
-    private void OnPreviewPointerWheelChanged(object sender, PointerRoutedEventArgs e)
-    {
-        if (PreviewScrollViewer is null)
-        {
-            return;
-        }
-
-        var point = e.GetCurrentPoint(PreviewScrollViewer);
-        if (point.Properties.MouseWheelDelta == 0)
-        {
-            return;
-        }
-
-        _previewFitToWindow = false;
-
-        var multiplier = point.Properties.MouseWheelDelta > 0 ? 1.1f : 1f / 1.1f;
-        var current = PreviewScrollViewer.ZoomFactor;
-        var target = Math.Clamp(current * multiplier, PreviewScrollViewer.MinZoomFactor, PreviewScrollViewer.MaxZoomFactor);
-        if (Math.Abs(target - current) < 0.0001f)
-        {
-            return;
-        }
-
-        var cursor = point.Position;
-        var contentX = (PreviewScrollViewer.HorizontalOffset + cursor.X) / current;
-        var contentY = (PreviewScrollViewer.VerticalOffset + cursor.Y) / current;
-        var targetOffsetX = contentX * target - cursor.X;
-        var targetOffsetY = contentY * target - cursor.Y;
-
-        PreviewScrollViewer.ChangeView(targetOffsetX, targetOffsetY, target, true);
-        e.Handled = true;
-    }
-
-    private void OnPreviewPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        if (PreviewScrollViewer is null)
-        {
-            return;
-        }
-
-        var point = e.GetCurrentPoint(PreviewScrollViewer);
-        if (!point.Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        _previewFitToWindow = false;
-        _previewDragging = true;
-        _previewDragStart = point.Position;
-        _previewStartHorizontalOffset = PreviewScrollViewer.HorizontalOffset;
-        _previewStartVerticalOffset = PreviewScrollViewer.VerticalOffset;
-        PreviewScrollViewer.CapturePointer(e.Pointer);
-        e.Handled = true;
-    }
-
-    private void OnPreviewPointerMoved(object sender, PointerRoutedEventArgs e)
-    {
-        if (!_previewDragging || PreviewScrollViewer is null)
-        {
-            return;
-        }
-
-        var point = e.GetCurrentPoint(PreviewScrollViewer).Position;
-        var deltaX = point.X - _previewDragStart.X;
-        var deltaY = point.Y - _previewDragStart.Y;
-        PreviewScrollViewer.ChangeView(
-            _previewStartHorizontalOffset - deltaX,
-            _previewStartVerticalOffset - deltaY,
-            null,
-            true);
-        e.Handled = true;
-    }
-
-    private void OnPreviewPointerReleased(object sender, PointerRoutedEventArgs e)
-    {
-        if (!_previewDragging || PreviewScrollViewer is null)
-        {
-            return;
-        }
-
-        _previewDragging = false;
-        PreviewScrollViewer.ReleasePointerCapture(e.Pointer);
-        e.Handled = true;
-    }
-
-    private void OnPreviewPointerCaptureLost(object sender, PointerRoutedEventArgs e)
-    {
-        _previewDragging = false;
-    }
-
     /// <summary>
     /// マルチモニター環境でウィンドウを異なるDPIのモニターに移動した際に呼ばれます。
     /// 画像プレビューのズームファクターを補正して、視覚的なサイズを維持します。
@@ -1129,60 +977,10 @@ public sealed partial class MainWindow : Window, IDisposable
 
         AppLog.Info($"RasterizationScale changed: {_lastRasterizationScale} -> {newScale}");
 
-        // FitToWindow モードの場合は ApplyPreviewFit を呼び直すだけで適切にフィットする
-        if (_previewFitToWindow)
-        {
-            _lastRasterizationScale = newScale;
-            ApplyPreviewFit();
-            return;
-        }
-
-        // ユーザーが手動でズームしている場合は、ZoomFactor を補正して視覚的サイズを維持
-        if (PreviewScrollViewer is not null && _lastRasterizationScale > 0)
-        {
-            var currentZoom = PreviewScrollViewer.ZoomFactor;
-            var correctedZoom = (float)(currentZoom * _lastRasterizationScale / newScale);
-            var clamped = Math.Clamp(correctedZoom, PreviewScrollViewer.MinZoomFactor, PreviewScrollViewer.MaxZoomFactor);
-            PreviewScrollViewer.ChangeView(null, null, clamped, true);
-            AppLog.Info($"Preview zoom corrected: {currentZoom} -> {clamped}");
-        }
+        // PreviewPaneViewModel にDPIスケーリング変更を通知
+        _previewPaneViewModel.OnRasterizationScaleChanged(newScale);
 
         _lastRasterizationScale = newScale;
-    }
-
-    private void ApplyPreviewFit()
-    {
-        if (PreviewScrollViewer is null || PreviewImage?.Source is not BitmapImage bitmap)
-        {
-            return;
-        }
-
-        if (bitmap.PixelWidth == 0 || bitmap.PixelHeight == 0)
-        {
-            return;
-        }
-
-        var viewportWidth = PreviewScrollViewer.ViewportWidth;
-        var viewportHeight = PreviewScrollViewer.ViewportHeight;
-        if (viewportWidth <= 0 || viewportHeight <= 0)
-        {
-            return;
-        }
-
-        // WinUI の Image 要素は BitmapImage.PixelWidth/Height をそのまま DIP 単位として扱う
-        // (DecodePixelWidth/Height を設定しない限り、DPI による補正は不要)
-        var imageWidth = (double)bitmap.PixelWidth;
-        var imageHeight = (double)bitmap.PixelHeight;
-        if (imageWidth <= 0 || imageHeight <= 0)
-        {
-            return;
-        }
-
-        var scaleX = viewportWidth / imageWidth;
-        var scaleY = viewportHeight / imageHeight;
-        var target = (float)Math.Min(scaleX, scaleY);
-        var clamped = Math.Clamp(target, PreviewScrollViewer.MinZoomFactor, PreviewScrollViewer.MaxZoomFactor);
-        PreviewScrollViewer.ChangeView(0, 0, clamped, true);
     }
 
     private void TogglePreviewMaximize(bool maximize)
@@ -1197,6 +995,7 @@ public sealed partial class MainWindow : Window, IDisposable
             _storedFileBrowserWidth = FileBrowserColumn.Width;
             _storedSplitterWidth = SplitterColumn.Width;
             _storedDetailWidth = DetailColumn.Width;
+            _storedPreviewRowHeight = PreviewRow.Height;
             _storedMapRowHeight = MapRow.Height;
             _storedMapSplitterHeight = MapSplitterRow.Height;
             _storedMapRowMinHeight = MapRow.MinHeight;
@@ -1209,6 +1008,7 @@ public sealed partial class MainWindow : Window, IDisposable
             FileBrowserColumn.Width = new GridLength(0);
             SplitterColumn.Width = new GridLength(0);
             DetailColumn.Width = new GridLength(1, GridUnitType.Star);
+            PreviewRow.Height = new GridLength(1, GridUnitType.Star);
             MapRow.Height = new GridLength(0);
             MapSplitterRow.Height = new GridLength(0);
             MapRow.MinHeight = 0;
@@ -1222,6 +1022,7 @@ public sealed partial class MainWindow : Window, IDisposable
             FileBrowserColumn.Width = _storedFileBrowserWidth;
             SplitterColumn.Width = _storedSplitterWidth;
             DetailColumn.Width = _storedDetailWidth;
+            PreviewRow.Height = _storedPreviewRowHeight;
             MapRow.Height = _storedMapRowHeight;
             MapSplitterRow.Height = _storedMapSplitterHeight;
             MapRow.MinHeight = _storedMapRowMinHeight;
@@ -1231,8 +1032,8 @@ public sealed partial class MainWindow : Window, IDisposable
             MapRowSplitter.Visibility = Visibility.Visible;
         }
 
-        _previewFitToWindow = true;
-        ApplyPreviewFit();
+        // PreviewPaneViewModel の FitToWindow を設定
+        _previewPaneViewModel.FitToWindow = true;
     }
 
     private void OnMainSplitterDragDelta(object sender, DragDeltaEventArgs e)
@@ -1615,6 +1416,12 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapUpdateCts?.Cancel();
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
+
+        if (PreviewPaneControl is not null)
+        {
+            PreviewPaneControl.MaximizeChanged -= OnPreviewMaximizeChanged;
+            PreviewPaneControl.DataContext = null;
+        }
 
         _previewPaneViewModel?.Cleanup();
 

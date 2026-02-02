@@ -288,4 +288,38 @@ public class PreviewPaneViewModelTests
         // Assert
         Assert.Null(vm.CurrentImage);
     }
+
+    [Fact]
+    public void NextCommandCallsWorkspaceStateSelectNext()
+    {
+        // Arrange
+        var service = new MockPreviewPaneService();
+        var workspaceState = new WorkspaceState();
+        var selectNextCalled = false;
+        workspaceState.SelectNextAction = () => selectNextCalled = true;
+        var vm = new PreviewPaneViewModel(service, workspaceState);
+
+        // Act
+        vm.NextCommand.Execute(null);
+
+        // Assert
+        Assert.True(selectNextCalled);
+    }
+
+    [Fact]
+    public void PreviousCommandCallsWorkspaceStateSelectPrevious()
+    {
+        // Arrange
+        var service = new MockPreviewPaneService();
+        var workspaceState = new WorkspaceState();
+        var selectPreviousCalled = false;
+        workspaceState.SelectPreviousAction = () => selectPreviousCalled = true;
+        var vm = new PreviewPaneViewModel(service, workspaceState);
+
+        // Act
+        vm.PreviousCommand.Execute(null);
+
+        // Assert
+        Assert.True(selectPreviousCalled);
+    }
 }

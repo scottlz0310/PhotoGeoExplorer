@@ -27,6 +27,9 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
     private readonly IPreviewPaneService _service;
     private readonly WorkspaceState _workspaceState;
+    private readonly RelayCommand _nextCommand;
+    private readonly RelayCommand _previousCommand;
+    private DispatcherQueue? _uiDispatcherQueue;
     private BitmapImage? _currentImage;
     private Visibility _placeholderVisibility = Visibility.Visible;
     private string? _metadataSummary;
@@ -50,11 +53,16 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         FitCommand = new RelayCommand(ExecuteFitAsync);
         ZoomInCommand = new RelayCommand(ExecuteZoomInAsync);
         ZoomOutCommand = new RelayCommand(ExecuteZoomOutAsync);
-        NextCommand = new RelayCommand(ExecuteNextAsync, CanExecuteNext);
-        PreviousCommand = new RelayCommand(ExecutePreviousAsync, CanExecutePrevious);
+        _nextCommand = new RelayCommand(ExecuteNextAsync, CanExecuteNext);
+        _previousCommand = new RelayCommand(ExecutePreviousAsync, CanExecutePrevious);
 
         // WorkspaceState の変更を監視
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
+    }
+
+    internal void InitializeDispatcherQueue(DispatcherQueue dispatcherQueue)
+    {
+        _uiDispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
     }
 
     /// <summary>
@@ -69,6 +77,10 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             {
                 PlaceholderVisibility = value is null ? Visibility.Visible : Visibility.Collapsed;
                 OnPropertyChanged(nameof(HasImage));
+                if (value is not null)
+                {
+                    FitToWindow = true;
+                }
             }
         }
     }
@@ -156,12 +168,14 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     /// <summary>
     /// 次の画像コマンド
     /// </summary>
-    public ICommand NextCommand { get; }
+    public ICommand NextCommand => _nextCommand;
 
     /// <summary>
     /// 前の画像コマンド
     /// </summary>
-    public ICommand PreviousCommand { get; }
+    public ICommand PreviousCommand => _previousCommand;
+
+    public event EventHandler? FitRequested;
 
     /// <summary>
     /// ScrollViewer のビューポートサイズが変更されたときに呼ばれる
@@ -264,6 +278,19 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         {
             await LoadSelectedPhotoAsync().ConfigureAwait(false);
         }
+
+        // ナビゲーションボタンの状態を更新
+        if (e.PropertyName == nameof(WorkspaceState.CurrentPhotoIndex) ||
+            e.PropertyName == nameof(WorkspaceState.PhotoListCount))
+        {
+            UpdateNavigationCommands();
+        }
+    }
+
+    private void UpdateNavigationCommands()
+    {
+        _nextCommand.RaiseCanExecuteChanged();
+        _previousCommand.RaiseCanExecuteChanged();
     }
 
     private async Task LoadSelectedPhotoAsync()
@@ -349,8 +376,13 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         }
     }
 
-    private static DispatcherQueue? TryGetDispatcherQueue()
+    private DispatcherQueue? TryGetDispatcherQueue()
     {
+        if (_uiDispatcherQueue is not null)
+        {
+            return _uiDispatcherQueue;
+        }
+
         try
         {
             return DispatcherQueue.GetForCurrentThread();
@@ -399,6 +431,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private Task ExecuteFitAsync()
     {
         FitToWindow = true;
+        FitRequested?.Invoke(this, EventArgs.Empty);
         // ビューポートサイズは View 側から OnViewportSizeChanged で通知される
         return Task.CompletedTask;
     }
@@ -417,27 +450,23 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
     private Task ExecuteNextAsync()
     {
-        // MainViewModel の SelectNext を呼ぶ必要がある
-        // TODO: WorkspaceState に CurrentPhotoIndex を追加して連携
+        _workspaceState.SelectNext();
         return Task.CompletedTask;
     }
 
     private Task ExecutePreviousAsync()
     {
-        // MainViewModel の SelectPrevious を呼ぶ必要がある
-        // TODO: WorkspaceState に CurrentPhotoIndex を追加して連携
+        _workspaceState.SelectPrevious();
         return Task.CompletedTask;
     }
 
     private bool CanExecuteNext()
     {
-        // TODO: WorkspaceState から判断
-        return false;
+        return _workspaceState.CanSelectNext;
     }
 
     private bool CanExecutePrevious()
     {
-        // TODO: WorkspaceState から判断
-        return false;
+        return _workspaceState.CanSelectPrevious;
     }
 }
