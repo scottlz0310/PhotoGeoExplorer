@@ -1417,6 +1417,12 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
 
+        if (PreviewPaneControl is not null)
+        {
+            PreviewPaneControl.MaximizeChanged -= OnPreviewMaximizeChanged;
+            PreviewPaneControl.DataContext = null;
+        }
+
         _previewPaneViewModel?.Cleanup();
 
         _viewModel?.Dispose();
