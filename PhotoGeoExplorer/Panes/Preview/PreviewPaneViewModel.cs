@@ -27,6 +27,8 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
     private readonly IPreviewPaneService _service;
     private readonly WorkspaceState _workspaceState;
+    private readonly RelayCommand _nextCommand;
+    private readonly RelayCommand _previousCommand;
     private BitmapImage? _currentImage;
     private Visibility _placeholderVisibility = Visibility.Visible;
     private string? _metadataSummary;
@@ -50,8 +52,8 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         FitCommand = new RelayCommand(ExecuteFitAsync);
         ZoomInCommand = new RelayCommand(ExecuteZoomInAsync);
         ZoomOutCommand = new RelayCommand(ExecuteZoomOutAsync);
-        NextCommand = new RelayCommand(ExecuteNextAsync, CanExecuteNext);
-        PreviousCommand = new RelayCommand(ExecutePreviousAsync, CanExecutePrevious);
+        _nextCommand = new RelayCommand(ExecuteNextAsync, CanExecuteNext);
+        _previousCommand = new RelayCommand(ExecutePreviousAsync, CanExecutePrevious);
 
         // WorkspaceState の変更を監視
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
@@ -156,12 +158,12 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     /// <summary>
     /// 次の画像コマンド
     /// </summary>
-    public ICommand NextCommand { get; }
+    public ICommand NextCommand => _nextCommand;
 
     /// <summary>
     /// 前の画像コマンド
     /// </summary>
-    public ICommand PreviousCommand { get; }
+    public ICommand PreviousCommand => _previousCommand;
 
     /// <summary>
     /// ScrollViewer のビューポートサイズが変更されたときに呼ばれる
@@ -275,15 +277,8 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
     private void UpdateNavigationCommands()
     {
-        if (NextCommand is RelayCommand nextCommand)
-        {
-            nextCommand.RaiseCanExecuteChanged();
-        }
-
-        if (PreviousCommand is RelayCommand previousCommand)
-        {
-            previousCommand.RaiseCanExecuteChanged();
-        }
+        _nextCommand.RaiseCanExecuteChanged();
+        _previousCommand.RaiseCanExecuteChanged();
     }
 
     private async Task LoadSelectedPhotoAsync()
