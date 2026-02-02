@@ -102,6 +102,18 @@ lefthook install
 dotnet test PhotoGeoExplorer.sln -c Release -p:Platform=x64
 ```
 
+### カバレッジ（任意）
+
+生成ファイルは `TestResults/` に出力されます。不要なら実行後に削除してください（git では除外済み）。
+
+```powershell
+dotnet test PhotoGeoExplorer.sln -c Release -p:Platform=x64 --collect "XPlat Code Coverage" --settings coverlet.runsettings
+[xml]$x = Get-Content (Get-ChildItem -Recurse -Filter coverage.cobertura.xml TestResults | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+"Line: {0:P2}  Branch: {1:P2}" -f $x.coverage.'line-rate', $x.coverage.'branch-rate'
+# 不要なら実行後に削除
+Remove-Item -Recurse -Force TestResults
+```
+
 E2E は通常スキップします。UIA (FlaUI) による WinUI 自動化は、デスクトップの対話セッションが必要で
 環境依存の不安定さがあるため、日常の品質確認は手動テストを重視する方針です。
 実行する場合は `PHOTO_GEO_EXPLORER_RUN_E2E=1` を指定して手動環境で実行してください。
