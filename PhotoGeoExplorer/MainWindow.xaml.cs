@@ -140,19 +140,15 @@ public sealed partial class MainWindow : Window, IDisposable
 
         if (MapControl is null)
         {
+            // MapControl が取得できない場合はログのみ残し、
+            // ステータス表示は MapPaneViewModel に委譲する
             AppLog.Error("Map control is missing.");
-            ShowMapStatus(
-                LocalizationService.GetString("MapStatus.ControlMissingTitle"),
-                LocalizationService.GetString("MapStatus.SeeLogDetail"),
-                Symbol.Map);
         }
         else if (_mapPaneViewModel.Map is not Mapsui.Map map)
         {
+            // Map 初期化が失敗した場合も同様に、
+            // ステータス表示は MapPaneViewModel に任せる
             AppLog.Error("Map initialization returned null.");
-            ShowMapStatus(
-                LocalizationService.GetString("MapStatus.InitFailedTitle"),
-                LocalizationService.GetString("MapStatus.SeeLogDetail"),
-                Symbol.Map);
         }
         else
         {
@@ -603,11 +599,8 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         if (e.PropertyName is nameof(State.WorkspaceState.SelectedPhotos))
         {
-            var selectedPhotos = _viewModel.WorkspaceState.SelectedPhotos;
-            if (selectedPhotos is not null)
-            {
-                await _mapPaneViewModel.UpdateMarkersFromSelectionAsync(selectedPhotos).ConfigureAwait(true);
-            }
+            var selectedPhotos = _viewModel.WorkspaceState.SelectedPhotos ?? Array.Empty<PhotoListItem>();
+            await _mapPaneViewModel.UpdateMarkersFromSelectionAsync(selectedPhotos).ConfigureAwait(true);
         }
     }
 
@@ -1072,6 +1065,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         // MapPaneViewModel のクリーンアップ
         _mapPaneViewModel.Cleanup();
+        _map = null;
 
         _rectangleSelectionLayer?.Dispose();
         _rectangleSelectionLayer = null;
