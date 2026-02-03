@@ -610,114 +610,7 @@ public sealed partial class MainWindow : Window, IDisposable
         return true;
     }
 
-    private void ClearMapMarkers()
-    {
-        if (_markerLayer is null)
-        {
-            return;
-        }
-
-        _markerLayer.Features = Array.Empty<IFeature>();
-        _map?.Refresh();
-    }
-
-    private void SetMapMarker(double latitude, double longitude, PhotoMetadata metadata, PhotoItem photoItem)
-    {
-        if (_map is null || _markerLayer is null)
-        {
-            return;
-        }
-
-        var position = SphericalMercator.FromLonLat(new MPoint(longitude, latitude));
-        var feature = new PointFeature(position);
-        feature.Styles.Clear();
-        foreach (var style in CreatePinStyles(metadata))
-        {
-            feature.Styles.Add(style);
-        }
-        feature[PhotoMetadataKey] = metadata;
-        feature[PhotoItemKey] = photoItem;
-        _markerLayer.Features = new[] { feature };
-        _map.Refresh();
-
-        var navigator = _map.Navigator;
-        navigator.CenterOn(position, 0, Mapsui.Animations.Easing.CubicOut);
-        if (navigator.Resolutions.Count > 0)
-        {
-            var targetLevel = Math.Clamp(_mapDefaultZoomLevel, 0, navigator.Resolutions.Count - 1);
-            navigator.ZoomToLevel(targetLevel);
-        }
-    }
-
-    private static IStyle[] CreatePinStyles(PhotoMetadata metadata)
-    {
-        var pinPath = GetPinPath(metadata);
-        if (TryCreatePinStyle(pinPath, out var pinStyle))
-        {
-            return new IStyle[] { pinStyle };
-        }
-
-        return new IStyle[] { CreateFallbackMarkerStyle() };
-    }
-
-    private static bool TryCreatePinStyle(string imagePath, out ImageStyle pinStyle)
-    {
-        pinStyle = null!;
-        if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
-        {
-            if (!string.IsNullOrWhiteSpace(imagePath))
-            {
-                AppLog.Info($"Pin image missing: {imagePath}");
-            }
-            return false;
-        }
-
-        var imageUri = new Uri(imagePath).AbsoluteUri;
-        pinStyle = new ImageStyle
-        {
-            Image = new Mapsui.Styles.Image { Source = imageUri },
-            SymbolScale = 1,
-            RelativeOffset = new RelativeOffset(0, 0.5)
-        };
-        return true;
-    }
-
-    private static SymbolStyle CreateFallbackMarkerStyle()
-    {
-        return new SymbolStyle
-        {
-            SymbolType = SymbolType.Ellipse,
-            SymbolScale = 0.8,
-            Fill = new Brush(Color.FromArgb(255, 32, 128, 255)),
-            Outline = new Pen(Color.White, 2)
-        };
-    }
-
-    private static string GetPinPath(PhotoMetadata metadata)
-    {
-        var assetsRoot = Path.Combine(AppContext.BaseDirectory, "Assets", "MapPins");
-        if (metadata.TakenAt is DateTimeOffset takenAt)
-        {
-            var age = DateTimeOffset.Now - takenAt;
-            if (age <= TimeSpan.FromDays(30))
-            {
-                return Path.Combine(assetsRoot, "green_pin.png");
-            }
-
-            if (age <= TimeSpan.FromDays(365))
-            {
-                return Path.Combine(assetsRoot, "blue_pin.png");
-            }
-        }
-
-        return Path.Combine(assetsRoot, "red_pin.png");
-    }
-
-    private static async Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadSelectionMetadataAsync(
-        IReadOnlyList<PhotoListItem> items,
-        CancellationToken cancellationToken)
-    {
-        var tasks = items.Select(async item =>
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             var metadata = await ExifService.GetMetadataAsync(item.FilePath, cancellationToken).ConfigureAwait(true);
             return (Item: item, Metadata: metadata);
@@ -1857,68 +1750,6 @@ public sealed partial class MainWindow : Window, IDisposable
         e.Handled = true;
     }
 
-    private void SetMapMarkers(List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)> items)
-    {
-        if (_map is null || _markerLayer is null)
-        {
-            return;
-        }
-
-        var features = new List<IFeature>(items.Count);
-        var hasBounds = false;
-        var minX = 0d;
-        var minY = 0d;
-        var maxX = 0d;
-        var maxY = 0d;
-
-        foreach (var item in items)
-        {
-            var position = SphericalMercator.FromLonLat(new MPoint(item.Longitude, item.Latitude));
-            if (!hasBounds)
-            {
-                minX = maxX = position.X;
-                minY = maxY = position.Y;
-                hasBounds = true;
-            }
-            else
-            {
-                minX = Math.Min(minX, position.X);
-                maxX = Math.Max(maxX, position.X);
-                minY = Math.Min(minY, position.Y);
-                maxY = Math.Max(maxY, position.Y);
-            }
-
-            var feature = new PointFeature(position);
-            feature.Styles.Clear();
-            foreach (var style in CreatePinStyles(item.Metadata))
-            {
-                feature.Styles.Add(style);
-            }
-            feature[PhotoMetadataKey] = item.Metadata;
-            feature[PhotoItemKey] = item.Item;
-            features.Add(feature);
-        }
-
-        _markerLayer.Features = features;
-        _map.Refresh();
-
-        if (!hasBounds)
-        {
-            return;
-        }
-
-        var spanX = maxX - minX;
-        var spanY = maxY - minY;
-        var padding = Math.Max(spanX, spanY) * 0.1;
-        if (padding <= 0)
-        {
-            padding = 500;
-        }
-
-        var bounds = new MRect(minX - padding, minY - padding, maxX + padding, maxY + padding);
-        _map.Navigator.ZoomToBox(bounds, MBoxFit.Fit, 0, Mapsui.Animations.Easing.CubicOut);
-    }
-
     private async void OnFileSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (sender is not ListViewBase listView)
@@ -1930,7 +1761,7 @@ public sealed partial class MainWindow : Window, IDisposable
             .OfType<PhotoListItem>()
             .ToList();
         _viewModel.UpdateSelection(selected);
-        await UpdateMapFromSelectionAsync().ConfigureAwait(true);
+        // 地図の更新は WorkspaceState 経由で MapPaneViewModel が行う
     }
 
     private async void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
