@@ -27,6 +27,7 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Windows.Globalization;
 using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Preview;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
@@ -55,11 +56,9 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly MainViewModel _viewModel;
     private readonly SettingsService _settingsService;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
+    private readonly MapPaneViewModel _mapPaneViewModel;
     private bool _layoutStored;
     private bool _mapInitialized;
-    private Map? _map;
-    private Mapsui.Tiling.Layers.TileLayer? _baseTileLayer;
-    private MemoryLayer? _markerLayer;
     private bool _previewMaximized;
     private bool _windowSized;
     private bool _windowIconSet;
@@ -105,6 +104,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _viewModel = new MainViewModel(new FileSystemService());
         _settingsService = new SettingsService();
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
+        _mapPaneViewModel = new MapPaneViewModel();
         _settingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         RootGrid.DataContext = _viewModel;
         PreviewPaneControl.DataContext = _previewPaneViewModel;
@@ -114,6 +114,7 @@ public sealed partial class MainWindow : Window, IDisposable
         Activated += OnActivated;
         Closed += OnClosed;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _viewModel.WorkspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
     }
 
     private void OnPreviewMaximizeChanged(object? sender, bool maximize)
@@ -132,12 +133,15 @@ public sealed partial class MainWindow : Window, IDisposable
         EnsureWindowIcon();
         _mapInitialized = true;
         AppLog.Info("MainWindow activated.");
-        await InitializeMapAsync().ConfigureAwait(true);
+        
+        // MapPaneViewModel を初期化
+        await _mapPaneViewModel.InitializeAsync().ConfigureAwait(true);
+        MapControl.Map = _mapPaneViewModel.Map;
+        
         await LoadSettingsAsync().ConfigureAwait(true);
         await ApplyStartupFolderOverrideAsync().ConfigureAwait(true);
         await ApplyStartupFileActivationAsync().ConfigureAwait(true);
         await _viewModel.InitializeAsync().ConfigureAwait(true);
-        await UpdateMapFromSelectionAsync().ConfigureAwait(true);
 
         // XamlRoot が確定するまでワンテンポ遅らせてからダイアログを表示
         DispatcherQueue.TryEnqueue(async () =>
@@ -232,161 +236,6 @@ public sealed partial class MainWindow : Window, IDisposable
         AppLog.Info($"Subscribed to XamlRoot.Changed. Initial RasterizationScale: {_lastRasterizationScale}");
     }
 
-    private Task InitializeMapAsync()
-    {
-        if (_map is not null)
-        {
-            return Task.CompletedTask;
-        }
-
-        if (MapControl is null)
-        {
-            AppLog.Error("Map control is missing.");
-            ShowMapStatus(
-                LocalizationService.GetString("MapStatus.ControlMissingTitle"),
-                LocalizationService.GetString("MapStatus.SeeLogDetail"),
-                Symbol.Map);
-            return Task.CompletedTask;
-        }
-
-        Map? map = null;
-        try
-        {
-            map = new Map();
-            var cacheRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "PhotoGeoExplorer",
-                "Cache",
-                "Tiles");
-            var userAgent = UserAgentProvider.UserAgent;
-            var tileLayer = CreateTileLayer(_mapTileSource, cacheRoot, userAgent);
-            _baseTileLayer = tileLayer;
-            map.Layers.Add(tileLayer);
-
-            var markerLayer = new MemoryLayer
-            {
-                Name = "PhotoMarkers",
-                Features = Array.Empty<IFeature>(),
-                Style = null
-            };
-            map.Layers.Add(markerLayer);
-
-            _map = map;
-            _markerLayer = markerLayer;
-            MapControl.Map = map;
-            map = null; // 所有権が _map に移ったので null に設定
-            HideMapStatus();
-            AppLog.Info("Map initialized.");
-        }
-        catch (InvalidOperationException ex)
-        {
-            AppLog.Error("Map init failed.", ex);
-            ShowMapStatus(
-                LocalizationService.GetString("MapStatus.InitFailedTitle"),
-                LocalizationService.GetString("MapStatus.SeeLogDetail"),
-                Symbol.Map);
-        }
-        catch (NotSupportedException ex)
-        {
-            AppLog.Error("Map init failed.", ex);
-            ShowMapStatus(
-                LocalizationService.GetString("MapStatus.InitFailedTitle"),
-                LocalizationService.GetString("MapStatus.SeeLogDetail"),
-                Symbol.Map);
-        }
-        finally
-        {
-            map?.Dispose();
-        }
-
-        return Task.CompletedTask;
-    }
-
-    private static TileLayer CreateOpenStreetMapLayer(string userAgent, IPersistentCache<byte[]>? persistentCache = null)
-    {
-        var tileSource = new BruTile.Web.HttpTileSource(
-            new BruTile.Predefined.GlobalSphericalMercator(),
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            name: "OpenStreetMap",
-            attribution: new BruTile.Attribution("© OpenStreetMap contributors", "https://www.openstreetmap.org/copyright"),
-            configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
-            persistentCache: persistentCache);
-
-        return new TileLayer(tileSource) { Name = "OpenStreetMap" };
-    }
-
-    private static TileLayer CreateEsriWorldImageryLayer(string userAgent, IPersistentCache<byte[]>? persistentCache = null)
-    {
-        var tileSource = new BruTile.Web.HttpTileSource(
-            new BruTile.Predefined.GlobalSphericalMercator(),
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            name: "Esri WorldImagery",
-            attribution: new BruTile.Attribution("Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"),
-            configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
-            persistentCache: persistentCache);
-
-        return new TileLayer(tileSource) { Name = "Esri WorldImagery" };
-    }
-
-    private static TileLayer CreateTileLayer(MapTileSourceType sourceType, string cacheDirectory, string userAgent)
-    {
-        var sourceDirectory = Path.Combine(cacheDirectory, sourceType.ToString());
-        Directory.CreateDirectory(sourceDirectory);
-        var persistentCache = new FileCache(sourceDirectory, "png");
-
-        return sourceType switch
-        {
-            MapTileSourceType.EsriWorldImagery => CreateEsriWorldImageryLayer(userAgent, persistentCache),
-            _ => CreateOpenStreetMapLayer(userAgent, persistentCache)
-        };
-    }
-
-    private void SwitchTileLayer(MapTileSourceType newSource)
-    {
-        if (_map is null || MapControl is null)
-        {
-            return;
-        }
-
-        try
-        {
-            var cacheRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "PhotoGeoExplorer",
-                "Cache",
-                "Tiles");
-            var userAgent = UserAgentProvider.UserAgent;
-            var newTileLayer = CreateTileLayer(newSource, cacheRoot, userAgent);
-
-            if (_baseTileLayer is not null)
-            {
-                _map.Layers.Remove(_baseTileLayer);
-                _baseTileLayer.Dispose();
-            }
-
-            _map.Layers.Insert(0, newTileLayer);
-            _baseTileLayer = newTileLayer;
-            _mapTileSource = newSource;
-
-            MapControl.Refresh();
-            AppLog.Info($"Switched map tile source to {newSource}");
-        }
-        catch (InvalidOperationException ex)
-        {
-            AppLog.Error("Map tile switch failed.", ex);
-            _viewModel.ShowNotificationMessage(
-                LocalizationService.GetString("Message.OperationFailed"),
-                InfoBarSeverity.Error);
-        }
-        catch (NotSupportedException ex)
-        {
-            AppLog.Error("Map tile switch failed.", ex);
-            _viewModel.ShowNotificationMessage(
-                LocalizationService.GetString("Message.OperationFailed"),
-                InfoBarSeverity.Error);
-        }
-    }
-
     private void OnMapTileSourceMenuClicked(object sender, RoutedEventArgs e)
     {
         if (sender is not RadioMenuFlyoutItem item || item.Tag is not string tag)
@@ -399,7 +248,7 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        SwitchTileLayer(sourceType);
+        _mapPaneViewModel.SwitchTileSource(sourceType);
         UpdateMapTileSourceMenuChecks(sourceType);
         ScheduleSettingsSave();
     }
@@ -558,7 +407,10 @@ public sealed partial class MainWindow : Window, IDisposable
 
         await ApplyLanguageSettingAsync(settings.Language, showLanguagePrompt).ConfigureAwait(true);
         ApplyThemePreference(settings.Theme, saveSettings: false);
+        
+        // MapPaneViewModel に設定を適用
         _mapDefaultZoomLevel = NormalizeMapZoomLevel(settings.MapDefaultZoomLevel);
+        _mapPaneViewModel.MapDefaultZoomLevel = _mapDefaultZoomLevel;
         _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
         UpdateMapZoomMenuChecks(_mapDefaultZoomLevel);
 
@@ -566,7 +418,8 @@ public sealed partial class MainWindow : Window, IDisposable
         if (savedTileSource != _mapTileSource)
         {
             // 設定で保存されたタイルソースが現在のものと異なる場合、切り替えを実行
-            SwitchTileLayer(savedTileSource);
+            _mapPaneViewModel.SwitchTileSource(savedTileSource);
+            _mapTileSource = savedTileSource;
         }
         else
         {
@@ -714,11 +567,8 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainViewModel.SelectedMetadata) or nameof(MainViewModel.SelectedItem))
-        {
-            await UpdateMapFromSelectionAsync().ConfigureAwait(true);
-        }
-
+        // 地図の更新は WorkspaceState 経由で MapPaneViewModel が行うため、ここでは不要
+        
         if (e.PropertyName is nameof(MainViewModel.ShowImagesOnly)
             or nameof(MainViewModel.FileViewMode)
             or nameof(MainViewModel.CurrentFolderPath))
@@ -727,103 +577,16 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    private async Task UpdateMapFromSelectionAsync()
+    private async void OnWorkspaceStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_map is null || _markerLayer is null)
+        if (e.PropertyName is nameof(State.WorkspaceState.SelectedPhotos))
         {
-            return;
-        }
-
-        var previousCts = _mapUpdateCts;
-        _mapUpdateCts = null;
-        if (previousCts is not null)
-        {
-            await previousCts.CancelAsync().ConfigureAwait(true);
-            previousCts.Dispose();
-        }
-
-        var selectedItems = _viewModel.SelectedItems;
-        var imageItems = selectedItems.Where(item => !item.IsFolder).ToList();
-        if (imageItems.Count == 0)
-        {
-            ClearMapMarkers();
-            ShowMapStatus(
-                LocalizationService.GetString("MapStatus.SelectPhotoTitle"),
-                LocalizationService.GetString("MapStatus.SelectPhotoDetail"),
-                Symbol.Map);
-            return;
-        }
-
-        if (imageItems.Count == 1
-            && ReferenceEquals(imageItems[0], _viewModel.SelectedItem)
-            && _viewModel.SelectedMetadata is PhotoMetadata selectedMetadata)
-        {
-            if (TryGetValidLocation(selectedMetadata, out var latitude, out var longitude))
+            var selectedPhotos = _viewModel.WorkspaceState.SelectedPhotos;
+            if (selectedPhotos is not null)
             {
-                SetMapMarker(latitude, longitude, selectedMetadata, imageItems[0].Item);
-                HideMapStatus();
+                await _mapPaneViewModel.UpdateMarkersFromSelectionAsync(selectedPhotos).ConfigureAwait(true);
             }
-            else
-            {
-                ClearMapMarkers();
-                ShowMapStatus(
-                    LocalizationService.GetString("MapStatus.LocationMissingTitle"),
-                    LocalizationService.GetString("MapStatus.LocationMissingDetail"),
-                    Symbol.Map);
-            }
-
-            return;
         }
-
-        var cts = new CancellationTokenSource();
-        _mapUpdateCts = cts;
-
-        IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)> metadataItems;
-        try
-        {
-            metadataItems = await LoadSelectionMetadataAsync(imageItems, cts.Token).ConfigureAwait(true);
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-
-        if (cts.IsCancellationRequested)
-        {
-            return;
-        }
-
-        var points = new List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)>();
-        foreach (var (item, metadata) in metadataItems)
-        {
-            if (metadata is null || !TryGetValidLocation(metadata, out var latitude, out var longitude))
-            {
-                continue;
-            }
-
-            points.Add((latitude, longitude, metadata, item.Item));
-        }
-
-        if (points.Count == 0)
-        {
-            ClearMapMarkers();
-            ShowMapStatus(
-                LocalizationService.GetString("MapStatus.LocationMissingTitle"),
-                LocalizationService.GetString("MapStatus.LocationMissingSelectionDetail"),
-                Symbol.Map);
-            return;
-        }
-
-        if (points.Count == 1)
-        {
-            var single = points[0];
-            SetMapMarker(single.Latitude, single.Longitude, single.Metadata, single.Item);
-            HideMapStatus();
-            return;
-        }
-
-        SetMapMarkers(points);
-        HideMapStatus();
     }
 
     private static bool TryGetValidLocation(PhotoMetadata metadata, out double latitude, out double longitude)
@@ -1259,6 +1022,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         _mapDefaultZoomLevel = NormalizeMapZoomLevel(level);
+        _mapPaneViewModel.MapDefaultZoomLevel = _mapDefaultZoomLevel;
         UpdateMapZoomMenuChecks(_mapDefaultZoomLevel);
         ScheduleSettingsSave();
     }
@@ -1397,17 +1161,14 @@ public sealed partial class MainWindow : Window, IDisposable
             RootGrid.XamlRoot.Changed -= OnXamlRootChanged;
         }
 
+        // WorkspaceState イベントをアンサブスクライブ
+        _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
+
+        // MapPaneViewModel のクリーンアップ
+        _mapPaneViewModel.Cleanup();
+
         _rectangleSelectionLayer?.Dispose();
         _rectangleSelectionLayer = null;
-
-        _markerLayer?.Dispose();
-        _markerLayer = null;
-
-        _baseTileLayer?.Dispose();
-        _baseTileLayer = null;
-
-        _map?.Dispose();
-        _map = null;
 
         _settingsCts?.Cancel();
         _settingsCts?.Dispose();
