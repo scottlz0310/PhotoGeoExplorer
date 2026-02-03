@@ -3130,83 +3130,83 @@ public sealed partial class MainWindow : Window, IDisposable
     }
 
     private sealed class ExifEditState
-{
-    public bool UpdateDate { get; set; }
-    public DateTimeOffset TakenAtDate { get; set; }
-    public TimeSpan TakenAtTime { get; set; }
-    public string LatitudeText { get; set; } = string.Empty;
-    public string LongitudeText { get; set; } = string.Empty;
-    public bool UpdateFileDate { get; set; }
-}
-
-private enum ExifDialogAction
-{
-    Save,
-    Cancel,
-    PickLocation
-}
-
-private static bool ContainsInvalidFileNameChars(string name)
-{
-    return name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0;
-}
-
-private static string NormalizeRename(PhotoListItem item, string newName)
-{
-    var trimmed = newName.Trim();
-    if (item.IsFolder)
     {
+        public bool UpdateDate { get; set; }
+        public DateTimeOffset TakenAtDate { get; set; }
+        public TimeSpan TakenAtTime { get; set; }
+        public string LatitudeText { get; set; } = string.Empty;
+        public string LongitudeText { get; set; } = string.Empty;
+        public bool UpdateFileDate { get; set; }
+    }
+
+    private enum ExifDialogAction
+    {
+        Save,
+        Cancel,
+        PickLocation
+    }
+
+    private static bool ContainsInvalidFileNameChars(string name)
+    {
+        return name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0;
+    }
+
+    private static string NormalizeRename(PhotoListItem item, string newName)
+    {
+        var trimmed = newName.Trim();
+        if (item.IsFolder)
+        {
+            return trimmed;
+        }
+
+        var originalExtension = Path.GetExtension(item.FileName);
+        if (string.IsNullOrWhiteSpace(originalExtension))
+        {
+            return trimmed;
+        }
+
+        var newExtension = Path.GetExtension(trimmed);
+        if (string.IsNullOrWhiteSpace(newExtension))
+        {
+            return $"{trimmed}{originalExtension}";
+        }
+
         return trimmed;
     }
 
-    var originalExtension = Path.GetExtension(item.FileName);
-    if (string.IsNullOrWhiteSpace(originalExtension))
+    private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
     {
-        return trimmed;
+        if (_viewModel.SelectedItems.Count == 0)
+        {
+            return;
+        }
+
+        var currentFolder = _viewModel.CurrentFolderPath;
+        if (string.IsNullOrWhiteSpace(currentFolder))
+        {
+            return;
+        }
+
+        var parent = Directory.GetParent(currentFolder);
+        if (parent is null)
+        {
+            return;
+        }
+
+        await MoveItemsToFolderAsync(_viewModel.SelectedItems, parent.FullName).ConfigureAwait(true);
     }
-
-    var newExtension = Path.GetExtension(trimmed);
-    if (string.IsNullOrWhiteSpace(newExtension))
-    {
-        return $"{trimmed}{originalExtension}";
-    }
-
-    return trimmed;
-}
-
-private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
-{
-    if (_viewModel.SelectedItems.Count == 0)
-    {
-        return;
-    }
-
-    var currentFolder = _viewModel.CurrentFolderPath;
-    if (string.IsNullOrWhiteSpace(currentFolder))
-    {
-        return;
-    }
-
-    var parent = Directory.GetParent(currentFolder);
-    if (parent is null)
-    {
-        return;
-    }
-
-    await MoveItemsToFolderAsync(_viewModel.SelectedItems, parent.FullName).ConfigureAwait(true);
-}
 
     private void OnDetailsSortClicked(object sender, RoutedEventArgs e)
     {
         if (sender is not Button button || button.Tag is not string tag)
         {
             return;
-    }
+        }
 
-    if (!Enum.TryParse(tag, out FileSortColumn column))
-    {
-        return;
-    }
+        if (!Enum.TryParse(tag, out FileSortColumn column))
+        {
+            return;
+        }
 
         _viewModel.ToggleSort(column);
     }
@@ -3227,13 +3227,13 @@ private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
         if (e is null || MapControl.Map?.Layers is null)
         {
             return;
-    }
+        }
 
-    var mapInfo = e.GetMapInfo(MapControl.Map.Layers);
-    if (mapInfo?.Feature is not PointFeature feature)
-    {
-        return;
-    }
+        var mapInfo = e.GetMapInfo(MapControl.Map.Layers);
+        if (mapInfo?.Feature is not PointFeature feature)
+        {
+            return;
+        }
 
         var markerLayer = GetMarkerLayer();
         if (markerLayer is null || !markerLayer.Features.Contains(feature))
@@ -3241,148 +3241,158 @@ private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
             return;
         }
 
-    var itemObj = feature[PhotoItemKey];
-    var metadataObj = feature[PhotoMetadataKey];
+        var itemObj = feature[PhotoItemKey];
+        var metadataObj = feature[PhotoMetadataKey];
 
-    if (itemObj is null || metadataObj is null)
-    {
-        AppLog.Info("Marker clicked but missing PhotoItem or PhotoMetadata.");
-        return;
-    }
-
-    if (itemObj is not PhotoItem photoItem || metadataObj is not PhotoMetadata metadata)
-    {
-        return;
-    }
-
-    FocusPhotoItem(photoItem);
-    ShowMarkerFlyout(photoItem, metadata);
-}
-
-private void ShowMarkerFlyout(PhotoItem photoItem, PhotoMetadata metadata)
-{
-    _flyoutMetadata = metadata;
-
-    FlyoutTakenAtLabel.Text = LocalizationService.GetString("Flyout.TakenAtLabel.Text");
-    FlyoutTakenAt.Text = metadata.TakenAtText ?? "-";
-
-    if (!string.IsNullOrWhiteSpace(metadata.CameraSummary))
-    {
-        FlyoutCameraLabel.Text = LocalizationService.GetString("Flyout.CameraLabel.Text");
-        FlyoutCamera.Text = metadata.CameraSummary;
-        FlyoutCameraPanel.Visibility = Visibility.Visible;
-    }
-    else
-    {
-        FlyoutCameraPanel.Visibility = Visibility.Collapsed;
-    }
-
-    FlyoutFileLabel.Text = LocalizationService.GetString("Flyout.FileLabel.Text");
-    FlyoutFileName.Text = photoItem.FileName;
-
-    if (!string.IsNullOrWhiteSpace(photoItem.ResolutionText))
-    {
-        FlyoutResolutionLabel.Text = LocalizationService.GetString("Flyout.ResolutionLabel.Text");
-        FlyoutResolution.Text = photoItem.ResolutionText;
-        FlyoutResolutionPanel.Visibility = Visibility.Visible;
-    }
-    else
-    {
-        FlyoutResolutionPanel.Visibility = Visibility.Collapsed;
-    }
-
-    FlyoutGoogleMapsLink.Content = LocalizationService.GetString("Flyout.GoogleMapsButton.Content");
-
-    MarkerFlyout.ShowAt(MapControl);
-}
-
-private void FocusPhotoItem(PhotoItem photoItem)
-{
-    var target = _viewModel.Items.FirstOrDefault(item
-        => !item.IsFolder
-           && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
-    if (target is null)
-    {
-        return;
-    }
-
-    _viewModel.SelectedItem = target;
-
-    var listView = GetFileListView();
-    if (listView is null)
-    {
-        return;
-    }
-    listView.ScrollIntoView(target);
-}
-
-private ListViewBase? GetFileListView()
-{
-    if (RootGrid is null)
-    {
-        return null;
-    }
-
-    var candidates = FindDescendants<ListViewBase>(RootGrid)
-        .Where(listView => ReferenceEquals(listView.ItemsSource, _viewModel.Items))
-        .ToList();
-    if (candidates.Count == 0)
-    {
-        return null;
-    }
-
-    return candidates.FirstOrDefault(listView => listView.Visibility == Visibility.Visible)
-        ?? candidates[0];
-}
-
-private async void OnGoogleMapsLinkClicked(object sender, RoutedEventArgs e)
-{
-    if (_flyoutMetadata?.HasLocation != true)
-    {
-        return;
-    }
-
-    var url = GenerateGoogleMapsUrl(_flyoutMetadata.Latitude!.Value, _flyoutMetadata.Longitude!.Value);
-
-    if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-    {
-        try
+        if (itemObj is null || metadataObj is null)
         {
-            await Launcher.LaunchUriAsync(uri);
+            AppLog.Info("Marker clicked but missing PhotoItem or PhotoMetadata.");
+            return;
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException
-            or System.Runtime.InteropServices.COMException
-            or ArgumentException)
+
+        if (itemObj is not PhotoItem photoItem || metadataObj is not PhotoMetadata metadata)
         {
-            AppLog.Error("Failed to launch Google Maps URL.", ex);
-            _viewModel.ShowNotificationMessage(
-                LocalizationService.GetString("Message.LaunchBrowserFailed"),
-                InfoBarSeverity.Error);
+            return;
         }
+
+        FocusPhotoItem(photoItem);
+        ShowMarkerFlyout(photoItem, metadata);
     }
 
-    MarkerFlyout.Hide();
-}
-
-private static string GenerateGoogleMapsUrl(double latitude, double longitude)
-{
-    return $"https://www.google.com/maps?q={latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},{longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-}
-
-private void OnMapPointerPressed(object sender, PointerRoutedEventArgs e)
-{
-    if (MapControl is null || _map is null)
+    private void ShowMarkerFlyout(PhotoItem photoItem, PhotoMetadata metadata)
     {
-        return;
-    }
+        _flyoutMetadata = metadata;
 
-    var point = e.GetCurrentPoint(MapControl);
-    if (_isPickingExifLocation)
-    {
-        if (point.Properties.IsRightButtonPressed)
+        FlyoutTakenAtLabel.Text = LocalizationService.GetString("Flyout.TakenAtLabel.Text");
+        FlyoutTakenAt.Text = metadata.TakenAtText ?? "-";
+
+        if (!string.IsNullOrWhiteSpace(metadata.CameraSummary))
         {
-            CancelExifLocationPick();
-            e.Handled = true;
+            FlyoutCameraLabel.Text = LocalizationService.GetString("Flyout.CameraLabel.Text");
+            FlyoutCamera.Text = metadata.CameraSummary;
+            FlyoutCameraPanel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            FlyoutCameraPanel.Visibility = Visibility.Collapsed;
+        }
+
+        FlyoutFileLabel.Text = LocalizationService.GetString("Flyout.FileLabel.Text");
+        FlyoutFileName.Text = photoItem.FileName;
+
+        if (!string.IsNullOrWhiteSpace(photoItem.ResolutionText))
+        {
+            FlyoutResolutionLabel.Text = LocalizationService.GetString("Flyout.ResolutionLabel.Text");
+            FlyoutResolution.Text = photoItem.ResolutionText;
+            FlyoutResolutionPanel.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            FlyoutResolutionPanel.Visibility = Visibility.Collapsed;
+        }
+
+        FlyoutGoogleMapsLink.Content = LocalizationService.GetString("Flyout.GoogleMapsButton.Content");
+
+        MarkerFlyout.ShowAt(MapControl);
+    }
+
+    private void FocusPhotoItem(PhotoItem photoItem)
+    {
+        var target = _viewModel.Items.FirstOrDefault(item
+            => !item.IsFolder
+               && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
+        if (target is null)
+        {
+            return;
+        }
+
+        _viewModel.SelectedItem = target;
+
+        var listView = GetFileListView();
+        if (listView is null)
+        {
+            return;
+        }
+        listView.ScrollIntoView(target);
+    }
+
+    private ListViewBase? GetFileListView()
+    {
+        if (RootGrid is null)
+        {
+            return null;
+        }
+
+        var candidates = FindDescendants<ListViewBase>(RootGrid)
+            .Where(listView => ReferenceEquals(listView.ItemsSource, _viewModel.Items))
+            .ToList();
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        return candidates.FirstOrDefault(listView => listView.Visibility == Visibility.Visible)
+            ?? candidates[0];
+    }
+
+    private async void OnGoogleMapsLinkClicked(object sender, RoutedEventArgs e)
+    {
+        if (_flyoutMetadata?.HasLocation != true)
+        {
+            return;
+        }
+
+        var url = GenerateGoogleMapsUrl(_flyoutMetadata.Latitude!.Value, _flyoutMetadata.Longitude!.Value);
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            try
+            {
+                await Launcher.LaunchUriAsync(uri);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException
+                or System.Runtime.InteropServices.COMException
+                or ArgumentException)
+            {
+                AppLog.Error("Failed to launch Google Maps URL.", ex);
+                _viewModel.ShowNotificationMessage(
+                    LocalizationService.GetString("Message.LaunchBrowserFailed"),
+                    InfoBarSeverity.Error);
+            }
+        }
+
+        MarkerFlyout.Hide();
+    }
+
+    private static string GenerateGoogleMapsUrl(double latitude, double longitude)
+    {
+        return $"https://www.google.com/maps?q={latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},{longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+    }
+
+    private void OnMapPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (MapControl is null || _map is null)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(MapControl);
+        if (_isPickingExifLocation)
+        {
+            if (point.Properties.IsRightButtonPressed)
+            {
+                CancelExifLocationPick();
+                e.Handled = true;
+                return;
+            }
+
+            if (!point.Properties.IsLeftButtonPressed)
+            {
+                return;
+            }
+
+            _isExifPickPointerActive = true;
+            _exifPickPointerStart = point.Position;
             return;
         }
 
@@ -3391,194 +3401,184 @@ private void OnMapPointerPressed(object sender, PointerRoutedEventArgs e)
             return;
         }
 
-        _isExifPickPointerActive = true;
-        _exifPickPointerStart = point.Position;
-        return;
-    }
+        // Ctrl キーが押されている場合のみ矩形選択を有効化
+        var ctrlPressed = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
 
-    if (!point.Properties.IsLeftButtonPressed)
-    {
-        return;
-    }
-
-    // Ctrl キーが押されている場合のみ矩形選択を有効化
-    var ctrlPressed = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
-        .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-
-    if (!ctrlPressed)
-    {
-        return;
-    }
-
-    var worldStart = GetWorldPosition(e);
-    if (worldStart is null)
-    {
-        return;
-    }
-
-    LockMapPan();
-    _mapRectangleSelecting = true;
-    _mapRectangleStart = worldStart;
-    MapControl.CapturePointer(e.Pointer);
-    e.Handled = true;
-}
-
-private void OnMapPointerMoved(object sender, PointerRoutedEventArgs e)
-{
-    var rectangleStart = _mapRectangleStart;
-    if (!_mapRectangleSelecting || MapControl is null || _map is null || rectangleStart is null)
-    {
-        return;
-    }
-
-    var worldEnd = GetWorldPosition(e);
-    if (worldEnd is null)
-    {
-        return;
-    }
-
-    UpdateRectangleSelectionLayer(rectangleStart, worldEnd);
-    e.Handled = true;
-}
-
-private void OnMapPointerReleased(object sender, PointerRoutedEventArgs e)
-{
-    if (MapControl is null || _map is null)
-    {
-        return;
-    }
-
-    if (_isPickingExifLocation)
-    {
-        if (!_isExifPickPointerActive)
+        if (!ctrlPressed)
         {
             return;
         }
 
-        _isExifPickPointerActive = false;
-        var startPoint = _exifPickPointerStart;
-        _exifPickPointerStart = null;
-
-        if (startPoint is null)
+        var worldStart = GetWorldPosition(e);
+        if (worldStart is null)
         {
             return;
         }
 
-        var currentPoint = e.GetCurrentPoint(MapControl).Position;
-        var deltaX = currentPoint.X - startPoint.Value.X;
-        var deltaY = currentPoint.Y - startPoint.Value.Y;
-        if (Math.Abs(deltaX) > 6 || Math.Abs(deltaY) > 6)
-        {
-            return;
-        }
-
-        var worldPosition = GetWorldPosition(e);
-        if (worldPosition is null)
-        {
-            return;
-        }
-
-        var lonLat = SphericalMercator.ToLonLat(worldPosition);
-        CompleteExifLocationPick(lonLat.Y, lonLat.X);
+        LockMapPan();
+        _mapRectangleSelecting = true;
+        _mapRectangleStart = worldStart;
+        MapControl.CapturePointer(e.Pointer);
         e.Handled = true;
-        return;
     }
 
-    var rectangleStart = _mapRectangleStart;
-    _mapRectangleSelecting = false;
-    _mapRectangleStart = null;
-    MapControl.ReleasePointerCapture(e.Pointer);
-    RestoreMapPanLock();
-
-    if (rectangleStart is null)
+    private void OnMapPointerMoved(object sender, PointerRoutedEventArgs e)
     {
+        var rectangleStart = _mapRectangleStart;
+        if (!_mapRectangleSelecting || MapControl is null || _map is null || rectangleStart is null)
+        {
+            return;
+        }
+
+        var worldEnd = GetWorldPosition(e);
+        if (worldEnd is null)
+        {
+            return;
+        }
+
+        UpdateRectangleSelectionLayer(rectangleStart, worldEnd);
+        e.Handled = true;
+    }
+
+    private void OnMapPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (MapControl is null || _map is null)
+        {
+            return;
+        }
+
+        if (_isPickingExifLocation)
+        {
+            if (!_isExifPickPointerActive)
+            {
+                return;
+            }
+
+            _isExifPickPointerActive = false;
+            var startPoint = _exifPickPointerStart;
+            _exifPickPointerStart = null;
+
+            if (startPoint is null)
+            {
+                return;
+            }
+
+            var currentPoint = e.GetCurrentPoint(MapControl).Position;
+            var deltaX = currentPoint.X - startPoint.Value.X;
+            var deltaY = currentPoint.Y - startPoint.Value.Y;
+            if (Math.Abs(deltaX) > 6 || Math.Abs(deltaY) > 6)
+            {
+                return;
+            }
+
+            var worldPosition = GetWorldPosition(e);
+            if (worldPosition is null)
+            {
+                return;
+            }
+
+            var lonLat = SphericalMercator.ToLonLat(worldPosition);
+            CompleteExifLocationPick(lonLat.Y, lonLat.X);
+            e.Handled = true;
+            return;
+        }
+
+        var rectangleStart = _mapRectangleStart;
+        _mapRectangleSelecting = false;
+        _mapRectangleStart = null;
+        MapControl.ReleasePointerCapture(e.Pointer);
+        RestoreMapPanLock();
+
+        if (rectangleStart is null)
+        {
+            ClearRectangleSelectionLayer();
+            return;
+        }
+
+        var worldEnd = GetWorldPosition(e);
+        if (worldEnd is null)
+        {
+            ClearRectangleSelectionLayer();
+            return;
+        }
+
+        var minX = Math.Min(rectangleStart.X, worldEnd.X);
+        var maxX = Math.Max(rectangleStart.X, worldEnd.X);
+        var minY = Math.Min(rectangleStart.Y, worldEnd.Y);
+        var maxY = Math.Max(rectangleStart.Y, worldEnd.Y);
+        var selectionBounds = new MRect(minX, minY, maxX, maxY);
+
+        SelectPhotosInRectangle(selectionBounds);
         ClearRectangleSelectionLayer();
-        return;
+        e.Handled = true;
     }
 
-    var worldEnd = GetWorldPosition(e);
-    if (worldEnd is null)
+    private void OnMapPointerCaptureLost(object sender, PointerRoutedEventArgs e)
     {
+        _mapRectangleSelecting = false;
+        _mapRectangleStart = null;
         ClearRectangleSelectionLayer();
-        return;
+        RestoreMapPanLock();
     }
 
-    var minX = Math.Min(rectangleStart.X, worldEnd.X);
-    var maxX = Math.Max(rectangleStart.X, worldEnd.X);
-    var minY = Math.Min(rectangleStart.Y, worldEnd.Y);
-    var maxY = Math.Max(rectangleStart.Y, worldEnd.Y);
-    var selectionBounds = new MRect(minX, minY, maxX, maxY);
-
-    SelectPhotosInRectangle(selectionBounds);
-    ClearRectangleSelectionLayer();
-    e.Handled = true;
-}
-
-private void OnMapPointerCaptureLost(object sender, PointerRoutedEventArgs e)
-{
-    _mapRectangleSelecting = false;
-    _mapRectangleStart = null;
-    ClearRectangleSelectionLayer();
-    RestoreMapPanLock();
-}
-
-private void LockMapPan()
-{
-    if (MapControl?.Map?.Navigator is not { } navigator)
+    private void LockMapPan()
     {
-        return;
+        if (MapControl?.Map?.Navigator is not { } navigator)
+        {
+            return;
+        }
+
+        if (!_mapPanLockActive)
+        {
+            _mapPanLockBeforeSelection = navigator.PanLock;
+            _mapPanLockActive = true;
+        }
+
+        navigator.PanLock = true;
     }
 
-    if (!_mapPanLockActive)
+    private void RestoreMapPanLock()
     {
-        _mapPanLockBeforeSelection = navigator.PanLock;
-        _mapPanLockActive = true;
+        if (!_mapPanLockActive)
+        {
+            return;
+        }
+
+        if (MapControl?.Map?.Navigator is not { } navigator)
+        {
+            return;
+        }
+
+        navigator.PanLock = _mapPanLockBeforeSelection;
+        _mapPanLockActive = false;
     }
 
-    navigator.PanLock = true;
-}
-
-private void RestoreMapPanLock()
-{
-    if (!_mapPanLockActive)
+    private MPoint? GetWorldPosition(PointerRoutedEventArgs e)
     {
-        return;
+        if (MapControl?.Map?.Navigator is not { } navigator)
+        {
+            return null;
+        }
+
+        var screenPos = e.GetCurrentPoint(MapControl).Position;
+        return navigator.Viewport.ScreenToWorld(screenPos.X, screenPos.Y);
     }
 
-    if (MapControl?.Map?.Navigator is not { } navigator)
+    private void UpdateRectangleSelectionLayer(MPoint start, MPoint end)
     {
-        return;
-    }
+        if (_map is null)
+        {
+            return;
+        }
 
-    navigator.PanLock = _mapPanLockBeforeSelection;
-    _mapPanLockActive = false;
-}
+        var minX = Math.Min(start.X, end.X);
+        var maxX = Math.Max(start.X, end.X);
+        var minY = Math.Min(start.Y, end.Y);
+        var maxY = Math.Max(start.Y, end.Y);
 
-private MPoint? GetWorldPosition(PointerRoutedEventArgs e)
-{
-    if (MapControl?.Map?.Navigator is not { } navigator)
-    {
-        return null;
-    }
-
-    var screenPos = e.GetCurrentPoint(MapControl).Position;
-    return navigator.Viewport.ScreenToWorld(screenPos.X, screenPos.Y);
-}
-
-private void UpdateRectangleSelectionLayer(MPoint start, MPoint end)
-{
-    if (_map is null)
-    {
-        return;
-    }
-
-    var minX = Math.Min(start.X, end.X);
-    var maxX = Math.Max(start.X, end.X);
-    var minY = Math.Min(start.Y, end.Y);
-    var maxY = Math.Max(start.Y, end.Y);
-
-    var polygon = new Polygon(new LinearRing(new[]
-    {
+        var polygon = new Polygon(new LinearRing(new[]
+        {
             new Coordinate(minX, minY),
             new Coordinate(maxX, minY),
             new Coordinate(maxX, maxY),
@@ -3586,49 +3586,49 @@ private void UpdateRectangleSelectionLayer(MPoint start, MPoint end)
             new Coordinate(minX, minY)
         }));
 
-    var feature = new GeometryFeature
-    {
-        Geometry = polygon
-    };
-
-    var polygonStyle = new VectorStyle
-    {
-        Fill = new Brush(SelectionFillColor),
-        Outline = new Pen(SelectionOutlineColor, 2)
-    };
-
-    feature.Styles.Add(polygonStyle);
-
-    if (_rectangleSelectionLayer is null)
-    {
-        _rectangleSelectionLayer = new MemoryLayer
+        var feature = new GeometryFeature
         {
-            Name = "RectangleSelection",
-            Features = new[] { feature },
-            Style = null
+            Geometry = polygon
         };
-        _map.Layers.Add(_rectangleSelectionLayer);
+
+        var polygonStyle = new VectorStyle
+        {
+            Fill = new Brush(SelectionFillColor),
+            Outline = new Pen(SelectionOutlineColor, 2)
+        };
+
+        feature.Styles.Add(polygonStyle);
+
+        if (_rectangleSelectionLayer is null)
+        {
+            _rectangleSelectionLayer = new MemoryLayer
+            {
+                Name = "RectangleSelection",
+                Features = new[] { feature },
+                Style = null
+            };
+            _map.Layers.Add(_rectangleSelectionLayer);
+        }
+        else
+        {
+            _rectangleSelectionLayer.Features = new[] { feature };
+        }
+
+        _map.Refresh();
     }
-    else
+
+    private void ClearRectangleSelectionLayer()
     {
-        _rectangleSelectionLayer.Features = new[] { feature };
+        if (_map is null || _rectangleSelectionLayer is null)
+        {
+            return;
+        }
+
+        _map.Layers.Remove(_rectangleSelectionLayer);
+        _rectangleSelectionLayer.Dispose();
+        _rectangleSelectionLayer = null;
+        _map.Refresh();
     }
-
-    _map.Refresh();
-}
-
-private void ClearRectangleSelectionLayer()
-{
-    if (_map is null || _rectangleSelectionLayer is null)
-    {
-        return;
-    }
-
-    _map.Layers.Remove(_rectangleSelectionLayer);
-    _rectangleSelectionLayer.Dispose();
-    _rectangleSelectionLayer = null;
-    _map.Refresh();
-}
 
     private void SelectPhotosInRectangle(MRect selectionBounds)
     {
@@ -3638,7 +3638,7 @@ private void ClearRectangleSelectionLayer()
             return;
         }
 
-    var selectedItems = new List<PhotoListItem>();
+        var selectedItems = new List<PhotoListItem>();
 
         foreach (var feature in markerLayer.Features)
         {
@@ -3647,59 +3647,59 @@ private void ClearRectangleSelectionLayer()
                 continue;
             }
 
-        var point = pointFeature.Point;
-        if (point is null)
-        {
-            continue;
-        }
-
-        if (point.X >= selectionBounds.Min.X && point.X <= selectionBounds.Max.X
-            && point.Y >= selectionBounds.Min.Y && point.Y <= selectionBounds.Max.Y)
-        {
-            var itemObj = feature[PhotoItemKey];
-            if (itemObj is PhotoItem photoItem)
+            var point = pointFeature.Point;
+            if (point is null)
             {
-                var listItem = _viewModel.Items.FirstOrDefault(item =>
-                    !item.IsFolder && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
-                if (listItem is not null)
+                continue;
+            }
+
+            if (point.X >= selectionBounds.Min.X && point.X <= selectionBounds.Max.X
+                && point.Y >= selectionBounds.Min.Y && point.Y <= selectionBounds.Max.Y)
+            {
+                var itemObj = feature[PhotoItemKey];
+                if (itemObj is PhotoItem photoItem)
                 {
-                    selectedItems.Add(listItem);
+                    var listItem = _viewModel.Items.FirstOrDefault(item =>
+                        !item.IsFolder && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
+                    if (listItem is not null)
+                    {
+                        selectedItems.Add(listItem);
+                    }
                 }
             }
         }
-    }
 
-    var listView = GetFileListView();
-    if (listView is not null)
-    {
-        listView.SelectedItems.Clear();
-        foreach (var selectedItem in selectedItems)
+        var listView = GetFileListView();
+        if (listView is not null)
         {
-            listView.SelectedItems.Add(selectedItem);
+            listView.SelectedItems.Clear();
+            foreach (var selectedItem in selectedItems)
+            {
+                listView.SelectedItems.Add(selectedItem);
+            }
+        }
+        else
+        {
+            _viewModel.UpdateSelection(selectedItems);
+        }
+
+        _viewModel.SelectedItem = selectedItems.Count > 0 ? selectedItems[0] : null;
+
+        if (selectedItems.Count > 0 && listView is not null)
+        {
+            listView.ScrollIntoView(selectedItems[0]);
         }
     }
-    else
+
+    private static bool IsJpegFile(PhotoListItem? item)
     {
-        _viewModel.UpdateSelection(selectedItems);
+        if (item is null || item.IsFolder)
+        {
+            return false;
+        }
+
+        var extension = Path.GetExtension(item.FilePath);
+        return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase);
     }
-
-    _viewModel.SelectedItem = selectedItems.Count > 0 ? selectedItems[0] : null;
-
-    if (selectedItems.Count > 0 && listView is not null)
-    {
-        listView.ScrollIntoView(selectedItems[0]);
-    }
-}
-
-private static bool IsJpegFile(PhotoListItem? item)
-{
-    if (item is null || item.IsFolder)
-    {
-        return false;
-    }
-
-    var extension = Path.GetExtension(item.FilePath);
-    return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
-           extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase);
-}
 }
