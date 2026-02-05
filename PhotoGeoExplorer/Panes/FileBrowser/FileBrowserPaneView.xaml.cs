@@ -24,6 +24,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
     private const string InternalDragKey = "PhotoGeoExplorer.InternalDrag";
     private List<PhotoListItem>? _dragItems;
     private bool _suppressBreadcrumbNavigation;
+    private bool _isWaitingForXamlRoot;
 
     public FileBrowserPaneView()
     {
@@ -36,12 +37,21 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        ViewModel?.SetDispatcherQueue(DispatcherQueue);
+        // DispatcherQueue は Loaded 時に確実に利用可能なため、ここで設定
+        if (ViewModel is not null && DispatcherQueue is not null)
+        {
+            ViewModel.SetDispatcherQueue(DispatcherQueue);
+        }
     }
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
     {
-        ViewModel?.SetDispatcherQueue(DispatcherQueue);
+        // DataContext 変更時にも設定を試みる（ViewModel が後から設定される場合に備える）
+        // SetDispatcherQueue 内で null チェックがあるため、DispatcherQueue が null でも安全
+        if (ViewModel is not null && DispatcherQueue is not null)
+        {
+            ViewModel.SetDispatcherQueue(DispatcherQueue);
+        }
     }
 
     public Task OpenFolderAsync()
@@ -268,14 +278,17 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         var flyout = new MenuFlyout();
-        foreach (var child in segment.Children)
+        foreach (var item in segment.Children.Select(child =>
+                 {
+                     var menuItem = new MenuFlyoutItem
+                     {
+                         Text = child.Name,
+                         Tag = child.FullPath
+                     };
+                     menuItem.Click += OnBreadcrumbChildClicked;
+                     return menuItem;
+                 }))
         {
-            var item = new MenuFlyoutItem
-            {
-                Text = child.Name,
-                Tag = child.FullPath
-            };
-            item.Click += OnBreadcrumbChildClicked;
             flyout.Items.Add(item);
         }
 
@@ -298,14 +311,9 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        if (TryGetBreadcrumbTarget(breadcrumbBar, e, out _))
-        {
-            e.AcceptedOperation = DataPackageOperation.Move;
-        }
-        else
-        {
-            e.AcceptedOperation = DataPackageOperation.None;
-        }
+        e.AcceptedOperation = TryGetBreadcrumbTarget(breadcrumbBar, e, out _)
+            ? DataPackageOperation.Move
+            : DataPackageOperation.None;
 
         e.Handled = true;
     }
@@ -341,15 +349,10 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 return;
             }
 
-            if (sender is ListViewBase listView
-                && TryGetDropTargetFolder(listView, RootGrid, e, out _))
-            {
-                e.AcceptedOperation = DataPackageOperation.Move;
-            }
-            else
-            {
-                e.AcceptedOperation = DataPackageOperation.None;
-            }
+            e.AcceptedOperation = sender is ListViewBase listView
+                && TryGetDropTargetFolder(listView, RootGrid, e, out _)
+                ? DataPackageOperation.Move
+                : DataPackageOperation.None;
 
             e.Handled = true;
             return;
@@ -1310,6 +1313,21 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return true;
         }
 
+        // 既に別の呼び出しで待機中の場合は、重複してイベントハンドラを登録しない
+        if (_isWaitingForXamlRoot)
+        {
+            // ポーリングのみで待機
+            var elapsed = 0;
+            while (RootGrid.XamlRoot is null && elapsed < maxWaitMs)
+            {
+                await Task.Delay(intervalMs).ConfigureAwait(true);
+                elapsed += intervalMs;
+            }
+            return RootGrid.XamlRoot is not null;
+        }
+
+        _isWaitingForXamlRoot = true;
+
         AppLog.Info("EnsureXamlRootAsync: XamlRoot is null, waiting for it to become available...");
 
         var tcs = new TaskCompletionSource<bool>();
@@ -1334,6 +1352,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         RootGrid.Loaded -= OnLoaded;
+        _isWaitingForXamlRoot = false;
 
         if (RootGrid.XamlRoot is not null)
         {

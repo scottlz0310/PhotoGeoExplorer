@@ -470,6 +470,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 UpdateStatusBar();
 
                 // バックグラウンドでサムネイル生成を開始
+                // 注意: StartBackgroundThumbnailGeneration 内部で DispatcherQueue を使用してタイマーを構成しているため、
+                //       ここでは明示的に UI スレッド上から呼び出している（UI 更新と意図を揃えるため）
                 StartBackgroundThumbnailGeneration();
             }).ConfigureAwait(false);
 
@@ -744,6 +746,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         HasActiveFilters = !string.IsNullOrWhiteSpace(SearchText) || !ShowImagesOnly;
         UpdateStatusOverlay(StatusMessage, _statusSeverity);
+
+        // フィルタ変更時は現在のフォルダを再読み込み（履歴には追加しない）
+        if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
+        {
+            _ = LoadFolderAsync(CurrentFolderPath, updateHistory: false);
+        }
     }
 
     private void SetStatus(string? message, InfoBarSeverity severity)
@@ -930,6 +938,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
         catch (OperationCanceledException)
         {
+            // メタデータ読み込み処理がキャンセルされた場合は想定された動作のため、何もしない
         }
     }
 
@@ -1236,7 +1245,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             return;
         }
 
-        _dispatcherQueue ??= dispatcherQueue;
+        _dispatcherQueue = dispatcherQueue;
     }
 
     private Task RunOnUIThreadAsync(Action action)
@@ -1248,19 +1257,24 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
 
         var tcs = new TaskCompletionSource<bool>();
-        _dispatcherQueue.TryEnqueue(() =>
+        if (!_dispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    action();
+                    tcs.SetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                    throw;
+                }
+            }))
         {
-            try
-            {
-                action();
-                tcs.SetResult(true);
-            }
-            catch (Exception ex)
-            {
-                tcs.SetException(ex);
-                throw;
-            }
-        });
+            var ex = new InvalidOperationException("DispatcherQueue へのエンキューに失敗しました。");
+            AppLog.Error(ex, "RunOnUIThreadAsync: DispatcherQueue.TryEnqueue が false を返しました。");
+            tcs.SetException(ex);
+        }
         return tcs.Task;
     }
 }
