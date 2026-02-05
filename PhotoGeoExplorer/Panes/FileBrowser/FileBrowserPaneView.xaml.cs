@@ -1314,11 +1314,11 @@ internal sealed partial class FileBrowserPaneView : UserControl
         if (_isWaitingForXamlRoot)
         {
             // ポーリングのみで待機
-            var elapsed = 0;
-            while (RootGrid.XamlRoot is null && elapsed < maxWaitMs)
+            var pollingElapsed = 0;
+            while (RootGrid.XamlRoot is null && pollingElapsed < maxWaitMs)
             {
                 await Task.Delay(intervalMs).ConfigureAwait(true);
-                elapsed += intervalMs;
+                pollingElapsed += intervalMs;
             }
             return RootGrid.XamlRoot is not null;
         }
