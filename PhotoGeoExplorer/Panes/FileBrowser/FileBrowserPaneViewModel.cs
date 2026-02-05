@@ -51,6 +51,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private int _selectedCount;
     private PhotoMetadata? _selectedMetadata;
     private CancellationTokenSource? _metadataCts;
+    private CancellationTokenSource? _loadFolderCts;
     private string? _statusTitle;
     private string? _statusDetail;
     private Symbol _statusSymbol = Symbol.Help;
@@ -433,6 +434,17 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             return;
         }
 
+        // 既存の読み込み処理をキャンセル
+        var previousCts = _loadFolderCts;
+        var cts = new CancellationTokenSource();
+        _loadFolderCts = cts;
+
+        if (previousCts is not null)
+        {
+            previousCts.Cancel();
+            previousCts.Dispose();
+        }
+
         try
         {
             var previousPath = CurrentFolderPath;
@@ -446,6 +458,10 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             }).ConfigureAwait(false);
 
             var items = await _service.LoadFolderAsync(folderPath, ShowImagesOnly, SearchText).ConfigureAwait(false);
+
+            // キャンセルされた場合は処理を中断
+            cts.Token.ThrowIfCancellationRequested();
+
             var sorted = _service.ApplySort(items, SortColumn, SortDirection);
 
             await RunOnUIThreadAsync(() =>
@@ -470,10 +486,17 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 UpdateStatusBar();
 
                 // バックグラウンドでサムネイル生成を開始
+                // 注意: StartBackgroundThumbnailGeneration 内部で DispatcherQueue を使用してタイマーを構成しているため、
+                //       ここでは明示的に UI スレッド上から呼び出している（UI 更新と意図を揃えるため）
                 StartBackgroundThumbnailGeneration();
             }).ConfigureAwait(false);
 
             AppLog.Info($"LoadFolderAsync: Folder '{folderPath}' loaded successfully. Item count: {Items.Count}");
+        }
+        catch (OperationCanceledException)
+        {
+            // キャンセルされた場合は想定された動作のため、何もしない
+            AppLog.Info($"LoadFolderAsync: Folder load cancelled for '{folderPath}'");
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -694,6 +717,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         CancelThumbnailGeneration();
         CancelMetadataLoad();
+        CancelFolderLoad();
         _thumbnailGenerationSemaphore.Dispose();
     }
 
@@ -744,6 +768,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         HasActiveFilters = !string.IsNullOrWhiteSpace(SearchText) || !ShowImagesOnly;
         UpdateStatusOverlay(StatusMessage, _statusSeverity);
+
+        // フィルタ変更時は現在のフォルダを再読み込み（履歴には追加しない）
+        if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
+        {
+            _ = LoadFolderAsync(CurrentFolderPath, updateHistory: false);
+        }
     }
 
     private void SetStatus(string? message, InfoBarSeverity severity)
@@ -930,6 +960,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
         catch (OperationCanceledException)
         {
+            // メタデータ読み込み処理がキャンセルされた場合は想定された動作のため、何もしない
         }
     }
 
@@ -937,6 +968,24 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         var previousCts = _metadataCts;
         _metadataCts = null;
+        if (previousCts is not null)
+        {
+            try
+            {
+                previousCts.Cancel();
+                previousCts.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // 既に破棄済み
+            }
+        }
+    }
+
+    private void CancelFolderLoad()
+    {
+        var previousCts = _loadFolderCts;
+        _loadFolderCts = null;
         if (previousCts is not null)
         {
             try
@@ -1236,7 +1285,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             return;
         }
 
-        _dispatcherQueue ??= dispatcherQueue;
+        _dispatcherQueue = dispatcherQueue;
     }
 
     private Task RunOnUIThreadAsync(Action action)
@@ -1248,19 +1297,24 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
 
         var tcs = new TaskCompletionSource<bool>();
-        _dispatcherQueue.TryEnqueue(() =>
+        if (!_dispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    action();
+                    tcs.SetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                    throw;
+                }
+            }))
         {
-            try
-            {
-                action();
-                tcs.SetResult(true);
-            }
-            catch (Exception ex)
-            {
-                tcs.SetException(ex);
-                throw;
-            }
-        });
+            var ex = new InvalidOperationException("DispatcherQueue へのエンキューに失敗しました。");
+            AppLog.Error(ex, "RunOnUIThreadAsync: DispatcherQueue.TryEnqueue が false を返しました。");
+            tcs.SetException(ex);
+        }
         return tcs.Task;
     }
 }
