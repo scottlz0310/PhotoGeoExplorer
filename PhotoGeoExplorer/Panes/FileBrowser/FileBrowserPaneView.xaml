@@ -1,0 +1,415 @@
+<UserControl
+    x:Class="PhotoGeoExplorer.Panes.FileBrowser.FileBrowserPaneView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Loaded="OnLoaded"
+    DataContextChanged="OnDataContextChanged">
+    <UserControl.Resources>
+        <DataTemplate x:Key="IconItemTemplate">
+            <StackPanel Width="140" Margin="0,0,8,8" Spacing="6" ToolTipService.ToolTip="{Binding ToolTipText}">
+                <Border
+                    Width="120"
+                    Height="120"
+                    CornerRadius="8"
+                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                    <Grid>
+                        <Image
+                            Source="{Binding Thumbnail}"
+                            Stretch="UniformToFill"
+                            Visibility="{Binding ThumbnailVisibility}" />
+                        <FontIcon
+                            Glyph="&#xE8B7;"
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                            FontSize="28"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding FolderIconVisibility}" />
+                        <FontIcon
+                            Glyph="&#xE91B;"
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                            FontSize="24"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding PlaceholderVisibility}" />
+                    </Grid>
+                </Border>
+                <TextBlock Text="{Binding FileName}" TextWrapping="Wrap" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="ListItemTemplate">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Spacing="8" ToolTipService.ToolTip="{Binding ToolTipText}">
+                <Border
+                    Width="40"
+                    Height="40"
+                    CornerRadius="6"
+                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                    <Grid>
+                        <Image
+                            Source="{Binding Thumbnail}"
+                            Stretch="UniformToFill"
+                            Visibility="{Binding ThumbnailVisibility}" />
+                        <FontIcon
+                            Glyph="&#xE8B7;"
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                            FontSize="20"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding FolderIconVisibility}" />
+                        <FontIcon
+                            Glyph="&#xE91B;"
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                            FontSize="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding PlaceholderVisibility}" />
+                    </Grid>
+                </Border>
+                <TextBlock Text="{Binding FileName}" VerticalAlignment="Center" />
+            </StackPanel>
+        </DataTemplate>
+        <DataTemplate x:Key="DetailsItemTemplate">
+            <Grid Margin="0,0,0,4" ToolTipService.ToolTip="{Binding ToolTipText}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    Width="56"
+                    Height="56"
+                    CornerRadius="6"
+                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                    <Grid>
+                        <Image
+                            Source="{Binding Thumbnail}"
+                            Stretch="UniformToFill"
+                            Visibility="{Binding ThumbnailVisibility}" />
+                        <FontIcon
+                            Glyph="&#xE8B7;"
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                            FontSize="24"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding FolderIconVisibility}" />
+                        <FontIcon
+                            Glyph="&#xE91B;"
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                            FontSize="20"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding PlaceholderVisibility}" />
+                    </Grid>
+                </Border>
+                <TextBlock
+                    Grid.Column="1"
+                    Text="{Binding FileName}"
+                    TextTrimming="CharacterEllipsis"
+                    VerticalAlignment="Center" />
+                <TextBlock
+                    Grid.Column="2"
+                    Text="{Binding ModifiedAtText}"
+                    Opacity="0.7"
+                    VerticalAlignment="Center" />
+                <TextBlock
+                    Grid.Column="3"
+                    Text="{Binding ResolutionText}"
+                    Opacity="0.7"
+                    VerticalAlignment="Center" />
+                <TextBlock
+                    Grid.Column="4"
+                    Text="{Binding SizeText}"
+                    Opacity="0.7"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center" />
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid x:Name="RootGrid" Padding="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="File Browser" FontSize="20" FontWeight="SemiBold" x:Uid="FileBrowserHeader" />
+        <CommandBar Grid.Row="1" Margin="0,8,0,0">
+            <AppBarButton Icon="Back" ToolTipService.ToolTip="Back" IsEnabled="{Binding CanNavigateBack}" Command="{Binding NavigateBackCommand}" x:Uid="FileCommandBack" />
+            <AppBarButton Icon="Forward" ToolTipService.ToolTip="Forward" IsEnabled="{Binding CanNavigateForward}" Command="{Binding NavigateForwardCommand}" x:Uid="FileCommandForward" />
+            <AppBarButton Icon="Up" ToolTipService.ToolTip="Up" Command="{Binding NavigateUpCommand}" x:Uid="FileCommandUp" />
+            <AppBarButton Icon="Refresh" ToolTipService.ToolTip="Refresh" Command="{Binding RefreshCommand}" x:Uid="FileCommandRefresh" />
+            <AppBarButton Icon="Home" ToolTipService.ToolTip="Home" Command="{Binding NavigateHomeCommand}" x:Uid="FileCommandHome" />
+            <AppBarSeparator />
+            <AppBarButton
+                Icon="Folder"
+                Label="New folder"
+                ToolTipService.ToolTip="New folder"
+                IsEnabled="{Binding CanCreateFolder}"
+                Click="OnCreateFolderClicked"
+                x:Uid="FileCommandNewFolder" />
+            <AppBarButton
+                Icon="Edit"
+                Label="Rename"
+                ToolTipService.ToolTip="Rename"
+                IsEnabled="{Binding CanRenameSelection}"
+                Click="OnRenameClicked"
+                x:Uid="FileCommandRename" />
+            <AppBarButton
+                Icon="Forward"
+                Label="Move"
+                ToolTipService.ToolTip="Move"
+                IsEnabled="{Binding CanModifySelection}"
+                Click="OnMoveClicked"
+                x:Uid="FileCommandMove" />
+            <AppBarButton
+                Icon="Delete"
+                Label="Delete"
+                ToolTipService.ToolTip="Delete"
+                IsEnabled="{Binding CanModifySelection}"
+                Click="OnDeleteClicked"
+                x:Uid="FileCommandDelete" />
+        </CommandBar>
+        <BreadcrumbBar
+            Grid.Row="2"
+            Margin="0,8,0,0"
+            ItemsSource="{Binding BreadcrumbItems}"
+            AllowDrop="True"
+            DragOver="OnBreadcrumbDragOver"
+            Drop="OnBreadcrumbDrop"
+            ItemClicked="OnBreadcrumbItemClicked"
+            PointerPressed="OnBreadcrumbPointerPressed">
+            <BreadcrumbBar.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Title}" />
+                </DataTemplate>
+            </BreadcrumbBar.ItemTemplate>
+        </BreadcrumbBar>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+            <TextBox
+                PlaceholderText="Search files..."
+                Width="240"
+                Text="{Binding SearchText, Mode=TwoWay}"
+                KeyDown="OnSearchKeyDown"
+                AutomationProperties.AutomationId="SearchTextBox"
+                x:Uid="SearchTextBox" />
+            <Button Content="Filters" Click="OnApplyFiltersClicked" x:Uid="FiltersButton" />
+            <Button Content="Open" Click="OnOpenFolderClicked" AutomationProperties.AutomationId="OpenFolderButton" x:Uid="OpenFolderButton" />
+            <ComboBox
+                MinWidth="120"
+                SelectedIndex="{Binding FileViewModeIndex, Mode=TwoWay}"
+                ToolTipService.ToolTip="View mode"
+                AutomationProperties.AutomationId="ViewModeCombo"
+                x:Uid="ViewModeCombo">
+                <ComboBoxItem Content="Icon" x:Uid="ViewModeIconItem" />
+                <ComboBoxItem Content="List" x:Uid="ViewModeListItem" />
+                <ComboBoxItem Content="Details" x:Uid="ViewModeDetailsItem" />
+            </ComboBox>
+        </StackPanel>
+        <CheckBox
+            Grid.Row="4"
+            Content="Show images only"
+            Margin="0,8,0,0"
+            IsChecked="{Binding ShowImagesOnly, Mode=TwoWay}"
+            Checked="OnFiltersChanged"
+            Unchecked="OnFiltersChanged"
+            AutomationProperties.AutomationId="ShowImagesOnlyCheckBox"
+            x:Uid="ShowImagesOnlyCheckBox" />
+        <Grid
+            Grid.Row="5"
+            Margin="0,8,0,0"
+            AllowDrop="True"
+            DragOver="OnFileListDragOver"
+            Drop="OnFileListDrop">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid
+                Grid.Row="0"
+                Margin="0,0,0,4"
+                Visibility="{Binding DetailsViewVisibility}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Width="56" />
+                <Button
+                    Grid.Column="1"
+                    Padding="4,2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    HorizontalAlignment="Left"
+                    Click="OnDetailsSortClicked"
+                    Tag="Name">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Name" FontWeight="SemiBold" x:Uid="DetailsHeaderNameText" />
+                        <TextBlock Text="{Binding NameSortIndicator}" Opacity="0.7" />
+                    </StackPanel>
+                </Button>
+                <Button
+                    Grid.Column="2"
+                    Padding="4,2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    HorizontalAlignment="Left"
+                    Click="OnDetailsSortClicked"
+                    Tag="ModifiedAt">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Modified" FontWeight="SemiBold" x:Uid="DetailsHeaderModifiedText" />
+                        <TextBlock Text="{Binding ModifiedSortIndicator}" Opacity="0.7" />
+                    </StackPanel>
+                </Button>
+                <Button
+                    Grid.Column="3"
+                    Padding="4,2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    HorizontalAlignment="Left"
+                    Click="OnDetailsSortClicked"
+                    Tag="Resolution">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Resolution" FontWeight="SemiBold" x:Uid="DetailsHeaderResolutionText" />
+                        <TextBlock Text="{Binding ResolutionSortIndicator}" Opacity="0.7" />
+                    </StackPanel>
+                </Button>
+                <Button
+                    Grid.Column="4"
+                    Padding="4,2"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    HorizontalAlignment="Right"
+                    HorizontalContentAlignment="Right"
+                    Click="OnDetailsSortClicked"
+                    Tag="Size">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Size" FontWeight="SemiBold" x:Uid="DetailsHeaderSizeText" />
+                        <TextBlock Text="{Binding SizeSortIndicator}" Opacity="0.7" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+            <ListView
+                x:Name="FileListList"
+                Grid.Row="1"
+                ItemsSource="{Binding Items}"
+                SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                SelectionMode="Extended"
+                IsMultiSelectCheckBoxEnabled="True"
+                IsItemClickEnabled="True"
+                ItemClick="OnFileItemClicked"
+                DoubleTapped="OnFileItemDoubleTapped"
+                SelectionChanged="OnFileSelectionChanged"
+                CanDragItems="True"
+                CanReorderItems="False"
+                DragItemsStarting="OnFileItemsDragStarting"
+                DragItemsCompleted="OnFileItemsDragCompleted"
+                ItemTemplate="{StaticResource ListItemTemplate}"
+                AllowDrop="True"
+                DragOver="OnFileListDragOver"
+                Drop="OnFileListDrop"
+                RightTapped="OnFileListRightTapped"
+                AutomationProperties.AutomationId="FileListList"
+                Visibility="{Binding ListViewVisibility}" />
+            <GridView
+                x:Name="FileListIcon"
+                Grid.Row="1"
+                ItemsSource="{Binding Items}"
+                SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                SelectionMode="Extended"
+                IsMultiSelectCheckBoxEnabled="True"
+                IsItemClickEnabled="True"
+                ItemClick="OnFileItemClicked"
+                DoubleTapped="OnFileItemDoubleTapped"
+                SelectionChanged="OnFileSelectionChanged"
+                CanDragItems="True"
+                CanReorderItems="False"
+                DragItemsStarting="OnFileItemsDragStarting"
+                DragItemsCompleted="OnFileItemsDragCompleted"
+                ItemTemplate="{StaticResource IconItemTemplate}"
+                AllowDrop="True"
+                DragOver="OnFileListDragOver"
+                Drop="OnFileListDrop"
+                RightTapped="OnFileListRightTapped"
+                AutomationProperties.AutomationId="FileListIcon"
+                Visibility="{Binding IconViewVisibility}" />
+            <ListView
+                x:Name="FileListDetails"
+                Grid.Row="1"
+                ItemsSource="{Binding Items}"
+                SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                SelectionMode="Extended"
+                IsMultiSelectCheckBoxEnabled="True"
+                IsItemClickEnabled="True"
+                ItemClick="OnFileItemClicked"
+                DoubleTapped="OnFileItemDoubleTapped"
+                SelectionChanged="OnFileSelectionChanged"
+                CanDragItems="True"
+                CanReorderItems="False"
+                DragItemsStarting="OnFileItemsDragStarting"
+                DragItemsCompleted="OnFileItemsDragCompleted"
+                ItemTemplate="{StaticResource DetailsItemTemplate}"
+                HorizontalContentAlignment="Stretch"
+                AllowDrop="True"
+                DragOver="OnFileListDragOver"
+                Drop="OnFileListDrop"
+                RightTapped="OnFileListRightTapped"
+                AutomationProperties.AutomationId="FileListDetails"
+                Visibility="{Binding DetailsViewVisibility}" />
+            <Border
+                Grid.Row="1"
+                Padding="16"
+                CornerRadius="8"
+                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                AllowDrop="True"
+                DragOver="OnFileListDragOver"
+                Drop="OnFileListDrop"
+                Visibility="{Binding StatusVisibility}">
+                <StackPanel Spacing="8" MaxWidth="320" HorizontalAlignment="Center">
+                    <SymbolIcon
+                        Symbol="{Binding StatusSymbol}"
+                        Width="28"
+                        Height="28"
+                        HorizontalAlignment="Center" />
+                    <TextBlock
+                        Text="{Binding StatusTitle}"
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        Text="{Binding StatusDetail}"
+                        Opacity="0.7"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                        <Button
+                            Content="{Binding StatusPrimaryActionLabel}"
+                            Visibility="{Binding StatusPrimaryActionVisibility}"
+                            Click="OnStatusPrimaryActionClicked" />
+                        <Button
+                            Content="{Binding StatusSecondaryActionLabel}"
+                            Visibility="{Binding StatusSecondaryActionVisibility}"
+                            Click="OnStatusSecondaryActionClicked" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

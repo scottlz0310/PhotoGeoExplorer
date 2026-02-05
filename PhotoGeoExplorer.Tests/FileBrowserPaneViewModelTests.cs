@@ -41,7 +41,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Assert
         Assert.NotNull(viewModel.Items);
@@ -63,7 +63,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Assert
         Assert.True(viewModel.ShowImagesOnly);
@@ -77,7 +77,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Assert
         Assert.Equal(FileViewMode.Details, viewModel.FileViewMode);
@@ -91,7 +91,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Assert
         Assert.Equal(FileSortColumn.Name, viewModel.SortColumn);
@@ -105,7 +105,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Assert
         Assert.Equal(SortDirection.Ascending, viewModel.SortDirection);
@@ -117,7 +117,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Act
         viewModel.ToggleSort(FileSortColumn.Name);
@@ -132,7 +132,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Act
         viewModel.ToggleSort(FileSortColumn.Size);
@@ -148,7 +148,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState)
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState)
         {
             SearchText = "test"
         };
@@ -166,7 +166,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState)
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState)
         {
             ShowImagesOnly = false
         };
@@ -184,7 +184,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Act
         viewModel.SearchText = "test";
@@ -199,7 +199,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Act
         viewModel.ShowImagesOnly = false;
@@ -214,7 +214,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
         var photoListItem = CreatePhotoListItem("test.jpg");
 
         // Act
@@ -232,7 +232,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
         var folderItem = CreateFolderListItem("TestFolder");
 
         // Act
@@ -249,7 +249,7 @@ public class FileBrowserPaneViewModelTests
         var tempDir = CreateTempTestDirectory();
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         try
         {
@@ -272,7 +272,7 @@ public class FileBrowserPaneViewModelTests
         var tempDir = CreateTempTestDirectory();
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         try
         {
@@ -289,12 +289,154 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
+    public void CanCreateFolderDefaultsToFalse()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+
+        // Act
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        // Assert
+        Assert.False(viewModel.CanCreateFolder);
+    }
+
+    [Fact]
+    public async Task CanCreateFolderBecomesTrueAfterLoadFolderAsync()
+    {
+        // Arrange
+        var tempDir = CreateTempTestDirectory();
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        try
+        {
+            // Act
+            await viewModel.LoadFolderAsync(tempDir).ConfigureAwait(true);
+
+            // Assert
+            Assert.True(viewModel.CanCreateFolder);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public void CanRenameSelectionTrueWhenSingleItemSelected()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var item = CreatePhotoListItem("test.jpg");
+
+        // Act
+        viewModel.UpdateSelection(new[] { item });
+
+        // Assert
+        Assert.True(viewModel.CanRenameSelection);
+    }
+
+    [Fact]
+    public void CanRenameSelectionFalseWhenNoSelection()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        // Act
+        viewModel.UpdateSelection(Array.Empty<PhotoListItem>());
+
+        // Assert
+        Assert.False(viewModel.CanRenameSelection);
+    }
+
+    [Fact]
+    public void CanRenameSelectionFalseWhenMultipleSelected()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var first = CreatePhotoListItem("test1.jpg");
+        var second = CreatePhotoListItem("test2.jpg");
+
+        // Act
+        viewModel.UpdateSelection(new[] { first, second });
+
+        // Assert
+        Assert.False(viewModel.CanRenameSelection);
+    }
+
+    [Fact]
+    public void CanModifySelectionTrueWhenSelected()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var item = CreatePhotoListItem("test.jpg");
+
+        // Act
+        viewModel.UpdateSelection(new[] { item });
+
+        // Assert
+        Assert.True(viewModel.CanModifySelection);
+    }
+
+    [Fact]
+    public async Task CanMoveToParentSelectionTrueWithSelectionAndParentFolder()
+    {
+        // Arrange
+        var tempDir = CreateTempTestDirectory();
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var item = CreatePhotoListItem("test.jpg");
+
+        try
+        {
+            await viewModel.LoadFolderAsync(tempDir).ConfigureAwait(true);
+
+            // Act
+            viewModel.UpdateSelection(new[] { item });
+
+            // Assert
+            Assert.True(viewModel.CanMoveToParentSelection);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public void CanMoveToParentSelectionFalseWithoutSelection()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        // Act
+        viewModel.UpdateSelection(Array.Empty<PhotoListItem>());
+
+        // Assert
+        Assert.False(viewModel.CanMoveToParentSelection);
+    }
+
+    [Fact]
     public void DisposeCanBeCalledMultipleTimes()
     {
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
 
         // Act & Assert (Should not throw)
         viewModel.Dispose();
@@ -316,7 +458,19 @@ public class FileBrowserPaneViewModelTests
             {
                 Directory.Delete(directory, recursive: true);
             }
-            catch
+            catch (UnauthorizedAccessException)
+            {
+                // ベストエフォート
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // ベストエフォート
+            }
+            catch (PathTooLongException)
+            {
+                // ベストエフォート
+            }
+            catch (IOException)
             {
                 // ベストエフォート
             }
@@ -327,12 +481,9 @@ public class FileBrowserPaneViewModelTests
     {
         var photoItem = new PhotoItem(
             filePath: $"/test/{fileName}",
-            isFolder: false,
             sizeBytes: 1000,
-            sizeText: "1 KB",
-            resolutionText: "100x100",
-            modifiedAt: DateTime.UtcNow,
-            modifiedAtText: "2024-01-01",
+            modifiedAt: DateTimeOffset.UtcNow,
+            isFolder: false,
             thumbnailPath: null,
             pixelWidth: 100,
             pixelHeight: 100);
@@ -344,12 +495,9 @@ public class FileBrowserPaneViewModelTests
     {
         var photoItem = new PhotoItem(
             filePath: $"/test/{folderName}",
-            isFolder: true,
             sizeBytes: 0,
-            sizeText: string.Empty,
-            resolutionText: string.Empty,
-            modifiedAt: DateTime.UtcNow,
-            modifiedAtText: "2024-01-01",
+            modifiedAt: DateTimeOffset.UtcNow,
+            isFolder: true,
             thumbnailPath: null,
             pixelWidth: null,
             pixelHeight: null);

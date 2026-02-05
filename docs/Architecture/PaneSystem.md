@@ -552,15 +552,16 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
   - [x] MainWindow との統合（PreviewPaneViewControl の配置と既存コードの削除）
   - [x] 最大化機能の実装（MaximizeChanged イベント経由）
   - [x] 前後ナビゲーション機能の実装（WorkspaceState 拡張）
-- [ ] FileBrowser Pane の移植（フェーズ3-3進行中）
+- [x] FileBrowser Pane の移植（フェーズ3-3完了）
   - [x] FileBrowserPaneViewModel の実装（ファイル一覧状態管理、ナビゲーション、ソート、フィルタ）
   - [x] FileBrowserPaneService の実装（ファイル読込、ナビゲーション履歴、ソート、ブレッドクラム）
   - [x] サムネイル生成の非同期処理（並列3、バッチ更新300ms）
   - [x] WorkspaceState 連携（SelectedPhotos、CurrentPhotoIndex、PhotoListCount）
   - [x] 単体テストの追加（FileBrowserPaneViewModel, FileBrowserPaneService）
-  - [ ] FileBrowserPaneView.xaml の実装（DataTemplate / `FileBrowserPaneTemplate`）
-  - [ ] MainWindow との統合（FileBrowser UI の配置）
-  - [ ] MainWindow からファイルブラウザ関連コードの段階的移行
+  - [x] FileBrowserPaneView.xaml の実装（UserControl）
+  - [x] MainWindow との統合（FileBrowser UI の配置）
+  - [x] MainWindow からファイルブラウザ関連コードの段階的移行（UI/イベント移行）
+  - [x] MainWindow 旧 FileBrowser イベント/ヘルパーの削除
 - [ ] その他の機能を順次移行
 
 ## 参考資料
@@ -608,3 +609,5 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
 - **2026-01-31**: 初版作成（PR#1: 土台構築）
 - **2026-01-31**: View を DataTemplate（ResourceDictionary）でも扱えるように追記
 - **2026-02-05**: FileBrowser Pane の基盤実装（Service, ViewModel, Tests）- フェーズ3-3開始
+- **2026-02-05**: FileBrowser Pane の UI 統合（UserControl + MainWindow 統合）- フェーズ3-3完了
+- **2026-02-05**: MainWindow の旧 FileBrowser イベント整理とテスト拡充
