@@ -441,7 +441,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         if (previousCts is not null)
         {
-            previousCts.Cancel();
+            await previousCts.CancelAsync().ConfigureAwait(false);
             previousCts.Dispose();
         }
 
@@ -1312,7 +1312,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             }))
         {
             var ex = new InvalidOperationException("DispatcherQueue へのエンキューに失敗しました。");
-            AppLog.Error(ex, "RunOnUIThreadAsync: DispatcherQueue.TryEnqueue が false を返しました。");
+            AppLog.Error("RunOnUIThreadAsync: DispatcherQueue.TryEnqueue が false を返しました。", ex);
             tcs.SetException(ex);
         }
         return tcs.Task;
