@@ -80,7 +80,8 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
                 displayName = directoryInfo.FullName;
             }
 
-            segments.Insert(0, new BreadcrumbSegment(directoryInfo.FullName, displayName));
+            var children = _fileSystemService.GetChildDirectories(directoryInfo.FullName);
+            segments.Insert(0, new BreadcrumbSegment(displayName, directoryInfo.FullName, children));
 
             // 親ディレクトリへ
             var parent = directoryInfo.Parent;
@@ -299,14 +300,12 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
 
         // AppDomain 名による検出（フォールバック）
         var name = AppDomain.CurrentDomain.FriendlyName;
-        if (!string.IsNullOrWhiteSpace(name))
-        {
-            if (name.Contains("testhost", StringComparison.OrdinalIgnoreCase)
+        if (!string.IsNullOrWhiteSpace(name)
+            && (name.Contains("testhost", StringComparison.OrdinalIgnoreCase)
                 || name.Contains("vstest", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("xunit", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+                || name.Contains("xunit", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
         }
 
         return DispatcherQueue.GetForCurrentThread() is not null;

@@ -37,6 +37,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private string? _currentFolderPath;
     private string? _statusMessage;
     private Visibility _statusVisibility = Visibility.Collapsed;
+    private InfoBarSeverity _statusSeverity = InfoBarSeverity.Informational;
     private bool _showImagesOnly = true;
     private string? _searchText;
     private FileViewMode _fileViewMode = FileViewMode.Details;
@@ -71,8 +72,19 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         NavigateUpCommand = new RelayCommand(async () => await NavigateUpAsync().ConfigureAwait(false), () => CanNavigateUp);
         NavigateHomeCommand = new RelayCommand(async () => await OpenHomeAsync().ConfigureAwait(false));
         RefreshCommand = new RelayCommand(async () => await RefreshAsync().ConfigureAwait(false));
-        ToggleSortCommand = new RelayCommand<FileSortColumn>(column => ToggleSort(column));
-        ResetFiltersCommand = new RelayCommand(ResetFilters);
+        ToggleSortCommand = new RelayCommand<FileSortColumn>(async column =>
+        {
+            if (column.HasValue)
+            {
+                ToggleSort(column.Value);
+            }
+            await Task.CompletedTask.ConfigureAwait(false);
+        });
+        ResetFiltersCommand = new RelayCommand(async () =>
+        {
+            ResetFilters();
+            await Task.CompletedTask.ConfigureAwait(false);
+        });
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -106,6 +118,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         private set => SetProperty(ref _statusVisibility, value);
     }
 
+    public InfoBarSeverity StatusSeverity
+    {
+        get => _statusSeverity;
+        private set => SetProperty(ref _statusSeverity, value);
+    }
+
     public bool ShowImagesOnly
     {
         get => _showImagesOnly;
@@ -114,6 +132,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             if (SetProperty(ref _showImagesOnly, value))
             {
                 UpdateFilterState();
+                // フィルタ変更時にフォルダを再読み込み
+                if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
+                {
+                    _ = LoadFolderAsync(CurrentFolderPath, updateHistory: false);
+                }
             }
         }
     }
@@ -126,6 +149,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             if (SetProperty(ref _searchText, value))
             {
                 UpdateFilterState();
+                // フィルタ変更時にフォルダを再読み込み
+                if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
+                {
+                    _ = LoadFolderAsync(CurrentFolderPath, updateHistory: false);
+                }
             }
         }
     }
@@ -204,7 +232,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         // Paneがアクティブになったときの処理
     }
 
-    public async Task LoadFolderAsync(string folderPath)
+    public async Task LoadFolderAsync(string folderPath, bool updateHistory = true)
     {
         if (string.IsNullOrWhiteSpace(folderPath))
         {
@@ -244,8 +272,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                             Items.Add(item);
                         }
 
-                        // 履歴管理
-                        if (!string.IsNullOrWhiteSpace(previousPath) && previousPath != folderPath)
+                        // 履歴管理（updateHistory が true で、かつ前のパスと異なる場合のみ）
+                        if (updateHistory && !string.IsNullOrWhiteSpace(previousPath) && previousPath != folderPath)
                         {
                             _service.PushToBackStack(previousPath);
                             _service.ClearForwardStack();
@@ -271,8 +299,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                     Items.Add(item);
                 }
 
-                // 履歴管理
-                if (!string.IsNullOrWhiteSpace(previousPath) && previousPath != folderPath)
+                // 履歴管理（updateHistory が true で、かつ前のパスと異なる場合のみ）
+                if (updateHistory && !string.IsNullOrWhiteSpace(previousPath) && previousPath != folderPath)
                 {
                     _service.PushToBackStack(previousPath);
                     _service.ClearForwardStack();
@@ -328,7 +356,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         var previousPath = _service.NavigateBack(CurrentFolderPath);
         if (previousPath is not null)
         {
-            await LoadFolderAsync(previousPath).ConfigureAwait(false);
+            await LoadFolderAsync(previousPath, updateHistory: false).ConfigureAwait(false);
             UpdateNavigationCommands();
         }
     }
@@ -343,7 +371,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         var nextPath = _service.NavigateForward(CurrentFolderPath);
         if (nextPath is not null)
         {
-            await LoadFolderAsync(nextPath).ConfigureAwait(false);
+            await LoadFolderAsync(nextPath, updateHistory: false).ConfigureAwait(false);
             UpdateNavigationCommands();
         }
     }
@@ -369,7 +397,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             return;
         }
 
-        await LoadFolderAsync(CurrentFolderPath).ConfigureAwait(false);
+        await LoadFolderAsync(CurrentFolderPath, updateHistory: false).ConfigureAwait(false);
     }
 
     public void ToggleSort(FileSortColumn column)
@@ -453,6 +481,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private void SetStatus(string? message, InfoBarSeverity severity)
     {
         StatusMessage = message;
+        StatusSeverity = severity;
         StatusVisibility = string.IsNullOrWhiteSpace(message) ? Visibility.Collapsed : Visibility.Visible;
     }
 
