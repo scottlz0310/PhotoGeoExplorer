@@ -80,7 +80,7 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
                 displayName = directoryInfo.FullName;
             }
 
-            var children = _fileSystemService.GetChildDirectories(directoryInfo.FullName);
+            var children = FileSystemService.GetChildDirectories(directoryInfo.FullName);
             segments.Insert(0, new BreadcrumbSegment(displayName, directoryInfo.FullName, children));
 
             // 親ディレクトリへ

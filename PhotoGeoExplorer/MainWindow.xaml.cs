@@ -30,10 +30,10 @@ using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Preview;
 using PhotoGeoExplorer.Panes.Settings;
+using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
 using System.ComponentModel;
-using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
 using Windows.Foundation;
 using Windows.Storage;
@@ -46,7 +46,6 @@ namespace PhotoGeoExplorer;
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public sealed partial class MainWindow : Window, IDisposable
 {
-    private const string InternalDragKey = "PhotoGeoExplorer.InternalDrag";
     private const string PhotoItemKey = "PhotoItem";
     private const string PhotoMetadataKey = "PhotoMetadata";
     private const int DefaultMapZoomLevel = 14;
@@ -55,6 +54,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private static readonly Color SelectionOutlineColor = Color.FromArgb(255, 0, 120, 215);
     private readonly MainViewModel _viewModel;
     private readonly SettingsService _settingsService;
+    private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
     private bool _layoutStored;
@@ -63,7 +63,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _previewMaximized;
     private bool _windowSized;
     private bool _windowIconSet;
-    private bool _suppressBreadcrumbNavigation;
     private CancellationTokenSource? _mapUpdateCts;
     private CancellationTokenSource? _settingsCts;
     private GridLength _storedDetailWidth;
@@ -73,7 +72,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private GridLength _storedMapSplitterHeight;
     private GridLength _storedSplitterWidth;
     private double _storedMapRowMinHeight;
-    private List<PhotoListItem>? _dragItems;
     private bool _isApplyingSettings;
     private string? _languageOverride;
     private string? _startupFilePath;
@@ -104,17 +102,21 @@ public sealed partial class MainWindow : Window, IDisposable
         InitializeComponent();
         _viewModel = new MainViewModel(new FileSystemService());
         _settingsService = new SettingsService();
+        _fileBrowserPaneViewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), _viewModel.WorkspaceState);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         _mapPaneViewModel = new MapPaneViewModel();
         _settingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         RootGrid.DataContext = _viewModel;
+        FileBrowserPaneControl.DataContext = _fileBrowserPaneViewModel;
+        FileBrowserPaneControl.HostWindow = this;
+        FileBrowserPaneControl.EditExifRequested += OnEditExifRequested;
         PreviewPaneControl.DataContext = _previewPaneViewModel;
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         Title = LocalizationService.GetString("MainWindow.Title");
         AppLog.Info("MainWindow constructed.");
         Activated += OnActivated;
         Closed += OnClosed;
-        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
         _viewModel.WorkspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
     }
 
@@ -159,7 +161,7 @@ public sealed partial class MainWindow : Window, IDisposable
         await LoadSettingsAsync().ConfigureAwait(true);
         await ApplyStartupFolderOverrideAsync().ConfigureAwait(true);
         await ApplyStartupFileActivationAsync().ConfigureAwait(true);
-        await _viewModel.InitializeAsync().ConfigureAwait(true);
+        await _fileBrowserPaneViewModel.InitializeAsync().ConfigureAwait(true);
 
         // XamlRoot が確定するまでワンテンポ遅らせてからダイアログを表示
         DispatcherQueue.TryEnqueue(async () =>
@@ -312,7 +314,7 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        await _viewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
+        await _fileBrowserPaneViewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
     }
 
     private static string? GetStartupFolderOverride()
@@ -379,9 +381,9 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        await _viewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
+        await _fileBrowserPaneViewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
 
-        var item = _viewModel.Items.FirstOrDefault(candidate =>
+        var item = _fileBrowserPaneViewModel.Items.FirstOrDefault(candidate =>
             string.Equals(candidate.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
         if (item is null || item.IsFolder)
         {
@@ -389,8 +391,8 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        _viewModel.UpdateSelection(new[] { item });
-        _viewModel.SelectedItem = item;
+        _fileBrowserPaneViewModel.UpdateSelection(new[] { item });
+        _fileBrowserPaneViewModel.SelectedItem = item;
     }
 
     private static bool TryGetOptionValue(string argument, string option, out string? value)
@@ -445,8 +447,8 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         UpdateMapTileSourceMenuChecks(_mapTileSource);
 
-        _viewModel.ShowImagesOnly = settings.ShowImagesOnly;
-        _viewModel.FileViewMode = Enum.IsDefined<FileViewMode>(settings.FileViewMode)
+        _fileBrowserPaneViewModel.ShowImagesOnly = settings.ShowImagesOnly;
+        _fileBrowserPaneViewModel.FileViewMode = Enum.IsDefined<FileViewMode>(settings.FileViewMode)
             ? settings.FileViewMode
             : FileViewMode.Details;
 
@@ -463,7 +465,7 @@ public sealed partial class MainWindow : Window, IDisposable
             var validPath = FindValidAncestorPath(settings.LastFolderPath);
             if (!string.IsNullOrWhiteSpace(validPath))
             {
-                await _viewModel.LoadFolderAsync(validPath).ConfigureAwait(true);
+                await _fileBrowserPaneViewModel.LoadFolderAsync(validPath).ConfigureAwait(true);
 
                 if (!string.Equals(validPath, settings.LastFolderPath, StringComparison.OrdinalIgnoreCase))
                 {
@@ -556,9 +558,9 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         return new AppSettings
         {
-            LastFolderPath = _viewModel.CurrentFolderPath,
-            ShowImagesOnly = _viewModel.ShowImagesOnly,
-            FileViewMode = _viewModel.FileViewMode,
+            LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath,
+            ShowImagesOnly = _fileBrowserPaneViewModel.ShowImagesOnly,
+            FileViewMode = _fileBrowserPaneViewModel.FileViewMode,
             Language = _languageOverride,
             Theme = _themePreference,
             MapDefaultZoomLevel = _mapDefaultZoomLevel,
@@ -583,13 +585,13 @@ public sealed partial class MainWindow : Window, IDisposable
         MapStatusPanel.Visibility = Visibility.Collapsed;
     }
 
-    private async void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private async void OnFileBrowserPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         // 地図の更新は WorkspaceState 経由で MapPaneViewModel が行うため、ここでは不要
 
-        if (e.PropertyName is nameof(MainViewModel.ShowImagesOnly)
-            or nameof(MainViewModel.FileViewMode)
-            or nameof(MainViewModel.CurrentFolderPath))
+        if (e.PropertyName is nameof(FileBrowserPaneViewModel.ShowImagesOnly)
+            or nameof(FileBrowserPaneViewModel.FileViewMode)
+            or nameof(FileBrowserPaneViewModel.CurrentFolderPath))
         {
             ScheduleSettingsSave();
         }
@@ -736,14 +738,14 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnNavigateHomeClicked(object sender, RoutedEventArgs e)
     {
-        await _viewModel.OpenHomeAsync().ConfigureAwait(true);
+        await FileBrowserPaneControl.NavigateHomeAsync().ConfigureAwait(true);
     }
 
     private async void OnNavigateBackClicked(object sender, RoutedEventArgs e)
     {
         try
         {
-            await _viewModel.NavigateBackAsync().ConfigureAwait(true);
+            await _fileBrowserPaneViewModel.NavigateBackAsync().ConfigureAwait(true);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -771,7 +773,7 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         try
         {
-            await _viewModel.NavigateForwardAsync().ConfigureAwait(true);
+            await _fileBrowserPaneViewModel.NavigateForwardAsync().ConfigureAwait(true);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -797,27 +799,17 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnNavigateUpClicked(object sender, RoutedEventArgs e)
     {
-        await _viewModel.NavigateUpAsync().ConfigureAwait(true);
+        await FileBrowserPaneControl.NavigateUpAsync().ConfigureAwait(true);
     }
 
     private async void OnRefreshClicked(object sender, RoutedEventArgs e)
     {
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private async void OnApplyFiltersClicked(object sender, RoutedEventArgs e)
-    {
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private async void OnFiltersChanged(object sender, RoutedEventArgs e)
-    {
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
+        await FileBrowserPaneControl.RefreshAsync().ConfigureAwait(true);
     }
 
     private async void OnOpenFolderClicked(object sender, RoutedEventArgs e)
     {
-        await OpenFolderPickerAsync().ConfigureAwait(true);
+        await FileBrowserPaneControl.OpenFolderAsync().ConfigureAwait(true);
     }
 
     private async void OnOpenSettingsPaneClicked(object sender, RoutedEventArgs e)
@@ -864,8 +856,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnResetFiltersClicked(object sender, RoutedEventArgs e)
     {
-        _viewModel.ResetFilters();
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
+        await FileBrowserPaneControl.ResetFiltersAsync().ConfigureAwait(true);
     }
 
     private async void OnNotificationActionClicked(object sender, RoutedEventArgs e)
@@ -1023,8 +1014,8 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnToggleImagesOnlyClicked(object sender, RoutedEventArgs e)
     {
-        _viewModel.ShowImagesOnly = !_viewModel.ShowImagesOnly;
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
+        _fileBrowserPaneViewModel.ShowImagesOnly = !_fileBrowserPaneViewModel.ShowImagesOnly;
+        await _fileBrowserPaneViewModel.RefreshAsync().ConfigureAwait(true);
     }
 
     private void OnViewModeMenuClicked(object sender, RoutedEventArgs e)
@@ -1036,7 +1027,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         if (Enum.TryParse(tag, out FileViewMode mode))
         {
-            _viewModel.FileViewMode = mode;
+            _fileBrowserPaneViewModel.FileViewMode = mode;
         }
     }
 
@@ -1062,6 +1053,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         // WorkspaceState イベントをアンサブスクライブ
         _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
+        _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
 
         // MapPaneViewModel のクリーンアップ
         _mapPaneViewModel.Cleanup();
@@ -1084,7 +1076,15 @@ public sealed partial class MainWindow : Window, IDisposable
             PreviewPaneControl.DataContext = null;
         }
 
+        if (FileBrowserPaneControl is not null)
+        {
+            FileBrowserPaneControl.EditExifRequested -= OnEditExifRequested;
+            FileBrowserPaneControl.DataContext = null;
+            FileBrowserPaneControl.HostWindow = null;
+        }
+
         _previewPaneViewModel?.Cleanup();
+        _fileBrowserPaneViewModel.Dispose();
 
         _viewModel?.Dispose();
 
@@ -1392,976 +1392,24 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    private async Task OpenFolderPickerAsync()
-    {
-        var folder = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
-
-        if (folder is null)
-        {
-            return;
-        }
-
-        await _viewModel.LoadFolderAsync(folder.Path).ConfigureAwait(true);
-    }
-
-    private async Task<StorageFolder?> PickFolderAsync(PickerLocationId startLocation)
-    {
-        var picker = new FolderPicker
-        {
-            SuggestedStartLocation = startLocation
-        };
-        picker.FileTypeFilter.Add("*");
-
-        var hwnd = WindowNative.GetWindowHandle(this);
-        InitializeWithWindow.Initialize(picker, hwnd);
-
-        try
-        {
-            return await picker.PickSingleFolderAsync().AsTask().ConfigureAwait(true);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            AppLog.Error("Folder picker failed.", ex);
-        }
-        catch (System.Runtime.InteropServices.COMException ex)
-        {
-            AppLog.Error("Folder picker failed.", ex);
-        }
-
-        return null;
-    }
-
-    private async void OnStatusPrimaryActionClicked(object sender, RoutedEventArgs e)
-    {
-        await PerformStatusActionAsync(_viewModel.StatusPrimaryAction).ConfigureAwait(true);
-    }
-
-    private async void OnStatusSecondaryActionClicked(object sender, RoutedEventArgs e)
-    {
-        await PerformStatusActionAsync(_viewModel.StatusSecondaryAction).ConfigureAwait(true);
-    }
-
-    private async Task PerformStatusActionAsync(StatusAction action)
-    {
-        switch (action)
-        {
-            case StatusAction.OpenFolder:
-                await OpenFolderPickerAsync().ConfigureAwait(true);
-                break;
-            case StatusAction.GoHome:
-                await _viewModel.OpenHomeAsync().ConfigureAwait(true);
-                break;
-            case StatusAction.ResetFilters:
-                _viewModel.ResetFilters();
-                await _viewModel.RefreshAsync().ConfigureAwait(true);
-                break;
-        }
-    }
-
-    private async void OnBreadcrumbItemClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
-    {
-        if (_suppressBreadcrumbNavigation)
-        {
-            return;
-        }
-
-        if (args.Item is not BreadcrumbSegment segment)
-        {
-            return;
-        }
-
-        await _viewModel.LoadFolderAsync(segment.FullPath).ConfigureAwait(true);
-    }
-
-    private void OnBreadcrumbPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        var container = FindAncestor<BreadcrumbBarItem>(e.OriginalSource as DependencyObject);
-        if (container?.DataContext is not BreadcrumbSegment segment)
-        {
-            return;
-        }
-
-        if (segment.Children.Count == 0 || container.ActualWidth <= 0)
-        {
-            return;
-        }
-
-        var point = e.GetCurrentPoint(container);
-        if (!point.Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        var position = point.Position;
-        const double separatorHitWidth = 18;
-        if (position.X < container.ActualWidth - separatorHitWidth)
-        {
-            return;
-        }
-
-        ShowBreadcrumbChildrenFlyout(container, segment);
-        e.Handled = true;
-    }
-
-    private async void OnBreadcrumbChildClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem item || item.Tag is not string folderPath)
-        {
-            return;
-        }
-
-        await _viewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
-    }
-
-    private void ShowBreadcrumbChildrenFlyout(FrameworkElement anchor, BreadcrumbSegment segment)
-    {
-        if (segment.Children.Count == 0)
-        {
-            return;
-        }
-
-        var flyout = new MenuFlyout();
-        foreach (var child in segment.Children)
-        {
-            var item = new MenuFlyoutItem
-            {
-                Text = child.Name,
-                Tag = child.FullPath
-            };
-            item.Click += OnBreadcrumbChildClicked;
-            flyout.Items.Add(item);
-        }
-
-        _suppressBreadcrumbNavigation = true;
-        flyout.Closed += (_, _) => _suppressBreadcrumbNavigation = false;
-        flyout.ShowAt(anchor);
-    }
-
-    private void OnBreadcrumbDragOver(object sender, DragEventArgs e)
-    {
-        if (!IsInternalDrag(e))
-        {
-            e.AcceptedOperation = DataPackageOperation.None;
-            e.Handled = true;
-            return;
-        }
-
-        if (sender is not BreadcrumbBar breadcrumbBar)
-        {
-            return;
-        }
-
-        if (TryGetBreadcrumbTarget(breadcrumbBar, e, out _))
-        {
-            e.AcceptedOperation = DataPackageOperation.Move;
-        }
-        else
-        {
-            e.AcceptedOperation = DataPackageOperation.None;
-        }
-
-        e.Handled = true;
-    }
-
-    private async void OnBreadcrumbDrop(object sender, DragEventArgs e)
-    {
-        if (!IsInternalDrag(e))
-        {
-            return;
-        }
-
-        if (sender is not BreadcrumbBar breadcrumbBar)
-        {
-            return;
-        }
-
-        if (!TryGetBreadcrumbTarget(breadcrumbBar, e, out var target))
-        {
-            return;
-        }
-
-        await MoveItemsToFolderAsync(_dragItems ?? _viewModel.SelectedItems, target.FullPath)
-            .ConfigureAwait(true);
-    }
-
-    private void OnFileListDragOver(object sender, DragEventArgs e)
-    {
-        if (IsInternalDrag(e))
-        {
-            if (sender is not ListViewBase)
-            {
-                e.AcceptedOperation = DataPackageOperation.None;
-                e.Handled = true;
-                return;
-            }
-
-            if (sender is ListViewBase listView
-                && TryGetDropTargetFolder(listView, RootGrid, e, out _))
-            {
-                e.AcceptedOperation = DataPackageOperation.Move;
-            }
-            else
-            {
-                e.AcceptedOperation = DataPackageOperation.None;
-            }
-
-            e.Handled = true;
-            return;
-        }
-
-        e.AcceptedOperation = e.DataView.Contains(StandardDataFormats.StorageItems)
-            ? DataPackageOperation.Copy
-            : DataPackageOperation.None;
-        e.Handled = true;
-    }
-
-    private async void OnFileListDrop(object sender, DragEventArgs e)
-    {
-        if (IsInternalDrag(e))
-        {
-            if (sender is not ListViewBase)
-            {
-                return;
-            }
-
-            if (sender is ListViewBase listView
-                && TryGetDropTargetFolder(listView, RootGrid, e, out var targetFolder))
-            {
-                await MoveItemsToFolderAsync(_dragItems ?? _viewModel.SelectedItems, targetFolder.FilePath)
-                    .ConfigureAwait(true);
-            }
-
-            return;
-        }
-
-        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
-        {
-            return;
-        }
-
-        var items = await e.DataView.GetStorageItemsAsync();
-        if (items is null || items.Count == 0)
-        {
-            return;
-        }
-
-        StorageFolder? folder = null;
-        StorageFile? firstFile = null;
-        foreach (var item in items)
-        {
-            if (item is StorageFolder droppedFolder)
-            {
-                folder = droppedFolder;
-                break;
-            }
-
-            if (firstFile is null && item is StorageFile droppedFile)
-            {
-                firstFile = droppedFile;
-            }
-        }
-
-        if (folder is not null)
-        {
-            await _viewModel.LoadFolderAsync(folder.Path).ConfigureAwait(true);
-            return;
-        }
-
-        if (firstFile is null)
-        {
-            return;
-        }
-
-        var directory = Path.GetDirectoryName(firstFile.Path);
-        if (string.IsNullOrWhiteSpace(directory))
-        {
-            return;
-        }
-
-        await _viewModel.LoadFolderAsync(directory).ConfigureAwait(true);
-        _viewModel.SelectItemByPath(firstFile.Path);
-    }
-
-    private void OnFileItemsDragStarting(object sender, DragItemsStartingEventArgs e)
-    {
-        _dragItems = e.Items.OfType<PhotoListItem>().ToList();
-        if (_dragItems.Count == 0 && _viewModel.SelectedItems.Count > 0)
-        {
-            _dragItems = _viewModel.SelectedItems.ToList();
-        }
-        e.Data.RequestedOperation = DataPackageOperation.Move;
-        e.Data.Properties[InternalDragKey] = true;
-    }
-
-    private void OnFileItemsDragCompleted(object sender, DragItemsCompletedEventArgs e)
-    {
-        _dragItems = null;
-    }
-
-    private void OnFileListRightTapped(object sender, RightTappedRoutedEventArgs e)
-    {
-        if (sender is not ListViewBase listView)
-        {
-            return;
-        }
-
-        var source = e.OriginalSource as DependencyObject;
-        if (source is not null)
-        {
-            var container = FindAncestor<SelectorItem>(source);
-            if (container is not null
-                && listView.ItemFromContainer(container) is PhotoListItem item)
-            {
-                _viewModel.SelectedItem = item;
-            }
-            else
-            {
-                listView.SelectedItems.Clear();
-                _viewModel.SelectedItem = null;
-                _viewModel.UpdateSelection(Array.Empty<PhotoListItem>());
-            }
-        }
-
-        var flyout = BuildFileContextFlyout();
-        flyout.ShowAt(listView, e.GetPosition(listView));
-        e.Handled = true;
-    }
-
-    private void OnFileItemClicked(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is not PhotoListItem)
-        {
-            return;
-        }
-    }
-
-    private async void OnFileItemDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-    {
-        if (sender is not ListViewBase listView)
-        {
-            return;
-        }
-
-        var container = FindAncestor<SelectorItem>(e.OriginalSource as DependencyObject);
-        if (container is null || listView.ItemFromContainer(container) is not PhotoListItem item)
-        {
-            return;
-        }
-
-        if (!item.IsFolder)
-        {
-            return;
-        }
-
-        await _viewModel.LoadFolderAsync(item.FilePath).ConfigureAwait(true);
-        e.Handled = true;
-    }
-
-    private async void OnFileSelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (sender is not ListViewBase listView)
-        {
-            return;
-        }
-
-        var selected = listView.SelectedItems
-            .OfType<PhotoListItem>()
-            .ToList();
-        _viewModel.UpdateSelection(selected);
-        // 地図の更新は WorkspaceState 経由で MapPaneViewModel が行う
-    }
-
-    private async void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.Key != VirtualKey.Enter)
-        {
-            return;
-        }
-
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
     private async void OnCreateFolderClicked(object sender, RoutedEventArgs e)
     {
-        var currentFolder = _viewModel.CurrentFolderPath;
-        if (string.IsNullOrWhiteSpace(currentFolder))
-        {
-            return;
-        }
-
-        var folderName = await ShowTextInputDialogAsync(
-            LocalizationService.GetString("Dialog.NewFolder.Title"),
-            LocalizationService.GetString("Dialog.NewFolder.Primary"),
-            LocalizationService.GetString("Dialog.NewFolder.DefaultName"),
-            LocalizationService.GetString("Dialog.NewFolder.Placeholder")).ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(folderName))
-        {
-            return;
-        }
-
-        if (ContainsInvalidFileNameChars(folderName))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.InvalidName.Title"),
-                LocalizationService.GetString("Dialog.InvalidName.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        var targetPath = Path.Combine(currentFolder, folderName);
-        if (Directory.Exists(targetPath) || File.Exists(targetPath))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExists.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        try
-        {
-            Directory.CreateDirectory(targetPath);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException
-            or IOException
-            or NotSupportedException
-            or ArgumentException
-            or PathTooLongException)
-        {
-            AppLog.Error($"Failed to create folder: {targetPath}", ex);
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.CreateFolderFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
-            return;
-        }
-
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
-        _viewModel.SelectItemByPath(targetPath);
+        await FileBrowserPaneControl.CreateFolderAsync().ConfigureAwait(true);
     }
 
     private async void OnRenameClicked(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.SelectedItems.Count != 1 || _viewModel.SelectedItems[0] is not PhotoListItem item)
-        {
-            return;
-        }
-
-        var parent = Path.GetDirectoryName(item.FilePath);
-        if (string.IsNullOrWhiteSpace(parent))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.RenameNotAvailable.Title"),
-                LocalizationService.GetString("Dialog.RenameNotAvailable.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        var newName = await ShowTextInputDialogAsync(
-            LocalizationService.GetString("Dialog.Rename.Title"),
-            LocalizationService.GetString("Dialog.Rename.Primary"),
-            item.FileName,
-            LocalizationService.GetString("Dialog.Rename.Placeholder")).ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(newName))
-        {
-            return;
-        }
-
-        var normalizedName = NormalizeRename(item, newName);
-        if (string.Equals(normalizedName, item.FileName, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        if (ContainsInvalidFileNameChars(normalizedName))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.InvalidName.Title"),
-                LocalizationService.GetString("Dialog.InvalidName.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        var targetPath = Path.Combine(parent, normalizedName);
-        if (Directory.Exists(targetPath) || File.Exists(targetPath))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExists.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        try
-        {
-            if (item.IsFolder)
-            {
-                Directory.Move(item.FilePath, targetPath);
-            }
-            else
-            {
-                File.Move(item.FilePath, targetPath);
-            }
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException
-            or IOException
-            or NotSupportedException
-            or ArgumentException
-            or PathTooLongException)
-        {
-            AppLog.Error($"Failed to rename item: {item.FilePath}", ex);
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.RenameFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
-            return;
-        }
-
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
-        _viewModel.SelectItemByPath(targetPath);
+        await FileBrowserPaneControl.RenameSelectionAsync().ConfigureAwait(true);
     }
 
     private async void OnMoveClicked(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.SelectedItems.Count == 0)
-        {
-            return;
-        }
-
-        // 単一フォルダが選択されている場合、そのフォルダに遷移する（ダブルクリックと同じ動作）
-        if (_viewModel.SelectedItems.Count == 1 && _viewModel.SelectedItems[0].IsFolder)
-        {
-            await _viewModel.LoadFolderAsync(_viewModel.SelectedItems[0].FilePath).ConfigureAwait(true);
-            return;
-        }
-
-        // それ以外の場合、選択された項目を移動先フォルダへ移動する
-        var destination = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
-        if (destination is null)
-        {
-            return;
-        }
-
-        await MoveItemsToFolderAsync(_viewModel.SelectedItems, destination.Path).ConfigureAwait(true);
+        await FileBrowserPaneControl.MoveSelectionAsync().ConfigureAwait(true);
     }
 
     private async void OnDeleteClicked(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.SelectedItems.Count == 0)
-        {
-            return;
-        }
-
-        var message = _viewModel.SelectedItems.Count == 1
-            ? BuildDeleteMessage(_viewModel.SelectedItems[0])
-            : LocalizationService.Format("Dialog.DeleteConfirm.Multiple", _viewModel.SelectedItems.Count);
-        var confirmed = await ShowConfirmationDialogAsync(
-            LocalizationService.GetString("Dialog.DeleteConfirm.Title"),
-            message,
-            LocalizationService.GetString("Common.Delete")).ConfigureAwait(true);
-        if (!confirmed)
-        {
-            return;
-        }
-
-        await DeleteItemsAsync(_viewModel.SelectedItems).ConfigureAwait(true);
-    }
-
-    private MenuFlyout BuildFileContextFlyout()
-    {
-        var flyout = new MenuFlyout();
-
-        var createFolder = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.NewFolder"),
-            Icon = new SymbolIcon(Symbol.Folder),
-            IsEnabled = _viewModel.CanCreateFolder
-        };
-        createFolder.Click += OnCreateFolderClicked;
-
-        var renameItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.Rename"),
-            Icon = new SymbolIcon(Symbol.Edit),
-            IsEnabled = _viewModel.CanRenameSelection
-        };
-        renameItem.Click += OnRenameClicked;
-
-        var moveItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.Move"),
-            Icon = new SymbolIcon(Symbol.Forward),
-            IsEnabled = _viewModel.CanModifySelection
-        };
-        moveItem.Click += OnMoveClicked;
-
-        var moveParentItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.MoveToParent"),
-            Icon = new SymbolIcon(Symbol.Up),
-            IsEnabled = _viewModel.CanMoveToParentSelection
-        };
-        moveParentItem.Click += OnMoveToParentClicked;
-
-        var deleteItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.Delete"),
-            Icon = new SymbolIcon(Symbol.Delete),
-            IsEnabled = _viewModel.CanModifySelection
-        };
-        deleteItem.Click += OnDeleteClicked;
-
-        var editExifItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.EditExif"),
-            Icon = new SymbolIcon(Symbol.Edit),
-            IsEnabled = _viewModel.CanRenameSelection && IsJpegFile(_viewModel.SelectedItem)
-        };
-        editExifItem.Click += OnEditExifClicked;
-
-        flyout.Items.Add(createFolder);
-        flyout.Items.Add(new MenuFlyoutSeparator());
-        flyout.Items.Add(renameItem);
-        flyout.Items.Add(moveItem);
-        flyout.Items.Add(moveParentItem);
-        flyout.Items.Add(new MenuFlyoutSeparator());
-        flyout.Items.Add(editExifItem);
-        flyout.Items.Add(deleteItem);
-
-        return flyout;
-    }
-
-    private static bool IsInternalDrag(DragEventArgs e)
-    {
-        if (!e.DataView.Properties.TryGetValue(InternalDragKey, out var value))
-        {
-            return false;
-        }
-
-        return value is bool isInternal && isInternal;
-    }
-
-    private static bool TryGetDropTargetFolder(ListViewBase listView, UIElement root, DragEventArgs e, out PhotoListItem target)
-    {
-        target = null!;
-        var point = e.GetPosition(root);
-        var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(point, root);
-        foreach (var element in elements)
-        {
-            var container = element as SelectorItem ?? FindAncestor<SelectorItem>(element);
-            if (container is null)
-            {
-                continue;
-            }
-
-            if (!IsDescendantOf(container, listView))
-            {
-                continue;
-            }
-
-            if (listView.ItemFromContainer(container) is not PhotoListItem item || !item.IsFolder)
-            {
-                continue;
-            }
-
-            target = item;
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool TryGetBreadcrumbTarget(BreadcrumbBar breadcrumbBar, DragEventArgs e, out BreadcrumbSegment target)
-    {
-        target = null!;
-        var point = e.GetPosition(RootGrid);
-        var elements = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(point, RootGrid);
-        foreach (var element in elements)
-        {
-            var container = element as BreadcrumbBarItem ?? FindAncestor<BreadcrumbBarItem>(element);
-            if (container is null)
-            {
-                continue;
-            }
-
-            if (!IsDescendantOf(container, breadcrumbBar))
-            {
-                continue;
-            }
-
-            if (container.DataContext is not BreadcrumbSegment segment)
-            {
-                continue;
-            }
-
-            target = segment;
-            return true;
-        }
-
-        return false;
-    }
-
-    private async Task MoveItemsToFolderAsync(IReadOnlyList<PhotoListItem>? items, string destinationFolder)
-    {
-        if (string.IsNullOrWhiteSpace(destinationFolder))
-        {
-            return;
-        }
-
-        if (items is null || items.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var item in items)
-        {
-            var sourcePath = item.FilePath;
-            var parent = Path.GetDirectoryName(sourcePath);
-            if (string.IsNullOrWhiteSpace(parent))
-            {
-                continue;
-            }
-
-            if (IsSamePath(parent, destinationFolder))
-            {
-                continue;
-            }
-
-            if (item.IsFolder && IsDescendantPath(sourcePath, destinationFolder))
-            {
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                    LocalizationService.GetString("Dialog.MoveIntoSelf.Detail")).ConfigureAwait(true);
-                return;
-            }
-
-            var targetPath = Path.Combine(destinationFolder, item.FileName);
-            if (Directory.Exists(targetPath) || File.Exists(targetPath))
-            {
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                    LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")).ConfigureAwait(true);
-                return;
-            }
-
-            try
-            {
-                if (item.IsFolder)
-                {
-                    Directory.Move(sourcePath, targetPath);
-                }
-                else
-                {
-                    File.Move(sourcePath, targetPath);
-                }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException
-                or IOException
-                or NotSupportedException
-                or ArgumentException
-                or PathTooLongException)
-            {
-                AppLog.Error($"Failed to move item: {sourcePath}", ex);
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                    LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
-                return;
-            }
-        }
-
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private static bool IsSamePath(string left, string right)
-    {
-        var normalizedLeft = Path.GetFullPath(left)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var normalizedRight = Path.GetFullPath(right)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return string.Equals(normalizedLeft, normalizedRight, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsDescendantPath(string root, string candidate)
-    {
-        var normalizedRoot = Path.GetFullPath(root)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        var normalizedCandidate = Path.GetFullPath(candidate)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        return normalizedCandidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static T? FindAncestor<T>(DependencyObject? source) where T : DependencyObject
-    {
-        var current = source;
-        while (current is not null)
-        {
-            if (current is T match)
-            {
-                return match;
-            }
-
-            current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
-        }
-
-        return null;
-    }
-
-    private static IEnumerable<T> FindDescendants<T>(DependencyObject? source) where T : DependencyObject
-    {
-        if (source is null)
-        {
-            yield break;
-        }
-
-        var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(source);
-        for (var index = 0; index < count; index++)
-        {
-            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(source, index);
-            if (child is T match)
-            {
-                yield return match;
-            }
-
-            foreach (var descendant in FindDescendants<T>(child))
-            {
-                yield return descendant;
-            }
-        }
-    }
-
-    private static bool IsDescendantOf(DependencyObject? child, DependencyObject ancestor)
-    {
-        var current = child;
-        while (current is not null)
-        {
-            if (ReferenceEquals(current, ancestor))
-            {
-                return true;
-            }
-
-            current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
-        }
-
-        return false;
-    }
-
-    private async Task DeleteItemsAsync(IReadOnlyList<PhotoListItem> items)
-    {
-        foreach (var item in items)
-        {
-            if (item.IsFolder && Directory.GetParent(item.FilePath) is null)
-            {
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.DeleteNotAvailable.Title"),
-                    LocalizationService.GetString("Dialog.DeleteNotAvailable.Detail")).ConfigureAwait(true);
-                return;
-            }
-
-            try
-            {
-                if (item.IsFolder)
-                {
-                    Directory.Delete(item.FilePath, recursive: true);
-                }
-                else
-                {
-                    File.Delete(item.FilePath);
-                }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException
-                or IOException
-                or NotSupportedException
-                or ArgumentException
-                or PathTooLongException)
-            {
-                AppLog.Error($"Failed to delete item: {item.FilePath}", ex);
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.DeleteFailed.Title"),
-                    LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
-                return;
-            }
-        }
-
-        await _viewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private static string BuildDeleteMessage(PhotoListItem item)
-    {
-        return item.IsFolder
-            ? LocalizationService.Format("Dialog.DeleteConfirm.Folder", item.FileName)
-            : LocalizationService.Format("Dialog.DeleteConfirm.File", item.FileName);
-    }
-
-    private async Task<string?> ShowTextInputDialogAsync(
-        string title,
-        string primaryButtonText,
-        string? defaultText,
-        string placeholderText)
-    {
-        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
-        {
-            return null;
-        }
-
-        var textBox = new TextBox
-        {
-            Text = defaultText ?? string.Empty,
-            PlaceholderText = placeholderText,
-            MinWidth = 260
-        };
-
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = textBox,
-            PrimaryButtonText = primaryButtonText,
-            SecondaryButtonText = LocalizationService.GetString("Common.Cancel"),
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = RootGrid.XamlRoot
-        };
-
-        dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(textBox.Text);
-        textBox.TextChanged += (_, _) =>
-        {
-            dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(textBox.Text);
-        };
-        dialog.Opened += (_, _) =>
-        {
-            textBox.Focus(FocusState.Programmatic);
-            textBox.SelectAll();
-        };
-
-        var result = await dialog.ShowAsync().AsTask().ConfigureAwait(true);
-        if (result != ContentDialogResult.Primary)
-        {
-            return null;
-        }
-
-        var value = textBox.Text.Trim();
-        return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    private async Task<bool> ShowConfirmationDialogAsync(
-        string title,
-        string message,
-        string primaryButtonText)
-    {
-        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
-        {
-            return false;
-        }
-
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = new TextBlock
-            {
-                Text = message,
-                TextWrapping = TextWrapping.Wrap
-            },
-            PrimaryButtonText = primaryButtonText,
-            SecondaryButtonText = LocalizationService.GetString("Common.Cancel"),
-            DefaultButton = ContentDialogButton.Secondary,
-            XamlRoot = RootGrid.XamlRoot
-        };
-
-        var result = await dialog.ShowAsync().AsTask().ConfigureAwait(true);
-        return result == ContentDialogResult.Primary;
+        await FileBrowserPaneControl.DeleteSelectionAsync().ConfigureAwait(true);
     }
 
     private async Task ShowMessageDialogAsync(string title, string message)
@@ -2762,10 +1810,15 @@ public sealed partial class MainWindow : Window, IDisposable
         return AppWindow.GetFromWindowId(windowId);
     }
 
-    private async void OnEditExifClicked(object sender, RoutedEventArgs e)
+    private async void OnEditExifRequested(object? sender, EventArgs e)
+    {
+        await EditExifAsync().ConfigureAwait(true);
+    }
+
+    private async Task EditExifAsync()
     {
         // Validate selection
-        if (_viewModel.SelectedItems.Count != 1)
+        if (_fileBrowserPaneViewModel.SelectedItems.Count != 1)
         {
             await ShowMessageDialogAsync(
                 LocalizationService.GetString("ExifEditor.Title"),
@@ -2773,7 +1826,7 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        var item = _viewModel.SelectedItems[0];
+        var item = _fileBrowserPaneViewModel.SelectedItems[0];
         if (item.IsFolder)
         {
             await ShowMessageDialogAsync(
@@ -2861,7 +1914,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 Microsoft.UI.Xaml.Controls.InfoBarSeverity.Success);
 
             // Refresh the file list to show updated info
-            await _viewModel.RefreshAsync().ConfigureAwait(true);
+            await _fileBrowserPaneViewModel.RefreshAsync().ConfigureAwait(true);
         }
         else
         {
@@ -3140,69 +2193,9 @@ public sealed partial class MainWindow : Window, IDisposable
         PickLocation
     }
 
-    private static bool ContainsInvalidFileNameChars(string name)
-    {
-        return name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0;
-    }
-
-    private static string NormalizeRename(PhotoListItem item, string newName)
-    {
-        var trimmed = newName.Trim();
-        if (item.IsFolder)
-        {
-            return trimmed;
-        }
-
-        var originalExtension = Path.GetExtension(item.FileName);
-        if (string.IsNullOrWhiteSpace(originalExtension))
-        {
-            return trimmed;
-        }
-
-        var newExtension = Path.GetExtension(trimmed);
-        if (string.IsNullOrWhiteSpace(newExtension))
-        {
-            return $"{trimmed}{originalExtension}";
-        }
-
-        return trimmed;
-    }
-
     private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.SelectedItems.Count == 0)
-        {
-            return;
-        }
-
-        var currentFolder = _viewModel.CurrentFolderPath;
-        if (string.IsNullOrWhiteSpace(currentFolder))
-        {
-            return;
-        }
-
-        var parent = Directory.GetParent(currentFolder);
-        if (parent is null)
-        {
-            return;
-        }
-
-        await MoveItemsToFolderAsync(_viewModel.SelectedItems, parent.FullName).ConfigureAwait(true);
-    }
-
-    private void OnDetailsSortClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button button || button.Tag is not string tag)
-        {
-            return;
-        }
-
-        if (!Enum.TryParse(tag, out FileSortColumn column))
-        {
-            return;
-        }
-
-        _viewModel.ToggleSort(column);
+        await FileBrowserPaneControl.MoveSelectionToParentAsync().ConfigureAwait(true);
     }
 
     private MemoryLayer? GetMarkerLayer()
@@ -3292,41 +2285,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void FocusPhotoItem(PhotoItem photoItem)
     {
-        var target = _viewModel.Items.FirstOrDefault(item
-            => !item.IsFolder
-               && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
-        if (target is null)
-        {
-            return;
-        }
-
-        _viewModel.SelectedItem = target;
-
-        var listView = GetFileListView();
-        if (listView is null)
-        {
-            return;
-        }
-        listView.ScrollIntoView(target);
-    }
-
-    private ListViewBase? GetFileListView()
-    {
-        if (RootGrid is null)
-        {
-            return null;
-        }
-
-        var candidates = FindDescendants<ListViewBase>(RootGrid)
-            .Where(listView => ReferenceEquals(listView.ItemsSource, _viewModel.Items))
-            .ToList();
-        if (candidates.Count == 0)
-        {
-            return null;
-        }
-
-        return candidates.FirstOrDefault(listView => listView.Visibility == Visibility.Visible)
-            ?? candidates[0];
+        FileBrowserPaneControl.FocusPhotoItem(photoItem);
     }
 
     private async void OnGoogleMapsLinkClicked(object sender, RoutedEventArgs e)
@@ -3653,7 +2612,7 @@ public sealed partial class MainWindow : Window, IDisposable
                 var itemObj = feature[PhotoItemKey];
                 if (itemObj is PhotoItem photoItem)
                 {
-                    var listItem = _viewModel.Items.FirstOrDefault(item =>
+                    var listItem = _fileBrowserPaneViewModel.Items.FirstOrDefault(item =>
                         !item.IsFolder && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
                     if (listItem is not null)
                     {
@@ -3663,26 +2622,7 @@ public sealed partial class MainWindow : Window, IDisposable
             }
         }
 
-        var listView = GetFileListView();
-        if (listView is not null)
-        {
-            listView.SelectedItems.Clear();
-            foreach (var selectedItem in selectedItems)
-            {
-                listView.SelectedItems.Add(selectedItem);
-            }
-        }
-        else
-        {
-            _viewModel.UpdateSelection(selectedItems);
-        }
-
-        _viewModel.SelectedItem = selectedItems.Count > 0 ? selectedItems[0] : null;
-
-        if (selectedItems.Count > 0 && listView is not null)
-        {
-            listView.ScrollIntoView(selectedItems[0]);
-        }
+        FileBrowserPaneControl.SelectItems(selectedItems);
     }
 
     private static bool IsJpegFile(PhotoListItem? item)

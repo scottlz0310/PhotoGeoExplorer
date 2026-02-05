@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.ViewModels;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -153,7 +154,7 @@ public class FileBrowserPaneServiceTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Contains("previous", result);
+        Assert.Contains("previous", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -252,7 +253,19 @@ public class FileBrowserPaneServiceTests
             {
                 Directory.Delete(directory, recursive: true);
             }
-            catch
+            catch (UnauthorizedAccessException)
+            {
+                // ベストエフォート
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // ベストエフォート
+            }
+            catch (PathTooLongException)
+            {
+                // ベストエフォート
+            }
+            catch (IOException)
             {
                 // ベストエフォート
             }
@@ -263,12 +276,9 @@ public class FileBrowserPaneServiceTests
     {
         var photoItem = new PhotoItem(
             filePath: $"/test/{fileName}",
-            isFolder: false,
             sizeBytes: 1000,
-            sizeText: "1 KB",
-            resolutionText: "100x100",
-            modifiedAt: DateTime.UtcNow,
-            modifiedAtText: "2024-01-01",
+            modifiedAt: DateTimeOffset.UtcNow,
+            isFolder: false,
             thumbnailPath: null,
             pixelWidth: 100,
             pixelHeight: 100);
