@@ -51,6 +51,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private int _selectedCount;
     private PhotoMetadata? _selectedMetadata;
     private CancellationTokenSource? _metadataCts;
+    private CancellationTokenSource? _loadFolderCts;
     private string? _statusTitle;
     private string? _statusDetail;
     private Symbol _statusSymbol = Symbol.Help;
@@ -433,6 +434,17 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             return;
         }
 
+        // 既存の読み込み処理をキャンセル
+        var previousCts = _loadFolderCts;
+        var cts = new CancellationTokenSource();
+        _loadFolderCts = cts;
+
+        if (previousCts is not null)
+        {
+            previousCts.Cancel();
+            previousCts.Dispose();
+        }
+
         try
         {
             var previousPath = CurrentFolderPath;
@@ -446,6 +458,10 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             }).ConfigureAwait(false);
 
             var items = await _service.LoadFolderAsync(folderPath, ShowImagesOnly, SearchText).ConfigureAwait(false);
+
+            // キャンセルされた場合は処理を中断
+            cts.Token.ThrowIfCancellationRequested();
+
             var sorted = _service.ApplySort(items, SortColumn, SortDirection);
 
             await RunOnUIThreadAsync(() =>
@@ -476,6 +492,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             }).ConfigureAwait(false);
 
             AppLog.Info($"LoadFolderAsync: Folder '{folderPath}' loaded successfully. Item count: {Items.Count}");
+        }
+        catch (OperationCanceledException)
+        {
+            // キャンセルされた場合は想定された動作のため、何もしない
+            AppLog.Info($"LoadFolderAsync: Folder load cancelled for '{folderPath}'");
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -696,6 +717,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         CancelThumbnailGeneration();
         CancelMetadataLoad();
+        CancelFolderLoad();
         _thumbnailGenerationSemaphore.Dispose();
     }
 
@@ -946,6 +968,24 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         var previousCts = _metadataCts;
         _metadataCts = null;
+        if (previousCts is not null)
+        {
+            try
+            {
+                previousCts.Cancel();
+                previousCts.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // 既に破棄済み
+            }
+        }
+    }
+
+    private void CancelFolderLoad()
+    {
+        var previousCts = _loadFolderCts;
+        _loadFolderCts = null;
         if (previousCts is not null)
         {
             try

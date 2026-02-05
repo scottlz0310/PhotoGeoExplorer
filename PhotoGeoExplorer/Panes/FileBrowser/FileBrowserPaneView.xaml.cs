@@ -278,17 +278,14 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         var flyout = new MenuFlyout();
-        foreach (var item in segment.Children.Select(child =>
-                 {
-                     var menuItem = new MenuFlyoutItem
-                     {
-                         Text = child.Name,
-                         Tag = child.FullPath
-                     };
-                     menuItem.Click += OnBreadcrumbChildClicked;
-                     return menuItem;
-                 }))
+        foreach (var child in segment.Children)
         {
+            var item = new MenuFlyoutItem
+            {
+                Text = child.Name,
+                Tag = child.FullPath
+            };
+            item.Click += OnBreadcrumbChildClicked;
             flyout.Items.Add(item);
         }
 
