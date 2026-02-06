@@ -74,4 +74,51 @@ MainWindow を「Shell（オーケストレーション専任）」に寄せる�
 
 ## まとめ
 Map 領域は「UIイベント + 描画 + EXIFピック + Flyout」を Pane 側へ移し、MainWindow はオーケストレーション専任に近づいた。  
-現時点の残タスクは、FileBrowser メニュー操作のさらなるコマンド化と、EXIF 編集ダイアログの配置整理が中心。
+現時点の残タスクは、FileBrowser メニュー操作のさらなるコマンド化、設定メニューの導線整理、EXIF 編集ダイアログの配置整理が中心。
+
+## 次回作業予定（2026-02-07 以降）
+
+### 1. FileBrowser メニュー操作のコマンド化
+作業内容:
+- `MainWindow` の FileBrowser 系メニューハンドラを `FileBrowserPaneViewModel`（または Pane 側コマンド）へ段階的に移管する。
+- まずは副作用の小さい操作（`Refresh` / `NavigateUp` / `ResetFilters`）から着手する。
+
+完了条件:
+- `MainWindow.xaml.cs` から対象メソッドを削減できている。
+- 既存の操作フロー（メニュー操作 -> 一覧更新）が回帰していない。
+
+### 2. EXIF 編集ダイアログ責務の分離
+作業内容:
+- `ShowExifEditDialogAsync` と関連状態管理を `MainWindow` から分離する。
+- 候補は `PreviewPane` 側の UI オーケストレーションか、専用の Dialog サービス層。
+
+完了条件:
+- `MainWindow` から EXIF ダイアログ構築コードが減り、責務が明確化されている。
+- EXIF 更新成功/失敗通知の既存挙動を維持している。
+
+### 3. 設定メニューの宙ぶらりん状態の解消
+作業内容:
+- `Settings (development)` 入口と、MainWindow 直下の個別設定項目（言語/テーマ/地図/Export/Import）が混在している状態を整理する。
+- 「設定変更の実行責務」を `SettingsPaneViewModel` 側と MainWindow 側で再定義し、重複実装を解消する。
+- 設定メニューのユーザー導線を一本化し、暫定表記（development）の扱いを確定する。
+
+完了条件:
+- 設定の操作入口がユーザー視点で一貫している。
+- 設定変更処理の責務境界がコードとドキュメントで一致している。
+
+### 4. 境界回帰テストの拡充
+作業内容:
+- Pane 間連携の回帰テスト（`Map -> FileBrowser` 選択連携、通知連携）を追加する。
+- `MapPaneViewControl` のライフサイクル（Loaded/Unloaded）起点の回帰を重点確認する。
+
+完了条件:
+- 主要なオーケストレーション境界に対するテストが追加されている。
+- `dotnet test PhotoGeoExplorer.sln -c Release -p:Platform=x64` が成功する。
+
+### 5. ドキュメント同期
+作業内容:
+- 本ドキュメントと `docs/Architecture/PaneSystem.md` の記載整合を更新する。
+- PR チェックリストの「アーキテクチャガードレール」観点を反映する。
+
+完了条件:
+- 実装完了内容がアーキテクチャ文書に反映され、差分理由を追跡できる。

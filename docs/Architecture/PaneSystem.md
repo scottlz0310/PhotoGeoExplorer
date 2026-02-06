@@ -563,6 +563,10 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
   - [x] MainWindow との統合（FileBrowser UI の配置）
   - [x] MainWindow からファイルブラウザ関連コードの段階的移行（UI/イベント移行）
   - [x] MainWindow 旧 FileBrowser イベント/ヘルパーの削除
+- [ ] 設定メニュー統合（宙ぶらりん状態の解消）
+  - [ ] `Settings (development)` 入口と MainWindow 直下の個別設定項目（言語/テーマ/地図/Export/Import）の導線を統一
+  - [ ] 設定変更処理の責務境界（MainWindow / SettingsPaneViewModel / Service）を再定義して重複を解消
+  - [ ] 運用方針を `docs/Architecture/MainWindow-Orchestration-Review.md` と同期
 - [ ] その他の機能を順次移行
 
 ## 参考資料
@@ -612,3 +616,4 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
 - **2026-02-05**: FileBrowser Pane の基盤実装（Service, ViewModel, Tests）- フェーズ3-3開始
 - **2026-02-05**: FileBrowser Pane の UI 統合（UserControl + MainWindow 統合）- フェーズ3-3完了
 - **2026-02-05**: MainWindow の旧 FileBrowser イベント整理とテスト拡充
+- **2026-02-06**: 次回タスクに「設定メニュー統合（宙ぶらりん状態の解消）」を追記
