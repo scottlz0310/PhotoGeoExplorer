@@ -1675,7 +1675,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private static AppWindow GetAppWindow(Window window)
     {
         var hwnd = WindowNative.GetWindowHandle(window);
-        var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         return AppWindow.GetFromWindowId(windowId);
     }
 

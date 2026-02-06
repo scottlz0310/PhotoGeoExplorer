@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -21,7 +20,6 @@ internal sealed partial class PreviewPaneViewControl : UserControl
     private double _dragStartVerticalOffset;
     private XamlRoot? _subscribedXamlRoot;
     private double _lastRasterizationScale = 1.0;
-    private CancellationTokenSource? _xamlRootWaitCts;
 
     /// <summary>
     /// 最大化状態が変更されたときに発生するイベント
@@ -118,13 +116,8 @@ internal sealed partial class PreviewPaneViewControl : UserControl
             return;
         }
 
-        _xamlRootWaitCts?.Cancel();
-        _xamlRootWaitCts?.Dispose();
-        _xamlRootWaitCts = new CancellationTokenSource();
-        var token = _xamlRootWaitCts.Token;
-
-        var xamlRoot = await EnsureXamlRootAsync(token).ConfigureAwait(true);
-        if (token.IsCancellationRequested || xamlRoot is null)
+        var xamlRoot = await EnsureXamlRootAsync().ConfigureAwait(true);
+        if (!IsLoaded || xamlRoot is null)
         {
             return;
         }
@@ -139,10 +132,6 @@ internal sealed partial class PreviewPaneViewControl : UserControl
 
     private void UnsubscribeFromXamlRootChanged()
     {
-        _xamlRootWaitCts?.Cancel();
-        _xamlRootWaitCts?.Dispose();
-        _xamlRootWaitCts = null;
-
         if (_subscribedXamlRoot is null)
         {
             return;
@@ -152,7 +141,7 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         _subscribedXamlRoot = null;
     }
 
-    private async Task<XamlRoot?> EnsureXamlRootAsync(CancellationToken token)
+    private async Task<XamlRoot?> EnsureXamlRootAsync()
     {
         const int maxWaitMs = 3000;
         const int intervalMs = 50;
@@ -165,16 +154,9 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         AppLog.Info("PreviewPaneViewControl: XamlRoot is null, waiting for it to become available...");
 
         var elapsed = 0;
-        while (XamlRoot is null && elapsed < maxWaitMs)
+        while (XamlRoot is null && elapsed < maxWaitMs && IsLoaded)
         {
-            try
-            {
-                await Task.Delay(intervalMs, token).ConfigureAwait(true);
-            }
-            catch (OperationCanceledException)
-            {
-                return null;
-            }
+            await Task.Delay(intervalMs).ConfigureAwait(true);
             elapsed += intervalMs;
         }
 

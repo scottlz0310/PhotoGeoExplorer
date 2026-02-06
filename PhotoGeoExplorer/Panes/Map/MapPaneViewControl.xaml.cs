@@ -23,7 +23,7 @@ using Windows.UI.Core;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
-internal sealed partial class MapPaneViewControl : UserControl
+internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 {
     private const string PhotoItemKey = "PhotoItem";
     private const string PhotoMetadataKey = "PhotoMetadata";
@@ -92,7 +92,6 @@ internal sealed partial class MapPaneViewControl : UserControl
         DetachViewModel();
         ClearRectangleSelectionLayer();
         _map = null;
-        MapControl.Map = null;
     }
 
     private void AttachViewModel(MapPaneViewModel? viewModel)
@@ -160,7 +159,10 @@ internal sealed partial class MapPaneViewControl : UserControl
 
         ClearRectangleSelectionLayer();
         _map = map;
-        MapControl.Map = map;
+        if (map is not null)
+        {
+            MapControl.Map = map;
+        }
     }
 
     private void UpdateMapStatusFromViewModel()
@@ -610,7 +612,12 @@ internal sealed partial class MapPaneViewControl : UserControl
 
     private void ClearRectangleSelectionLayer()
     {
-        if (_map is null || _rectangleSelectionLayer is null)
+        if (_map is null)
+        {
+            return;
+        }
+
+        if (_rectangleSelectionLayer is null)
         {
             return;
         }
@@ -619,6 +626,12 @@ internal sealed partial class MapPaneViewControl : UserControl
         _rectangleSelectionLayer.Dispose();
         _rectangleSelectionLayer = null;
         _map.Refresh();
+    }
+
+    public void Dispose()
+    {
+        ClearRectangleSelectionLayer();
+        GC.SuppressFinalize(this);
     }
 
     private void SelectPhotosInRectangle(MRect selectionBounds)
