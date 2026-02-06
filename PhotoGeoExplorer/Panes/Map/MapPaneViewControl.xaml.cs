@@ -457,9 +457,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             }
 
             var currentPoint = e.GetCurrentPoint(MapControl).Position;
-            var deltaX = currentPoint.X - startPoint.Value.X;
-            var deltaY = currentPoint.Y - startPoint.Value.Y;
-            if (Math.Abs(deltaX) > 6 || Math.Abs(deltaY) > 6)
+            if (!MapPaneSelectionHelper.IsPointerMovementWithinThreshold(startPoint.Value, currentPoint))
             {
                 return;
             }
@@ -643,39 +641,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
-        var selectedPhotos = new List<PhotoItem>();
-        var seenFilePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var feature in markerLayer.Features)
-        {
-            if (feature is not PointFeature pointFeature)
-            {
-                continue;
-            }
-
-            var point = pointFeature.Point;
-            if (point is null)
-            {
-                continue;
-            }
-
-            if (point.X < selectionBounds.Min.X || point.X > selectionBounds.Max.X
-                || point.Y < selectionBounds.Min.Y || point.Y > selectionBounds.Max.Y)
-            {
-                continue;
-            }
-
-            if (feature[PhotoItemKey] is not PhotoItem photoItem)
-            {
-                continue;
-            }
-
-            if (seenFilePaths.Add(photoItem.FilePath))
-            {
-                selectedPhotos.Add(photoItem);
-            }
-        }
-
+        var selectedPhotos = MapPaneSelectionHelper.SelectPhotosInRectangle(markerLayer.Features, selectionBounds, PhotoItemKey);
         RectangleSelectionCompleted?.Invoke(this, new MapPaneRectangleSelectionEventArgs(selectedPhotos));
     }
 }
