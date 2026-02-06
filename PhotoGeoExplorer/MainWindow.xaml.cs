@@ -89,8 +89,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _isExifPickPointerActive;
     private Windows.Foundation.Point? _exifPickPointerStart;
     private bool _restoreMapStatusAfterExifPick;
-    private Visibility _exifPickPreviousStatusOverlayVisibility = Visibility.Collapsed;
-    private Visibility _exifPickPreviousStatusPanelVisibility = Visibility.Collapsed;
     private Window? _helpHtmlWindow;
     private WebView2? _helpHtmlWebView;
     private readonly bool _settingsFileExistsAtStartup;
@@ -118,6 +116,7 @@ public sealed partial class MainWindow : Window, IDisposable
         Closed += OnClosed;
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
         _viewModel.WorkspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
+        _mapPaneViewModel.PropertyChanged += OnMapPaneViewModelPropertyChanged;
     }
 
     private void OnPreviewMaximizeChanged(object? sender, bool maximize)
@@ -606,6 +605,45 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
+    private void OnMapPaneViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_restoreMapStatusAfterExifPick)
+        {
+            return;
+        }
+
+        if (e.PropertyName is nameof(MapPaneViewModel.StatusTitle)
+            or nameof(MapPaneViewModel.StatusDetail)
+            or nameof(MapPaneViewModel.StatusIcon)
+            or nameof(MapPaneViewModel.StatusVisibility))
+        {
+            UpdateMapStatusFromViewModel();
+        }
+    }
+
+    private void UpdateMapStatusFromViewModel()
+    {
+        if (MapStatusOverlay is null
+            || MapStatusPanel is null
+            || MapStatusTitle is null
+            || MapStatusDescription is null
+            || MapStatusIcon is null)
+        {
+            return;
+        }
+
+        MapStatusTitle.Text = _mapPaneViewModel.StatusTitle;
+        MapStatusDescription.Text = _mapPaneViewModel.StatusDetail;
+        MapStatusDescription.Visibility = string.IsNullOrWhiteSpace(_mapPaneViewModel.StatusDetail)
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        MapStatusIcon.Symbol = _mapPaneViewModel.StatusIcon;
+
+        var visibility = _mapPaneViewModel.StatusVisibility;
+        MapStatusOverlay.Visibility = visibility;
+        MapStatusPanel.Visibility = visibility;
+    }
+
     private static bool TryGetValidLocation(PhotoMetadata metadata, out double latitude, out double longitude)
     {
         latitude = 0;
@@ -1054,6 +1092,7 @@ public sealed partial class MainWindow : Window, IDisposable
         // WorkspaceState イベントをアンサブスクライブ
         _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
         _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
+        _mapPaneViewModel.PropertyChanged -= OnMapPaneViewModelPropertyChanged;
 
         // MapPaneViewModel のクリーンアップ
         _mapPaneViewModel.Cleanup();
@@ -2094,8 +2133,6 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         _restoreMapStatusAfterExifPick = true;
-        _exifPickPreviousStatusOverlayVisibility = MapStatusOverlay.Visibility;
-        _exifPickPreviousStatusPanelVisibility = MapStatusPanel.Visibility;
         MapStatusOverlay.Visibility = Visibility.Collapsed;
         MapStatusPanel.Visibility = Visibility.Collapsed;
     }
@@ -2108,15 +2145,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         _restoreMapStatusAfterExifPick = false;
-        if (MapStatusOverlay is not null)
-        {
-            MapStatusOverlay.Visibility = _exifPickPreviousStatusOverlayVisibility;
-        }
-
-        if (MapStatusPanel is not null)
-        {
-            MapStatusPanel.Visibility = _exifPickPreviousStatusPanelVisibility;
-        }
+        UpdateMapStatusFromViewModel();
     }
 
     private Task<(double Latitude, double Longitude)?> PickExifLocationAsync()

@@ -110,7 +110,11 @@ internal sealed partial class PreviewPaneViewControl : UserControl
             return;
         }
 
-        viewModel.OnViewportSizeChanged(scrollViewer.ViewportWidth, scrollViewer.ViewportHeight);
+        viewModel.OnViewportSizeChanged(
+            scrollViewer.ViewportWidth,
+            scrollViewer.ViewportHeight,
+            PreviewImage.ActualWidth,
+            PreviewImage.ActualHeight);
     }
 
     private void OnImageOpened(object sender, RoutedEventArgs e)
@@ -138,7 +142,11 @@ internal sealed partial class PreviewPaneViewControl : UserControl
 
         DispatcherQueue.TryEnqueue(() =>
         {
-            viewModel.OnViewportSizeChanged(PreviewScrollViewer.ViewportWidth, PreviewScrollViewer.ViewportHeight);
+            viewModel.OnViewportSizeChanged(
+                PreviewScrollViewer.ViewportWidth,
+                PreviewScrollViewer.ViewportHeight,
+                PreviewImage.ActualWidth,
+                PreviewImage.ActualHeight);
             if (resetOffsets)
             {
                 PreviewScrollViewer.ChangeView(0, 0, viewModel.ZoomFactor, disableAnimation: true);

@@ -119,16 +119,19 @@
                 <TextBlock
                     Grid.Column="2"
                     Text="{Binding ModifiedAtText}"
+                    Margin="12,0,0,0"
                     Opacity="0.7"
                     VerticalAlignment="Center" />
                 <TextBlock
                     Grid.Column="3"
                     Text="{Binding ResolutionText}"
+                    Margin="12,0,0,0"
                     Opacity="0.7"
                     VerticalAlignment="Center" />
                 <TextBlock
                     Grid.Column="4"
                     Text="{Binding SizeText}"
+                    Margin="12,0,0,0"
                     Opacity="0.7"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center" />
@@ -265,6 +268,7 @@
                 <Button
                     Grid.Column="2"
                     Padding="4,2"
+                    Margin="12,0,0,0"
                     Background="Transparent"
                     BorderThickness="0"
                     HorizontalAlignment="Left"
@@ -278,6 +282,7 @@
                 <Button
                     Grid.Column="3"
                     Padding="4,2"
+                    Margin="12,0,0,0"
                     Background="Transparent"
                     BorderThickness="0"
                     HorizontalAlignment="Left"
@@ -291,6 +296,7 @@
                 <Button
                     Grid.Column="4"
                     Padding="4,2"
+                    Margin="12,0,0,0"
                     Background="Transparent"
                     BorderThickness="0"
                     HorizontalAlignment="Right"

@@ -180,13 +180,19 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     /// <summary>
     /// ScrollViewer のビューポートサイズが変更されたときに呼ばれる
     /// </summary>
-    public void OnViewportSizeChanged(double viewportWidth, double viewportHeight)
+    public void OnViewportSizeChanged(
+        double viewportWidth,
+        double viewportHeight,
+        double imageDisplayWidth,
+        double imageDisplayHeight)
     {
         if (FitToWindow && CurrentImage is not null)
         {
+            var imageWidth = imageDisplayWidth > 0 ? imageDisplayWidth : CurrentImage.PixelWidth;
+            var imageHeight = imageDisplayHeight > 0 ? imageDisplayHeight : CurrentImage.PixelHeight;
             var newZoom = _service.CalculateFitZoomFactor(
-                CurrentImage.PixelWidth,
-                CurrentImage.PixelHeight,
+                imageWidth,
+                imageHeight,
                 viewportWidth,
                 viewportHeight,
                 MinZoomFactor,
@@ -198,10 +204,14 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     /// <summary>
     /// 画像が読み込まれたときに呼ばれる
     /// </summary>
-    public void OnImageOpened(double viewportWidth, double viewportHeight)
+    public void OnImageOpened(
+        double viewportWidth,
+        double viewportHeight,
+        double imageDisplayWidth,
+        double imageDisplayHeight)
     {
         FitToWindow = true;
-        OnViewportSizeChanged(viewportWidth, viewportHeight);
+        OnViewportSizeChanged(viewportWidth, viewportHeight, imageDisplayWidth, imageDisplayHeight);
     }
 
     /// <summary>
