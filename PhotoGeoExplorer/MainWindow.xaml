@@ -5,7 +5,7 @@
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:fileBrowser="using:PhotoGeoExplorer.Panes.FileBrowser"
-    xmlns:mapsui="using:Mapsui.UI.WinUI"
+    xmlns:map="using:PhotoGeoExplorer.Panes.Map"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
     xmlns:preview="using:PhotoGeoExplorer.Panes.Preview"
@@ -210,115 +210,7 @@
                     IsTabStop="False" />
 
                 <Grid x:Name="MapPane" Grid.Row="2">
-                    <Grid.Resources>
-                        <Flyout x:Name="MarkerFlyout" Placement="Top">
-                            <StackPanel Spacing="8" MinWidth="280" MaxWidth="320" Padding="12">
-                                <!-- 撮影日時 -->
-                                <StackPanel Spacing="4">
-                                    <TextBlock x:Name="FlyoutTakenAtLabel"
-                                               FontWeight="SemiBold"
-                                               FontSize="12"
-                                               Opacity="0.7" />
-                                    <TextBlock x:Name="FlyoutTakenAt"
-                                               FontSize="14"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-
-                                <!-- カメラ情報 -->
-                                <StackPanel Spacing="4" x:Name="FlyoutCameraPanel">
-                                    <TextBlock x:Name="FlyoutCameraLabel"
-                                               FontWeight="SemiBold"
-                                               FontSize="12"
-                                               Opacity="0.7" />
-                                    <TextBlock x:Name="FlyoutCamera"
-                                               FontSize="14"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-
-                                <!-- ファイル名 -->
-                                <StackPanel Spacing="4">
-                                    <TextBlock x:Name="FlyoutFileLabel"
-                                               FontWeight="SemiBold"
-                                               FontSize="12"
-                                               Opacity="0.7" />
-                                    <TextBlock x:Name="FlyoutFileName"
-                                               FontSize="14"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-
-                                <!-- 画像サイズ -->
-                                <StackPanel Spacing="4" x:Name="FlyoutResolutionPanel">
-                                    <TextBlock x:Name="FlyoutResolutionLabel"
-                                               FontWeight="SemiBold"
-                                               FontSize="12"
-                                               Opacity="0.7" />
-                                    <TextBlock x:Name="FlyoutResolution"
-                                               FontSize="14" />
-                                </StackPanel>
-
-                                <!-- Google Maps リンク -->
-                                <HyperlinkButton x:Name="FlyoutGoogleMapsLink"
-                                                 HorizontalAlignment="Stretch"
-                                                 Margin="0,4,0,0"
-                                                 Click="OnGoogleMapsLinkClicked" />
-                            </StackPanel>
-                        </Flyout>
-                    </Grid.Resources>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBlock Text="Map" FontSize="20" FontWeight="SemiBold" x:Uid="MapHeader" />
-                    <Grid Grid.Row="1" Margin="0,8,0,0">
-                        <Border Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="6" />
-                        <Grid x:Name="MapHost">
-                            <mapsui:MapControl 
-                                x:Name="MapControl" 
-                                AutomationProperties.AutomationId="MapControl" 
-                                Info="OnMapInfoReceived"
-                                PointerPressed="OnMapPointerPressed"
-                                PointerMoved="OnMapPointerMoved"
-                                PointerReleased="OnMapPointerReleased"
-                                PointerCaptureLost="OnMapPointerCaptureLost" />
-                        </Grid>
-                        <Border
-                            x:Name="MapStatusOverlay"
-                            Background="#D0000000"
-                            Visibility="Collapsed"
-                            IsHitTestVisible="False" />
-                        <Border
-                            x:Name="MapStatusPanel"
-                            Padding="16"
-                            CornerRadius="8"
-                            Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Visibility="Collapsed"
-                            AutomationProperties.AutomationId="MapStatusPanel"
-                            IsHitTestVisible="False">
-                            <StackPanel Spacing="8" MaxWidth="320" HorizontalAlignment="Center">
-                                <SymbolIcon
-                                    x:Name="MapStatusIcon"
-                                    Symbol="Map"
-                                    Width="28"
-                                    Height="28"
-                                    HorizontalAlignment="Center" />
-                                <TextBlock
-                                    x:Name="MapStatusTitle"
-                                    FontSize="16"
-                                    FontWeight="SemiBold"
-                                    TextAlignment="Center"
-                                    AutomationProperties.AutomationId="MapStatusTitle"
-                                    TextWrapping="Wrap" />
-                                <TextBlock
-                                    x:Name="MapStatusDescription"
-                                    Opacity="0.7"
-                                    TextAlignment="Center"
-                                    AutomationProperties.AutomationId="MapStatusDescription"
-                                    TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
+                    <map:MapPaneViewControl x:Name="MapPaneControl" />
                 </Grid>
             </Grid>
         </Grid>
@@ -366,4 +258,3 @@
         </Grid>
     </Grid>
 </Window>
-

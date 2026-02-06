@@ -1,39 +1,26 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BruTile.Cache;
-using Mapsui;
-using Mapsui.Extensions;
-using Mapsui.Layers;
-using Mapsui.Nts;
-using Mapsui.Projections;
-using Mapsui.Styles;
-using Mapsui.Tiling;
-using Mapsui.Tiling.Layers;
-using Mapsui.UI.WinUI;
-using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Windows.Globalization;
-using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Preview;
 using PhotoGeoExplorer.Panes.Settings;
-using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
-using System.ComponentModel;
 using Windows.Graphics;
 using Windows.Foundation;
 using Windows.Storage;
@@ -46,12 +33,8 @@ namespace PhotoGeoExplorer;
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public sealed partial class MainWindow : Window, IDisposable
 {
-    private const string PhotoItemKey = "PhotoItem";
-    private const string PhotoMetadataKey = "PhotoMetadata";
     private const int DefaultMapZoomLevel = 14;
     private static readonly int[] MapZoomLevelOptions = { 8, 10, 12, 14, 16, 18 };
-    private static readonly Color SelectionFillColor = Color.FromArgb(64, 0, 120, 215);
-    private static readonly Color SelectionOutlineColor = Color.FromArgb(255, 0, 120, 215);
     private readonly MainViewModel _viewModel;
     private readonly SettingsService _settingsService;
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
@@ -59,11 +42,9 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly MapPaneViewModel _mapPaneViewModel;
     private bool _layoutStored;
     private bool _mapInitialized;
-    private Map? _map;
     private bool _previewMaximized;
     private bool _windowSized;
     private bool _windowIconSet;
-    private CancellationTokenSource? _mapUpdateCts;
     private CancellationTokenSource? _settingsCts;
     private GridLength _storedDetailWidth;
     private GridLength _storedFileBrowserWidth;
@@ -78,17 +59,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private ThemePreference _themePreference = ThemePreference.System;
     private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
-    private PhotoMetadata? _flyoutMetadata;
-    private bool _mapRectangleSelecting;
-    private MPoint? _mapRectangleStart;
-    private MemoryLayer? _rectangleSelectionLayer;
-    private bool _mapPanLockBeforeSelection;
-    private bool _mapPanLockActive;
-    private TaskCompletionSource<(double Latitude, double Longitude)?>? _exifLocationPicker;
-    private bool _isPickingExifLocation;
-    private bool _isExifPickPointerActive;
-    private Windows.Foundation.Point? _exifPickPointerStart;
-    private bool _restoreMapStatusAfterExifPick;
     private Window? _helpHtmlWindow;
     private WebView2? _helpHtmlWebView;
     private readonly bool _settingsFileExistsAtStartup;
@@ -110,13 +80,16 @@ public sealed partial class MainWindow : Window, IDisposable
         FileBrowserPaneControl.EditExifRequested += OnEditExifRequested;
         PreviewPaneControl.DataContext = _previewPaneViewModel;
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
+        MapPaneControl.DataContext = _mapPaneViewModel;
+        MapPaneControl.PhotoFocusRequested += OnMapPanePhotoFocusRequested;
+        MapPaneControl.RectangleSelectionCompleted += OnMapPaneRectangleSelectionCompleted;
+        MapPaneControl.NotificationRequested += OnMapPaneNotificationRequested;
         Title = LocalizationService.GetString("MainWindow.Title");
         AppLog.Info("MainWindow constructed.");
         Activated += OnActivated;
         Closed += OnClosed;
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
         _viewModel.WorkspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
-        _mapPaneViewModel.PropertyChanged += OnMapPaneViewModelPropertyChanged;
     }
 
     private void OnPreviewMaximizeChanged(object? sender, bool maximize)
@@ -138,24 +111,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
         // MapPaneViewModel を初期化
         await _mapPaneViewModel.InitializeAsync().ConfigureAwait(true);
-
-        if (MapControl is null)
-        {
-            // MapControl が取得できない場合はログのみ残し、
-            // ステータス表示は MapPaneViewModel に委譲する
-            AppLog.Error("Map control is missing.");
-        }
-        else if (_mapPaneViewModel.Map is not Mapsui.Map map)
-        {
-            // Map 初期化が失敗した場合も同様に、
-            // ステータス表示は MapPaneViewModel に任せる
-            AppLog.Error("Map initialization returned null.");
-        }
-        else
-        {
-            _map = map;
-            MapControl.Map = map;
-        }
 
         await LoadSettingsAsync().ConfigureAwait(true);
         await ApplyStartupFolderOverrideAsync().ConfigureAwait(true);
@@ -268,6 +223,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         _mapPaneViewModel.SwitchTileSource(sourceType);
+        _mapTileSource = sourceType;
         UpdateMapTileSourceMenuChecks(sourceType);
         ScheduleSettingsSave();
     }
@@ -568,23 +524,7 @@ public sealed partial class MainWindow : Window, IDisposable
         };
     }
 
-    private void ShowMapStatus(string title, string? description, Symbol symbol)
-    {
-        MapStatusTitle.Text = title;
-        MapStatusDescription.Text = description ?? string.Empty;
-        MapStatusDescription.Visibility = string.IsNullOrWhiteSpace(description) ? Visibility.Collapsed : Visibility.Visible;
-        MapStatusIcon.Symbol = symbol;
-        MapStatusOverlay.Visibility = Visibility.Visible;
-        MapStatusPanel.Visibility = Visibility.Visible;
-    }
-
-    private void HideMapStatus()
-    {
-        MapStatusOverlay.Visibility = Visibility.Collapsed;
-        MapStatusPanel.Visibility = Visibility.Collapsed;
-    }
-
-    private async void OnFileBrowserPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnFileBrowserPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         // 地図の更新は WorkspaceState 経由で MapPaneViewModel が行うため、ここでは不要
 
@@ -603,66 +543,6 @@ public sealed partial class MainWindow : Window, IDisposable
             var selectedPhotos = _viewModel.WorkspaceState.SelectedPhotos ?? Array.Empty<PhotoListItem>();
             await _mapPaneViewModel.UpdateMarkersFromSelectionAsync(selectedPhotos).ConfigureAwait(true);
         }
-    }
-
-    private void OnMapPaneViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (_restoreMapStatusAfterExifPick)
-        {
-            return;
-        }
-
-        if (e.PropertyName is nameof(MapPaneViewModel.StatusTitle)
-            or nameof(MapPaneViewModel.StatusDetail)
-            or nameof(MapPaneViewModel.StatusIcon)
-            or nameof(MapPaneViewModel.StatusVisibility))
-        {
-            UpdateMapStatusFromViewModel();
-        }
-    }
-
-    private void UpdateMapStatusFromViewModel()
-    {
-        if (MapStatusOverlay is null
-            || MapStatusPanel is null
-            || MapStatusTitle is null
-            || MapStatusDescription is null
-            || MapStatusIcon is null)
-        {
-            return;
-        }
-
-        MapStatusTitle.Text = _mapPaneViewModel.StatusTitle;
-        MapStatusDescription.Text = _mapPaneViewModel.StatusDetail;
-        MapStatusDescription.Visibility = string.IsNullOrWhiteSpace(_mapPaneViewModel.StatusDetail)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-        MapStatusIcon.Symbol = _mapPaneViewModel.StatusIcon;
-
-        var visibility = _mapPaneViewModel.StatusVisibility;
-        MapStatusOverlay.Visibility = visibility;
-        MapStatusPanel.Visibility = visibility;
-    }
-
-    private static bool TryGetValidLocation(PhotoMetadata metadata, out double latitude, out double longitude)
-    {
-        latitude = 0;
-        longitude = 0;
-        if (!metadata.HasLocation
-            || metadata.Latitude is not double lat
-            || metadata.Longitude is not double lon)
-        {
-            return false;
-        }
-
-        if (Math.Abs(lat) < 0.000001 && Math.Abs(lon) < 0.000001)
-        {
-            return false;
-        }
-
-        latitude = lat;
-        longitude = lon;
-        return true;
     }
 
     /// <summary>
@@ -1092,22 +972,13 @@ public sealed partial class MainWindow : Window, IDisposable
         // WorkspaceState イベントをアンサブスクライブ
         _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
         _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
-        _mapPaneViewModel.PropertyChanged -= OnMapPaneViewModelPropertyChanged;
 
         // MapPaneViewModel のクリーンアップ
         _mapPaneViewModel.Cleanup();
-        _map = null;
-
-        _rectangleSelectionLayer?.Dispose();
-        _rectangleSelectionLayer = null;
 
         _settingsCts?.Cancel();
         _settingsCts?.Dispose();
         _settingsCts = null;
-
-        _mapUpdateCts?.Cancel();
-        _mapUpdateCts?.Dispose();
-        _mapUpdateCts = null;
 
         if (PreviewPaneControl is not null)
         {
@@ -1120,6 +991,14 @@ public sealed partial class MainWindow : Window, IDisposable
             FileBrowserPaneControl.EditExifRequested -= OnEditExifRequested;
             FileBrowserPaneControl.DataContext = null;
             FileBrowserPaneControl.HostWindow = null;
+        }
+
+        if (MapPaneControl is not null)
+        {
+            MapPaneControl.PhotoFocusRequested -= OnMapPanePhotoFocusRequested;
+            MapPaneControl.RectangleSelectionCompleted -= OnMapPaneRectangleSelectionCompleted;
+            MapPaneControl.NotificationRequested -= OnMapPaneNotificationRequested;
+            MapPaneControl.DataContext = null;
         }
 
         _previewPaneViewModel?.Cleanup();
@@ -2120,89 +1999,31 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    private void HideMapStatusForExifPick()
+    private async Task<(double Latitude, double Longitude)?> PickExifLocationAsync()
     {
-        if (MapStatusOverlay is null || MapStatusPanel is null)
-        {
-            return;
-        }
-
-        if (MapStatusOverlay.Visibility == Visibility.Collapsed && MapStatusPanel.Visibility == Visibility.Collapsed)
-        {
-            return;
-        }
-
-        _restoreMapStatusAfterExifPick = true;
-        MapStatusOverlay.Visibility = Visibility.Collapsed;
-        MapStatusPanel.Visibility = Visibility.Collapsed;
-    }
-
-    private void RestoreMapStatusAfterExifPick()
-    {
-        if (!_restoreMapStatusAfterExifPick)
-        {
-            return;
-        }
-
-        _restoreMapStatusAfterExifPick = false;
-        UpdateMapStatusFromViewModel();
-    }
-
-    private Task<(double Latitude, double Longitude)?> PickExifLocationAsync()
-    {
-        if (MapControl is null || _map is null)
+        if (MapPaneControl is null || !MapPaneControl.CanPickExifLocation)
         {
             _viewModel.ShowNotificationMessage(
                 LocalizationService.GetString("Message.ExifPickLocationUnavailable"),
-                Microsoft.UI.Xaml.Controls.InfoBarSeverity.Warning);
-            return Task.FromResult<(double Latitude, double Longitude)?>(null);
+                InfoBarSeverity.Warning);
+            return null;
         }
 
-        if (_exifLocationPicker is not null)
-        {
-            return _exifLocationPicker.Task;
-        }
-
-        _isPickingExifLocation = true;
-        HideMapStatusForExifPick();
-        _exifLocationPicker = new TaskCompletionSource<(double Latitude, double Longitude)?>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
         _viewModel.ShowNotificationMessage(
             LocalizationService.GetString("Message.ExifPickLocationInstruction"),
-            Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational);
-        return _exifLocationPicker.Task;
-    }
+            InfoBarSeverity.Informational);
 
-    private void CompleteExifLocationPick(double latitude, double longitude)
-    {
-        if (!_isPickingExifLocation)
+        var pickedLocation = await MapPaneControl.PickExifLocationAsync().ConfigureAwait(true);
+        if (pickedLocation is null)
         {
-            return;
+            _viewModel.ShowNotificationMessage(
+                LocalizationService.GetString("Message.ExifPickLocationCanceled"),
+                InfoBarSeverity.Informational);
+            return null;
         }
 
-        _isPickingExifLocation = false;
-        RestoreMapStatusAfterExifPick();
-        var picker = _exifLocationPicker;
-        _exifLocationPicker = null;
-        _viewModel.ShowNotificationMessage(string.Empty, Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational);
-        picker?.TrySetResult((latitude, longitude));
-    }
-
-    private void CancelExifLocationPick()
-    {
-        if (!_isPickingExifLocation)
-        {
-            return;
-        }
-
-        _isPickingExifLocation = false;
-        RestoreMapStatusAfterExifPick();
-        var picker = _exifLocationPicker;
-        _exifLocationPicker = null;
-        _viewModel.ShowNotificationMessage(
-            LocalizationService.GetString("Message.ExifPickLocationCanceled"),
-            Microsoft.UI.Xaml.Controls.InfoBarSeverity.Informational);
-        picker?.TrySetResult(null);
+        _viewModel.ShowNotificationMessage(string.Empty, InfoBarSeverity.Informational);
+        return pickedLocation;
     }
 
     private sealed class ExifEditState
@@ -2227,431 +2048,30 @@ public sealed partial class MainWindow : Window, IDisposable
         await FileBrowserPaneControl.MoveSelectionToParentAsync().ConfigureAwait(true);
     }
 
-    private MemoryLayer? GetMarkerLayer()
+    private void OnMapPanePhotoFocusRequested(object? sender, MapPanePhotoFocusRequestedEventArgs e)
     {
-        if (MapControl?.Map?.Layers is not { } layers)
-        {
-            return null;
-        }
-
-        return layers.OfType<MemoryLayer>()
-            .FirstOrDefault(layer => string.Equals(layer.Name, "PhotoMarkers", StringComparison.Ordinal));
+        FileBrowserPaneControl.FocusPhotoItem(e.PhotoItem);
     }
 
-    private void OnMapInfoReceived(object? sender, MapInfoEventArgs e)
+    private void OnMapPaneRectangleSelectionCompleted(object? sender, MapPaneRectangleSelectionEventArgs e)
     {
-        if (e is null || MapControl.Map?.Layers is null)
-        {
-            return;
-        }
-
-        var mapInfo = e.GetMapInfo(MapControl.Map.Layers);
-        if (mapInfo?.Feature is not PointFeature feature)
-        {
-            return;
-        }
-
-        var markerLayer = GetMarkerLayer();
-        if (markerLayer is null || !markerLayer.Features.Contains(feature))
-        {
-            return;
-        }
-
-        var itemObj = feature[PhotoItemKey];
-        var metadataObj = feature[PhotoMetadataKey];
-
-        if (itemObj is null || metadataObj is null)
-        {
-            AppLog.Info("Marker clicked but missing PhotoItem or PhotoMetadata.");
-            return;
-        }
-
-        if (itemObj is not PhotoItem photoItem || metadataObj is not PhotoMetadata metadata)
-        {
-            return;
-        }
-
-        FocusPhotoItem(photoItem);
-        ShowMarkerFlyout(photoItem, metadata);
-    }
-
-    private void ShowMarkerFlyout(PhotoItem photoItem, PhotoMetadata metadata)
-    {
-        _flyoutMetadata = metadata;
-
-        FlyoutTakenAtLabel.Text = LocalizationService.GetString("Flyout.TakenAtLabel.Text");
-        FlyoutTakenAt.Text = metadata.TakenAtText ?? "-";
-
-        if (!string.IsNullOrWhiteSpace(metadata.CameraSummary))
-        {
-            FlyoutCameraLabel.Text = LocalizationService.GetString("Flyout.CameraLabel.Text");
-            FlyoutCamera.Text = metadata.CameraSummary;
-            FlyoutCameraPanel.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            FlyoutCameraPanel.Visibility = Visibility.Collapsed;
-        }
-
-        FlyoutFileLabel.Text = LocalizationService.GetString("Flyout.FileLabel.Text");
-        FlyoutFileName.Text = photoItem.FileName;
-
-        if (!string.IsNullOrWhiteSpace(photoItem.ResolutionText))
-        {
-            FlyoutResolutionLabel.Text = LocalizationService.GetString("Flyout.ResolutionLabel.Text");
-            FlyoutResolution.Text = photoItem.ResolutionText;
-            FlyoutResolutionPanel.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            FlyoutResolutionPanel.Visibility = Visibility.Collapsed;
-        }
-
-        FlyoutGoogleMapsLink.Content = LocalizationService.GetString("Flyout.GoogleMapsButton.Content");
-
-        MarkerFlyout.ShowAt(MapControl);
-    }
-
-    private void FocusPhotoItem(PhotoItem photoItem)
-    {
-        FileBrowserPaneControl.FocusPhotoItem(photoItem);
-    }
-
-    private async void OnGoogleMapsLinkClicked(object sender, RoutedEventArgs e)
-    {
-        if (_flyoutMetadata?.HasLocation != true)
-        {
-            return;
-        }
-
-        var url = GenerateGoogleMapsUrl(_flyoutMetadata.Latitude!.Value, _flyoutMetadata.Longitude!.Value);
-
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            try
-            {
-                await Launcher.LaunchUriAsync(uri);
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException
-                or System.Runtime.InteropServices.COMException
-                or ArgumentException)
-            {
-                AppLog.Error("Failed to launch Google Maps URL.", ex);
-                _viewModel.ShowNotificationMessage(
-                    LocalizationService.GetString("Message.LaunchBrowserFailed"),
-                    InfoBarSeverity.Error);
-            }
-        }
-
-        MarkerFlyout.Hide();
-    }
-
-    private static string GenerateGoogleMapsUrl(double latitude, double longitude)
-    {
-        return $"https://www.google.com/maps?q={latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},{longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-    }
-
-    private void OnMapPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        if (MapControl is null || _map is null)
-        {
-            return;
-        }
-
-        var point = e.GetCurrentPoint(MapControl);
-        if (_isPickingExifLocation)
-        {
-            if (point.Properties.IsRightButtonPressed)
-            {
-                CancelExifLocationPick();
-                e.Handled = true;
-                return;
-            }
-
-            if (!point.Properties.IsLeftButtonPressed)
-            {
-                return;
-            }
-
-            _isExifPickPointerActive = true;
-            _exifPickPointerStart = point.Position;
-            return;
-        }
-
-        if (!point.Properties.IsLeftButtonPressed)
-        {
-            return;
-        }
-
-        // Ctrl キーが押されている場合のみ矩形選択を有効化
-        var ctrlPressed = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
-            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-
-        if (!ctrlPressed)
-        {
-            return;
-        }
-
-        var worldStart = GetWorldPosition(e);
-        if (worldStart is null)
-        {
-            return;
-        }
-
-        LockMapPan();
-        _mapRectangleSelecting = true;
-        _mapRectangleStart = worldStart;
-        MapControl.CapturePointer(e.Pointer);
-        e.Handled = true;
-    }
-
-    private void OnMapPointerMoved(object sender, PointerRoutedEventArgs e)
-    {
-        var rectangleStart = _mapRectangleStart;
-        if (!_mapRectangleSelecting || MapControl is null || _map is null || rectangleStart is null)
-        {
-            return;
-        }
-
-        var worldEnd = GetWorldPosition(e);
-        if (worldEnd is null)
-        {
-            return;
-        }
-
-        UpdateRectangleSelectionLayer(rectangleStart, worldEnd);
-        e.Handled = true;
-    }
-
-    private void OnMapPointerReleased(object sender, PointerRoutedEventArgs e)
-    {
-        if (MapControl is null || _map is null)
-        {
-            return;
-        }
-
-        if (_isPickingExifLocation)
-        {
-            if (!_isExifPickPointerActive)
-            {
-                return;
-            }
-
-            _isExifPickPointerActive = false;
-            var startPoint = _exifPickPointerStart;
-            _exifPickPointerStart = null;
-
-            if (startPoint is null)
-            {
-                return;
-            }
-
-            var currentPoint = e.GetCurrentPoint(MapControl).Position;
-            var deltaX = currentPoint.X - startPoint.Value.X;
-            var deltaY = currentPoint.Y - startPoint.Value.Y;
-            if (Math.Abs(deltaX) > 6 || Math.Abs(deltaY) > 6)
-            {
-                return;
-            }
-
-            var worldPosition = GetWorldPosition(e);
-            if (worldPosition is null)
-            {
-                return;
-            }
-
-            var lonLat = SphericalMercator.ToLonLat(worldPosition);
-            CompleteExifLocationPick(lonLat.Y, lonLat.X);
-            e.Handled = true;
-            return;
-        }
-
-        var rectangleStart = _mapRectangleStart;
-        _mapRectangleSelecting = false;
-        _mapRectangleStart = null;
-        MapControl.ReleasePointerCapture(e.Pointer);
-        RestoreMapPanLock();
-
-        if (rectangleStart is null)
-        {
-            ClearRectangleSelectionLayer();
-            return;
-        }
-
-        var worldEnd = GetWorldPosition(e);
-        if (worldEnd is null)
-        {
-            ClearRectangleSelectionLayer();
-            return;
-        }
-
-        var minX = Math.Min(rectangleStart.X, worldEnd.X);
-        var maxX = Math.Max(rectangleStart.X, worldEnd.X);
-        var minY = Math.Min(rectangleStart.Y, worldEnd.Y);
-        var maxY = Math.Max(rectangleStart.Y, worldEnd.Y);
-        var selectionBounds = new MRect(minX, minY, maxX, maxY);
-
-        SelectPhotosInRectangle(selectionBounds);
-        ClearRectangleSelectionLayer();
-        e.Handled = true;
-    }
-
-    private void OnMapPointerCaptureLost(object sender, PointerRoutedEventArgs e)
-    {
-        _mapRectangleSelecting = false;
-        _mapRectangleStart = null;
-        ClearRectangleSelectionLayer();
-        RestoreMapPanLock();
-    }
-
-    private void LockMapPan()
-    {
-        if (MapControl?.Map?.Navigator is not { } navigator)
-        {
-            return;
-        }
-
-        if (!_mapPanLockActive)
-        {
-            _mapPanLockBeforeSelection = navigator.PanLock;
-            _mapPanLockActive = true;
-        }
-
-        navigator.PanLock = true;
-    }
-
-    private void RestoreMapPanLock()
-    {
-        if (!_mapPanLockActive)
-        {
-            return;
-        }
-
-        if (MapControl?.Map?.Navigator is not { } navigator)
-        {
-            return;
-        }
-
-        navigator.PanLock = _mapPanLockBeforeSelection;
-        _mapPanLockActive = false;
-    }
-
-    private MPoint? GetWorldPosition(PointerRoutedEventArgs e)
-    {
-        if (MapControl?.Map?.Navigator is not { } navigator)
-        {
-            return null;
-        }
-
-        var screenPos = e.GetCurrentPoint(MapControl).Position;
-        return navigator.Viewport.ScreenToWorld(screenPos.X, screenPos.Y);
-    }
-
-    private void UpdateRectangleSelectionLayer(MPoint start, MPoint end)
-    {
-        if (_map is null)
-        {
-            return;
-        }
-
-        var minX = Math.Min(start.X, end.X);
-        var maxX = Math.Max(start.X, end.X);
-        var minY = Math.Min(start.Y, end.Y);
-        var maxY = Math.Max(start.Y, end.Y);
-
-        var polygon = new Polygon(new LinearRing(new[]
-        {
-            new Coordinate(minX, minY),
-            new Coordinate(maxX, minY),
-            new Coordinate(maxX, maxY),
-            new Coordinate(minX, maxY),
-            new Coordinate(minX, minY)
-        }));
-
-        var feature = new GeometryFeature
-        {
-            Geometry = polygon
-        };
-
-        var polygonStyle = new VectorStyle
-        {
-            Fill = new Brush(SelectionFillColor),
-            Outline = new Pen(SelectionOutlineColor, 2)
-        };
-
-        feature.Styles.Add(polygonStyle);
-
-        if (_rectangleSelectionLayer is null)
-        {
-            _rectangleSelectionLayer = new MemoryLayer
-            {
-                Name = "RectangleSelection",
-                Features = new[] { feature },
-                Style = null
-            };
-            _map.Layers.Add(_rectangleSelectionLayer);
-        }
-        else
-        {
-            _rectangleSelectionLayer.Features = new[] { feature };
-        }
-
-        _map.Refresh();
-    }
-
-    private void ClearRectangleSelectionLayer()
-    {
-        if (_map is null || _rectangleSelectionLayer is null)
-        {
-            return;
-        }
-
-        _map.Layers.Remove(_rectangleSelectionLayer);
-        _rectangleSelectionLayer.Dispose();
-        _rectangleSelectionLayer = null;
-        _map.Refresh();
-    }
-
-    private void SelectPhotosInRectangle(MRect selectionBounds)
-    {
-        var markerLayer = GetMarkerLayer();
-        if (markerLayer is null || _map is null)
-        {
-            return;
-        }
-
         var selectedItems = new List<PhotoListItem>();
-
-        foreach (var feature in markerLayer.Features)
+        foreach (var photoItem in e.PhotoItems)
         {
-            if (feature is not PointFeature pointFeature)
+            var listItem = _fileBrowserPaneViewModel.Items.FirstOrDefault(item =>
+                !item.IsFolder && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
+            if (listItem is not null)
             {
-                continue;
-            }
-
-            var point = pointFeature.Point;
-            if (point is null)
-            {
-                continue;
-            }
-
-            if (point.X >= selectionBounds.Min.X && point.X <= selectionBounds.Max.X
-                && point.Y >= selectionBounds.Min.Y && point.Y <= selectionBounds.Max.Y)
-            {
-                var itemObj = feature[PhotoItemKey];
-                if (itemObj is PhotoItem photoItem)
-                {
-                    var listItem = _fileBrowserPaneViewModel.Items.FirstOrDefault(item =>
-                        !item.IsFolder && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
-                    if (listItem is not null)
-                    {
-                        selectedItems.Add(listItem);
-                    }
-                }
+                selectedItems.Add(listItem);
             }
         }
 
         FileBrowserPaneControl.SelectItems(selectedItems);
+    }
+
+    private void OnMapPaneNotificationRequested(object? sender, MapPaneNotificationEventArgs e)
+    {
+        _viewModel.ShowNotificationMessage(e.Message, e.Severity);
     }
 
     private static bool IsJpegFile(PhotoListItem? item)

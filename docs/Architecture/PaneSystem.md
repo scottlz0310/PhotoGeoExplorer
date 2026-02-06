@@ -17,7 +17,8 @@ PhotoGeoExplorer では、MainWindow の肥大化（4000行超）を防ぐため
 - [`PhotoGeoExplorer/Panes/Map/`](../../PhotoGeoExplorer/Panes/Map/) - 地図Paneの実装
   - `MapPaneViewModel.cs` - ViewModel の実装（地図状態管理、マーカー表示、ズーム制御）
   - `MapPaneService.cs` - Service の実装（タイルキャッシュ管理、座標計算）
-  - `MapPaneView.xaml` - View の実装（ResourceDictionary + DataTemplate / `MapPaneTemplate`）
+  - `MapPaneViewControl.xaml` - View の実装（UserControl）
+  - `MapPaneViewControl.xaml.cs` - View のコードビハインド（Map UIイベント/Flyout/EXIF位置選択）
 - [`PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneViewModelTests.cs) - ViewModel のテスト
 - [`PhotoGeoExplorer.Tests/SettingsPaneServiceTests.cs`](../../PhotoGeoExplorer.Tests/SettingsPaneServiceTests.cs) - Service のテスト
 - [`PhotoGeoExplorer.Tests/MapPaneViewModelTests.cs`](../../PhotoGeoExplorer.Tests/MapPaneViewModelTests.cs) - ViewModel のテスト
@@ -64,12 +65,12 @@ PhotoGeoExplorer では、MainWindow の肥大化（4000行超）を防ぐため
 /PhotoGeoExplorer
   /Panes
     /Map
-      MapPaneView.xaml          # UI定義
-      MapPaneView.xaml.cs       # コードビハインド（最小限）
+      MapPaneViewControl.xaml   # UI定義
+      MapPaneViewControl.xaml.cs # コードビハインド
       MapPaneViewModel.cs       # ViewModel
     /Preview
-      PreviewPaneView.xaml
-      PreviewPaneView.xaml.cs
+      PreviewPaneViewControl.xaml
+      PreviewPaneViewControl.xaml.cs
       PreviewPaneViewModel.cs
     /FileBrowser
       FileBrowserPaneView.xaml
@@ -204,11 +205,11 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
 ### 2. View を作成（UserControl もしくは DataTemplate）
 
-**MapPaneView.xaml（UserControl 例）**
+**MapPaneViewControl.xaml（UserControl 例）**
 
 ```xml
 <UserControl
-    x:Class="PhotoGeoExplorer.Panes.Map.MapPaneView"
+    x:Class="PhotoGeoExplorer.Panes.Map.MapPaneViewControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -221,23 +222,23 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 </UserControl>
 ```
 
-**MapPaneView.xaml.cs（UserControl 例）**
+**MapPaneViewControl.xaml.cs（UserControl 例）**
 
 ```csharp
 using Microsoft.UI.Xaml.Controls;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
-public sealed partial class MapPaneView : UserControl
+public sealed partial class MapPaneViewControl : UserControl
 {
-    public MapPaneView()
+    public MapPaneViewControl()
     {
         InitializeComponent();
 }
 }
 ```
 
-**MapPaneView.xaml（DataTemplate 例）**
+**MapPaneTemplates.xaml（DataTemplate 例）**
 
 ```xml
 <ResourceDictionary
@@ -260,7 +261,7 @@ public sealed partial class MapPaneView : UserControl
 ```xml
 <Window.Resources>
     <DataTemplate x:DataType="vm:MapPaneViewModel">
-        <panes:MapPaneView DataContext="{Binding}" />
+        <panes:MapPaneViewControl DataContext="{Binding}" />
     </DataTemplate>
 </Window.Resources>
 ```
@@ -271,7 +272,7 @@ public sealed partial class MapPaneView : UserControl
 <Window.Resources>
     <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <ResourceDictionary Source="ms-appx:///Panes/Map/MapPaneView.xaml" />
+            <ResourceDictionary Source="ms-appx:///Panes/Map/MapPaneTemplates.xaml" />
         </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
 </Window.Resources>
@@ -417,12 +418,12 @@ private void ShowSettingsWindow()
 ### ディレクトリとファイル
 
 - **ディレクトリ名**: PascalCase（例: `/Panes/Map`, `/Panes/Preview`）
-- **View**: `{機能名}PaneView.xaml` / `{機能名}PaneView.xaml.cs`
+- **View**: `{機能名}PaneView*.xaml` / `{機能名}PaneView*.xaml.cs`
 - **ViewModel**: `{機能名}PaneViewModel.cs`
 
 ### クラス名
 
-- **View**: `{機能名}PaneView`（例: `MapPaneView`, `PreviewPaneView`）
+- **View**: `{機能名}PaneView` または `{機能名}PaneViewControl`（例: `MapPaneViewControl`, `PreviewPaneViewControl`）
 - **ViewModel**: `{機能名}PaneViewModel`（例: `MapPaneViewModel`, `PreviewPaneViewModel`）
 
 ### プロパティとフィールド
@@ -538,10 +539,10 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
 - [x] Map Pane の移植（フェーズ3-1完了）
   - [x] MapPaneViewModel の実装（地図状態管理、マーカー表示、ズーム制御）
   - [x] MapPaneService の実装（タイルキャッシュ管理、座標計算）
-  - [x] MapPaneView.xaml の実装（DataTemplate / `MapPaneTemplate`）
+  - [x] MapPaneViewControl.xaml の実装（UserControl）
   - [x] WorkspaceState 拡張（SelectedPhotos プロパティ追加）
   - [x] 単体テストの追加（MapPaneViewModel, MapPaneService）
-  - [ ] MainWindow からの地図関連コードの移行（将来のフェーズ）
+  - [x] MainWindow からの地図関連コードの移行（MapPaneViewControl へ集約）
 - [x] Preview Pane の移植（フェーズ3-2完了）
   - [x] PreviewPaneViewModel の実装（画像表示、ズーム/パン制御）
   - [x] PreviewPaneService の実装（画像ロード、フィッティング計算、DPI対応）
