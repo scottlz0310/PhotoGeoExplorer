@@ -42,6 +42,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly MapPaneViewModel _mapPaneViewModel;
     private bool _layoutStored;
     private bool _mapInitialized;
+    private bool _disposed;
     private bool _previewMaximized;
     private bool _windowSized;
     private bool _windowIconSet;
@@ -913,51 +914,66 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        AppLog.Info("MainWindow.Closed event received.");
         Dispose();
     }
 
     public void Dispose()
     {
-        CloseHelpHtmlWindow();
-
-        // WorkspaceState イベントをアンサブスクライブ
-        _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
-        _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
-
-        // MapPaneViewModel のクリーンアップ
-        _mapPaneViewModel.Cleanup();
-
-        _settingsCts?.Cancel();
-        _settingsCts?.Dispose();
-        _settingsCts = null;
-
-        if (PreviewPaneControl is not null)
+        if (_disposed)
         {
-            PreviewPaneControl.MaximizeChanged -= OnPreviewMaximizeChanged;
-            PreviewPaneControl.DataContext = null;
+            return;
         }
 
-        if (FileBrowserPaneControl is not null)
+        _disposed = true;
+        AppLog.Info("MainWindow dispose started.");
+
+        try
         {
-            FileBrowserPaneControl.EditExifRequested -= OnEditExifRequested;
-            FileBrowserPaneControl.DataContext = null;
-            FileBrowserPaneControl.HostWindow = null;
-        }
+            CloseHelpHtmlWindow();
 
-        if (MapPaneControl is not null)
+            // WorkspaceState イベントをアンサブスクライブ
+            _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
+            _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
+
+            // MapPaneViewModel のクリーンアップ
+            _mapPaneViewModel.Cleanup();
+
+            _settingsCts?.Cancel();
+            _settingsCts?.Dispose();
+            _settingsCts = null;
+
+            if (PreviewPaneControl is not null)
+            {
+                PreviewPaneControl.MaximizeChanged -= OnPreviewMaximizeChanged;
+                PreviewPaneControl.DataContext = null;
+            }
+
+            if (FileBrowserPaneControl is not null)
+            {
+                FileBrowserPaneControl.EditExifRequested -= OnEditExifRequested;
+                FileBrowserPaneControl.DataContext = null;
+                FileBrowserPaneControl.HostWindow = null;
+            }
+
+            if (MapPaneControl is not null)
+            {
+                MapPaneControl.PhotoFocusRequested -= OnMapPanePhotoFocusRequested;
+                MapPaneControl.RectangleSelectionCompleted -= OnMapPaneRectangleSelectionCompleted;
+                MapPaneControl.NotificationRequested -= OnMapPaneNotificationRequested;
+                MapPaneControl.DataContext = null;
+            }
+
+            _previewPaneViewModel?.Cleanup();
+            _fileBrowserPaneViewModel.Dispose();
+
+            _viewModel?.Dispose();
+        }
+        finally
         {
-            MapPaneControl.PhotoFocusRequested -= OnMapPanePhotoFocusRequested;
-            MapPaneControl.RectangleSelectionCompleted -= OnMapPaneRectangleSelectionCompleted;
-            MapPaneControl.NotificationRequested -= OnMapPaneNotificationRequested;
-            MapPaneControl.DataContext = null;
+            AppLog.Info("MainWindow dispose completed.");
+            GC.SuppressFinalize(this);
         }
-
-        _previewPaneViewModel?.Cleanup();
-        _fileBrowserPaneViewModel.Dispose();
-
-        _viewModel?.Dispose();
-
-        GC.SuppressFinalize(this);
     }
 
     private async void OnOpenLogFolderClicked(object sender, RoutedEventArgs e)

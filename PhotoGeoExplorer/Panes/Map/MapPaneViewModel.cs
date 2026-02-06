@@ -341,10 +341,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         var (map, tileLayer, markerLayer) = _service.InitializeMap(_currentTileSource, UserAgentProvider.UserAgent);
 
-        _map = map;
         _baseTileLayer = tileLayer;
         _markerLayer = markerLayer;
 
+        // Map プロパティ経由で _map を更新し、PropertyChanged を発火させる
         Map = map;
         HideStatus();
         AppLog.Info("Map initialized in MapPaneViewModel.");

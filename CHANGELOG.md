@@ -14,11 +14,28 @@
 - 新規ディレクトリ構造
   - `/PhotoGeoExplorer/Panes` - 機能単位のUI + ViewModel
   - `/PhotoGeoExplorer/State` - 共有状態管理
+- Map Pane の選択判定ロジックを `MapPaneSelectionHelper` として分離。
+- Map Pane の選択判定に対するユニットテストを追加（`MapPaneSelectionHelperTests`）。
+- `docs/Architecture/MainWindow-Orchestration-Review.md` を追加し、MainWindow の責務移管状況を整理。
 
 ### 変更
 - README.md にアーキテクチャセクションを追加
 - ファイルビュー詳細表示の更新日時・解像度・サイズ列に余白を追加し、視認性を改善
 - PNG 画像など小さいプレビューでフィットが過剰に拡大される問題を改善（表示サイズに基づいてフィットを計算）
+- MainWindow の地図 UI（Flyout/マップ状態表示/矩形選択イベント）を `MapPaneViewControl` に移管し、MainWindow をオーケストレーション中心へ整理。
+- `MapPaneView`（ResourceDictionary/DataTemplate）構成を廃止し、`MapPaneViewControl`（UserControl）へ統一。
+- Preview の DPI 変更監視（`XamlRoot.Changed`）を MainWindow から `PreviewPaneViewControl` へ移管。
+- `App.xaml` の `MapPaneView` 参照を削除し、Map View の構成を一本化。
+- `docs/Architecture/PaneSystem.md` を `MapPaneViewControl` ベースの構成に更新。
+- `docs/MainWindow-Orchestration-Review.md` を `docs/Architecture/MainWindow-Orchestration-Review.md` に再配置。
+
+### 修正
+- Map 初期化時に `MapPaneViewModel.Map` の変更通知が発火せず、地図が表示されない場合がある問題を修正。
+- CI 相当のローカル品質ゲート（analyzer/nullability）で発生するビルド失敗を解消。
+
+### テスト
+- Map 選択判定のテストを拡充（矩形境界判定、重複除外、閾値判定、引数異常系）。
+- ローカル実行で `dotnet build` / `dotnet test` / `dotnet format --verify-no-changes` を通過。
 
 ## [1.5.5] - 2026-01-23
 

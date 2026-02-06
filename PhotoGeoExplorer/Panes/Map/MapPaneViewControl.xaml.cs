@@ -43,6 +43,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private bool _isExifPickPointerActive;
     private Windows.Foundation.Point? _exifPickPointerStart;
     private bool _restoreMapStatusAfterExifPick;
+    private bool _isViewLoaded;
 
     public MapPaneViewControl()
     {
@@ -78,7 +79,11 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        _isViewLoaded = true;
         AttachViewModel(DataContext as MapPaneViewModel);
+        // Loaded 前に受信した PropertyChanged を取りこぼした場合に備えて UI を再同期する
+        ApplyMapFromViewModel();
+        UpdateMapStatusFromViewModel();
     }
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
@@ -88,6 +93,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        _isViewLoaded = false;
         CancelExifLocationPick();
         DetachViewModel();
         ClearRectangleSelectionLayer();
@@ -98,6 +104,11 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     {
         if (ReferenceEquals(_viewModel, viewModel))
         {
+            if (_isViewLoaded)
+            {
+                ApplyMapFromViewModel();
+                UpdateMapStatusFromViewModel();
+            }
             return;
         }
 
@@ -125,7 +136,24 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnMapPaneViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MapPaneViewModel.Map))
+        var propertyName = e.PropertyName;
+        if (!HasUiThreadAccess())
+        {
+            _ = DispatcherQueue?.TryEnqueue(() => HandleViewModelPropertyChanged(propertyName));
+            return;
+        }
+
+        HandleViewModelPropertyChanged(propertyName);
+    }
+
+    private void HandleViewModelPropertyChanged(string? propertyName)
+    {
+        if (!_isViewLoaded || _viewModel is null)
+        {
+            return;
+        }
+
+        if (propertyName == nameof(MapPaneViewModel.Map))
         {
             ApplyMapFromViewModel();
             return;
@@ -136,7 +164,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
-        if (e.PropertyName is nameof(MapPaneViewModel.StatusTitle)
+        if (propertyName is nameof(MapPaneViewModel.StatusTitle)
             or nameof(MapPaneViewModel.StatusDetail)
             or nameof(MapPaneViewModel.StatusIcon)
             or nameof(MapPaneViewModel.StatusVisibility))
@@ -183,16 +211,32 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
-        MapStatusTitle.Text = _viewModel.StatusTitle;
-        MapStatusDescription.Text = _viewModel.StatusDetail;
-        MapStatusDescription.Visibility = string.IsNullOrWhiteSpace(_viewModel.StatusDetail)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-        MapStatusIcon.Symbol = _viewModel.StatusIcon;
+        try
+        {
+            MapStatusTitle.Text = _viewModel.StatusTitle;
+            MapStatusDescription.Text = _viewModel.StatusDetail;
+            MapStatusDescription.Visibility = string.IsNullOrWhiteSpace(_viewModel.StatusDetail)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+            MapStatusIcon.Symbol = _viewModel.StatusIcon;
 
-        var visibility = _viewModel.StatusVisibility;
-        MapStatusOverlay.Visibility = visibility;
-        MapStatusPanel.Visibility = visibility;
+            var visibility = _viewModel.StatusVisibility;
+            MapStatusOverlay.Visibility = visibility;
+            MapStatusPanel.Visibility = visibility;
+        }
+        catch (InvalidOperationException ex)
+        {
+            AppLog.Error("Failed to update map status view.", ex);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("Failed to update map status view.", ex);
+        }
+    }
+
+    private bool HasUiThreadAccess()
+    {
+        return DispatcherQueue?.HasThreadAccess ?? false;
     }
 
     private void HideMapStatusForExifPick()
