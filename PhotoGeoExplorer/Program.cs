@@ -63,6 +63,7 @@ internal static partial class Program
 
         try
         {
+            AppLog.Info("Calling Application.Start.");
             WinRT.ComWrappersSupport.InitializeComWrappers();
             Application.Start(startArgs =>
             {
@@ -71,6 +72,7 @@ internal static partial class Program
                 _ = startArgs;
                 _ = new App();
             });
+            AppLog.Info("Application.Start returned.");
         }
         catch (Exception ex) when (
             ex is InvalidOperationException or
@@ -82,6 +84,7 @@ internal static partial class Program
         }
         finally
         {
+            AppLog.Info("Program.Main entering shutdown sequence.");
             // Bootstrap が成功した場合のみ Shutdown を呼ぶ
             if (bootstrapInitialized)
             {
@@ -101,6 +104,8 @@ internal static partial class Program
                     AppLog.Error("Windows App SDK bootstrap shutdown failed.", ex);
                 }
             }
+
+            AppLog.Info("Program.Main finished.");
         }
     }
 

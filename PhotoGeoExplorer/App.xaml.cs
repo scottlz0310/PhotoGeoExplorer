@@ -26,6 +26,7 @@ public partial class App : Application
         InitializeComponent();
         UnhandledException += OnUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         AppLog.Info("App constructed.");
     }
@@ -110,6 +111,11 @@ public partial class App : Application
     {
         var exceptionInfo = $"Type: {e.Exception?.GetType().FullName ?? "Unknown"}, InnerExceptions: {e.Exception?.InnerExceptions.Count ?? 0}";
         AppLog.Error($"Unobserved task exception. {exceptionInfo}", e.Exception);
+    }
+
+    private void OnProcessExit(object? sender, EventArgs e)
+    {
+        AppLog.Info("ProcessExit event received.");
     }
 
     private static void ApplyLanguageOverrideFromSettings()
