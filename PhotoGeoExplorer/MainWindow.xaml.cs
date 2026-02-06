@@ -63,7 +63,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private WebView2? _helpHtmlWebView;
     private readonly bool _settingsFileExistsAtStartup;
     private bool _showQuickStartOnStartup;
-    private double _lastRasterizationScale = 1.0;
 
     public MainWindow()
     {
@@ -123,8 +122,6 @@ public sealed partial class MainWindow : Window, IDisposable
             await ShowQuickStartIfNeededAsync().ConfigureAwait(true);
         });
 
-        // マルチモニターDPI変更を検出するために XamlRoot.Changed をサブスクライブ
-        await SubscribeToXamlRootChangedAsync().ConfigureAwait(true);
     }
 
     private void EnsureWindowSize()
@@ -188,27 +185,6 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    private async Task SubscribeToXamlRootChangedAsync()
-    {
-        // XamlRoot が利用可能になるまで待機してから XamlRoot.Changed をサブスクライブ
-        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
-        {
-            AppLog.Error("Failed to subscribe to XamlRoot.Changed: XamlRoot is null.");
-            return;
-        }
-
-        // XamlRoot をローカル変数に格納（EnsureXamlRootAsync と使用の間に null になる可能性への防御）
-        var xamlRoot = RootGrid.XamlRoot;
-        if (xamlRoot is null)
-        {
-            AppLog.Error("XamlRoot became null after EnsureXamlRootAsync succeeded.");
-            return;
-        }
-
-        _lastRasterizationScale = xamlRoot.RasterizationScale;
-        xamlRoot.Changed += OnXamlRootChanged;
-        AppLog.Info($"Subscribed to XamlRoot.Changed. Initial RasterizationScale: {_lastRasterizationScale}");
-    }
 
     private void OnMapTileSourceMenuClicked(object sender, RoutedEventArgs e)
     {
@@ -545,25 +521,6 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    /// <summary>
-    /// マルチモニター環境でウィンドウを異なるDPIのモニターに移動した際に呼ばれます。
-    /// 画像プレビューのズームファクターを補正して、視覚的なサイズを維持します。
-    /// </summary>
-    private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args)
-    {
-        var newScale = sender.RasterizationScale;
-        if (Math.Abs(newScale - _lastRasterizationScale) < 0.0001)
-        {
-            return;
-        }
-
-        AppLog.Info($"RasterizationScale changed: {_lastRasterizationScale} -> {newScale}");
-
-        // PreviewPaneViewModel にDPIスケーリング変更を通知
-        _previewPaneViewModel.OnRasterizationScaleChanged(newScale);
-
-        _lastRasterizationScale = newScale;
-    }
 
     private void TogglePreviewMaximize(bool maximize)
     {
@@ -962,12 +919,6 @@ public sealed partial class MainWindow : Window, IDisposable
     public void Dispose()
     {
         CloseHelpHtmlWindow();
-
-        // XamlRoot.Changed イベントをアンサブスクライブ
-        if (RootGrid?.XamlRoot is not null)
-        {
-            RootGrid.XamlRoot.Changed -= OnXamlRootChanged;
-        }
 
         // WorkspaceState イベントをアンサブスクライブ
         _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;

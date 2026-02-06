@@ -7,6 +7,7 @@ MainWindow を「Shell（オーケストレーション専任）」に寄せる�
 - Map Pane 固有ロジックを `MainWindow` から `MapPaneViewControl` へ移管完了。
 - `MainWindow` は Map と FileBrowser の橋渡し（イベント連携）のみ保持。
 - `App.xaml` の `MapPaneView`（ResourceDictionary）を廃止し、Map の UI 構造を一本化。
+- Preview Pane の DPI 変更通知を `PreviewPaneViewControl` へ移管。
 
 ## ペイン別状況
 
@@ -62,12 +63,10 @@ MainWindow を「Shell（オーケストレーション専任）」に寄せる�
   - `TogglePreviewMaximize`
   - `OnMainSplitterDragDelta`
   - `OnMapSplitterDragDelta`
-- DPI 変更通知
-  - `OnXamlRootChanged` から `PreviewPaneViewModel.OnRasterizationScaleChanged` を呼び出し
 
 評価:
 - レイアウトは Window 全体責務のため MainWindow に残す判断は妥当。
-- DPI 通知は `PreviewPaneViewControl` 側へ寄せる余地あり。
+- DPI 通知は `PreviewPaneViewControl` 側へ移管済み。
 
 ## その他（Pane 外）
 - EXIF 編集ダイアログ生成 (`ShowExifEditDialogAsync`) はまだ MainWindow に残る。
@@ -75,4 +74,4 @@ MainWindow を「Shell（オーケストレーション専任）」に寄せる�
 
 ## まとめ
 Map 領域は「UIイベント + 描画 + EXIFピック + Flyout」を Pane 側へ移し、MainWindow はオーケストレーション専任に近づいた。  
-現時点の残タスクは、FileBrowser メニュー操作のさらなるコマンド化と、Preview の DPI 通知責務の再配置が中心。
+現時点の残タスクは、FileBrowser メニュー操作のさらなるコマンド化と、EXIF 編集ダイアログの配置整理が中心。

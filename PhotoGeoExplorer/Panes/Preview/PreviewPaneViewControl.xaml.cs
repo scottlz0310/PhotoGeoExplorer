@@ -1,5 +1,7 @@
 using System;
 using System.ComponentModel;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -17,6 +19,9 @@ internal sealed partial class PreviewPaneViewControl : UserControl
     private Windows.Foundation.Point _dragStart;
     private double _dragStartHorizontalOffset;
     private double _dragStartVerticalOffset;
+    private XamlRoot? _subscribedXamlRoot;
+    private double _lastRasterizationScale = 1.0;
+    private CancellationTokenSource? _xamlRootWaitCts;
 
     /// <summary>
     /// 最大化状態が変更されたときに発生するイベント
@@ -28,9 +33,10 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         InitializeComponent();
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         AttachViewModel(DataContext as PreviewPaneViewModel);
+        await SubscribeToXamlRootChangedAsync().ConfigureAwait(true);
     }
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
@@ -40,6 +46,8 @@ internal sealed partial class PreviewPaneViewControl : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        UnsubscribeFromXamlRootChanged();
+
         if (_viewModel is null)
         {
             return;
@@ -96,6 +104,101 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         viewModel.InitializeDispatcherQueue(DispatcherQueue);
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         viewModel.FitRequested += OnViewModelFitRequested;
+
+        if (_subscribedXamlRoot is not null)
+        {
+            viewModel.OnRasterizationScaleChanged(_lastRasterizationScale);
+        }
+    }
+
+    private async Task SubscribeToXamlRootChangedAsync()
+    {
+        if (_subscribedXamlRoot is not null)
+        {
+            return;
+        }
+
+        _xamlRootWaitCts?.Cancel();
+        _xamlRootWaitCts?.Dispose();
+        _xamlRootWaitCts = new CancellationTokenSource();
+        var token = _xamlRootWaitCts.Token;
+
+        var xamlRoot = await EnsureXamlRootAsync(token).ConfigureAwait(true);
+        if (token.IsCancellationRequested || xamlRoot is null)
+        {
+            return;
+        }
+
+        _subscribedXamlRoot = xamlRoot;
+        _lastRasterizationScale = xamlRoot.RasterizationScale;
+        xamlRoot.Changed += OnXamlRootChanged;
+        AppLog.Info($"PreviewPaneViewControl subscribed to XamlRoot.Changed. Initial RasterizationScale: {_lastRasterizationScale}");
+
+        _viewModel?.OnRasterizationScaleChanged(_lastRasterizationScale);
+    }
+
+    private void UnsubscribeFromXamlRootChanged()
+    {
+        _xamlRootWaitCts?.Cancel();
+        _xamlRootWaitCts?.Dispose();
+        _xamlRootWaitCts = null;
+
+        if (_subscribedXamlRoot is null)
+        {
+            return;
+        }
+
+        _subscribedXamlRoot.Changed -= OnXamlRootChanged;
+        _subscribedXamlRoot = null;
+    }
+
+    private async Task<XamlRoot?> EnsureXamlRootAsync(CancellationToken token)
+    {
+        const int maxWaitMs = 3000;
+        const int intervalMs = 50;
+
+        if (XamlRoot is not null)
+        {
+            return XamlRoot;
+        }
+
+        AppLog.Info("PreviewPaneViewControl: XamlRoot is null, waiting for it to become available...");
+
+        var elapsed = 0;
+        while (XamlRoot is null && elapsed < maxWaitMs)
+        {
+            try
+            {
+                await Task.Delay(intervalMs, token).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            elapsed += intervalMs;
+        }
+
+        if (XamlRoot is not null)
+        {
+            AppLog.Info($"PreviewPaneViewControl: XamlRoot became available after {elapsed}ms.");
+            return XamlRoot;
+        }
+
+        AppLog.Info($"PreviewPaneViewControl: XamlRoot still null after {elapsed}ms, giving up.");
+        return null;
+    }
+
+    private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args)
+    {
+        var newScale = sender.RasterizationScale;
+        if (Math.Abs(newScale - _lastRasterizationScale) < 0.0001)
+        {
+            return;
+        }
+
+        AppLog.Info($"PreviewPaneViewControl: RasterizationScale changed: {_lastRasterizationScale} -> {newScale}");
+        _viewModel?.OnRasterizationScaleChanged(newScale);
+        _lastRasterizationScale = newScale;
     }
 
     private void OnScrollViewerSizeChanged(object sender, SizeChangedEventArgs e)
