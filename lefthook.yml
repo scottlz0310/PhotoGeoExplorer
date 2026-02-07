@@ -1,5 +1,7 @@
 pre-commit:
   commands:
+    agent-docs:
+      run: pwsh ./scripts/Sync-AgentDocs.ps1 -Check
     format:
       run: dotnet format --verify-no-changes PhotoGeoExplorer.sln
     build:

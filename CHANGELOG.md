@@ -17,6 +17,8 @@
 - Map Pane の選択判定ロジックを `MapPaneSelectionHelper` として分離。
 - Map Pane の選択判定に対するユニットテストを追加（`MapPaneSelectionHelperTests`）。
 - `docs/Architecture/MainWindow-Orchestration-Review.md` を追加し、MainWindow の責務移管状況を整理。
+- AI エージェント向けガイドラインの正本 `AgentGuidelineSource.md` を追加。
+- ガイドライン同期スクリプト `scripts/Sync-AgentDocs.ps1` を追加（`-Check` 対応）。
 
 ### 変更
 - README.md にアーキテクチャセクションを追加
@@ -28,6 +30,8 @@
 - `App.xaml` の `MapPaneView` 参照を削除し、Map View の構成を一本化。
 - `docs/Architecture/PaneSystem.md` を `MapPaneViewControl` ベースの構成に更新。
 - `docs/MainWindow-Orchestration-Review.md` を `docs/Architecture/MainWindow-Orchestration-Review.md` に再配置。
+- `AGENTS.md` / `CLAUDE.md` / `.github/copilot-instructions.md` を自動生成方式に統一し、固有補足ブロックのみ手編集可能に変更。
+- `lefthook.yml` と CI（`.github/workflows/ci.yml`）にガイドライン同期チェックを追加。
 
 ### 修正
 - Map 初期化時に `MapPaneViewModel.Map` の変更通知が発火せず、地図が表示されない場合がある問題を修正。
