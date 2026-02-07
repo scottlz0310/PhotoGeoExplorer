@@ -1,15 +1,3 @@
-# CLAUDE.md
-
-> [!IMPORTANT]
-> このファイルは `AgentGuidelineSource.md` を正本として `scripts/Sync-AgentDocs.ps1` で自動生成されています。
-> 共通ルールの変更は `AgentGuidelineSource.md` を編集し、`pwsh ./scripts/Sync-AgentDocs.ps1` を実行してください。
-> 手編集は `<!-- BEGIN TOOL-SPECIFIC -->` と `<!-- END TOOL-SPECIFIC -->` の間だけ許可します。
-
-## 対象
-- Claude Code
-
-## 共通ガイドライン（自動生成）
-<!-- BEGIN SHARED -->
 # AIエージェント共通ガイドライン（正本）
 
 このファイルは、`AGENTS.md` / `CLAUDE.md` / `.github/copilot-instructions.md` の共通ルールを管理する正本（Single Source of Truth）です。
@@ -95,9 +83,3 @@
 ## バージョン調査の注意
 - AI から見て不自然に新しいバージョンに感じても、勝手にバージョンダウンしないでください。
 - 学習時期のタイムラグを前提に、必要に応じて Web で最新情報を確認します。
-<!-- END SHARED -->
-
-## 固有補足（手編集可）
-<!-- BEGIN TOOL-SPECIFIC -->
-- Claude Code 固有の追加指示がある場合、このブロックに追記してください。
-<!-- END TOOL-SPECIFIC -->
