@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 追加
+- AI エージェント共通ガイドラインに「PR 作成後の自動レビュー対応ルーティン」を追加。
 - Shell + Pane アーキテクチャの導入（ISSUE #70）
   - `IPaneViewModel` インターフェースと `PaneViewModelBase` 基底クラス
   - ペイン間共有状態を管理する `WorkspaceState`
