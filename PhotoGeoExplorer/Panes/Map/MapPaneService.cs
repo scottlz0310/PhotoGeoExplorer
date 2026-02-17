@@ -90,6 +90,8 @@ internal sealed class MapPaneService : IMapPaneService
         var concurrency = Math.Clamp(Environment.ProcessorCount, 1, MetadataLoadMaxConcurrency);
         concurrency = Math.Min(concurrency, items.Count);
 
+        // semaphore は WhenAll で全タスク完了後に破棄されるため安全
+#pragma warning disable CA2025
         using var semaphore = new SemaphoreSlim(concurrency, concurrency);
         var tasks = new Task<(PhotoListItem Item, PhotoMetadata? Metadata)>[items.Count];
         for (var index = 0; index < items.Count; index++)
@@ -97,6 +99,7 @@ internal sealed class MapPaneService : IMapPaneService
             var item = items[index];
             tasks[index] = LoadMetadataForItemAsync(item, semaphore, cancellationToken);
         }
+#pragma warning restore CA2025
 
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         return results;

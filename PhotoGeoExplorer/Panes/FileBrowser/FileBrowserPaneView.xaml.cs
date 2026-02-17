@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -25,13 +26,28 @@ internal sealed partial class FileBrowserPaneView : UserControl
     private List<PhotoListItem>? _dragItems;
     private bool _suppressBreadcrumbNavigation;
     private bool _isWaitingForXamlRoot;
+    private FileBrowserPaneViewModel? _previousViewModel;
 
     public FileBrowserPaneView()
     {
         InitializeComponent();
+
+        OpenFolderCommand = new RelayCommand(async () => await OpenFolderAsync().ConfigureAwait(false));
+        CreateFolderCommand = new RelayCommand(async () => await CreateFolderAsync().ConfigureAwait(false), () => ViewModel?.CanCreateFolder ?? false);
+        RenameSelectionCommand = new RelayCommand(async () => await RenameSelectionAsync().ConfigureAwait(false), () => ViewModel?.CanRenameSelection ?? false);
+        MoveSelectionCommand = new RelayCommand(async () => await MoveSelectionAsync().ConfigureAwait(false), () => ViewModel?.CanModifySelection ?? false);
+        MoveSelectionToParentCommand = new RelayCommand(async () => await MoveSelectionToParentAsync().ConfigureAwait(false), () => ViewModel?.CanMoveToParentSelection ?? false);
+        DeleteSelectionCommand = new RelayCommand(async () => await DeleteSelectionAsync().ConfigureAwait(false), () => ViewModel?.CanModifySelection ?? false);
     }
 
     public Window? HostWindow { get; set; }
+
+    public ICommand OpenFolderCommand { get; }
+    public ICommand CreateFolderCommand { get; }
+    public ICommand RenameSelectionCommand { get; }
+    public ICommand MoveSelectionCommand { get; }
+    public ICommand MoveSelectionToParentCommand { get; }
+    public ICommand DeleteSelectionCommand { get; }
 
     public event EventHandler? EditExifRequested;
 
@@ -51,6 +67,43 @@ internal sealed partial class FileBrowserPaneView : UserControl
         if (ViewModel is not null && DispatcherQueue is not null)
         {
             ViewModel.SetDispatcherQueue(DispatcherQueue);
+        }
+
+        // 旧 ViewModel の購読を解除（メモリリーク防止）
+        if (_previousViewModel is not null)
+        {
+            _previousViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
+        // ViewModel の CanExecute 関連プロパティ変更を監視し、Command の状態を更新
+        if (args.NewValue is FileBrowserPaneViewModel vm)
+        {
+            vm.PropertyChanged += OnViewModelPropertyChanged;
+            _previousViewModel = vm;
+        }
+        else
+        {
+            _previousViewModel = null;
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(FileBrowserPaneViewModel.CanCreateFolder):
+                (CreateFolderCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                break;
+            case nameof(FileBrowserPaneViewModel.CanRenameSelection):
+                (RenameSelectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                break;
+            case nameof(FileBrowserPaneViewModel.CanModifySelection):
+                (MoveSelectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (DeleteSelectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                break;
+            case nameof(FileBrowserPaneViewModel.CanMoveToParentSelection):
+                (MoveSelectionToParentCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                break;
         }
     }
 

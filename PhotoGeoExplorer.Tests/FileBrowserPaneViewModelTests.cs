@@ -53,6 +53,8 @@ public class FileBrowserPaneViewModelTests
         Assert.NotNull(viewModel.RefreshCommand);
         Assert.NotNull(viewModel.ToggleSortCommand);
         Assert.NotNull(viewModel.ResetFiltersCommand);
+        Assert.NotNull(viewModel.ToggleImagesOnlyCommand);
+        Assert.NotNull(viewModel.SetViewModeCommand);
     }
 
     [Fact]
@@ -441,6 +443,69 @@ public class FileBrowserPaneViewModelTests
         // Act & Assert (Should not throw)
         viewModel.Dispose();
         viewModel.Dispose();
+    }
+
+    [Fact]
+    public void ToggleImagesOnlyCommandTogglesShowImagesOnly()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var initialValue = viewModel.ShowImagesOnly;
+
+        // Act
+        viewModel.ToggleImagesOnlyCommand.Execute(null);
+
+        // Assert
+        Assert.NotEqual(initialValue, viewModel.ShowImagesOnly);
+    }
+
+    [Fact]
+    public void SetViewModeCommandChangesFileViewMode()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        // Act
+        viewModel.SetViewModeCommand.Execute("Icon");
+
+        // Assert
+        Assert.Equal(FileViewMode.Icon, viewModel.FileViewMode);
+    }
+
+    [Fact]
+    public void SetViewModeCommandIgnoresInvalidParameter()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var original = viewModel.FileViewMode;
+
+        // Act
+        viewModel.SetViewModeCommand.Execute("InvalidMode");
+
+        // Assert
+        Assert.Equal(original, viewModel.FileViewMode);
+    }
+
+    [Fact]
+    public void SetViewModeCommandIgnoresNullParameter()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var original = viewModel.FileViewMode;
+
+        // Act
+        viewModel.SetViewModeCommand.Execute(null);
+
+        // Assert
+        Assert.Equal(original, viewModel.FileViewMode);
     }
 
     private static string CreateTempTestDirectory()

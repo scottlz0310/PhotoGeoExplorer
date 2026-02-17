@@ -7,6 +7,13 @@
 ### 追加
 - AI エージェント共通ガイドラインに「PR 作成後の自動レビュー対応ルーティン」を追加。
 - MainWindow スリム化（第2期）の実装計画書とタスク細分文書を追加（`docs/Architecture/MainWindowSlimdown-Plan.md`, `MainWindowSlimdown-Tasks.md`）。
+
+### 変更
+- MainWindow のメニュー Click リレーハンドラを撤去し、XAML から直接 Command バインディングに変更（#99）。
+  - FileBrowserPaneViewModel に `ToggleImagesOnlyCommand`・`SetViewModeCommand` を追加。
+  - FileBrowserPaneView にファイル操作系 Command プロパティを追加（`OpenFolderCommand` 等）。
+  - MainWindow.xaml.cs から 14 個のリレーハンドラ（約 83 行）を削除。
+- MapPaneService の CA2025 アナライザ警告を抑制（`SemaphoreSlim` の安全な使用パターン）。
 - Shell + Pane アーキテクチャの導入（ISSUE #70）
   - `IPaneViewModel` インターフェースと `PaneViewModelBase` 基底クラス
   - ペイン間共有状態を管理する `WorkspaceState`

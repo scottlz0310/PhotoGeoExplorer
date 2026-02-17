@@ -107,6 +107,20 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             ResetFilters();
             await Task.CompletedTask.ConfigureAwait(false);
         });
+        ToggleImagesOnlyCommand = new RelayCommand(async () =>
+        {
+            ShowImagesOnly = !ShowImagesOnly;
+            await RefreshAsync().ConfigureAwait(false);
+        });
+        SetViewModeCommand = new RelayCommand<string>(tag =>
+        {
+            if (tag is not null && Enum.TryParse(tag, out FileViewMode mode))
+            {
+                FileViewMode = mode;
+            }
+
+            return Task.CompletedTask;
+        });
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -376,6 +390,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public ICommand RefreshCommand { get; }
     public ICommand ToggleSortCommand { get; }
     public ICommand ResetFiltersCommand { get; }
+    public ICommand ToggleImagesOnlyCommand { get; }
+    public ICommand SetViewModeCommand { get; }
 
     public bool CanNavigateBack => _service.CanNavigateBack;
     public bool CanNavigateForward => _service.CanNavigateForward;

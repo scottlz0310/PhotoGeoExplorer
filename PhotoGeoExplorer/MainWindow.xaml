@@ -20,31 +20,31 @@
 
         <MenuBar>
             <MenuBarItem Title="File" x:Uid="MenuFile">
-                <MenuFlyoutItem Text="Open folder..." Click="OnOpenFolderClicked" x:Uid="MenuFileOpenFolder" />
+                <MenuFlyoutItem Text="Open folder..." Command="{Binding ElementName=FileBrowserPaneControl, Path=OpenFolderCommand}" x:Uid="MenuFileOpenFolder" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="New folder" Click="OnCreateFolderClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanCreateFolder}" x:Uid="MenuFileNewFolder" />
-                <MenuFlyoutItem Text="Rename" Click="OnRenameClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanRenameSelection}" x:Uid="MenuFileRename" />
-                <MenuFlyoutItem Text="Move..." Click="OnMoveClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanModifySelection}" x:Uid="MenuFileMove" />
-                <MenuFlyoutItem Text="Move to parent" Click="OnMoveToParentClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanMoveToParentSelection}" x:Uid="MenuFileMoveToParent" />
-                <MenuFlyoutItem Text="Delete" Click="OnDeleteClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanModifySelection}" x:Uid="MenuFileDelete" />
+                <MenuFlyoutItem Text="New folder" Command="{Binding ElementName=FileBrowserPaneControl, Path=CreateFolderCommand}" x:Uid="MenuFileNewFolder" />
+                <MenuFlyoutItem Text="Rename" Command="{Binding ElementName=FileBrowserPaneControl, Path=RenameSelectionCommand}" x:Uid="MenuFileRename" />
+                <MenuFlyoutItem Text="Move..." Command="{Binding ElementName=FileBrowserPaneControl, Path=MoveSelectionCommand}" x:Uid="MenuFileMove" />
+                <MenuFlyoutItem Text="Move to parent" Command="{Binding ElementName=FileBrowserPaneControl, Path=MoveSelectionToParentCommand}" x:Uid="MenuFileMoveToParent" />
+                <MenuFlyoutItem Text="Delete" Command="{Binding ElementName=FileBrowserPaneControl, Path=DeleteSelectionCommand}" x:Uid="MenuFileDelete" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Refresh" Click="OnRefreshClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanCreateFolder}" x:Uid="MenuFileRefresh" />
-                <MenuFlyoutItem Text="Go home" Click="OnNavigateHomeClicked" x:Uid="MenuFileGoHome" />
-                <MenuFlyoutItem Text="Go up" Click="OnNavigateUpClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanCreateFolder}" x:Uid="MenuFileGoUp" />
+                <MenuFlyoutItem Text="Refresh" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.RefreshCommand}" x:Uid="MenuFileRefresh" />
+                <MenuFlyoutItem Text="Go home" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.NavigateHomeCommand}" x:Uid="MenuFileGoHome" />
+                <MenuFlyoutItem Text="Go up" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.NavigateUpCommand}" x:Uid="MenuFileGoUp" />
                 <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="Exit" Click="OnExitClicked" x:Uid="MenuFileExit" />
             </MenuBarItem>
             <MenuBarItem Title="View" x:Uid="MenuView">
-                <MenuFlyoutItem Text="Icon" Tag="Icon" Click="OnViewModeMenuClicked" x:Uid="MenuViewIcon" />
-                <MenuFlyoutItem Text="List" Tag="List" Click="OnViewModeMenuClicked" x:Uid="MenuViewList" />
-                <MenuFlyoutItem Text="Details" Tag="Details" Click="OnViewModeMenuClicked" x:Uid="MenuViewDetails" />
+                <MenuFlyoutItem Text="Icon" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.SetViewModeCommand}" CommandParameter="Icon" x:Uid="MenuViewIcon" />
+                <MenuFlyoutItem Text="List" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.SetViewModeCommand}" CommandParameter="List" x:Uid="MenuViewList" />
+                <MenuFlyoutItem Text="Details" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.SetViewModeCommand}" CommandParameter="Details" x:Uid="MenuViewDetails" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Show images only" Click="OnToggleImagesOnlyClicked" x:Uid="MenuViewImagesOnly" />
+                <MenuFlyoutItem Text="Show images only" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.ToggleImagesOnlyCommand}" x:Uid="MenuViewImagesOnly" />
             </MenuBarItem>
             <MenuBarItem Title="Settings" x:Uid="MenuSettings">
                 <MenuFlyoutItem Text="Settings (development)" Click="OnOpenSettingsPaneClicked" x:Uid="MenuSettingsOpenPaneDev" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Reset filters" Click="OnResetFiltersClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.HasActiveFilters}" x:Uid="MenuSettingsResetFilters" />
+                <MenuFlyoutItem Text="Reset filters" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.ResetFiltersCommand}" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.HasActiveFilters}" x:Uid="MenuSettingsResetFilters" />
                 <MenuFlyoutSubItem Text="Language" x:Uid="MenuSettingsLanguage">
                     <RadioMenuFlyoutItem
                         x:Name="LanguageSystemMenuItem"

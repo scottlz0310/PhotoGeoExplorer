@@ -612,81 +612,7 @@ public sealed partial class MainWindow : Window, IDisposable
         MapRow.Height = new GridLength(1, GridUnitType.Star);
     }
 
-    private async void OnNavigateHomeClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.NavigateHomeAsync().ConfigureAwait(true);
-    }
 
-    private async void OnNavigateBackClicked(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            await _fileBrowserPaneViewModel.NavigateBackAsync().ConfigureAwait(true);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            AppLog.Error("Navigation back failed", ex);
-            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
-        }
-        catch (DirectoryNotFoundException ex)
-        {
-            AppLog.Error("Navigation back failed", ex);
-            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
-        }
-        catch (PathTooLongException ex)
-        {
-            AppLog.Error("Navigation back failed", ex);
-            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
-        }
-        catch (IOException ex)
-        {
-            AppLog.Error("Navigation back failed", ex);
-            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
-        }
-    }
-
-    private async void OnNavigateForwardClicked(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            await _fileBrowserPaneViewModel.NavigateForwardAsync().ConfigureAwait(true);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            AppLog.Error("Navigation forward failed", ex);
-            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
-        }
-        catch (DirectoryNotFoundException ex)
-        {
-            AppLog.Error("Navigation forward failed", ex);
-            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
-        }
-        catch (PathTooLongException ex)
-        {
-            AppLog.Error("Navigation forward failed", ex);
-            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
-        }
-        catch (IOException ex)
-        {
-            AppLog.Error("Navigation forward failed", ex);
-            // ユーザーへの通知は ViewModel 内で SetStatus により既に行われている
-        }
-    }
-
-    private async void OnNavigateUpClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.NavigateUpAsync().ConfigureAwait(true);
-    }
-
-    private async void OnRefreshClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private async void OnOpenFolderClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.OpenFolderAsync().ConfigureAwait(true);
-    }
 
     private async void OnOpenSettingsPaneClicked(object sender, RoutedEventArgs e)
     {
@@ -728,11 +654,6 @@ public sealed partial class MainWindow : Window, IDisposable
             viewModel.IsActive = false;
             viewModel.Cleanup();
         }
-    }
-
-    private async void OnResetFiltersClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.ResetFiltersAsync().ConfigureAwait(true);
     }
 
     private async void OnNotificationActionClicked(object sender, RoutedEventArgs e)
@@ -886,25 +807,6 @@ public sealed partial class MainWindow : Window, IDisposable
         }
 
         return null;
-    }
-
-    private async void OnToggleImagesOnlyClicked(object sender, RoutedEventArgs e)
-    {
-        _fileBrowserPaneViewModel.ShowImagesOnly = !_fileBrowserPaneViewModel.ShowImagesOnly;
-        await _fileBrowserPaneViewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private void OnViewModeMenuClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem item || item.Tag is not string tag)
-        {
-            return;
-        }
-
-        if (Enum.TryParse(tag, out FileViewMode mode))
-        {
-            _fileBrowserPaneViewModel.FileViewMode = mode;
-        }
     }
 
     private void OnExitClicked(object sender, RoutedEventArgs e)
@@ -1275,26 +1177,6 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             AppLog.Error("Failed to apply language override.", ex);
         }
-    }
-
-    private async void OnCreateFolderClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.CreateFolderAsync().ConfigureAwait(true);
-    }
-
-    private async void OnRenameClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.RenameSelectionAsync().ConfigureAwait(true);
-    }
-
-    private async void OnMoveClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.MoveSelectionAsync().ConfigureAwait(true);
-    }
-
-    private async void OnDeleteClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.DeleteSelectionAsync().ConfigureAwait(true);
     }
 
     private async Task ShowMessageDialogAsync(string title, string message)
@@ -2008,11 +1890,6 @@ public sealed partial class MainWindow : Window, IDisposable
         Save,
         Cancel,
         PickLocation
-    }
-
-    private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.MoveSelectionToParentAsync().ConfigureAwait(true);
     }
 
     private void OnMapPanePhotoFocusRequested(object? sender, MapPanePhotoFocusRequestedEventArgs e)
