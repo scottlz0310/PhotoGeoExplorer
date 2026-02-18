@@ -7,12 +7,20 @@
 ### 追加
 - AI エージェント共通ガイドラインに「PR 作成後の自動レビュー対応ルーティン」を追加。
 - MainWindow スリム化（第2期）の実装計画書とタスク細分文書を追加（`docs/Architecture/MainWindowSlimdown-Plan.md`, `MainWindowSlimdown-Tasks.md`）。
+- E2E の Required check 化に向けた運用手順書を追加（`docs/CI-E2E-RequiredCheck.md`）。
 
 ### 変更
 - MainWindow のメニュー Click リレーハンドラを撤去し、XAML から直接 Command バインディングに変更（#99）。
   - FileBrowserPaneViewModel に `ToggleImagesOnlyCommand`・`SetViewModeCommand` を追加。
   - FileBrowserPaneView にファイル操作系 Command プロパティを追加（`OpenFolderCommand` 等）。
   - MainWindow.xaml.cs から 14 個のリレーハンドラ（約 83 行）を削除。
+- E2E ワークフロー（`.github/workflows/e2e.yml`）を `workflow_dispatch` のみから `pull_request/push` 常時実行へ拡張。
+  - トリガー対象: `main` / `develop`
+  - `dotnet test` に `--no-build` を追加し、事前ビルド済み成果物を再利用して二重ビルドを回避。
+  - `Windows App SDK Runtime 1.8` を明示検証し、未導入時はインストールして再検証する手順に改善（起動時 bootstrap 失敗を回避）。
+  - E2E 実行後（成功/失敗問わず）に `TestResults`、E2E 診断スクリーンショット、`%LocalAppData%\\PhotoGeoExplorer\\Logs` を artifact として収集・保存。
+  - `Run E2E tests` を最大 2 回実行（1 回リトライ）にし、初回失敗時は `PhotoGeoExplorer` プロセスをクリーンアップして再試行する運用に改善。
+- Security Checks の Gitleaks 実行方式を `gitleaks-action@v2` から CLI 直接実行へ変更（ライセンス未設定環境でも継続運用できるよう改善）。
 - EXIF 編集フローを `MainWindow` から `IExifEditorService` に移管し、`FileBrowserPaneViewModel.EditExifCommand` から実行する構成へ変更（ISSUE#97 PR-2 着手）。
   - `IDialogService` / `DialogService` を追加し、ContentDialog 表示と XamlRoot 待機を共通化。
   - `IExifMetadataService` / `ExifMetadataService` を追加し、EXIF 読み書き依存を抽象化。
@@ -48,6 +56,19 @@
 - `lefthook.yml` と CI（`.github/workflows/ci.yml`）にガイドライン同期チェックを追加。
 
 ### 修正
+- E2E テストで一部ランナー環境において `IsOffscreen` プロパティ未サポート例外が発生する問題を修正。
+  - `AppE2ETests` の UI プロパティ参照を `SafeGet` ベースに変更し、例外耐性を強化。
+  - EXIF コンテキストメニュー取得を右クリック + `Apps` キーのリトライに改善し、フレークを低減。
+- EXIF コンテキストメニュー取得に `list` 右クリック・`Shift+F10`・process 非依存探索のフォールバックを追加し、CI の取得失敗を低減。
+- `ExifEditorSaveAndReopenKeepsCoordinates` の一覧読み込み待機条件を `minimumCount: 2` に揃え、`sample.jpg` 未反映タイミングでのコンテキストメニュー失敗を低減。
+- `ExifEditorSaveAndReopenKeepsCoordinates` にコンテキストメニューのウォームアップ手順（`folder` で開閉）を追加し、`folder` 側のメニューが無い環境では best-effort でスキップするように改善。
+- EXIF コンテキストメニュー探索を強化し、項目中心左クリックでのフォーカス取得、`Focus` 時の COM 例外を無視した再試行、`Keyboard.Type`/`TypeSimultaneously` によるキー入力安定化、`Apps` キー優先・要素中心座標での右クリック・`MenuItem(Name contains EXIF)` フォールバック・失敗時の一覧スナップショット出力を追加。
+- E2E テストのファイル一覧探索に `FileListList` を追加し、表示モードによって `WaitForList` が失敗する問題を修正。
+- `WaitForList` のタイムアウト契約を `TimeoutException` に統一し、タイムアウト時の診断ログ確実化と `List/DataGrid` フォールバック探索を追加。
+- `WaitForList` タイムアウト時に、ファイル一覧候補の UIA 診断ログとスクリーンショットを出力するよう改善。
+- E2E の `WaitForMainWindow` に COM/Win32 タイムアウト耐性を追加し、`GetMainWindow` 取得失敗時は同一プロセスの Window をデスクトップ走査で補完。
+- `WaitForMainWindow` のリトライを `ignoreException` 対応にし、デスクトップ走査時の一時的な UIA COM タイムアウトを失敗扱いせず再試行するよう改善。
+- `FindByAutomationId` と関連リトライを例外許容化し、UIA 検索中の一時的 COM タイムアウトでテストが即失敗しないよう改善。
 - Map 初期化時に `MapPaneViewModel.Map` の変更通知が発火せず、地図が表示されない場合がある問題を修正。
 - CI 相当のローカル品質ゲート（analyzer/nullability）で発生するビルド失敗を解消。
 

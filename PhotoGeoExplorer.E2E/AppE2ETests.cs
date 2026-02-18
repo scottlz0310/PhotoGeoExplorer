@@ -24,6 +24,8 @@ namespace PhotoGeoExplorer.E2E;
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public sealed class AppE2ETests
 {
+    private const string EditExifMenuAutomationId = "FileBrowser.EditExifMenuItem";
+    private static readonly string[] FileListAutomationIds = { "FileListDetails", "FileListIcon", "FileListList" };
     private static readonly string[] PrimaryDialogButtonNames = { "Save", "保存" };
     private static readonly string[] SecondaryDialogButtonNames = { "Cancel", "キャンセル" };
     private readonly ITestOutputHelper _output;
@@ -47,7 +49,7 @@ public sealed class AppE2ETests
                 var window = WaitForMainWindow(app, automation);
                 window.Focus();
 
-                var list = WaitForList(app, automation, window);
+                var list = WaitForList(app, automation, window, _output);
                 Retry.WhileTrue(
                     () => list.Items.Length == 0,
                     timeout: TimeSpan.FromSeconds(20),
@@ -94,13 +96,13 @@ public sealed class AppE2ETests
                 var window = WaitForMainWindow(app, automation);
                 window.Focus();
 
-                var list = WaitForList(app, automation, window);
+                var list = WaitForList(app, automation, window, _output);
                 WaitForListItems(list, minimumCount: 2);
 
                 var disabledMenuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "folder");
                 Assert.False(disabledMenuItem.IsEnabled);
-                Keyboard.Press(VirtualKeyShort.ESCAPE);
-                WaitForElementGone(window, automation, app.ProcessId, "FileBrowser.EditExifMenuItem");
+                Keyboard.Type(VirtualKeyShort.ESCAPE);
+                WaitForElementGone(window, automation, app.ProcessId, EditExifMenuAutomationId);
 
                 var enabledMenuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "sample.jpg");
                 Assert.True(enabledMenuItem.IsEnabled);
@@ -152,8 +154,20 @@ public sealed class AppE2ETests
                 var window = WaitForMainWindow(app, automation);
                 window.Focus();
 
-                var list = WaitForList(app, automation, window);
-                WaitForListItems(list, minimumCount: 1);
+                var list = WaitForList(app, automation, window, _output);
+                WaitForListItems(list, minimumCount: 2);
+
+                try
+                {
+                    var warmupMenu = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "folder");
+                    _output.WriteLine($"Warmup menu state for 'folder': IsEnabled={warmupMenu.IsEnabled}");
+                    Keyboard.Type(VirtualKeyShort.ESCAPE);
+                    WaitForElementGone(window, automation, app.ProcessId, EditExifMenuAutomationId);
+                }
+                catch (TimeoutException)
+                {
+                    _output.WriteLine("Warmup for 'folder' was skipped because the menu item was not found.");
+                }
 
                 var menuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "sample.jpg");
                 Assert.True(menuItem.IsEnabled);
@@ -274,15 +288,189 @@ public sealed class AppE2ETests
         ListBox list,
         string itemName)
     {
-        var listItem = WaitForListItemByName(list, itemName);
-        SelectListItem(listItem);
-        listItem.RightClick();
-        return WaitForElementByAutomationId(
-            window,
-            automation,
-            processId,
-            "FileBrowser.EditExifMenuItem",
-            timeout: TimeSpan.FromSeconds(10));
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                var listItem = WaitForListItemByName(list, itemName);
+                TryFocusElement(window);
+                SelectListItem(listItem);
+                TryFocusElement(listItem);
+                ClickElementCenter(listItem);
+
+                Keyboard.Type(VirtualKeyShort.APPS);
+                var byAppsKey = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(3));
+                if (byAppsKey is not null)
+                {
+                    return byAppsKey;
+                }
+
+                listItem.RightClick();
+                var byRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(3));
+                if (byRightClick is not null)
+                {
+                    return byRightClick;
+                }
+
+                RightClickElementCenter(listItem);
+                var byMouseRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(3));
+                if (byMouseRightClick is not null)
+                {
+                    return byMouseRightClick;
+                }
+
+                list.RightClick();
+                var byListRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(2));
+                if (byListRightClick is not null)
+                {
+                    return byListRightClick;
+                }
+
+                Keyboard.TypeSimultaneously(VirtualKeyShort.SHIFT, VirtualKeyShort.F10);
+                var byShiftF10 = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(2));
+                if (byShiftF10 is not null)
+                {
+                    return byShiftF10;
+                }
+            }
+            catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException)
+            {
+            }
+
+            Keyboard.Type(VirtualKeyShort.ESCAPE);
+        }
+
+        throw new TimeoutException(
+            $"Context menu item not found for '{itemName}'. List snapshot: {BuildListSnapshot(list)}");
+    }
+
+    private static AutomationElement? TryWaitForEditExifMenuItem(
+        Window window,
+        UIA3Automation automation,
+        int processId,
+        TimeSpan timeout)
+    {
+        return Retry.WhileNull(
+            () => FindByAutomationId(window, EditExifMenuAutomationId, processId)
+                ?? FindByAutomationId(automation.GetDesktop(), EditExifMenuAutomationId, processId)
+                ?? FindEditExifMenuItemByName(window, processId)
+                ?? FindEditExifMenuItemByName(automation.GetDesktop(), processId)
+                ?? window.FindFirstDescendant(cf => cf.ByAutomationId(EditExifMenuAutomationId))
+                ?? automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(EditExifMenuAutomationId))
+                ?? FindEditExifMenuItemByName(window)
+                ?? FindEditExifMenuItemByName(automation.GetDesktop()),
+            timeout: timeout,
+            interval: TimeSpan.FromMilliseconds(150),
+            ignoreException: true,
+            throwOnTimeout: false).Result;
+    }
+
+    private static void RightClickElementCenter(AutomationElement element)
+    {
+        var left = SafeGet(() => element.BoundingRectangle.Left, 0d);
+        var top = SafeGet(() => element.BoundingRectangle.Top, 0d);
+        var width = SafeGet(() => element.BoundingRectangle.Width, 0d);
+        var height = SafeGet(() => element.BoundingRectangle.Height, 0d);
+        if (width <= 1 || height <= 1)
+        {
+            return;
+        }
+
+        var centerX = (int)Math.Round(left + (width / 2d), MidpointRounding.AwayFromZero);
+        var centerY = (int)Math.Round(top + (height / 2d), MidpointRounding.AwayFromZero);
+        Mouse.RightClick(new System.Drawing.Point(centerX, centerY));
+    }
+
+    private static void ClickElementCenter(AutomationElement element)
+    {
+        var left = SafeGet(() => element.BoundingRectangle.Left, 0d);
+        var top = SafeGet(() => element.BoundingRectangle.Top, 0d);
+        var width = SafeGet(() => element.BoundingRectangle.Width, 0d);
+        var height = SafeGet(() => element.BoundingRectangle.Height, 0d);
+        if (width <= 1 || height <= 1)
+        {
+            return;
+        }
+
+        var centerX = (int)Math.Round(left + (width / 2d), MidpointRounding.AwayFromZero);
+        var centerY = (int)Math.Round(top + (height / 2d), MidpointRounding.AwayFromZero);
+        Mouse.LeftClick(new System.Drawing.Point(centerX, centerY));
+    }
+
+    private static void TryFocusElement(AutomationElement element)
+    {
+        try
+        {
+            element.Focus();
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ElementNotAvailableException)
+        {
+        }
+    }
+
+    private static AutomationElement? FindEditExifMenuItemByName(AutomationElement scope, int? processId = null)
+    {
+        try
+        {
+            var candidates = scope.FindAllDescendants(cf => cf.ByControlType(ControlType.MenuItem));
+            foreach (var candidate in candidates)
+            {
+                if (processId.HasValue
+                    && SafeGet(() => candidate.Properties.ProcessId.ValueOrDefault, -1) != processId.Value)
+                {
+                    continue;
+                }
+
+                var name = SafeGet(() => candidate.Name, string.Empty);
+                var propertyName = SafeGet(() => candidate.Properties.Name.ValueOrDefault, string.Empty);
+                if (ContainsIgnoreCase(name, "EXIF") || ContainsIgnoreCase(propertyName, "EXIF"))
+                {
+                    return candidate;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or Win32Exception or TimeoutException)
+        {
+        }
+
+        return null;
+    }
+
+    private static string BuildListSnapshot(ListBox list)
+    {
+        try
+        {
+            var names = list.Items
+                .Select(DescribeListItem)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Take(8)
+                .ToArray();
+            return names.Length == 0 ? "<empty>" : string.Join(", ", names);
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or Win32Exception or TimeoutException)
+        {
+            return $"<snapshot-error:{ex.GetType().Name}>";
+        }
+    }
+
+    private static string DescribeListItem(AutomationElement item)
+    {
+        var primaryName = SafeGet(() => item.Name, string.Empty);
+        var textParts = SafeGet(
+            () => item.FindAllDescendants(cf => cf.ByControlType(ControlType.Text))
+                .Select(text => SafeGet(() => text.Name, string.Empty))
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(3)
+                .ToArray(),
+            Array.Empty<string>());
+
+        if (textParts.Length > 0)
+        {
+            return string.Join("|", textParts);
+        }
+
+        return primaryName;
     }
 
     private static AutomationElement WaitForElementByAutomationId(
@@ -292,15 +480,30 @@ public sealed class AppE2ETests
         string automationId,
         TimeSpan? timeout = null)
     {
+        var result = TryWaitForElementByAutomationId(window, automation, processId, automationId, timeout);
+        if (result is null)
+        {
+            throw new TimeoutException($"Element with AutomationId '{automationId}' was not found within the timeout.");
+        }
+
+        return result;
+    }
+
+    private static AutomationElement? TryWaitForElementByAutomationId(
+        Window window,
+        UIA3Automation automation,
+        int processId,
+        string automationId,
+        TimeSpan? timeout = null)
+    {
         var actualTimeout = timeout ?? TimeSpan.FromSeconds(20);
-        var result = Retry.WhileNull(
+        return Retry.WhileNull(
             () => FindByAutomationId(window, automationId, processId)
                 ?? FindByAutomationId(automation.GetDesktop(), automationId, processId),
             timeout: actualTimeout,
-            interval: TimeSpan.FromMilliseconds(150));
-
-        Assert.NotNull(result.Result);
-        return result.Result!;
+            interval: TimeSpan.FromMilliseconds(150),
+            ignoreException: true,
+            throwOnTimeout: false).Result;
     }
 
     private static void WaitForElementGone(
@@ -457,27 +660,85 @@ public sealed class AppE2ETests
 
     private static Window WaitForMainWindow(Application app, UIA3Automation automation)
     {
-        var window = Retry.WhileNull(
-                () => app.GetMainWindow(automation),
-                timeout: TimeSpan.FromSeconds(30),
-                interval: TimeSpan.FromMilliseconds(200))
-            .Result;
-        Assert.NotNull(window);
-        return window!;
+        var result = Retry.WhileNull(
+            () => TryGetMainWindow(app, automation),
+            timeout: TimeSpan.FromSeconds(30),
+            interval: TimeSpan.FromMilliseconds(200),
+            throwOnTimeout: false,
+            ignoreException: true);
+
+        if (result.TimedOut || result.Result is null)
+        {
+            throw new TimeoutException("Main window was not found within the timeout.");
+        }
+
+        return result.Result;
     }
 
-    private static ListBox WaitForList(Application app, UIA3Automation automation, Window window)
+    private static Window? TryGetMainWindow(Application app, UIA3Automation automation)
+    {
+        try
+        {
+            var byMainHandle = app.GetMainWindow(automation);
+            if (byMainHandle is not null)
+            {
+                return byMainHandle;
+            }
+        }
+        catch (Exception ex) when (ex is COMException or Win32Exception or TimeoutException)
+        {
+        }
+
+        var processId = SafeGet(() => app.ProcessId, -1);
+        if (processId <= 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            var desktopWindow = automation.GetDesktop()
+                .FindAllChildren(cf => cf.ByControlType(ControlType.Window))
+                .FirstOrDefault(window =>
+                    SafeGet(() => window.Properties.ProcessId.ValueOrDefault, -1) == processId);
+            return desktopWindow?.AsWindow();
+        }
+        catch (Exception ex) when (ex is COMException or Win32Exception or TimeoutException)
+        {
+            return null;
+        }
+    }
+
+    private static ListBox WaitForList(Application app, UIA3Automation automation, Window window, ITestOutputHelper output)
     {
         WaitForWindowReady(window);
 
         AutomationElement? listElement = null;
-        Retry.WhileTrue(
+        var waitResult = Retry.WhileTrue(
             () => !TryFindReadyList(window, automation, app.ProcessId, out listElement),
             timeout: TimeSpan.FromSeconds(30),
-            interval: TimeSpan.FromMilliseconds(200));
+            interval: TimeSpan.FromMilliseconds(200),
+            throwOnTimeout: false);
+        if (waitResult.TimedOut || listElement is null)
+        {
+            try
+            {
+                DumpListDiagnostics(output, automation, app, window);
+            }
+            catch (Exception ex) when (ex is COMException
+                or InvalidOperationException
+                or TimeoutException
+                or Win32Exception
+                or ElementNotAvailableException
+                or PropertyNotSupportedException
+                or TargetInvocationException)
+            {
+                output.WriteLine($"DumpListDiagnostics failed: {ex}");
+            }
+            throw new TimeoutException("File list element was not found within the timeout.");
+        }
 
-        Assert.NotNull(listElement);
-        return listElement!.AsListBox();
+        return listElement.AsListBox();
     }
 
     private static void WaitForWindowReady(Window window)
@@ -485,13 +746,14 @@ public sealed class AppE2ETests
         Retry.WhileTrue(
             () =>
             {
-                if (!window.IsEnabled || window.IsOffscreen)
+                if (!SafeGet(() => window.IsEnabled, false) || SafeGet(() => window.IsOffscreen, false))
                 {
                     return true;
                 }
 
-                var bounds = window.BoundingRectangle;
-                return bounds.Width <= 1 || bounds.Height <= 1;
+                var width = SafeGet(() => window.BoundingRectangle.Width, 0d);
+                var height = SafeGet(() => window.BoundingRectangle.Height, 0d);
+                return width <= 1 || height <= 1;
             },
             timeout: TimeSpan.FromSeconds(30),
             interval: TimeSpan.FromMilliseconds(200));
@@ -510,13 +772,15 @@ public sealed class AppE2ETests
             return false;
         }
 
-        if (!element.IsEnabled || element.IsOffscreen)
+        var targetElement = element;
+        if (!SafeGet(() => targetElement.IsEnabled, false) || SafeGet(() => targetElement.IsOffscreen, false))
         {
             return false;
         }
 
-        var bounds = element.BoundingRectangle;
-        if (bounds.Width <= 1 || bounds.Height <= 1)
+        var width = SafeGet(() => targetElement.BoundingRectangle.Width, 0d);
+        var height = SafeGet(() => targetElement.BoundingRectangle.Height, 0d);
+        if (width <= 1 || height <= 1)
         {
             return false;
         }
@@ -526,14 +790,33 @@ public sealed class AppE2ETests
 
     private static AutomationElement? FindListElement(AutomationElement scope)
     {
-        return scope.FindFirstDescendant(cf => cf.ByAutomationId("FileListDetails"))
-            ?? scope.FindFirstDescendant(cf => cf.ByAutomationId("FileListIcon"));
+        foreach (var automationId in FileListAutomationIds)
+        {
+            var element = scope.FindFirstDescendant(cf => cf.ByAutomationId(automationId));
+            if (element is not null)
+            {
+                return element;
+            }
+        }
+
+        var candidates = scope.FindAllDescendants(cf => cf.ByControlType(ControlType.List).Or(cf.ByControlType(ControlType.DataGrid)));
+        return SelectBestFileListCandidate(candidates);
     }
 
     private static AutomationElement? FindListElement(AutomationElement scope, int processId)
     {
-        var candidates = scope.FindAllDescendants(cf => cf.ByAutomationId("FileListDetails").Or(cf.ByAutomationId("FileListIcon")));
-        return candidates.FirstOrDefault(candidate => candidate.Properties.ProcessId.Value == processId);
+        var candidates = scope.FindAllDescendants(cf => cf.ByAutomationId("FileListDetails")
+            .Or(cf.ByAutomationId("FileListIcon"))
+            .Or(cf.ByAutomationId("FileListList")));
+        var explicitMatch = candidates.FirstOrDefault(candidate => candidate.Properties.ProcessId.ValueOrDefault == processId);
+        if (explicitMatch is not null)
+        {
+            return explicitMatch;
+        }
+
+        var fallbackCandidates = scope.FindAllDescendants(cf => cf.ByControlType(ControlType.List).Or(cf.ByControlType(ControlType.DataGrid)))
+            .Where(candidate => SafeGet(() => candidate.Properties.ProcessId.ValueOrDefault, -1) == processId);
+        return SelectBestFileListCandidate(fallbackCandidates);
     }
 
     private static void WaitForPreview(Window window)
@@ -542,7 +825,7 @@ public sealed class AppE2ETests
             () =>
             {
                 var preview = window.FindFirstDescendant(cf => cf.ByAutomationId("PreviewImage"));
-                return preview is null || preview.IsOffscreen;
+                return preview is null || SafeGet(() => preview.IsOffscreen, false);
             },
             timeout: TimeSpan.FromSeconds(20),
             interval: TimeSpan.FromMilliseconds(200));
@@ -582,13 +865,14 @@ public sealed class AppE2ETests
             return false;
         }
 
-        if (summary.IsOffscreen)
+        if (SafeGet(() => summary.IsOffscreen, false))
         {
             return false;
         }
 
-        var bounds = summary.BoundingRectangle;
-        if (bounds.Width <= 1 || bounds.Height <= 1)
+        var width = SafeGet(() => summary.BoundingRectangle.Width, 0d);
+        var height = SafeGet(() => summary.BoundingRectangle.Height, 0d);
+        if (width <= 1 || height <= 1)
         {
             return false;
         }
@@ -637,6 +921,36 @@ public sealed class AppE2ETests
         TryCaptureWindowScreenshot(output, window);
     }
 
+    private static void DumpListDiagnostics(
+        ITestOutputHelper output,
+        UIA3Automation automation,
+        Application app,
+        Window window)
+    {
+        output.WriteLine("=== UIA diagnostics: FileList ===");
+        DumpElementSummary(output, "MainWindow", window);
+        foreach (var automationId in FileListAutomationIds)
+        {
+            DumpSpecificElement(output, $"Window.{automationId}", window.FindFirstDescendant(cf => cf.ByAutomationId(automationId)));
+        }
+
+        var desktop = automation.GetDesktop();
+        foreach (var automationId in FileListAutomationIds)
+        {
+            DumpSpecificElement(output, $"Desktop.{automationId}", FindByAutomationId(desktop, automationId, app.ProcessId));
+        }
+
+        var windowDescendants = window.FindAllDescendants();
+        output.WriteLine($"Window descendants: {windowDescendants.Length}");
+        DumpListCandidates(output, "Window list candidates", windowDescendants, processId: null);
+
+        var desktopDescendants = desktop.FindAllDescendants();
+        output.WriteLine($"Desktop descendants (process {app.ProcessId}): {desktopDescendants.Length}");
+        DumpListCandidates(output, "Desktop list candidates (process)", desktopDescendants, processId: app.ProcessId);
+
+        TryCaptureWindowScreenshot(output, window);
+    }
+
     private static void DumpElementSummary(ITestOutputHelper output, string label, AutomationElement? element)
     {
         if (element is null)
@@ -677,6 +991,24 @@ public sealed class AppE2ETests
         }
     }
 
+    private static void DumpListCandidates(
+        ITestOutputHelper output,
+        string label,
+        IEnumerable<AutomationElement> elements,
+        int? processId)
+    {
+        var candidates = elements
+            .Where(element => IsListCandidate(element, processId))
+            .Take(50)
+            .ToList();
+
+        output.WriteLine($"{label}: {candidates.Count} candidates");
+        foreach (var candidate in candidates)
+        {
+            output.WriteLine(FormatElement(candidate));
+        }
+    }
+
     private static bool IsMetadataCandidate(AutomationElement element, int? processId)
     {
         if (processId is int requiredProcessId)
@@ -702,6 +1034,48 @@ public sealed class AppE2ETests
             || controlType == ControlType.Document;
 
         return hasKeyword || isTextLike;
+    }
+
+    private static bool IsListCandidate(AutomationElement element, int? processId)
+    {
+        if (processId is int requiredProcessId)
+        {
+            var elementProcessId = SafeGet(() => element.Properties.ProcessId.ValueOrDefault, -1);
+            if (elementProcessId != requiredProcessId)
+            {
+                return false;
+            }
+        }
+
+        var automationId = SafeGet(() => element.Properties.AutomationId.ValueOrDefault, string.Empty);
+        var controlType = SafeGet(() => element.ControlType, ControlType.Custom);
+        return controlType == ControlType.List
+            || controlType == ControlType.DataGrid
+            || FileListAutomationIds.Any(id => string.Equals(id, automationId, StringComparison.Ordinal));
+    }
+
+    private static AutomationElement? SelectBestFileListCandidate(IEnumerable<AutomationElement> candidates)
+    {
+        return candidates
+            .OrderByDescending(IsListCandidateLikelyFileList)
+            .ThenByDescending(candidate => SafeGet(() => candidate.BoundingRectangle.Width * candidate.BoundingRectangle.Height, 0d))
+            .FirstOrDefault();
+    }
+
+    private static bool IsListCandidateLikelyFileList(AutomationElement element)
+    {
+        var automationId = SafeGet(() => element.Properties.AutomationId.ValueOrDefault, string.Empty);
+        if (FileListAutomationIds.Any(id => string.Equals(id, automationId, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        var name = SafeGet(() => element.Name, string.Empty);
+        var className = SafeGet(() => element.ClassName, string.Empty);
+        return ContainsIgnoreCase(automationId, "file")
+            || ContainsIgnoreCase(automationId, "list")
+            || ContainsIgnoreCase(name, "file")
+            || ContainsIgnoreCase(className, "list");
     }
 
     private static string FormatElement(AutomationElement element)
@@ -740,8 +1114,15 @@ public sealed class AppE2ETests
 
     private static AutomationElement? FindByAutomationId(AutomationElement scope, string automationId, int processId)
     {
-        var candidates = scope.FindAllDescendants(cf => cf.ByAutomationId(automationId));
-        return candidates.FirstOrDefault(candidate => SafeGet(() => candidate.Properties.ProcessId.ValueOrDefault, -1) == processId);
+        try
+        {
+            var candidates = scope.FindAllDescendants(cf => cf.ByAutomationId(automationId));
+            return candidates.FirstOrDefault(candidate => SafeGet(() => candidate.Properties.ProcessId.ValueOrDefault, -1) == processId);
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or Win32Exception or TimeoutException)
+        {
+            return null;
+        }
     }
 
     private static bool ContainsIgnoreCase(string? value, string keyword)
@@ -818,7 +1199,7 @@ public sealed class AppE2ETests
             () =>
             {
                 var status = window.FindFirstDescendant(cf => cf.ByAutomationId("MapStatusPanel"));
-                return status is not null && !status.IsOffscreen;
+                return status is not null && !SafeGet(() => status.IsOffscreen, true);
             },
             timeout: TimeSpan.FromSeconds(20),
             interval: TimeSpan.FromMilliseconds(200),

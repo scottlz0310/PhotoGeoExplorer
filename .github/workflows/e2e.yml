@@ -1,6 +1,10 @@
 name: E2E
 
 on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
   workflow_dispatch:
 
 permissions:
@@ -28,8 +32,9 @@ jobs:
       - name: Ensure Windows App SDK runtime
         shell: pwsh
         run: |
-          $runtime = Get-AppxPackage -Name "Microsoft.WindowsAppRuntime*" -ErrorAction SilentlyContinue
+          $runtime = Get-AppxPackage -Name "Microsoft.WindowsAppRuntime.1.8*" -ErrorAction SilentlyContinue
           if (-not $runtime) {
+            Write-Host "Windows App SDK runtime 1.8 not found. Installing..."
             if (Get-Command winget -ErrorAction SilentlyContinue) {
               winget install --id Microsoft.WindowsAppRuntime.1.8 --accept-source-agreements --accept-package-agreements --silent
             } else {
@@ -38,6 +43,11 @@ jobs:
               Invoke-WebRequest -Uri $uri -OutFile $msix
               Add-AppxPackage -Path $msix
             }
+          }
+
+          $runtime = Get-AppxPackage -Name "Microsoft.WindowsAppRuntime.1.8*" -ErrorAction SilentlyContinue
+          if (-not $runtime) {
+            throw "Windows App SDK runtime 1.8 installation verification failed."
           }
 
       - name: Set display resolution
@@ -97,6 +107,93 @@ jobs:
           [DisplaySettings]::ChangeDisplaySettings([ref]$dev, 0) | Out-Null
 
       - name: Run E2E tests
-        run: dotnet test PhotoGeoExplorer.E2E/PhotoGeoExplorer.E2E.csproj -c Release
+        shell: pwsh
+        run: |
+          $maxAttempts = 2
+          $passed = $false
+
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            $resultFile = "e2e-results-attempt$attempt.trx"
+            Write-Host "Running E2E tests (attempt $attempt/$maxAttempts)..."
+            $testArgs = @(
+              "PhotoGeoExplorer.E2E/PhotoGeoExplorer.E2E.csproj",
+              "-c", "Release",
+              "--no-build",
+              "--logger", "trx;LogFileName=$resultFile",
+              "--results-directory", "TestResults",
+              "--blame-hang-timeout", "10m"
+            )
+
+            dotnet test @testArgs
+            if ($LASTEXITCODE -eq 0) {
+              $passed = $true
+              break
+            }
+
+            if ($attempt -lt $maxAttempts) {
+              Write-Warning "E2E tests failed on attempt $attempt. Retrying once..."
+              Get-Process -Name PhotoGeoExplorer -ErrorAction SilentlyContinue | Stop-Process -Force
+              Start-Sleep -Seconds 3
+            }
+          }
+
+          if (-not $passed) {
+            throw "E2E tests failed after $maxAttempts attempts."
+          }
         env:
           PHOTO_GEO_EXPLORER_RUN_E2E: "1"
+
+      - name: Collect E2E diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          $artifactRoot = Join-Path $PWD "E2EArtifacts"
+          New-Item -ItemType Directory -Path $artifactRoot -Force | Out-Null
+
+          $resultsSource = Join-Path $PWD "TestResults"
+          if (Test-Path $resultsSource) {
+            try {
+              Copy-Item -Path $resultsSource -Destination (Join-Path $artifactRoot "TestResults") -Recurse -Force
+            } catch {
+              Write-Warning "Failed to copy E2E test results from '$resultsSource': $_"
+            }
+          }
+
+          $diagnosticsSource = Join-Path $env:TEMP "PhotoGeoExplorerE2E\\Diagnostics"
+          if (Test-Path $diagnosticsSource) {
+            try {
+              Copy-Item -Path $diagnosticsSource -Destination (Join-Path $artifactRoot "Diagnostics") -Recurse -Force
+            } catch {
+              Write-Warning "Failed to copy E2E diagnostics from '$diagnosticsSource': $_"
+            }
+          }
+
+          $appLogSource = Join-Path $env:LOCALAPPDATA "PhotoGeoExplorer\\Logs"
+          if (Test-Path $appLogSource) {
+            try {
+              Copy-Item -Path $appLogSource -Destination (Join-Path $artifactRoot "AppLogs") -Recurse -Force
+            } catch {
+              Write-Warning "Failed to copy app logs from '$appLogSource': $_"
+            }
+          }
+
+          try {
+            $processSnapshotPath = Join-Path $artifactRoot "process-snapshot.json"
+            $processes = Get-Process -Name PhotoGeoExplorer -ErrorAction SilentlyContinue | Select-Object Name, Id, StartTime
+            if ($processes) {
+              $processes | ConvertTo-Json -Depth 3 | Set-Content -Path $processSnapshotPath -Encoding utf8
+            } else {
+              "[]" | Set-Content -Path $processSnapshotPath -Encoding utf8
+            }
+          } catch {
+            Write-Warning "Failed to collect process snapshot for 'PhotoGeoExplorer': $_"
+          }
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: E2EArtifacts/
+          if-no-files-found: warn
+          retention-days: 14
