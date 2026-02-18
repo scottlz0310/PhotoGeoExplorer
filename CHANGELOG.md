@@ -13,6 +13,11 @@
   - FileBrowserPaneViewModel に `ToggleImagesOnlyCommand`・`SetViewModeCommand` を追加。
   - FileBrowserPaneView にファイル操作系 Command プロパティを追加（`OpenFolderCommand` 等）。
   - MainWindow.xaml.cs から 14 個のリレーハンドラ（約 83 行）を削除。
+- EXIF 編集フローを `MainWindow` から `IExifEditorService` に移管し、`FileBrowserPaneViewModel.EditExifCommand` から実行する構成へ変更（ISSUE#97 PR-2 着手）。
+  - `IDialogService` / `DialogService` を追加し、ContentDialog 表示と XamlRoot 待機を共通化。
+  - `IExifMetadataService` / `ExifMetadataService` を追加し、EXIF 読み書き依存を抽象化。
+  - `MapPaneViewControl` を `IExifLocationPicker` 実装として接続。
+  - EXIF ダイアログ要素と EXIF コンテキストメニューに AutomationId を追加し、E2E から安定して操作可能に改善。
 - MapPaneService の CA2025 アナライザ警告を抑制（`SemaphoreSlim` の安全な使用パターン）。
 - Shell + Pane アーキテクチャの導入（ISSUE #70）
   - `IPaneViewModel` インターフェースと `PaneViewModelBase` 基底クラス
@@ -48,6 +53,8 @@
 
 ### テスト
 - Map 選択判定のテストを拡充（矩形境界判定、重複除外、閾値判定、引数異常系）。
+- `ExifEditorServiceTests` を追加し、編集可否バリデーションと編集フロー分岐（キャンセル/位置取得/保存）を検証。
+- EXIF 編集フローの E2E テストを追加（右クリックメニュー有効状態、日時UIトグル、座標保存後の再編集確認）。
 - ローカル実行で `dotnet build` / `dotnet test` / `dotnet format --verify-no-changes` を通過。
 
 ## [1.5.5] - 2026-01-23

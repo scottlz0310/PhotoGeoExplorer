@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
@@ -48,8 +49,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
     public ICommand MoveSelectionCommand { get; }
     public ICommand MoveSelectionToParentCommand { get; }
     public ICommand DeleteSelectionCommand { get; }
-
-    public event EventHandler? EditExifRequested;
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -894,9 +893,10 @@ internal sealed partial class FileBrowserPaneView : UserControl
         {
             Text = LocalizationService.GetString("Menu.EditExif"),
             Icon = new SymbolIcon(Symbol.Edit),
-            IsEnabled = viewModel.CanRenameSelection && IsJpegFile(viewModel.SelectedItem)
+            Command = viewModel.EditExifCommand,
+            IsEnabled = viewModel.CanEditExif
         };
-        editExifItem.Click += OnEditExifClicked;
+        AutomationProperties.SetAutomationId(editExifItem, "FileBrowser.EditExifMenuItem");
 
         flyout.Items.Add(createFolder);
         flyout.Items.Add(new MenuFlyoutSeparator());
@@ -908,11 +908,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
         flyout.Items.Add(deleteItem);
 
         return flyout;
-    }
-
-    private void OnEditExifClicked(object sender, RoutedEventArgs e)
-    {
-        EditExifRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private static bool IsInternalDrag(DragEventArgs e)
@@ -1240,18 +1235,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         return trimmed;
-    }
-
-    private static bool IsJpegFile(PhotoListItem? item)
-    {
-        if (item is null || item.IsFolder)
-        {
-            return false;
-        }
-
-        var extension = Path.GetExtension(item.FilePath);
-        return string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<string?> ShowTextInputDialogAsync(

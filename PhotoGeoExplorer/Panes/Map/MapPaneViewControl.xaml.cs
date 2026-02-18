@@ -23,7 +23,7 @@ using Windows.UI.Core;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
-internal sealed partial class MapPaneViewControl : UserControl, IDisposable
+internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IExifLocationPicker
 {
     private const string PhotoItemKey = "PhotoItem";
     private const string PhotoMetadataKey = "PhotoMetadata";

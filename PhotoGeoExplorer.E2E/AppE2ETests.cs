@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -8,7 +10,9 @@ using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
 using FlaUI.Core.Exceptions;
+using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
+using FlaUI.Core.WindowsAPI;
 using FlaUI.UIA3;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
@@ -20,6 +24,8 @@ namespace PhotoGeoExplorer.E2E;
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public sealed class AppE2ETests
 {
+    private static readonly string[] PrimaryDialogButtonNames = { "Save", "保存" };
+    private static readonly string[] SecondaryDialogButtonNames = { "Cancel", "キャンセル" };
     private readonly ITestOutputHelper _output;
 
     public AppE2ETests(ITestOutputHelper output)
@@ -36,27 +42,33 @@ public sealed class AppE2ETests
             testData = await E2ETestData.CreateAsync(_output).ConfigureAwait(true);
             using var automation = new UIA3Automation();
             using var app = Application.Launch(testData.StartInfo);
-
-            var window = WaitForMainWindow(app, automation);
-            window.Focus();
-
-            var list = WaitForList(app, automation, window);
-            Retry.WhileTrue(
-                () => list.Items.Length == 0,
-                timeout: TimeSpan.FromSeconds(20),
-                interval: TimeSpan.FromMilliseconds(200));
-
-            list.Focus();
-            var firstItem = list.Items[0];
-            SelectListItem(firstItem);
-
-            WaitForPreview(window);
-            var summary = WaitForMetadataSummary(window, automation, app, _output);
-            Assert.Contains("Fujifilm", summary, StringComparison.Ordinal);
-
-            if (!TryWaitForMapReady(window))
+            try
             {
-                _output.WriteLine("Map readiness check skipped (status panel still visible).");
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window);
+                Retry.WhileTrue(
+                    () => list.Items.Length == 0,
+                    timeout: TimeSpan.FromSeconds(20),
+                    interval: TimeSpan.FromMilliseconds(200));
+
+                list.Focus();
+                var imageItem = WaitForListItemByName(list, "sample.jpg");
+                SelectListItem(imageItem);
+
+                WaitForPreview(window);
+                var summary = WaitForMetadataSummary(window, automation, app, _output);
+                Assert.Contains("Fujifilm", summary, StringComparison.Ordinal);
+
+                if (!TryWaitForMapReady(window))
+                {
+                    _output.WriteLine("Map readiness check skipped (status panel still visible).");
+                }
+            }
+            finally
+            {
+                TerminateApp(app);
             }
         }
         finally
@@ -66,6 +78,381 @@ public sealed class AppE2ETests
                 await testData.DisposeAsync().ConfigureAwait(true);
             }
         }
+    }
+
+    [E2EFact]
+    public async Task ExifEditorContextMenuAndDateToggleWorks()
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window);
+                WaitForListItems(list, minimumCount: 2);
+
+                var disabledMenuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "folder");
+                Assert.False(disabledMenuItem.IsEnabled);
+                Keyboard.Press(VirtualKeyShort.ESCAPE);
+                WaitForElementGone(window, automation, app.ProcessId, "FileBrowser.EditExifMenuItem");
+
+                var enabledMenuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "sample.jpg");
+                Assert.True(enabledMenuItem.IsEnabled);
+                enabledMenuItem.Click();
+
+                var updateDate = WaitForElementByAutomationId(window, automation, app.ProcessId, "ExifEditor.UpdateDateCheckBox");
+                var datePicker = WaitForElementByAutomationId(window, automation, app.ProcessId, "ExifEditor.TakenAtDatePicker");
+                var timePicker = WaitForElementByAutomationId(window, automation, app.ProcessId, "ExifEditor.TakenAtTimePicker");
+                var updateFileDate = WaitForElementByAutomationId(window, automation, app.ProcessId, "ExifEditor.UpdateFileDateCheckBox");
+
+                SetCheckBoxState(updateDate, isChecked: false);
+                WaitForEnabledState(datePicker, isEnabled: false);
+                WaitForEnabledState(timePicker, isEnabled: false);
+                WaitForEnabledState(updateFileDate, isEnabled: false);
+
+                SetCheckBoxState(updateDate, isChecked: true);
+                WaitForEnabledState(datePicker, isEnabled: true);
+                WaitForEnabledState(timePicker, isEnabled: true);
+                WaitForEnabledState(updateFileDate, isEnabled: true);
+
+                ClickSecondaryDialogButton(window, automation, app.ProcessId);
+                WaitForElementGone(window, automation, app.ProcessId, "ExifEditor.UpdateDateCheckBox");
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    [E2EFact]
+    public async Task ExifEditorSaveAndReopenKeepsCoordinates()
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window);
+                WaitForListItems(list, minimumCount: 1);
+
+                var menuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "sample.jpg");
+                Assert.True(menuItem.IsEnabled);
+                menuItem.Click();
+
+                var latitudeBox = WaitForElementByAutomationId(window, automation, app.ProcessId, "ExifEditor.LatitudeTextBox");
+                var longitudeBox = WaitForElementByAutomationId(window, automation, app.ProcessId, "ExifEditor.LongitudeTextBox");
+                SetTextBoxValue(latitudeBox, "34.000001");
+                SetTextBoxValue(longitudeBox, "135.000001");
+
+                ClickPrimaryDialogButton(window, automation, app.ProcessId);
+                WaitForElementGone(window, automation, app.ProcessId, "ExifEditor.LatitudeTextBox");
+
+                var reopenMenu = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "sample.jpg");
+                Assert.True(reopenMenu.IsEnabled);
+                reopenMenu.Click();
+
+                var reopenedLatitudeBox = WaitForElementByAutomationId(window, automation, app.ProcessId, "ExifEditor.LatitudeTextBox");
+                var reopenedLongitudeBox = WaitForElementByAutomationId(window, automation, app.ProcessId, "ExifEditor.LongitudeTextBox");
+
+                var latitude = ParseInvariantDouble(GetTextBoxValue(reopenedLatitudeBox));
+                var longitude = ParseInvariantDouble(GetTextBoxValue(reopenedLongitudeBox));
+
+                Assert.InRange(latitude, 33.999, 34.001);
+                Assert.InRange(longitude, 134.999, 135.001);
+
+                ClickSecondaryDialogButton(window, automation, app.ProcessId);
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    private static void WaitForListItems(ListBox list, int minimumCount)
+    {
+        Retry.WhileTrue(
+            () => list.Items.Length < minimumCount,
+            timeout: TimeSpan.FromSeconds(20),
+            interval: TimeSpan.FromMilliseconds(200));
+    }
+
+    private static void TerminateApp(Application? app)
+    {
+        if (app is null)
+        {
+            return;
+        }
+
+        var processId = SafeGet(() => app.ProcessId, -1);
+        try
+        {
+            app.Close();
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or Win32Exception)
+        {
+        }
+
+        if (processId > 0)
+        {
+            try
+            {
+                using var process = Process.GetProcessById(processId);
+                if (!process.WaitForExit(2000))
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit(5000);
+                }
+            }
+            catch (Exception ex) when (ex is ArgumentException
+                or InvalidOperationException
+                or System.NotSupportedException
+                or Win32Exception)
+            {
+            }
+        }
+
+    }
+
+    private static ListBoxItem WaitForListItemByName(ListBox list, string expectedName)
+    {
+        var result = Retry.WhileNull(
+            () => list.Items.FirstOrDefault(item =>
+                ListItemMatches(item, expectedName)),
+            timeout: TimeSpan.FromSeconds(20),
+            interval: TimeSpan.FromMilliseconds(200));
+
+        Assert.NotNull(result.Result);
+        return result.Result!;
+    }
+
+    private static bool ListItemMatches(AutomationElement item, string expectedName)
+    {
+        if (ContainsIgnoreCase(SafeGet(() => item.Name, string.Empty), expectedName)
+            || ContainsIgnoreCase(SafeGet(() => item.Properties.Name.ValueOrDefault, string.Empty), expectedName))
+        {
+            return true;
+        }
+
+        var descendants = item.FindAllDescendants(cf => cf.ByControlType(ControlType.Text));
+        return descendants.Any(text =>
+            ContainsIgnoreCase(SafeGet(() => text.Name, string.Empty), expectedName)
+            || ContainsIgnoreCase(SafeGet(() => text.Properties.Name.ValueOrDefault, string.Empty), expectedName));
+    }
+
+    private static AutomationElement OpenExifMenuForItemName(
+        Window window,
+        UIA3Automation automation,
+        int processId,
+        ListBox list,
+        string itemName)
+    {
+        var listItem = WaitForListItemByName(list, itemName);
+        SelectListItem(listItem);
+        listItem.RightClick();
+        return WaitForElementByAutomationId(
+            window,
+            automation,
+            processId,
+            "FileBrowser.EditExifMenuItem",
+            timeout: TimeSpan.FromSeconds(10));
+    }
+
+    private static AutomationElement WaitForElementByAutomationId(
+        Window window,
+        UIA3Automation automation,
+        int processId,
+        string automationId,
+        TimeSpan? timeout = null)
+    {
+        var actualTimeout = timeout ?? TimeSpan.FromSeconds(20);
+        var result = Retry.WhileNull(
+            () => FindByAutomationId(window, automationId, processId)
+                ?? FindByAutomationId(automation.GetDesktop(), automationId, processId),
+            timeout: actualTimeout,
+            interval: TimeSpan.FromMilliseconds(150));
+
+        Assert.NotNull(result.Result);
+        return result.Result!;
+    }
+
+    private static void WaitForElementGone(
+        Window window,
+        UIA3Automation automation,
+        int processId,
+        string automationId)
+    {
+        Retry.WhileTrue(
+            () => (FindByAutomationId(window, automationId, processId)
+                ?? FindByAutomationId(automation.GetDesktop(), automationId, processId))
+                is not null,
+            timeout: TimeSpan.FromSeconds(10),
+            interval: TimeSpan.FromMilliseconds(150));
+    }
+
+    private static void SetCheckBoxState(AutomationElement checkBoxElement, bool isChecked)
+    {
+        Retry.WhileTrue(
+            () =>
+            {
+                if (!checkBoxElement.Patterns.Toggle.IsSupported)
+                {
+                    checkBoxElement.Click();
+                    return true;
+                }
+
+                var current = checkBoxElement.Patterns.Toggle.Pattern.ToggleState == ToggleState.On;
+                if (current == isChecked)
+                {
+                    return false;
+                }
+
+                checkBoxElement.Click();
+                return true;
+            },
+            timeout: TimeSpan.FromSeconds(5),
+            interval: TimeSpan.FromMilliseconds(150),
+            throwOnTimeout: false);
+
+        if (checkBoxElement.Patterns.Toggle.IsSupported)
+        {
+            var current = checkBoxElement.Patterns.Toggle.Pattern.ToggleState == ToggleState.On;
+            Assert.Equal(isChecked, current);
+        }
+    }
+
+    private static void WaitForEnabledState(AutomationElement element, bool isEnabled)
+    {
+        Retry.WhileTrue(
+            () => element.IsEnabled != isEnabled,
+            timeout: TimeSpan.FromSeconds(5),
+            interval: TimeSpan.FromMilliseconds(150));
+
+        Assert.Equal(isEnabled, element.IsEnabled);
+    }
+
+    private static void SetTextBoxValue(AutomationElement textBoxElement, string value)
+    {
+        if (textBoxElement.Patterns.Value.IsSupported)
+        {
+            textBoxElement.Patterns.Value.Pattern.SetValue(value);
+            return;
+        }
+
+        var textBox = textBoxElement.AsTextBox();
+        textBox.Focus();
+        textBox.Enter(value);
+    }
+
+    private static string GetTextBoxValue(AutomationElement textBoxElement)
+    {
+        if (textBoxElement.Patterns.Value.IsSupported)
+        {
+            return textBoxElement.Patterns.Value.Pattern.Value.Value ?? string.Empty;
+        }
+
+        return textBoxElement.Name ?? string.Empty;
+    }
+
+    private static void ClickPrimaryDialogButton(Window window, UIA3Automation automation, int processId)
+    {
+        ClickDialogButton(
+            window,
+            automation,
+            processId,
+            "PrimaryButton",
+            PrimaryDialogButtonNames);
+    }
+
+    private static void ClickSecondaryDialogButton(Window window, UIA3Automation automation, int processId)
+    {
+        ClickDialogButton(
+            window,
+            automation,
+            processId,
+            "SecondaryButton",
+            SecondaryDialogButtonNames);
+    }
+
+    private static void ClickDialogButton(
+        Window window,
+        UIA3Automation automation,
+        int processId,
+        string automationId,
+        IReadOnlyList<string> fallbackNames)
+    {
+        try
+        {
+            var byId = WaitForElementByAutomationId(
+                window,
+                automation,
+                processId,
+                automationId,
+                timeout: TimeSpan.FromSeconds(3));
+            byId.Click();
+            return;
+        }
+        catch (TimeoutException)
+        {
+        }
+
+        foreach (var name in fallbackNames)
+        {
+            var button = FindButtonByName(window, name, processId)
+                ?? FindButtonByName(automation.GetDesktop(), name, processId);
+            if (button is not null)
+            {
+                button.Click();
+                return;
+            }
+        }
+
+        throw new TimeoutException($"Dialog button not found. AutomationId='{automationId}'");
+    }
+
+    private static AutomationElement? FindButtonByName(AutomationElement scope, string name, int processId)
+    {
+        var candidates = scope.FindAllDescendants(cf => cf.ByName(name));
+        return candidates.FirstOrDefault(candidate =>
+            SafeGet(() => candidate.Properties.ProcessId.ValueOrDefault, -1) == processId
+            && SafeGet(() => candidate.ControlType, ControlType.Custom) == ControlType.Button);
+    }
+
+    private static double ParseInvariantDouble(string text)
+    {
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        {
+            return value;
+        }
+
+        throw new InvalidOperationException($"Failed to parse coordinate value: '{text}'");
     }
 
     private static Window WaitForMainWindow(Application app, UIA3Automation automation)
@@ -444,13 +831,24 @@ public sealed class AppE2ETests
     {
         if (item.Patterns.SelectionItem.IsSupported)
         {
-            item.Patterns.SelectionItem.Pattern.Select();
-            Retry.WhileTrue(
-                () => !item.Patterns.SelectionItem.Pattern.IsSelected,
-                timeout: TimeSpan.FromSeconds(10),
-                interval: TimeSpan.FromMilliseconds(200),
-                throwOnTimeout: true);
-            return;
+            try
+            {
+                item.Patterns.SelectionItem.Pattern.Select();
+                Retry.WhileTrue(
+                    () => !item.Patterns.SelectionItem.Pattern.IsSelected,
+                    timeout: TimeSpan.FromSeconds(10),
+                    interval: TimeSpan.FromMilliseconds(200),
+                    throwOnTimeout: true);
+                return;
+            }
+            catch (ElementNotAvailableException)
+            {
+                // 再生成タイミングで SelectionItem パターンが一時的に無効になるため、Click にフォールバック
+            }
+            catch (COMException)
+            {
+                // 一部環境で SelectionItem.Select が COM 例外を返すことがある
+            }
         }
 
         item.Click();
@@ -476,6 +874,7 @@ public sealed class AppE2ETests
         {
             var root = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorerE2E", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "folder"));
             var imagePath = Path.Combine(root, "sample.jpg");
             await CreateImageAsync(imagePath).ConfigureAwait(false);
 

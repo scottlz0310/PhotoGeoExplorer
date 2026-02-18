@@ -54,6 +54,7 @@ public class FileBrowserPaneViewModelTests
         Assert.NotNull(viewModel.ToggleSortCommand);
         Assert.NotNull(viewModel.ResetFiltersCommand);
         Assert.NotNull(viewModel.ToggleImagesOnlyCommand);
+        Assert.NotNull(viewModel.EditExifCommand);
         Assert.NotNull(viewModel.SetViewModeCommand);
     }
 

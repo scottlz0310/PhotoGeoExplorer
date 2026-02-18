@@ -28,6 +28,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private const int ThumbnailUpdateBatchIntervalMs = 300;
 
     private readonly IFileBrowserPaneService _service;
+    private readonly IExifEditorService? _exifEditorService;
+    private readonly IDialogService? _dialogService;
     private DispatcherQueue? _dispatcherQueue;
     private readonly WorkspaceState _workspaceState;
     private readonly SemaphoreSlim _thumbnailGenerationSemaphore = new(ThumbnailGenerationConcurrency, ThumbnailGenerationConcurrency);
@@ -75,13 +77,19 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
     }
 
-    internal FileBrowserPaneViewModel(IFileBrowserPaneService service, WorkspaceState workspaceState)
+    internal FileBrowserPaneViewModel(
+        IFileBrowserPaneService service,
+        WorkspaceState workspaceState,
+        IExifEditorService? exifEditorService = null,
+        IDialogService? dialogService = null)
     {
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(workspaceState);
 
         _service = service;
         _workspaceState = workspaceState;
+        _exifEditorService = exifEditorService;
+        _dialogService = dialogService;
         _dispatcherQueue = TryGetDispatcherQueue();
 
         // WorkspaceState にナビゲーションコールバックを設定
@@ -112,6 +120,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             ShowImagesOnly = !ShowImagesOnly;
             await RefreshAsync().ConfigureAwait(false);
         });
+        EditExifCommand = new RelayCommand(async () => await EditExifAsync().ConfigureAwait(true), () => CanEditExif);
         SetViewModeCommand = new RelayCommand<string>(tag =>
         {
             if (tag is not null && Enum.TryParse(tag, out FileViewMode mode))
@@ -287,6 +296,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanModifySelection));
                 OnPropertyChanged(nameof(CanRenameSelection));
                 OnPropertyChanged(nameof(CanMoveToParentSelection));
+                OnPropertyChanged(nameof(CanEditExif));
+                (EditExifCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -301,6 +312,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             if (SetProperty(ref _selectedItem, value))
             {
                 OnSelectedItemChanged();
+                OnPropertyChanged(nameof(CanEditExif));
+                (EditExifCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -391,6 +404,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public ICommand ToggleSortCommand { get; }
     public ICommand ResetFiltersCommand { get; }
     public ICommand ToggleImagesOnlyCommand { get; }
+    public ICommand EditExifCommand { get; }
     public ICommand SetViewModeCommand { get; }
 
     public bool CanNavigateBack => _service.CanNavigateBack;
@@ -403,6 +417,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         => SelectedCount > 0
            && !string.IsNullOrWhiteSpace(CurrentFolderPath)
            && Directory.GetParent(CurrentFolderPath) is not null;
+    public bool CanEditExif => SelectedCount == 1 && IsJpegFile(SelectedItem);
 
     public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
     public string ModifiedSortIndicator => GetSortIndicator(FileSortColumn.ModifiedAt);
@@ -607,6 +622,43 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
 
         await LoadFolderAsync(CurrentFolderPath, updateHistory: false).ConfigureAwait(false);
+    }
+
+    public async Task EditExifAsync()
+    {
+        if (_exifEditorService is null)
+        {
+            AppLog.Info("EditExifAsync skipped because IExifEditorService is not configured.");
+            return;
+        }
+
+        var validation = await _exifEditorService
+            .ValidateExifEditableAsync(SelectedItems, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        if (!validation.IsValid)
+        {
+            if (_dialogService is not null && !string.IsNullOrWhiteSpace(validation.ErrorMessageKey))
+            {
+                await _dialogService.ShowMessageDialogAsync(
+                    LocalizationService.GetString("ExifEditor.Title"),
+                    LocalizationService.GetString(validation.ErrorMessageKey),
+                    CancellationToken.None).ConfigureAwait(true);
+            }
+
+            return;
+        }
+
+        if (validation.TargetItem is null)
+        {
+            return;
+        }
+
+        var success = await _exifEditorService.EditExifAsync(validation.TargetItem, CancellationToken.None).ConfigureAwait(true);
+        if (success)
+        {
+            await RefreshAsync().ConfigureAwait(true);
+        }
     }
 
     public void ToggleSort(FileSortColumn column)
@@ -996,6 +1048,18 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 // 既に破棄済み
             }
         }
+    }
+
+    private static bool IsJpegFile(PhotoListItem? item)
+    {
+        if (item is null || item.IsFolder)
+        {
+            return false;
+        }
+
+        var extension = Path.GetExtension(item.FilePath);
+        return string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase);
     }
 
     private void CancelFolderLoad()

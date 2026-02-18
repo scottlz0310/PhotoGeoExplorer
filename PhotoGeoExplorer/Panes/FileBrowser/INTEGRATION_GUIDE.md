@@ -42,15 +42,16 @@ FileBrowser UI を UserControl へ移植しています。DataTemplate ではな
 ```csharp
 _fileBrowserPaneViewModel = new FileBrowserPaneViewModel(
     new FileBrowserPaneService(),
-    _viewModel.WorkspaceState);
+    _viewModel.WorkspaceState,
+    exifEditorService,
+    dialogService);
 
 FileBrowserPaneControl.DataContext = _fileBrowserPaneViewModel;
 FileBrowserPaneControl.HostWindow = this;
-FileBrowserPaneControl.EditExifRequested += OnEditExifRequested;
 ```
 
 - `HostWindow` は FolderPicker 初期化用
-- `EditExifRequested` は MainWindow の EXIF 編集処理へ委譲
+- `EditExifCommand` は `FileBrowserPaneViewModel` から `IExifEditorService` を直接呼び出す
 
 ### 4. 設定保存の連携
 
