@@ -77,6 +77,16 @@ Windows SDK がインストールされていません。Visual Studio Installer
 - .NET 10 SDK が正しくパスに通っているか確認してください (`dotnet --version`)。
 - ソリューションの復元を試してください: `dotnet restore PhotoGeoExplorer.sln`
 
+## 🤖 CI / E2E 運用
+
+- E2E ワークフロー（`.github/workflows/e2e.yml`）は `pull_request` / `push`（`main`, `develop`）で自動実行されます。
+- E2E 実行時は、成功/失敗に関わらず以下を artifact として保存します。
+  - テスト結果（TRX）
+  - アプリログ（`%LocalAppData%\PhotoGeoExplorer\Logs`）
+  - 失敗解析用スクリーンショット（`%TEMP%\PhotoGeoExplorerE2E\Diagnostics`）
+- 運用が安定したら、`main` の Branch protection で `E2E / e2e` を Required check に設定します。
+  - GitHub: `Settings` > `Branches` > `main` ルール > `Require status checks to pass before merging`
+
 ## 📁 スクリプト構成
 
 - `scripts/DevInstall.ps1`: メインのインストールスクリプト
