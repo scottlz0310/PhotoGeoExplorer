@@ -17,4 +17,10 @@ internal interface IDialogService
         PickerLocationId startLocation,
         IReadOnlyList<string>? fileTypeFilter = null,
         CancellationToken cancellationToken = default);
+
+    Task<StorageFile?> ShowSaveFilePickerAsync(
+        PickerLocationId startLocation,
+        string suggestedFileName,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? fileTypeChoices = null,
+        CancellationToken cancellationToken = default);
 }

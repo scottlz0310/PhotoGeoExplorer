@@ -213,6 +213,15 @@ public sealed class ExifEditorServiceTests
         {
             return Task.FromResult<StorageFile?>(null);
         }
+
+        public Task<StorageFile?> ShowSaveFilePickerAsync(
+            PickerLocationId startLocation,
+            string suggestedFileName,
+            IReadOnlyDictionary<string, IReadOnlyList<string>>? fileTypeChoices = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<StorageFile?>(null);
+        }
     }
 
     private sealed class FakeExifMetadataService : IExifMetadataService

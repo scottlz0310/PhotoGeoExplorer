@@ -102,6 +102,64 @@ internal sealed class DialogService : IDialogService
         return null;
     }
 
+    public async Task<StorageFile?> ShowSaveFilePickerAsync(
+        PickerLocationId startLocation,
+        string suggestedFileName,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? fileTypeChoices = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(suggestedFileName))
+        {
+            throw new ArgumentException("Suggested file name is required.", nameof(suggestedFileName));
+        }
+
+        var picker = new FileSavePicker
+        {
+            SuggestedStartLocation = startLocation,
+            SuggestedFileName = suggestedFileName
+        };
+
+        if (fileTypeChoices is { Count: > 0 })
+        {
+            foreach (var (label, extensions) in fileTypeChoices)
+            {
+                if (string.IsNullOrWhiteSpace(label) || extensions is null || extensions.Count == 0)
+                {
+                    continue;
+                }
+
+                picker.FileTypeChoices.Add(label, new List<string>(extensions));
+            }
+        }
+
+        if (picker.FileTypeChoices.Count == 0)
+        {
+            picker.FileTypeChoices.Add("JSON", new List<string> { ".json" });
+        }
+
+        var hwnd = WindowNative.GetWindowHandle(_pickerHostWindow);
+        InitializeWithWindow.Initialize(picker, hwnd);
+
+        try
+        {
+            return await picker.PickSaveFileAsync().AsTask(cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            AppLog.Error("File save picker failed.", ex);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("File save picker failed.", ex);
+        }
+
+        return null;
+    }
+
     private async Task<bool> EnsureXamlRootAsync(CancellationToken cancellationToken)
     {
         const int maxWaitMs = 3000;

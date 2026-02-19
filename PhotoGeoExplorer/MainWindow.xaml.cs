@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -11,7 +10,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.Windows.Globalization;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Panes.Map;
@@ -22,10 +20,7 @@ using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Graphics;
 using Windows.Foundation;
-using Windows.Storage;
-using Windows.Storage.Pickers;
 using Windows.System;
-using WinRT.Interop;
 
 namespace PhotoGeoExplorer;
 
@@ -33,10 +28,8 @@ namespace PhotoGeoExplorer;
 [ExcludeFromCodeCoverage]
 public sealed partial class MainWindow : Window, IDisposable
 {
-    private const int DefaultMapZoomLevel = 14;
-    private static readonly int[] MapZoomLevelOptions = { 8, 10, 12, 14, 16, 18 };
     private readonly MainViewModel _viewModel;
-    private readonly SettingsService _settingsService;
+    private readonly SettingsCoordinator _settingsCoordinator;
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
@@ -46,7 +39,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private bool _previewMaximized;
     private bool _windowSized;
     private bool _windowIconSet;
-    private CancellationTokenSource? _settingsCts;
     private GridLength _storedDetailWidth;
     private GridLength _storedFileBrowserWidth;
     private GridLength _storedPreviewRowHeight;
@@ -54,31 +46,14 @@ public sealed partial class MainWindow : Window, IDisposable
     private GridLength _storedMapSplitterHeight;
     private GridLength _storedSplitterWidth;
     private double _storedMapRowMinHeight;
-    private bool _isApplyingSettings;
-    private string? _languageOverride;
     private string? _startupFilePath;
-    private ThemePreference _themePreference = ThemePreference.System;
-    private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
-    private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
     private readonly HelpService _helpService;
-    private bool _showQuickStartOnStartup;
 
     public MainWindow()
     {
         InitializeComponent();
         _viewModel = new MainViewModel(new FileSystemService());
-        _settingsService = new SettingsService();
-        var settingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         var dialogService = new DialogService(RootGrid, this);
-        _helpService = new HelpService(
-            dialogService,
-            () => _languageOverride,
-            () => _showQuickStartOnStartup,
-            value => _showQuickStartOnStartup = value,
-            () => SaveSettingsAsync(),
-            settingsFileExistsAtStartup,
-            (message, severity) => _viewModel.ShowNotificationMessage(message, severity));
-        _viewModel.ConfigureHelpService(_helpService);
         var exifEditorService = new ExifEditorService(
             dialogService,
             new ExifMetadataService(),
@@ -91,6 +66,24 @@ public sealed partial class MainWindow : Window, IDisposable
             dialogService);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         _mapPaneViewModel = new MapPaneViewModel(new MapPaneService(), _viewModel.WorkspaceState);
+        _settingsCoordinator = new SettingsCoordinator(
+            new SettingsService(),
+            dialogService,
+            theme => RootGrid.RequestedTheme = theme,
+            _fileBrowserPaneViewModel,
+            _mapPaneViewModel,
+            _viewModel,
+            () => _startupFilePath);
+        _helpService = new HelpService(
+            dialogService,
+            () => _settingsCoordinator.LanguageOverride,
+            () => _settingsCoordinator.ShowQuickStartOnStartup,
+            value => _settingsCoordinator.ShowQuickStartOnStartup = value,
+            () => _settingsCoordinator.SaveAsync(),
+            _settingsCoordinator.SettingsFileExistsAtStartup,
+            (message, severity) => _viewModel.ShowNotificationMessage(message, severity));
+        _viewModel.ConfigureHelpService(_helpService);
+        _viewModel.ConfigureSettingsCoordinator(_settingsCoordinator);
         RootGrid.DataContext = _viewModel;
         FileBrowserPaneControl.DataContext = _fileBrowserPaneViewModel;
         FileBrowserPaneControl.HostWindow = this;
@@ -126,7 +119,7 @@ public sealed partial class MainWindow : Window, IDisposable
         // MapPaneViewModel を初期化
         await _mapPaneViewModel.InitializeAsync().ConfigureAwait(true);
 
-        await LoadSettingsAsync().ConfigureAwait(true);
+        await _settingsCoordinator.LoadAsync().ConfigureAwait(true);
         await ApplyStartupFolderOverrideAsync().ConfigureAwait(true);
         await ApplyStartupFileActivationAsync().ConfigureAwait(true);
         await _fileBrowserPaneViewModel.InitializeAsync().ConfigureAwait(true);
@@ -199,53 +192,6 @@ public sealed partial class MainWindow : Window, IDisposable
             AppLog.Error("Failed to set window icon.", ex);
         }
     }
-
-
-    private void OnMapTileSourceMenuClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not RadioMenuFlyoutItem item || item.Tag is not string tag)
-        {
-            return;
-        }
-
-        if (!Enum.TryParse(tag, ignoreCase: true, out MapTileSourceType sourceType))
-        {
-            return;
-        }
-
-        _mapPaneViewModel.SwitchTileSource(sourceType);
-        _mapTileSource = sourceType;
-        UpdateMapTileSourceMenuChecks(sourceType);
-        ScheduleSettingsSave();
-    }
-
-    private void UpdateMapTileSourceMenuChecks(MapTileSourceType source)
-    {
-        if (MapTileSourceOsmMenuItem is not null)
-        {
-            MapTileSourceOsmMenuItem.IsChecked = source == MapTileSourceType.OpenStreetMap;
-        }
-
-        if (MapTileSourceEsriMenuItem is not null)
-        {
-            MapTileSourceEsriMenuItem.IsChecked = source == MapTileSourceType.EsriWorldImagery;
-        }
-    }
-
-    private async Task LoadSettingsAsync()
-    {
-        _isApplyingSettings = true;
-        try
-        {
-            var settings = await _settingsService.LoadAsync().ConfigureAwait(true);
-            await ApplySettingsAsync(settings).ConfigureAwait(true);
-        }
-        finally
-        {
-            _isApplyingSettings = false;
-        }
-    }
-
     private async Task ApplyStartupFolderOverrideAsync()
     {
         var folderPath = GetStartupFolderOverride();
@@ -364,157 +310,6 @@ public sealed partial class MainWindow : Window, IDisposable
         return true;
     }
 
-    private async Task ApplySettingsAsync(AppSettings settings, bool showLanguagePrompt = false)
-    {
-        if (settings is null)
-        {
-            return;
-        }
-
-        await ApplyLanguageSettingAsync(settings.Language, showLanguagePrompt).ConfigureAwait(true);
-        ApplyThemePreference(settings.Theme, saveSettings: false);
-
-        // MapPaneViewModel に設定を適用
-        _mapDefaultZoomLevel = NormalizeMapZoomLevel(settings.MapDefaultZoomLevel);
-        _mapPaneViewModel.MapDefaultZoomLevel = _mapDefaultZoomLevel;
-        _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
-        UpdateMapZoomMenuChecks(_mapDefaultZoomLevel);
-
-        var savedTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
-        if (savedTileSource != _mapTileSource)
-        {
-            // 設定で保存されたタイルソースが現在のものと異なる場合、切り替えを実行
-            _mapPaneViewModel.SwitchTileSource(savedTileSource);
-            _mapTileSource = savedTileSource;
-        }
-        else
-        {
-            _mapTileSource = savedTileSource;
-        }
-        UpdateMapTileSourceMenuChecks(_mapTileSource);
-
-        _fileBrowserPaneViewModel.ShowImagesOnly = settings.ShowImagesOnly;
-        _fileBrowserPaneViewModel.FileViewMode = Enum.IsDefined<FileViewMode>(settings.FileViewMode)
-            ? settings.FileViewMode
-            : FileViewMode.Details;
-
-        // Skip LastFolderPath restoration when file activation path is specified.
-        // File activation should take priority over saved folder restoration.
-        if (!string.IsNullOrWhiteSpace(_startupFilePath) && File.Exists(_startupFilePath))
-        {
-            AppLog.Info("Skipping LastFolderPath restoration because a valid startup file path is specified.");
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(settings.LastFolderPath))
-        {
-            var validPath = FindValidAncestorPath(settings.LastFolderPath);
-            if (!string.IsNullOrWhiteSpace(validPath))
-            {
-                await _fileBrowserPaneViewModel.LoadFolderAsync(validPath).ConfigureAwait(true);
-
-                if (!string.Equals(validPath, settings.LastFolderPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    AppLog.Info($"LastFolderPath recovered from '{settings.LastFolderPath}' to ancestor '{validPath}'");
-
-                    // Update settings to persist the recovered path for next startup
-                    settings.LastFolderPath = validPath;
-                    await _settingsService.SaveAsync(settings).ConfigureAwait(true);
-                }
-            }
-        }
-    }
-
-    private static string? FindValidAncestorPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null;
-        }
-
-        try
-        {
-            var current = Path.GetFullPath(path);
-
-            while (!string.IsNullOrWhiteSpace(current))
-            {
-                if (Directory.Exists(current))
-                {
-                    return current;
-                }
-
-                var parent = Directory.GetParent(current);
-                if (parent is null)
-                {
-                    break;
-                }
-
-                current = parent.FullName;
-            }
-        }
-        catch (Exception ex) when (ex is ArgumentException
-            or PathTooLongException
-            or System.Security.SecurityException
-            or NotSupportedException
-            or UnauthorizedAccessException)
-        {
-            AppLog.Error($"Failed to find valid ancestor path for '{path}'", ex);
-        }
-
-        return null;
-    }
-
-    private void ScheduleSettingsSave()
-    {
-        if (_isApplyingSettings)
-        {
-            return;
-        }
-
-        var previous = _settingsCts;
-        _settingsCts = new CancellationTokenSource();
-        previous?.Cancel();
-        previous?.Dispose();
-
-        var token = _settingsCts.Token;
-        _ = SaveSettingsDelayedAsync(token);
-    }
-
-    private async Task SaveSettingsDelayedAsync(CancellationToken token)
-    {
-        try
-        {
-            await Task.Delay(300, token).ConfigureAwait(true);
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-
-        await SaveSettingsAsync().ConfigureAwait(true);
-    }
-
-    private Task SaveSettingsAsync()
-    {
-        var settings = BuildSettingsSnapshot();
-        return _settingsService.SaveAsync(settings);
-    }
-
-    private AppSettings BuildSettingsSnapshot()
-    {
-        return new AppSettings
-        {
-            LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath,
-            ShowImagesOnly = _fileBrowserPaneViewModel.ShowImagesOnly,
-            FileViewMode = _fileBrowserPaneViewModel.FileViewMode,
-            Language = _languageOverride,
-            Theme = _themePreference,
-            MapDefaultZoomLevel = _mapDefaultZoomLevel,
-            MapTileSource = _mapTileSource,
-            ShowQuickStartOnStartup = _showQuickStartOnStartup
-        };
-    }
-
     private void OnFileBrowserPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         // 地図の更新は WorkspaceState 経由で MapPaneViewModel が行うため、ここでは不要
@@ -523,7 +318,7 @@ public sealed partial class MainWindow : Window, IDisposable
             or nameof(FileBrowserPaneViewModel.FileViewMode)
             or nameof(FileBrowserPaneViewModel.CurrentFolderPath))
         {
-            ScheduleSettingsSave();
+            _settingsCoordinator.ScheduleSave();
         }
     }
 
@@ -689,145 +484,6 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
-    private async void OnLanguageMenuClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not RadioMenuFlyoutItem item)
-        {
-            return;
-        }
-
-        var languageTag = item.Tag as string;
-        await ApplyLanguageSettingAsync(languageTag, showRestartPrompt: true).ConfigureAwait(true);
-    }
-
-    private void OnThemeMenuClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not RadioMenuFlyoutItem item || item.Tag is not string tag)
-        {
-            return;
-        }
-
-        if (!Enum.TryParse(tag, ignoreCase: true, out ThemePreference preference))
-        {
-            return;
-        }
-
-        ApplyThemePreference(preference, saveSettings: true);
-    }
-
-    private void OnMapZoomMenuClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not RadioMenuFlyoutItem item || item.Tag is not string tag)
-        {
-            return;
-        }
-
-        if (!int.TryParse(tag, out var level))
-        {
-            return;
-        }
-
-        _mapDefaultZoomLevel = NormalizeMapZoomLevel(level);
-        _mapPaneViewModel.MapDefaultZoomLevel = _mapDefaultZoomLevel;
-        UpdateMapZoomMenuChecks(_mapDefaultZoomLevel);
-        ScheduleSettingsSave();
-    }
-
-    private async void OnExportSettingsClicked(object sender, RoutedEventArgs e)
-    {
-        var file = await PickSettingsSaveFileAsync().ConfigureAwait(true);
-        if (file is null)
-        {
-            return;
-        }
-
-        var settings = BuildSettingsSnapshot();
-        await SettingsService.ExportAsync(settings, file.Path).ConfigureAwait(true);
-    }
-
-    private async void OnImportSettingsClicked(object sender, RoutedEventArgs e)
-    {
-        var file = await PickSettingsFileAsync().ConfigureAwait(true);
-        if (file is null)
-        {
-            return;
-        }
-
-        var settings = await SettingsService.ImportAsync(file.Path).ConfigureAwait(true);
-        if (settings is null)
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.ImportFailed.Title"),
-                LocalizationService.GetString("Dialog.ImportFailed.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        _isApplyingSettings = true;
-        try
-        {
-            await ApplySettingsAsync(settings, showLanguagePrompt: true).ConfigureAwait(true);
-        }
-        finally
-        {
-            _isApplyingSettings = false;
-        }
-
-        await _settingsService.SaveAsync(settings).ConfigureAwait(true);
-    }
-
-    private async Task<StorageFile?> PickSettingsFileAsync()
-    {
-        var picker = new FileOpenPicker();
-        picker.FileTypeFilter.Add(".json");
-        picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-
-        var hwnd = WindowNative.GetWindowHandle(this);
-        InitializeWithWindow.Initialize(picker, hwnd);
-
-        try
-        {
-            return await picker.PickSingleFileAsync().AsTask().ConfigureAwait(true);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            AppLog.Error("Settings import picker failed.", ex);
-        }
-        catch (System.Runtime.InteropServices.COMException ex)
-        {
-            AppLog.Error("Settings import picker failed.", ex);
-        }
-
-        return null;
-    }
-
-    private async Task<StorageFile?> PickSettingsSaveFileAsync()
-    {
-        var picker = new FileSavePicker
-        {
-            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
-            SuggestedFileName = "PhotoGeoExplorer.settings"
-        };
-        picker.FileTypeChoices.Add("JSON", new List<string> { ".json" });
-
-        var hwnd = WindowNative.GetWindowHandle(this);
-        InitializeWithWindow.Initialize(picker, hwnd);
-
-        try
-        {
-            return await picker.PickSaveFileAsync().AsTask().ConfigureAwait(true);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            AppLog.Error("Settings export picker failed.", ex);
-        }
-        catch (System.Runtime.InteropServices.COMException ex)
-        {
-            AppLog.Error("Settings export picker failed.", ex);
-        }
-
-        return null;
-    }
-
     private void OnExitClicked(object sender, RoutedEventArgs e)
     {
         Close();
@@ -852,6 +508,7 @@ public sealed partial class MainWindow : Window, IDisposable
         try
         {
             _helpService.Dispose();
+            _settingsCoordinator.Dispose();
 
             // WorkspaceState イベントをアンサブスクライブ
             _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
@@ -860,10 +517,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
             // MapPaneViewModel のクリーンアップ
             _mapPaneViewModel.Cleanup();
-
-            _settingsCts?.Cancel();
-            _settingsCts?.Dispose();
-            _settingsCts = null;
 
             if (PreviewPaneControl is not null)
             {
@@ -986,184 +639,6 @@ public sealed partial class MainWindow : Window, IDisposable
         await ShowMessageDialogAsync(
             LocalizationService.GetString("Dialog.UpdateCheck.Title"),
             LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
-    }
-
-    private async Task ApplyLanguageSettingAsync(string? languageTag, bool showRestartPrompt)
-    {
-        var normalized = NormalizeLanguageSetting(languageTag);
-        var changed = !string.Equals(_languageOverride, normalized, StringComparison.OrdinalIgnoreCase);
-        _languageOverride = normalized;
-        UpdateLanguageMenuChecks(normalized);
-        ApplyLanguageOverride(normalized);
-
-        if (!showRestartPrompt || !changed)
-        {
-            return;
-        }
-
-        if (!_isApplyingSettings)
-        {
-            await SaveSettingsAsync().ConfigureAwait(true);
-        }
-        await ShowMessageDialogAsync(
-            LocalizationService.GetString("Dialog.LanguageChanged.Title"),
-            LocalizationService.GetString("Dialog.LanguageChanged.Detail")).ConfigureAwait(true);
-    }
-
-    private void ApplyThemePreference(ThemePreference preference, bool saveSettings)
-    {
-        var changed = _themePreference != preference;
-        _themePreference = preference;
-        ApplyTheme(preference);
-        UpdateThemeMenuChecks(preference);
-
-        if (saveSettings && changed && !_isApplyingSettings)
-        {
-            ScheduleSettingsSave();
-        }
-    }
-
-    private void ApplyTheme(ThemePreference preference)
-    {
-        if (RootGrid is null)
-        {
-            return;
-        }
-
-        RootGrid.RequestedTheme = preference switch
-        {
-            ThemePreference.Light => ElementTheme.Light,
-            ThemePreference.Dark => ElementTheme.Dark,
-            _ => ElementTheme.Default
-        };
-    }
-
-    private static string? NormalizeLanguageSetting(string? languageTag)
-    {
-        if (string.IsNullOrWhiteSpace(languageTag))
-        {
-            return null;
-        }
-
-        var trimmed = languageTag.Trim();
-        if (string.Equals(trimmed, "system", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        if (string.Equals(trimmed, "ja", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(trimmed, "ja-jp", StringComparison.OrdinalIgnoreCase))
-        {
-            return "ja-JP";
-        }
-
-        if (string.Equals(trimmed, "en", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(trimmed, "en-us", StringComparison.OrdinalIgnoreCase))
-        {
-            return "en-US";
-        }
-
-        return trimmed;
-    }
-
-    private void UpdateLanguageMenuChecks(string? normalized)
-    {
-        if (LanguageSystemMenuItem is not null)
-        {
-            LanguageSystemMenuItem.IsChecked = string.IsNullOrWhiteSpace(normalized);
-        }
-
-        if (LanguageJapaneseMenuItem is not null)
-        {
-            LanguageJapaneseMenuItem.IsChecked = string.Equals(normalized, "ja-JP", StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (LanguageEnglishMenuItem is not null)
-        {
-            LanguageEnglishMenuItem.IsChecked = string.Equals(normalized, "en-US", StringComparison.OrdinalIgnoreCase);
-        }
-    }
-
-    private void UpdateThemeMenuChecks(ThemePreference preference)
-    {
-        if (ThemeSystemMenuItem is not null)
-        {
-            ThemeSystemMenuItem.IsChecked = preference == ThemePreference.System;
-        }
-
-        if (ThemeLightMenuItem is not null)
-        {
-            ThemeLightMenuItem.IsChecked = preference == ThemePreference.Light;
-        }
-
-        if (ThemeDarkMenuItem is not null)
-        {
-            ThemeDarkMenuItem.IsChecked = preference == ThemePreference.Dark;
-        }
-    }
-
-    private static int NormalizeMapZoomLevel(int level)
-    {
-        if (MapZoomLevelOptions.Contains(level))
-        {
-            return level;
-        }
-
-        return DefaultMapZoomLevel;
-    }
-
-    private void UpdateMapZoomMenuChecks(int level)
-    {
-        if (MapZoomLevel8MenuItem is not null)
-        {
-            MapZoomLevel8MenuItem.IsChecked = level == 8;
-        }
-
-        if (MapZoomLevel10MenuItem is not null)
-        {
-            MapZoomLevel10MenuItem.IsChecked = level == 10;
-        }
-
-        if (MapZoomLevel12MenuItem is not null)
-        {
-            MapZoomLevel12MenuItem.IsChecked = level == 12;
-        }
-
-        if (MapZoomLevel14MenuItem is not null)
-        {
-            MapZoomLevel14MenuItem.IsChecked = level == 14;
-        }
-
-        if (MapZoomLevel16MenuItem is not null)
-        {
-            MapZoomLevel16MenuItem.IsChecked = level == 16;
-        }
-
-        if (MapZoomLevel18MenuItem is not null)
-        {
-            MapZoomLevel18MenuItem.IsChecked = level == 18;
-        }
-    }
-
-    private static void ApplyLanguageOverride(string? normalized)
-    {
-        if (string.IsNullOrWhiteSpace(normalized))
-        {
-            return;
-        }
-
-        try
-        {
-            ApplicationLanguages.PrimaryLanguageOverride = normalized;
-        }
-        catch (ArgumentException ex)
-        {
-            AppLog.Error("Failed to apply language override.", ex);
-        }
-        catch (System.Runtime.InteropServices.COMException ex)
-        {
-            AppLog.Error("Failed to apply language override.", ex);
-        }
     }
 
     private async Task ShowMessageDialogAsync(string title, string message)

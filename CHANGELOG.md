@@ -35,6 +35,10 @@
   - Help メニュー（Getting Started / Basic operations / Detailed help / About）を `MainViewModel` の Command バインディングへ変更。
   - `HelpService` がヘルプダイアログ、HTML ヘルプ別窓、WebView2 寿命管理、外部リンク起動を担当。
   - `HelpServiceTests` を追加し、ヘルプ HTML のファイル名決定と URI 解決（優先/フォールバック）を検証。
+- 設定ロジックを `ISettingsCoordinator` / `SettingsCoordinator` に移管し、MainWindow の設定責務を統合（ISSUE#100 PR-5）。
+  - 設定メニュー（言語/テーマ/ズーム/タイル/Export/Import）を `MainViewModel` Command + 設定状態プロパティへ一本化。
+  - `MainWindow.xaml.cs` から設定ロード/保存/デバウンス/メニューチェック更新などの旧メソッド群を削除し、`SettingsCoordinator` 呼び出しへ置換。
+  - `SettingsCoordinatorTests` を追加し、ロード/保存/デバウンスおよび正規化ロジックを検証。
 - MapPaneService の CA2025 アナライザ警告を抑制（`SemaphoreSlim` の安全な使用パターン）。
 - Shell + Pane アーキテクチャの導入（ISSUE #70）
   - `IPaneViewModel` インターフェースと `PaneViewModelBase` 基底クラス

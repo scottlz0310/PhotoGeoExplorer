@@ -74,6 +74,11 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     private int _selectedCount;
     private bool _isNavigating;
     private IHelpService? _helpService;
+    private ISettingsCoordinator? _settingsCoordinator;
+    private string? _currentLanguage;
+    private ThemePreference _currentTheme = ThemePreference.System;
+    private int _currentMapZoomLevel = 14;
+    private MapTileSourceType _currentMapTileSource = MapTileSourceType.OpenStreetMap;
 
     public MainViewModel(FileSystemService fileSystemService)
         : this(fileSystemService, new State.WorkspaceState())
@@ -103,6 +108,52 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         ShowAboutCommand = new RelayCommand(
             () => ExecuteHelpActionAsync(helpService => helpService.ShowAboutAsync()),
             CanExecuteHelpAction);
+        ChangeLanguageCommand = new RelayCommand<string>(
+            parameter => ExecuteSettingsActionAsync(settingsCoordinator =>
+                settingsCoordinator.ChangeLanguageAsync(parameter, showRestartPrompt: true)),
+            _ => CanExecuteSettingsAction());
+        ChangeThemeCommand = new RelayCommand<string>(
+            parameter => ExecuteSettingsActionAsync(settingsCoordinator =>
+            {
+                if (parameter is null || !Enum.TryParse(parameter, ignoreCase: true, out ThemePreference theme))
+                {
+                    return Task.CompletedTask;
+                }
+
+                settingsCoordinator.ChangeTheme(theme);
+                return Task.CompletedTask;
+            }),
+            _ => CanExecuteSettingsAction());
+        ChangeMapZoomLevelCommand = new RelayCommand<string>(
+            parameter => ExecuteSettingsActionAsync(settingsCoordinator =>
+            {
+                if (parameter is null || !int.TryParse(parameter, out var level))
+                {
+                    return Task.CompletedTask;
+                }
+
+                settingsCoordinator.ChangeMapZoomLevel(level);
+                return Task.CompletedTask;
+            }),
+            _ => CanExecuteSettingsAction());
+        ChangeMapTileSourceCommand = new RelayCommand<string>(
+            parameter => ExecuteSettingsActionAsync(settingsCoordinator =>
+            {
+                if (parameter is null || !Enum.TryParse(parameter, ignoreCase: true, out MapTileSourceType sourceType))
+                {
+                    return Task.CompletedTask;
+                }
+
+                settingsCoordinator.ChangeMapTileSource(sourceType);
+                return Task.CompletedTask;
+            }),
+            _ => CanExecuteSettingsAction());
+        ExportSettingsCommand = new RelayCommand(
+            () => ExecuteSettingsActionAsync(settingsCoordinator => settingsCoordinator.ExportSettingsAsync()),
+            CanExecuteSettingsAction);
+        ImportSettingsCommand = new RelayCommand(
+            () => ExecuteSettingsActionAsync(settingsCoordinator => settingsCoordinator.ImportSettingsAsync()),
+            CanExecuteSettingsAction);
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -433,6 +484,54 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     public ICommand ShowBasicOperationsCommand { get; }
     public ICommand ShowDetailedHelpCommand { get; }
     public ICommand ShowAboutCommand { get; }
+    public ICommand ChangeLanguageCommand { get; }
+    public ICommand ChangeThemeCommand { get; }
+    public ICommand ChangeMapZoomLevelCommand { get; }
+    public ICommand ChangeMapTileSourceCommand { get; }
+    public ICommand ExportSettingsCommand { get; }
+    public ICommand ImportSettingsCommand { get; }
+
+    public string? CurrentLanguage
+    {
+        get => _currentLanguage;
+        private set => SetProperty(ref _currentLanguage, value);
+    }
+
+    public ThemePreference CurrentTheme
+    {
+        get => _currentTheme;
+        private set => SetProperty(ref _currentTheme, value);
+    }
+
+    public int CurrentMapZoomLevel
+    {
+        get => _currentMapZoomLevel;
+        private set => SetProperty(ref _currentMapZoomLevel, value);
+    }
+
+    public MapTileSourceType CurrentMapTileSource
+    {
+        get => _currentMapTileSource;
+        private set => SetProperty(ref _currentMapTileSource, value);
+    }
+
+    public bool IsLanguageSystem => string.IsNullOrWhiteSpace(CurrentLanguage);
+    public bool IsLanguageJapanese => string.Equals(CurrentLanguage, "ja-JP", StringComparison.OrdinalIgnoreCase);
+    public bool IsLanguageEnglish => string.Equals(CurrentLanguage, "en-US", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsThemeSystem => CurrentTheme == ThemePreference.System;
+    public bool IsThemeLight => CurrentTheme == ThemePreference.Light;
+    public bool IsThemeDark => CurrentTheme == ThemePreference.Dark;
+
+    public bool IsMapZoomLevel8 => CurrentMapZoomLevel == 8;
+    public bool IsMapZoomLevel10 => CurrentMapZoomLevel == 10;
+    public bool IsMapZoomLevel12 => CurrentMapZoomLevel == 12;
+    public bool IsMapZoomLevel14 => CurrentMapZoomLevel == 14;
+    public bool IsMapZoomLevel16 => CurrentMapZoomLevel == 16;
+    public bool IsMapZoomLevel18 => CurrentMapZoomLevel == 18;
+
+    public bool IsMapTileSourceOsm => CurrentMapTileSource == MapTileSourceType.OpenStreetMap;
+    public bool IsMapTileSourceEsri => CurrentMapTileSource == MapTileSourceType.EsriWorldImagery;
 
     public async Task InitializeAsync()
     {
@@ -1371,6 +1470,42 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         RaiseHelpCommandCanExecuteChanged();
     }
 
+    public void ConfigureSettingsCoordinator(ISettingsCoordinator settingsCoordinator)
+    {
+        _settingsCoordinator = settingsCoordinator ?? throw new ArgumentNullException(nameof(settingsCoordinator));
+        RaiseSettingsCommandCanExecuteChanged();
+    }
+
+    public void ApplySettingsState(
+        string? language,
+        ThemePreference theme,
+        int mapZoomLevel,
+        MapTileSourceType mapTileSource)
+    {
+        CurrentLanguage = language;
+        CurrentTheme = theme;
+        CurrentMapZoomLevel = mapZoomLevel;
+        CurrentMapTileSource = mapTileSource;
+
+        OnPropertyChanged(nameof(IsLanguageSystem));
+        OnPropertyChanged(nameof(IsLanguageJapanese));
+        OnPropertyChanged(nameof(IsLanguageEnglish));
+
+        OnPropertyChanged(nameof(IsThemeSystem));
+        OnPropertyChanged(nameof(IsThemeLight));
+        OnPropertyChanged(nameof(IsThemeDark));
+
+        OnPropertyChanged(nameof(IsMapZoomLevel8));
+        OnPropertyChanged(nameof(IsMapZoomLevel10));
+        OnPropertyChanged(nameof(IsMapZoomLevel12));
+        OnPropertyChanged(nameof(IsMapZoomLevel14));
+        OnPropertyChanged(nameof(IsMapZoomLevel16));
+        OnPropertyChanged(nameof(IsMapZoomLevel18));
+
+        OnPropertyChanged(nameof(IsMapTileSourceOsm));
+        OnPropertyChanged(nameof(IsMapTileSourceEsri));
+    }
+
     private void ClearNotificationAction()
     {
         NotificationActionLabel = null;
@@ -1401,6 +1536,33 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         (ShowBasicOperationsCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (ShowDetailedHelpCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (ShowAboutCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private bool CanExecuteSettingsAction()
+    {
+        return _settingsCoordinator is not null;
+    }
+
+    private Task ExecuteSettingsActionAsync(Func<ISettingsCoordinator, Task> execute)
+    {
+        ArgumentNullException.ThrowIfNull(execute);
+
+        if (_settingsCoordinator is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return execute(_settingsCoordinator);
+    }
+
+    private void RaiseSettingsCommandCanExecuteChanged()
+    {
+        (ChangeLanguageCommand as RelayCommand<string>)?.RaiseCanExecuteChanged();
+        (ChangeThemeCommand as RelayCommand<string>)?.RaiseCanExecuteChanged();
+        (ChangeMapZoomLevelCommand as RelayCommand<string>)?.RaiseCanExecuteChanged();
+        (ChangeMapTileSourceCommand as RelayCommand<string>)?.RaiseCanExecuteChanged();
+        (ExportSettingsCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ImportSettingsCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private void UpdateNavigationProperties()

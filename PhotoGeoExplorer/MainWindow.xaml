@@ -49,110 +49,124 @@
                     <RadioMenuFlyoutItem
                         x:Name="LanguageSystemMenuItem"
                         Text="System default"
-                        Tag="system"
                         GroupName="Language"
-                        Click="OnLanguageMenuClicked"
+                        Command="{Binding ChangeLanguageCommand}"
+                        CommandParameter="system"
+                        IsChecked="{Binding IsLanguageSystem, Mode=OneWay}"
                         x:Uid="MenuSettingsLanguageSystem" />
                     <RadioMenuFlyoutItem
                         x:Name="LanguageJapaneseMenuItem"
                         Text="日本語"
-                        Tag="ja-JP"
                         GroupName="Language"
-                        Click="OnLanguageMenuClicked"
+                        Command="{Binding ChangeLanguageCommand}"
+                        CommandParameter="ja-JP"
+                        IsChecked="{Binding IsLanguageJapanese, Mode=OneWay}"
                         x:Uid="MenuSettingsLanguageJapanese" />
                     <RadioMenuFlyoutItem
                         x:Name="LanguageEnglishMenuItem"
                         Text="English"
-                        Tag="en-US"
                         GroupName="Language"
-                        Click="OnLanguageMenuClicked"
+                        Command="{Binding ChangeLanguageCommand}"
+                        CommandParameter="en-US"
+                        IsChecked="{Binding IsLanguageEnglish, Mode=OneWay}"
                         x:Uid="MenuSettingsLanguageEnglish" />
                 </MenuFlyoutSubItem>
                 <MenuFlyoutSubItem Text="Theme" x:Uid="MenuSettingsTheme">
                     <RadioMenuFlyoutItem
                         x:Name="ThemeSystemMenuItem"
                         Text="System default"
-                        Tag="System"
                         GroupName="Theme"
-                        Click="OnThemeMenuClicked"
+                        Command="{Binding ChangeThemeCommand}"
+                        CommandParameter="System"
+                        IsChecked="{Binding IsThemeSystem, Mode=OneWay}"
                         x:Uid="MenuSettingsThemeSystem" />
                     <RadioMenuFlyoutItem
                         x:Name="ThemeLightMenuItem"
                         Text="Light"
-                        Tag="Light"
                         GroupName="Theme"
-                        Click="OnThemeMenuClicked"
+                        Command="{Binding ChangeThemeCommand}"
+                        CommandParameter="Light"
+                        IsChecked="{Binding IsThemeLight, Mode=OneWay}"
                         x:Uid="MenuSettingsThemeLight" />
                     <RadioMenuFlyoutItem
                         x:Name="ThemeDarkMenuItem"
                         Text="Dark"
-                        Tag="Dark"
                         GroupName="Theme"
-                        Click="OnThemeMenuClicked"
+                        Command="{Binding ChangeThemeCommand}"
+                        CommandParameter="Dark"
+                        IsChecked="{Binding IsThemeDark, Mode=OneWay}"
                         x:Uid="MenuSettingsThemeDark" />
                 </MenuFlyoutSubItem>
                 <MenuFlyoutSubItem Text="Map zoom level" x:Uid="MenuSettingsMapZoom">
                     <RadioMenuFlyoutItem
                         x:Name="MapZoomLevel8MenuItem"
                         Text="Level 8"
-                        Tag="8"
                         GroupName="MapZoomLevel"
-                        Click="OnMapZoomMenuClicked"
+                        Command="{Binding ChangeMapZoomLevelCommand}"
+                        CommandParameter="8"
+                        IsChecked="{Binding IsMapZoomLevel8, Mode=OneWay}"
                         x:Uid="MenuSettingsMapZoomLevel8" />
                     <RadioMenuFlyoutItem
                         x:Name="MapZoomLevel10MenuItem"
                         Text="Level 10"
-                        Tag="10"
                         GroupName="MapZoomLevel"
-                        Click="OnMapZoomMenuClicked"
+                        Command="{Binding ChangeMapZoomLevelCommand}"
+                        CommandParameter="10"
+                        IsChecked="{Binding IsMapZoomLevel10, Mode=OneWay}"
                         x:Uid="MenuSettingsMapZoomLevel10" />
                     <RadioMenuFlyoutItem
                         x:Name="MapZoomLevel12MenuItem"
                         Text="Level 12"
-                        Tag="12"
                         GroupName="MapZoomLevel"
-                        Click="OnMapZoomMenuClicked"
+                        Command="{Binding ChangeMapZoomLevelCommand}"
+                        CommandParameter="12"
+                        IsChecked="{Binding IsMapZoomLevel12, Mode=OneWay}"
                         x:Uid="MenuSettingsMapZoomLevel12" />
                     <RadioMenuFlyoutItem
                         x:Name="MapZoomLevel14MenuItem"
                         Text="Level 14"
-                        Tag="14"
                         GroupName="MapZoomLevel"
-                        Click="OnMapZoomMenuClicked"
+                        Command="{Binding ChangeMapZoomLevelCommand}"
+                        CommandParameter="14"
+                        IsChecked="{Binding IsMapZoomLevel14, Mode=OneWay}"
                         x:Uid="MenuSettingsMapZoomLevel14" />
                     <RadioMenuFlyoutItem
                         x:Name="MapZoomLevel16MenuItem"
                         Text="Level 16"
-                        Tag="16"
                         GroupName="MapZoomLevel"
-                        Click="OnMapZoomMenuClicked"
+                        Command="{Binding ChangeMapZoomLevelCommand}"
+                        CommandParameter="16"
+                        IsChecked="{Binding IsMapZoomLevel16, Mode=OneWay}"
                         x:Uid="MenuSettingsMapZoomLevel16" />
                     <RadioMenuFlyoutItem
                         x:Name="MapZoomLevel18MenuItem"
                         Text="Level 18"
-                        Tag="18"
                         GroupName="MapZoomLevel"
-                        Click="OnMapZoomMenuClicked"
+                        Command="{Binding ChangeMapZoomLevelCommand}"
+                        CommandParameter="18"
+                        IsChecked="{Binding IsMapZoomLevel18, Mode=OneWay}"
                         x:Uid="MenuSettingsMapZoomLevel18" />
                 </MenuFlyoutSubItem>
                 <MenuFlyoutSubItem Text="Map tile source" x:Uid="MenuSettingsMapTileSource">
                     <RadioMenuFlyoutItem
                         x:Name="MapTileSourceOsmMenuItem"
                         Text="OpenStreetMap (Road Map)"
-                        Tag="OpenStreetMap"
                         GroupName="MapTileSource"
-                        Click="OnMapTileSourceMenuClicked"
+                        Command="{Binding ChangeMapTileSourceCommand}"
+                        CommandParameter="OpenStreetMap"
+                        IsChecked="{Binding IsMapTileSourceOsm, Mode=OneWay}"
                         x:Uid="MenuSettingsMapTileSourceOsm" />
                     <RadioMenuFlyoutItem
                         x:Name="MapTileSourceEsriMenuItem"
                         Text="Esri WorldImagery (Satellite)"
-                        Tag="EsriWorldImagery"
                         GroupName="MapTileSource"
-                        Click="OnMapTileSourceMenuClicked"
+                        Command="{Binding ChangeMapTileSourceCommand}"
+                        CommandParameter="EsriWorldImagery"
+                        IsChecked="{Binding IsMapTileSourceEsri, Mode=OneWay}"
                         x:Uid="MenuSettingsMapTileSourceEsri" />
                 </MenuFlyoutSubItem>
-                <MenuFlyoutItem Text="Export settings..." Click="OnExportSettingsClicked" x:Uid="MenuSettingsExport" />
-                <MenuFlyoutItem Text="Import settings..." Click="OnImportSettingsClicked" x:Uid="MenuSettingsImport" />
+                <MenuFlyoutItem Text="Export settings..." Command="{Binding ExportSettingsCommand}" x:Uid="MenuSettingsExport" />
+                <MenuFlyoutItem Text="Import settings..." Command="{Binding ImportSettingsCommand}" x:Uid="MenuSettingsImport" />
             </MenuBarItem>
             <MenuBarItem Title="Help" x:Uid="MenuHelp">
                 <MenuFlyoutItem Text="Getting started" Command="{Binding ShowGettingStartedCommand}" x:Uid="MenuHelpGettingStarted" />
