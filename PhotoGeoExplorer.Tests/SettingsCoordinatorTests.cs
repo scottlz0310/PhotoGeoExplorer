@@ -86,6 +86,22 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.Equal(ThemePreference.Dark, saved.Theme);
     }
 
+    [Fact]
+    public async Task SaveAsyncCancelsPendingDebouncedSave()
+    {
+        using var context = CreateContext();
+
+        context.Coordinator.ChangeTheme(ThemePreference.Light);
+        await context.Coordinator.SaveAsync().ConfigureAwait(true);
+
+        const string sentinel = "manual-marker";
+        await File.WriteAllTextAsync(context.SettingsPath, sentinel).ConfigureAwait(true);
+
+        await Task.Delay(500).ConfigureAwait(true);
+        var persisted = await File.ReadAllTextAsync(context.SettingsPath).ConfigureAwait(true);
+        Assert.Equal(sentinel, persisted);
+    }
+
     [Theory]
     [InlineData(null, null)]
     [InlineData("", null)]
@@ -156,6 +172,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
 
         return new TestContext(
             coordinator,
+            settingsPath,
             settingsService,
             shellViewModel,
             fileBrowserPaneViewModel,
@@ -174,12 +191,14 @@ public sealed class SettingsCoordinatorTests : IDisposable
     {
         public TestContext(
             SettingsCoordinator coordinator,
+            string settingsPath,
             SettingsService settingsService,
             MainViewModel mainViewModel,
             FileBrowserPaneViewModel fileBrowserPaneViewModel,
             MapPaneViewModel mapPaneViewModel)
         {
             Coordinator = coordinator;
+            SettingsPath = settingsPath;
             SettingsService = settingsService;
             MainViewModel = mainViewModel;
             FileBrowserPaneViewModel = fileBrowserPaneViewModel;
@@ -187,6 +206,8 @@ public sealed class SettingsCoordinatorTests : IDisposable
         }
 
         public SettingsCoordinator Coordinator { get; }
+
+        public string SettingsPath { get; }
 
         public SettingsService SettingsService { get; }
 

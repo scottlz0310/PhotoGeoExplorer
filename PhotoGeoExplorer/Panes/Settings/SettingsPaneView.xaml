@@ -16,6 +16,7 @@
                         Text="{Binding Title}"
                         Style="{ThemeResource TitleTextBlockStyle}" />
                     <TextBlock
+                        x:Uid="SettingsPaneSubtitle"
                         Text="アプリケーション設定"
                         Style="{ThemeResource BodyTextBlockStyle}"
                         Opacity="0.7" />
@@ -24,18 +25,14 @@
                 <!-- 変更状態とアクションボタン -->
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
                     <Button
-                        Content="保存"
-                        Command="{Binding SaveCommand}"
-                        IsEnabled="{Binding IsDirty}"
-                        Style="{ThemeResource AccentButtonStyle}" />
-                    <Button
+                        x:Uid="SettingsPaneResetButton"
                         Content="リセット"
                         Command="{Binding ResetCommand}" />
                     <TextBlock
-                        Text="（変更あり）"
+                        x:Uid="SettingsPaneAutoSaveHint"
+                        Text="変更は自動的に保存されます"
                         VerticalAlignment="Center"
-                        Visibility="{Binding IsDirtyVisibility}"
-                        Foreground="{ThemeResource SystemAccentColor}"
+                        Opacity="0.7"
                         Margin="8,0,0,0" />
                 </StackPanel>
 
@@ -44,19 +41,31 @@
                     <!-- 言語設定 -->
                     <StackPanel Spacing="8">
                         <TextBlock
+                            x:Uid="SettingsPaneLanguageSection"
                             Text="言語"
                             Style="{ThemeResource SubtitleTextBlockStyle}" />
                         <ComboBox
+                            x:Uid="SettingsPaneLanguageSelector"
                             x:Name="LanguageComboBox"
                             Header="表示言語"
                             SelectedValuePath="Tag"
                             SelectedValue="{Binding Language, Mode=TwoWay}"
                             MinWidth="200">
-                            <ComboBoxItem Content="システムデフォルト" Tag="" />
-                            <ComboBoxItem Content="日本語" Tag="ja-JP" />
-                            <ComboBoxItem Content="English" Tag="en-US" />
+                            <ComboBoxItem
+                                x:Uid="SettingsPaneLanguageSystemOption"
+                                Content="システムデフォルト"
+                                Tag="" />
+                            <ComboBoxItem
+                                x:Uid="SettingsPaneLanguageJapaneseOption"
+                                Content="日本語"
+                                Tag="ja-JP" />
+                            <ComboBoxItem
+                                x:Uid="SettingsPaneLanguageEnglishOption"
+                                Content="English"
+                                Tag="en-US" />
                         </ComboBox>
                         <TextBlock
+                            x:Uid="SettingsPaneLanguageRestartHint"
                             Text="言語を変更した後は、アプリを再起動してください。"
                             Style="{ThemeResource CaptionTextBlockStyle}"
                             Opacity="0.7" />
@@ -65,79 +74,87 @@
                     <!-- テーマ設定 -->
                     <StackPanel Spacing="8">
                         <TextBlock
+                            x:Uid="SettingsPaneThemeSection"
                             Text="外観"
                             Style="{ThemeResource SubtitleTextBlockStyle}" />
                         <RadioButtons
+                            x:Uid="SettingsPaneThemeSelector"
                             Header="テーマ"
-                            SelectedIndex="{Binding Theme, Mode=TwoWay}">
-                            <RadioButton Content="システムデフォルト" />
-                            <RadioButton Content="ライトモード" />
-                            <RadioButton Content="ダークモード" />
+                            SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}">
+                            <RadioButton
+                                x:Uid="SettingsPaneThemeSystemOption"
+                                Content="システムデフォルト" />
+                            <RadioButton
+                                x:Uid="SettingsPaneThemeLightOption"
+                                Content="ライトモード" />
+                            <RadioButton
+                                x:Uid="SettingsPaneThemeDarkOption"
+                                Content="ダークモード" />
                         </RadioButtons>
                     </StackPanel>
 
                     <!-- 地図設定 -->
                     <StackPanel Spacing="8">
                         <TextBlock
+                            x:Uid="SettingsPaneMapSection"
                             Text="地図"
                             Style="{ThemeResource SubtitleTextBlockStyle}" />
                         <NumberBox
+                            x:Uid="SettingsPaneMapZoom"
                             Header="デフォルトズームレベル"
-                            Value="{Binding MapDefaultZoomLevel, Mode=TwoWay}"
+                            Value="{Binding MapDefaultZoomLevelValue, Mode=TwoWay}"
                             Minimum="8"
                             Maximum="18"
                             SpinButtonPlacementMode="Inline"
                             MinWidth="200" />
                         <RadioButtons
+                            x:Uid="SettingsPaneMapTileSource"
                             Header="地図タイルソース"
-                            SelectedIndex="{Binding MapTileSource, Mode=TwoWay}">
-                            <RadioButton Content="OpenStreetMap" />
-                            <RadioButton Content="Esri World Imagery (衛星)" />
+                            SelectedIndex="{Binding MapTileSourceIndex, Mode=TwoWay}">
+                            <RadioButton
+                                x:Uid="SettingsPaneMapTileSourceOsm"
+                                Content="OpenStreetMap" />
+                            <RadioButton
+                                x:Uid="SettingsPaneMapTileSourceEsri"
+                                Content="Esri World Imagery (衛星)" />
                         </RadioButtons>
                     </StackPanel>
 
                     <!-- 表示設定 -->
                     <StackPanel Spacing="8">
                         <TextBlock
+                            x:Uid="SettingsPaneDisplaySection"
                             Text="表示"
                             Style="{ThemeResource SubtitleTextBlockStyle}" />
                         <ToggleSwitch
+                            x:Uid="SettingsPaneShowImagesOnly"
                             Header="画像ファイルのみ表示"
                             IsOn="{Binding ShowImagesOnly, Mode=TwoWay}" />
                         <ToggleSwitch
+                            x:Uid="SettingsPaneShowQuickStartOnStartup"
                             Header="起動時にクイックスタートを表示"
                             IsOn="{Binding ShowQuickStartOnStartup, Mode=TwoWay}" />
-                    </StackPanel>
-
-                    <!-- 更新設定 -->
-                    <StackPanel Spacing="8">
-                        <TextBlock
-                            Text="更新"
-                            Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <ToggleSwitch
-                            Header="自動的に更新を確認"
-                            IsOn="{Binding AutoCheckUpdates, Mode=TwoWay}" />
                     </StackPanel>
 
                     <!-- インポート/エクスポート -->
                     <StackPanel Spacing="8">
                         <TextBlock
+                            x:Uid="SettingsPaneManage"
                             Text="設定の管理"
                             Style="{ThemeResource SubtitleTextBlockStyle}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button
+                                x:Uid="SettingsPaneExportButton"
                                 Content="エクスポート..."
-                                Command="{Binding ExportCommand}"
-                                IsEnabled="False"
-                                ToolTipService.ToolTip="MainWindow統合時に実装予定" />
+                                Command="{Binding ExportCommand}" />
                             <Button
+                                x:Uid="SettingsPaneImportButton"
                                 Content="インポート..."
-                                Command="{Binding ImportCommand}"
-                                IsEnabled="False"
-                                ToolTipService.ToolTip="MainWindow統合時に実装予定" />
+                                Command="{Binding ImportCommand}" />
                         </StackPanel>
                         <TextBlock
-                            Text="設定をファイルにエクスポートしたり、ファイルからインポートすることができます。（MainWindow統合時に有効化）"
+                            x:Uid="SettingsPaneManageDescription"
+                            Text="設定をファイルにエクスポートしたり、ファイルからインポートすることができます。"
                             Style="{ThemeResource CaptionTextBlockStyle}"
                             Opacity="0.7"
                             TextWrapping="Wrap" />
@@ -146,6 +163,7 @@
                     <!-- 最後に開いたフォルダ -->
                     <StackPanel Spacing="8">
                         <TextBlock
+                            x:Uid="SettingsPaneLastFolderSection"
                             Text="最後に開いたフォルダ"
                             Style="{ThemeResource SubtitleTextBlockStyle}" />
                         <TextBlock

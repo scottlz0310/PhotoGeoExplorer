@@ -16,8 +16,6 @@ namespace PhotoGeoExplorer.Services;
 
 internal sealed class SettingsCoordinator : ISettingsCoordinator
 {
-    private const int DefaultMapZoomLevel = 14;
-    private static readonly int[] MapZoomLevelOptions = { 8, 10, 12, 14, 16, 18 };
     private static readonly IReadOnlyList<string> JsonFileTypeFilter = new[] { ".json" };
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> JsonFileTypeChoices =
         new Dictionary<string, IReadOnlyList<string>>
@@ -35,7 +33,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     private bool _isApplyingSettings;
     private string? _languageOverride;
     private ThemePreference _themePreference = ThemePreference.System;
-    private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
+    private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
     private bool _showQuickStartOnStartup;
     private bool _disposed;
@@ -102,6 +100,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
 
     public Task SaveAsync()
     {
+        CancelPendingSave();
         var settings = BuildSettingsSnapshot();
         return _settingsService.SaveAsync(settings);
     }
@@ -239,12 +238,12 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
 
     internal static int NormalizeMapZoomLevel(int level)
     {
-        if (MapZoomLevelOptions.Contains(level))
+        if (MapZoomLevelCatalog.Options.Contains(level))
         {
             return level;
         }
 
-        return DefaultMapZoomLevel;
+        return MapZoomLevelCatalog.Default;
     }
 
     internal static string? FindValidAncestorPath(string? path)
@@ -419,6 +418,13 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         }
 
         await SaveAsync().ConfigureAwait(true);
+    }
+
+    private void CancelPendingSave()
+    {
+        var pending = Interlocked.Exchange(ref _settingsCts, null);
+        pending?.Cancel();
+        pending?.Dispose();
     }
 
     private AppSettings BuildSettingsSnapshot()

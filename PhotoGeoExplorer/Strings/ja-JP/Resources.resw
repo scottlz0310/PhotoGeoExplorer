@@ -75,8 +75,8 @@
   <data name="MenuSettings.Title" xml:space="preserve">
     <value>設定</value>
   </data>
-  <data name="MenuSettingsOpenPaneDev.Text" xml:space="preserve">
-    <value>設定（開発中）</value>
+  <data name="MenuSettingsOpenPane.Text" xml:space="preserve">
+    <value>設定...</value>
   </data>
   <data name="MenuSettingsResetFilters.Text" xml:space="preserve">
     <value>フィルターをリセット</value>
@@ -143,6 +143,87 @@
   </data>
   <data name="MenuSettingsImport.Text" xml:space="preserve">
     <value>設定をインポート...</value>
+  </data>
+  <data name="SettingsPaneManage.Text" xml:space="preserve">
+    <value>設定の管理</value>
+  </data>
+  <data name="SettingsPaneExportButton.Content" xml:space="preserve">
+    <value>エクスポート...</value>
+  </data>
+  <data name="SettingsPaneImportButton.Content" xml:space="preserve">
+    <value>インポート...</value>
+  </data>
+  <data name="SettingsPaneManageDescription.Text" xml:space="preserve">
+    <value>設定をファイルにエクスポートしたり、ファイルからインポートすることができます。</value>
+  </data>
+  <data name="SettingsPaneResetButton.Content" xml:space="preserve">
+    <value>リセット</value>
+  </data>
+  <data name="SettingsPaneAutoSaveHint.Text" xml:space="preserve">
+    <value>変更は自動的に保存されます</value>
+  </data>
+  <data name="SettingsPaneSubtitle.Text" xml:space="preserve">
+    <value>アプリケーション設定</value>
+  </data>
+  <data name="SettingsPaneLanguageSection.Text" xml:space="preserve">
+    <value>言語</value>
+  </data>
+  <data name="SettingsPaneLanguageSelector.Header" xml:space="preserve">
+    <value>表示言語</value>
+  </data>
+  <data name="SettingsPaneLanguageSystemOption.Content" xml:space="preserve">
+    <value>システムデフォルト</value>
+  </data>
+  <data name="SettingsPaneLanguageJapaneseOption.Content" xml:space="preserve">
+    <value>日本語</value>
+  </data>
+  <data name="SettingsPaneLanguageEnglishOption.Content" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="SettingsPaneLanguageRestartHint.Text" xml:space="preserve">
+    <value>言語を変更した後は、アプリを再起動してください。</value>
+  </data>
+  <data name="SettingsPaneThemeSection.Text" xml:space="preserve">
+    <value>外観</value>
+  </data>
+  <data name="SettingsPaneThemeSelector.Header" xml:space="preserve">
+    <value>テーマ</value>
+  </data>
+  <data name="SettingsPaneThemeSystemOption.Content" xml:space="preserve">
+    <value>システムデフォルト</value>
+  </data>
+  <data name="SettingsPaneThemeLightOption.Content" xml:space="preserve">
+    <value>ライトモード</value>
+  </data>
+  <data name="SettingsPaneThemeDarkOption.Content" xml:space="preserve">
+    <value>ダークモード</value>
+  </data>
+  <data name="SettingsPaneMapSection.Text" xml:space="preserve">
+    <value>地図</value>
+  </data>
+  <data name="SettingsPaneMapZoom.Header" xml:space="preserve">
+    <value>デフォルトズームレベル</value>
+  </data>
+  <data name="SettingsPaneMapTileSource.Header" xml:space="preserve">
+    <value>地図タイルソース</value>
+  </data>
+  <data name="SettingsPaneMapTileSourceOsm.Content" xml:space="preserve">
+    <value>OpenStreetMap</value>
+  </data>
+  <data name="SettingsPaneMapTileSourceEsri.Content" xml:space="preserve">
+    <value>Esri World Imagery (衛星)</value>
+  </data>
+  <data name="SettingsPaneDisplaySection.Text" xml:space="preserve">
+    <value>表示</value>
+  </data>
+  <data name="SettingsPaneShowImagesOnly.Header" xml:space="preserve">
+    <value>画像ファイルのみ表示</value>
+  </data>
+  <data name="SettingsPaneShowQuickStartOnStartup.Header" xml:space="preserve">
+    <value>起動時にクイックスタートを表示</value>
+  </data>
+  <data name="SettingsPaneLastFolderSection.Text" xml:space="preserve">
+    <value>最後に開いたフォルダ</value>
   </data>
   <data name="MenuHelp.Title" xml:space="preserve">
     <value>ヘルプ</value>

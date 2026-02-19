@@ -39,6 +39,10 @@
   - 設定メニュー（言語/テーマ/ズーム/タイル/Export/Import）を `MainViewModel` Command + 設定状態プロパティへ一本化。
   - `MainWindow.xaml.cs` から設定ロード/保存/デバウンス/メニューチェック更新などの旧メソッド群を削除し、`SettingsCoordinator` 呼び出しへ置換。
   - `SettingsCoordinatorTests` を追加し、ロード/保存/デバウンスおよび正規化ロジックを検証。
+- 設定Paneの本番統合を実施し、`Settings (development)` 導線を正式な `Settings...` 導線へ置換。
+  - 設定メニューを「設定ダイアログ起動 + フィルターリセット」に整理し、言語/テーマ/地図/Import/Export は設定Paneに集約。
+  - `SettingsPaneViewModel` を `SettingsCoordinator` 連携に変更し、実行中の設定変更・保存・Import/Export が即時にアプリ状態へ反映されるよう改善。
+  - 設定Pane内の「MainWindow統合時に実装予定」表記を撤去し、Import/Export ボタンを有効化。
 - MapPaneService の CA2025 アナライザ警告を抑制（`SemaphoreSlim` の安全な使用パターン）。
 - Shell + Pane アーキテクチャの導入（ISSUE #70）
   - `IPaneViewModel` インターフェースと `PaneViewModelBase` 基底クラス
@@ -69,6 +73,17 @@
 - `lefthook.yml` と CI（`.github/workflows/ci.yml`）にガイドライン同期チェックを追加。
 
 ### 修正
+- 設定Paneの設定変更が即時反映されないことがある問題を修正。
+  - 保存ボタンを廃止し、設定変更をその場で即時適用する動作に統一。
+  - ダイアログクローズ時に最終状態を再保存するよう改善。
+  - テーマ/地図タイル/ズームの UI バインディングを型安全なプロパティ経由に変更し、変更反映の信頼性を改善。
+  - ズーム入力が空になった際の `NaN/Infinity` を無視し、意図せずズーム値が変化する不具合を修正。
+  - 明示保存時に保留中のデバウンス保存をキャンセルし、設定ファイルの二重保存を抑止。
+  - 言語変更時は `ChangeLanguageAsync` 側の保存を優先し、重複する明示保存を回避。
+  - SettingsPane の見出し/選択肢を `x:Uid` + `.resw` に統一し、英語UIで日本語が混在する問題を修正。
+  - `SaveIfDirtyAsync` に dirty 判定を追加し、変更がない場合の不要な保存を抑止。
+  - 言語変更の即時適用は再起動プロンプトなしで行い、確定保存時にのみプロンプトを表示するよう調整。
+  - 地図ズームレベル定義を `MapZoomLevelCatalog` に集約し、UI と保存処理の定義重複を解消。
 - E2E テストで一部ランナー環境において `IsOffscreen` プロパティ未サポート例外が発生する問題を修正。
   - `AppE2ETests` の UI プロパティ参照を `SafeGet` ベースに変更し、例外耐性を強化。
   - EXIF コンテキストメニュー取得を右クリック + `Apps` キーのリトライに改善し、フレークを低減。

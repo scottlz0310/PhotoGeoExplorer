@@ -1,50 +1,52 @@
 using System;
 using System.IO;
-using System.Text.Json;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.FileBrowser;
+using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.Panes.Settings;
 
 /// <summary>
-/// 設定Paneの ViewModel
-/// 実際の設定機能を実装
+/// 設定PaneのViewModel。
+/// 実行中アプリの設定状態を編集し、SettingsCoordinatorに反映します。
 /// </summary>
 internal sealed class SettingsPaneViewModel : PaneViewModelBase
 {
-    private readonly ISettingsPaneService _service;
+    private readonly ISettingsCoordinator _settingsCoordinator;
+    private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
+    private readonly MainViewModel _shellViewModel;
+
     private string? _language;
     private ThemePreference _theme = ThemePreference.System;
-    private int _mapDefaultZoomLevel = 14;
+    private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
-    private bool _autoCheckUpdates = true;
     private bool _showImagesOnly = true;
     private bool _showQuickStartOnStartup;
     private string? _lastFolderPath;
-    private bool _isDirty;
+    private bool _suppressDirtyTracking;
+    private bool _hasPendingChanges;
+    private int _languageChangeVersion;
 
-    public SettingsPaneViewModel()
-        : this(new SettingsPaneService())
+    internal SettingsPaneViewModel(
+        ISettingsCoordinator settingsCoordinator,
+        FileBrowserPaneViewModel fileBrowserPaneViewModel,
+        MainViewModel shellViewModel)
     {
+        _settingsCoordinator = settingsCoordinator ?? throw new ArgumentNullException(nameof(settingsCoordinator));
+        _fileBrowserPaneViewModel = fileBrowserPaneViewModel ?? throw new ArgumentNullException(nameof(fileBrowserPaneViewModel));
+        _shellViewModel = shellViewModel ?? throw new ArgumentNullException(nameof(shellViewModel));
+        Title = LocalizationService.GetString("MenuSettings.Title");
+
+        SaveCommand = new RelayCommand(() => SaveAsync());
+        ResetCommand = new RelayCommand(() => ResetAsync());
+        ExportCommand = new RelayCommand(() => ExportAsync());
+        ImportCommand = new RelayCommand(() => ImportAsync());
     }
 
-    internal SettingsPaneViewModel(ISettingsPaneService service)
-    {
-        _service = service ?? throw new ArgumentNullException(nameof(service));
-        Title = "Settings";
-        SaveCommand = new RelayCommand(async () => await SaveAsync().ConfigureAwait(false), () => IsDirty);
-        ResetCommand = new RelayCommand(async () => await ResetAsync().ConfigureAwait(false));
-        ExportCommand = new RelayCommand<string>(async (filePath) => await ExportAsync(filePath).ConfigureAwait(false));
-        ImportCommand = new RelayCommand<string>(async (filePath) => await ImportAsync(filePath).ConfigureAwait(false));
-    }
-
-    /// <summary>
-    /// 言語設定（null = System Default）
-    /// </summary>
     public string? Language
     {
         get => _language;
@@ -52,14 +54,11 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         {
             if (SetProperty(ref _language, value))
             {
-                MarkDirty();
+                ApplyLanguageChange();
             }
         }
     }
 
-    /// <summary>
-    /// テーマ設定
-    /// </summary>
     public ThemePreference Theme
     {
         get => _theme;
@@ -67,29 +66,61 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         {
             if (SetProperty(ref _theme, value))
             {
-                MarkDirty();
+                ApplyThemeChange();
+                OnPropertyChanged(nameof(ThemeIndex));
             }
         }
     }
 
-    /// <summary>
-    /// 地図のデフォルトズームレベル
-    /// </summary>
+    public int ThemeIndex
+    {
+        get => _theme switch
+        {
+            ThemePreference.Light => 1,
+            ThemePreference.Dark => 2,
+            _ => 0
+        };
+        set
+        {
+            var normalizedTheme = value switch
+            {
+                1 => ThemePreference.Light,
+                2 => ThemePreference.Dark,
+                _ => ThemePreference.System
+            };
+
+            Theme = normalizedTheme;
+        }
+    }
+
     public int MapDefaultZoomLevel
     {
         get => _mapDefaultZoomLevel;
         set
         {
-            if (SetProperty(ref _mapDefaultZoomLevel, value))
+            var normalizedLevel = NormalizeMapZoomLevel(value);
+            if (SetProperty(ref _mapDefaultZoomLevel, normalizedLevel))
             {
-                MarkDirty();
+                ApplyMapZoomLevelChange();
+                OnPropertyChanged(nameof(MapDefaultZoomLevelValue));
             }
         }
     }
 
-    /// <summary>
-    /// 地図のタイルソース
-    /// </summary>
+    public double MapDefaultZoomLevelValue
+    {
+        get => MapDefaultZoomLevel;
+        set
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+            {
+                return;
+            }
+
+            MapDefaultZoomLevel = (int)Math.Round(value);
+        }
+    }
+
     public MapTileSourceType MapTileSource
     {
         get => _mapTileSource;
@@ -97,29 +128,23 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         {
             if (SetProperty(ref _mapTileSource, value))
             {
-                MarkDirty();
+                ApplyMapTileSourceChange();
+                OnPropertyChanged(nameof(MapTileSourceIndex));
             }
         }
     }
 
-    /// <summary>
-    /// 自動更新チェック
-    /// </summary>
-    public bool AutoCheckUpdates
+    public int MapTileSourceIndex
     {
-        get => _autoCheckUpdates;
+        get => _mapTileSource == MapTileSourceType.EsriWorldImagery ? 1 : 0;
         set
         {
-            if (SetProperty(ref _autoCheckUpdates, value))
-            {
-                MarkDirty();
-            }
+            MapTileSource = value == 1
+                ? MapTileSourceType.EsriWorldImagery
+                : MapTileSourceType.OpenStreetMap;
         }
     }
 
-    /// <summary>
-    /// 画像のみ表示
-    /// </summary>
     public bool ShowImagesOnly
     {
         get => _showImagesOnly;
@@ -127,14 +152,11 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         {
             if (SetProperty(ref _showImagesOnly, value))
             {
-                MarkDirty();
+                ApplyShowImagesOnlyChange();
             }
         }
     }
 
-    /// <summary>
-    /// 起動時にクイックスタートを表示
-    /// </summary>
     public bool ShowQuickStartOnStartup
     {
         get => _showQuickStartOnStartup;
@@ -142,303 +164,267 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         {
             if (SetProperty(ref _showQuickStartOnStartup, value))
             {
-                MarkDirty();
+                ApplyShowQuickStartOnStartupChange();
             }
         }
     }
 
-    /// <summary>
-    /// 最後に開いたフォルダパス
-    /// </summary>
     public string? LastFolderPath
     {
         get => _lastFolderPath;
-        set
-        {
-            if (SetProperty(ref _lastFolderPath, value))
-            {
-                MarkDirty();
-            }
-        }
+        private set => SetProperty(ref _lastFolderPath, value);
     }
 
-    /// <summary>
-    /// 設定が変更されているかどうか
-    /// </summary>
-    public bool IsDirty
-    {
-        get => _isDirty;
-        private set => SetProperty(ref _isDirty, value);
-    }
-
-    /// <summary>
-    /// 変更状態の表示用 Visibility
-    /// </summary>
-    public Visibility IsDirtyVisibility => IsDirty ? Visibility.Visible : Visibility.Collapsed;
-
-    /// <summary>
-    /// 保存コマンド
-    /// </summary>
     public ICommand SaveCommand { get; }
 
-    /// <summary>
-    /// リセットコマンド
-    /// </summary>
     public ICommand ResetCommand { get; }
 
-    /// <summary>
-    /// エクスポートコマンド
-    /// </summary>
     public ICommand ExportCommand { get; }
 
-    /// <summary>
-    /// インポートコマンド
-    /// </summary>
     public ICommand ImportCommand { get; }
 
-    protected override async Task OnInitializeAsync()
+    internal Task SaveIfDirtyAsync()
     {
-        try
-        {
-            var settings = await _service.LoadSettingsAsync().ConfigureAwait(false);
-
-            // UI スレッドで設定を適用
-            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-            if (dispatcherQueue is null)
-            {
-                // テスト環境またはバックグラウンドスレッドの場合
-                ApplySettings(settings);
-                IsDirty = false;
-                return;
-            }
-
-            var tcs = new TaskCompletionSource<bool>();
-            dispatcherQueue.TryEnqueue(() =>
-            {
-                try
-                {
-                    ApplySettings(settings);
-                    IsDirty = false;
-                    tcs.SetResult(true);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                    throw;
-                }
-            });
-            await tcs.Task.ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
-        {
-            AppLog.Error("Failed to load settings in SettingsPaneViewModel.", ex);
-        }
+        return _hasPendingChanges ? SaveAsync() : Task.CompletedTask;
     }
 
-    protected override void OnCleanup()
+    protected override Task OnInitializeAsync()
     {
-        // クリーンアップ処理
-    }
-
-    protected override void OnActiveChanged()
-    {
-        // Paneがアクティブになったときの処理
-        if (IsActive)
-        {
-            // 必要に応じて設定を再読み込み
-        }
-    }
-
-    private void ApplySettings(AppSettings settings)
-    {
-        Language = settings.Language;
-        Theme = settings.Theme;
-        MapDefaultZoomLevel = settings.MapDefaultZoomLevel;
-        MapTileSource = settings.MapTileSource;
-        AutoCheckUpdates = settings.AutoCheckUpdates;
-        ShowImagesOnly = settings.ShowImagesOnly;
-        ShowQuickStartOnStartup = settings.ShowQuickStartOnStartup;
-        LastFolderPath = settings.LastFolderPath;
-    }
-
-    private AppSettings BuildSettings()
-    {
-        return new AppSettings
-        {
-            Language = Language,
-            Theme = Theme,
-            MapDefaultZoomLevel = MapDefaultZoomLevel,
-            MapTileSource = MapTileSource,
-            AutoCheckUpdates = AutoCheckUpdates,
-            ShowImagesOnly = ShowImagesOnly,
-            ShowQuickStartOnStartup = ShowQuickStartOnStartup,
-            LastFolderPath = LastFolderPath
-        };
-    }
-
-    private void MarkDirty()
-    {
-        IsDirty = true;
-        OnPropertyChanged(nameof(IsDirtyVisibility));
-        (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        RefreshFromCurrentState();
+        _hasPendingChanges = false;
+        return Task.CompletedTask;
     }
 
     private async Task SaveAsync()
     {
+        _languageChangeVersion++;
+
         try
         {
-            var settings = BuildSettings();
-            await _service.SaveSettingsAsync(settings).ConfigureAwait(false);
+            var normalizedLanguage = NormalizeLanguageSetting(Language);
+            _settingsCoordinator.ChangeTheme(Theme);
+            _settingsCoordinator.ChangeMapZoomLevel(MapDefaultZoomLevel);
+            _settingsCoordinator.ChangeMapTileSource(MapTileSource);
+            _settingsCoordinator.ShowQuickStartOnStartup = ShowQuickStartOnStartup;
 
-            // UI スレッドで状態を更新
-            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-            if (dispatcherQueue is null)
+            if (_fileBrowserPaneViewModel.ShowImagesOnly != ShowImagesOnly)
             {
-                // テスト環境またはバックグラウンドスレッドの場合
-                IsDirty = false;
-                OnPropertyChanged(nameof(IsDirtyVisibility));
-                (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            }
-            else
-            {
-                var tcs = new TaskCompletionSource<bool>();
-                dispatcherQueue.TryEnqueue(() =>
-                {
-                    try
-                    {
-                        IsDirty = false;
-                        OnPropertyChanged(nameof(IsDirtyVisibility));
-                        (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                        tcs.SetResult(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.SetException(ex);
-                        throw;
-                    }
-                });
-                await tcs.Task.ConfigureAwait(false);
+                _fileBrowserPaneViewModel.ShowImagesOnly = ShowImagesOnly;
             }
 
-            AppLog.Info("Settings saved successfully.");
+            var languageChanged = !string.Equals(
+                _settingsCoordinator.LanguageOverride,
+                normalizedLanguage,
+                StringComparison.OrdinalIgnoreCase);
+            await _settingsCoordinator.ChangeLanguageAsync(normalizedLanguage, showRestartPrompt: true).ConfigureAwait(true);
+            if (!languageChanged)
+            {
+                await _settingsCoordinator.SaveAsync().ConfigureAwait(true);
+            }
+
+            RefreshFromCurrentState();
+            _hasPendingChanges = false;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException
+            or ArgumentException)
         {
-            AppLog.Error("Failed to save settings.", ex);
+            AppLog.Error("Failed to save settings from SettingsPaneViewModel.", ex);
         }
     }
 
     private async Task ResetAsync()
     {
+        _suppressDirtyTracking = true;
         try
         {
-            var defaultSettings = _service.CreateDefaultSettings();
-
-            // UI スレッドで設定を適用
-            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-            if (dispatcherQueue is null)
-            {
-                // テスト環境またはバックグラウンドスレッドの場合
-                ApplySettings(defaultSettings);
-                IsDirty = true;
-                OnPropertyChanged(nameof(IsDirtyVisibility));
-                (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-            }
-            else
-            {
-                var tcs = new TaskCompletionSource<bool>();
-                dispatcherQueue.TryEnqueue(() =>
-                {
-                    try
-                    {
-                        ApplySettings(defaultSettings);
-                        IsDirty = true;
-                        OnPropertyChanged(nameof(IsDirtyVisibility));
-                        (SaveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                        tcs.SetResult(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.SetException(ex);
-                        throw;
-                    }
-                });
-                await tcs.Task.ConfigureAwait(false);
-            }
-
-            AppLog.Info("Settings reset to defaults.");
+            Language = null;
+            Theme = ThemePreference.System;
+            MapDefaultZoomLevel = MapZoomLevelCatalog.Default;
+            MapTileSource = MapTileSourceType.OpenStreetMap;
+            ShowImagesOnly = true;
+            ShowQuickStartOnStartup = false;
+            LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        finally
         {
-            AppLog.Error("Failed to reset settings.", ex);
+            _suppressDirtyTracking = false;
+        }
+
+        await SaveAsync().ConfigureAwait(true);
+    }
+
+    private async Task ExportAsync()
+    {
+        try
+        {
+            await _settingsCoordinator.ExportSettingsAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException
+            or ArgumentException)
+        {
+            AppLog.Error("Failed to export settings from SettingsPaneViewModel.", ex);
         }
     }
 
-    private async Task ExportAsync(string? filePath)
+    private async Task ImportAsync()
     {
-        if (string.IsNullOrWhiteSpace(filePath))
+        try
+        {
+            await _settingsCoordinator.ImportSettingsAsync().ConfigureAwait(true);
+            RefreshFromCurrentState();
+            _hasPendingChanges = false;
+        }
+        catch (Exception ex) when (ex is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException
+            or ArgumentException)
+        {
+            AppLog.Error("Failed to import settings from SettingsPaneViewModel.", ex);
+        }
+    }
+
+    private void RefreshFromCurrentState()
+    {
+        _suppressDirtyTracking = true;
+        try
+        {
+            Language = _shellViewModel.CurrentLanguage;
+            Theme = _shellViewModel.CurrentTheme;
+            MapDefaultZoomLevel = _shellViewModel.CurrentMapZoomLevel;
+            MapTileSource = _shellViewModel.CurrentMapTileSource;
+            ShowImagesOnly = _fileBrowserPaneViewModel.ShowImagesOnly;
+            ShowQuickStartOnStartup = _settingsCoordinator.ShowQuickStartOnStartup;
+            LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath;
+        }
+        finally
+        {
+            _suppressDirtyTracking = false;
+        }
+    }
+
+    private void ApplyThemeChange()
+    {
+        if (_suppressDirtyTracking)
         {
             return;
         }
 
-        try
-        {
-            var settings = BuildSettings();
-            await _service.ExportSettingsAsync(settings, filePath).ConfigureAwait(false);
-            AppLog.Info($"Settings exported to {filePath}");
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
-        {
-            AppLog.Error($"Failed to export settings to {filePath}", ex);
-        }
+        _settingsCoordinator.ChangeTheme(Theme);
+        _hasPendingChanges = true;
     }
 
-    private async Task ImportAsync(string? filePath)
+    private void ApplyMapZoomLevelChange()
     {
-        if (string.IsNullOrWhiteSpace(filePath))
+        if (_suppressDirtyTracking)
         {
             return;
         }
 
+        _settingsCoordinator.ChangeMapZoomLevel(MapDefaultZoomLevel);
+        _hasPendingChanges = true;
+    }
+
+    private void ApplyMapTileSourceChange()
+    {
+        if (_suppressDirtyTracking)
+        {
+            return;
+        }
+
+        _settingsCoordinator.ChangeMapTileSource(MapTileSource);
+        _hasPendingChanges = true;
+    }
+
+    private void ApplyShowImagesOnlyChange()
+    {
+        if (_suppressDirtyTracking)
+        {
+            return;
+        }
+
+        if (_fileBrowserPaneViewModel.ShowImagesOnly != ShowImagesOnly)
+        {
+            _fileBrowserPaneViewModel.ShowImagesOnly = ShowImagesOnly;
+        }
+
+        _hasPendingChanges = true;
+    }
+
+    private void ApplyShowQuickStartOnStartupChange()
+    {
+        if (_suppressDirtyTracking)
+        {
+            return;
+        }
+
+        _settingsCoordinator.ShowQuickStartOnStartup = ShowQuickStartOnStartup;
+        _settingsCoordinator.ScheduleSave();
+        _hasPendingChanges = true;
+    }
+
+    private void ApplyLanguageChange()
+    {
+        if (_suppressDirtyTracking)
+        {
+            return;
+        }
+
+        _hasPendingChanges = true;
+        _languageChangeVersion++;
+        _ = ApplyLanguageChangeAsync(Language, _languageChangeVersion);
+    }
+
+    private async Task ApplyLanguageChangeAsync(string? language, int changeVersion)
+    {
         try
         {
-            var settings = await _service.ImportSettingsAsync(filePath).ConfigureAwait(false);
-            if (settings is not null)
+            if (changeVersion != _languageChangeVersion)
             {
-                // UI スレッドで設定を適用
-                var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-                if (dispatcherQueue is null)
-                {
-                    // テスト環境またはバックグラウンドスレッドの場合
-                    ApplySettings(settings);
-                    MarkDirty();
-                }
-                else
-                {
-                    var tcs = new TaskCompletionSource<bool>();
-                    dispatcherQueue.TryEnqueue(() =>
-                    {
-                        try
-                        {
-                            ApplySettings(settings);
-                            MarkDirty();
-                            tcs.SetResult(true);
-                        }
-                        catch (Exception ex)
-                        {
-                            tcs.SetException(ex);
-                            throw;
-                        }
-                    });
-                    await tcs.Task.ConfigureAwait(false);
-                }
+                return;
+            }
 
-                AppLog.Info($"Settings imported from {filePath}");
+            var normalizedLanguage = NormalizeLanguageSetting(language);
+            await _settingsCoordinator.ChangeLanguageAsync(normalizedLanguage, showRestartPrompt: false).ConfigureAwait(true);
+
+            if (changeVersion != _languageChangeVersion)
+            {
+                return;
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException
+            or ArgumentException)
         {
-            AppLog.Error($"Failed to import settings from {filePath}", ex);
+            AppLog.Error("Failed to apply language setting from SettingsPaneViewModel.", ex);
         }
+    }
+
+    private static string? NormalizeLanguageSetting(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return null;
+        }
+
+        return language.Trim();
+    }
+
+    private static int NormalizeMapZoomLevel(int level)
+    {
+        if (MapZoomLevelCatalog.Options.Contains(level))
+        {
+            return level;
+        }
+
+        var nearest = MapZoomLevelCatalog.Options
+            .OrderBy(candidate => Math.Abs(candidate - level))
+            .FirstOrDefault();
+
+        return nearest == 0 ? MapZoomLevelCatalog.Default : nearest;
     }
 }

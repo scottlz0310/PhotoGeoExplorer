@@ -441,7 +441,10 @@ public sealed partial class MainWindow : Window, IDisposable
             return;
         }
 
-        var viewModel = new SettingsPaneViewModel();
+        var viewModel = new SettingsPaneViewModel(
+            _settingsCoordinator,
+            _fileBrowserPaneViewModel,
+            _viewModel);
         await viewModel.InitializeAsync().ConfigureAwait(true);
         viewModel.IsActive = true;
 
@@ -453,7 +456,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         var dialog = new ContentDialog
         {
-            Title = LocalizationService.GetString("MenuSettingsOpenPaneDev.Text"),
+            Title = LocalizationService.GetString("MenuSettingsOpenPane.Text"),
             Content = content,
             CloseButtonText = LocalizationService.GetString("Common.Ok"),
             XamlRoot = RootGrid.XamlRoot
@@ -462,6 +465,7 @@ public sealed partial class MainWindow : Window, IDisposable
         try
         {
             await dialog.ShowAsync().AsTask().ConfigureAwait(true);
+            await viewModel.SaveIfDirtyAsync().ConfigureAwait(true);
         }
         finally
         {

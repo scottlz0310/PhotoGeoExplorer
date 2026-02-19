@@ -75,8 +75,8 @@
   <data name="MenuSettings.Title" xml:space="preserve">
     <value>Settings</value>
   </data>
-  <data name="MenuSettingsOpenPaneDev.Text" xml:space="preserve">
-    <value>Settings (development)</value>
+  <data name="MenuSettingsOpenPane.Text" xml:space="preserve">
+    <value>Settings...</value>
   </data>
   <data name="MenuSettingsResetFilters.Text" xml:space="preserve">
     <value>Reset filters</value>
@@ -143,6 +143,87 @@
   </data>
   <data name="MenuSettingsImport.Text" xml:space="preserve">
     <value>Import settings...</value>
+  </data>
+  <data name="SettingsPaneManage.Text" xml:space="preserve">
+    <value>Settings management</value>
+  </data>
+  <data name="SettingsPaneExportButton.Content" xml:space="preserve">
+    <value>Export...</value>
+  </data>
+  <data name="SettingsPaneImportButton.Content" xml:space="preserve">
+    <value>Import...</value>
+  </data>
+  <data name="SettingsPaneManageDescription.Text" xml:space="preserve">
+    <value>You can export settings to a file or import them from a file.</value>
+  </data>
+  <data name="SettingsPaneResetButton.Content" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="SettingsPaneAutoSaveHint.Text" xml:space="preserve">
+    <value>Changes are saved automatically.</value>
+  </data>
+  <data name="SettingsPaneSubtitle.Text" xml:space="preserve">
+    <value>Application settings</value>
+  </data>
+  <data name="SettingsPaneLanguageSection.Text" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="SettingsPaneLanguageSelector.Header" xml:space="preserve">
+    <value>Display language</value>
+  </data>
+  <data name="SettingsPaneLanguageSystemOption.Content" xml:space="preserve">
+    <value>System default</value>
+  </data>
+  <data name="SettingsPaneLanguageJapaneseOption.Content" xml:space="preserve">
+    <value>Japanese</value>
+  </data>
+  <data name="SettingsPaneLanguageEnglishOption.Content" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="SettingsPaneLanguageRestartHint.Text" xml:space="preserve">
+    <value>Restart the app after changing the language.</value>
+  </data>
+  <data name="SettingsPaneThemeSection.Text" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="SettingsPaneThemeSelector.Header" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="SettingsPaneThemeSystemOption.Content" xml:space="preserve">
+    <value>System default</value>
+  </data>
+  <data name="SettingsPaneThemeLightOption.Content" xml:space="preserve">
+    <value>Light mode</value>
+  </data>
+  <data name="SettingsPaneThemeDarkOption.Content" xml:space="preserve">
+    <value>Dark mode</value>
+  </data>
+  <data name="SettingsPaneMapSection.Text" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="SettingsPaneMapZoom.Header" xml:space="preserve">
+    <value>Default zoom level</value>
+  </data>
+  <data name="SettingsPaneMapTileSource.Header" xml:space="preserve">
+    <value>Map tile source</value>
+  </data>
+  <data name="SettingsPaneMapTileSourceOsm.Content" xml:space="preserve">
+    <value>OpenStreetMap</value>
+  </data>
+  <data name="SettingsPaneMapTileSourceEsri.Content" xml:space="preserve">
+    <value>Esri World Imagery (Satellite)</value>
+  </data>
+  <data name="SettingsPaneDisplaySection.Text" xml:space="preserve">
+    <value>Display</value>
+  </data>
+  <data name="SettingsPaneShowImagesOnly.Header" xml:space="preserve">
+    <value>Show image files only</value>
+  </data>
+  <data name="SettingsPaneShowQuickStartOnStartup.Header" xml:space="preserve">
+    <value>Show quick start on startup</value>
+  </data>
+  <data name="SettingsPaneLastFolderSection.Text" xml:space="preserve">
+    <value>Last opened folder</value>
   </data>
   <data name="MenuHelp.Title" xml:space="preserve">
     <value>Help</value>
