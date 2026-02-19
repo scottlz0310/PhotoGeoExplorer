@@ -50,12 +50,6 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
         InitializeComponent();
     }
 
-    public event EventHandler<MapPanePhotoFocusRequestedEventArgs>? PhotoFocusRequested;
-
-    public event EventHandler<MapPaneRectangleSelectionEventArgs>? RectangleSelectionCompleted;
-
-    public event EventHandler<MapPaneNotificationEventArgs>? NotificationRequested;
-
     public bool CanPickExifLocation => _map is not null;
 
     public Task<(double Latitude, double Longitude)?> PickExifLocationAsync()
@@ -335,7 +329,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
             return;
         }
 
-        PhotoFocusRequested?.Invoke(this, new MapPanePhotoFocusRequestedEventArgs(photoItem));
+        _viewModel?.RequestPhotoFocus(photoItem.FilePath);
         ShowMarkerFlyout(photoItem, metadata);
     }
 
@@ -394,9 +388,9 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
                 or ArgumentException)
             {
                 AppLog.Error("Failed to launch Google Maps URL.", ex);
-                NotificationRequested?.Invoke(this, new MapPaneNotificationEventArgs(
+                _viewModel?.RequestNotification(
                     LocalizationService.GetString("Message.LaunchBrowserFailed"),
-                    InfoBarSeverity.Error));
+                    InfoBarSeverity.Error);
             }
         }
 
@@ -681,44 +675,16 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
         var markerLayer = GetMarkerLayer();
         if (markerLayer is null)
         {
-            RectangleSelectionCompleted?.Invoke(this, new MapPaneRectangleSelectionEventArgs(Array.Empty<PhotoItem>()));
+            _viewModel?.RequestPhotoSelection(Array.Empty<string>());
             return;
         }
 
         var selectedPhotos = MapPaneSelectionHelper.SelectPhotosInRectangle(markerLayer.Features, selectionBounds, PhotoItemKey);
-        RectangleSelectionCompleted?.Invoke(this, new MapPaneRectangleSelectionEventArgs(selectedPhotos));
+        var selectedFilePaths = selectedPhotos
+            .Select(photo => photo.FilePath)
+            .Where(filePath => !string.IsNullOrWhiteSpace(filePath))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        _viewModel?.RequestPhotoSelection(selectedFilePaths);
     }
-}
-
-internal sealed class MapPanePhotoFocusRequestedEventArgs : EventArgs
-{
-    public MapPanePhotoFocusRequestedEventArgs(PhotoItem photoItem)
-    {
-        PhotoItem = photoItem ?? throw new ArgumentNullException(nameof(photoItem));
-    }
-
-    public PhotoItem PhotoItem { get; }
-}
-
-internal sealed class MapPaneRectangleSelectionEventArgs : EventArgs
-{
-    public MapPaneRectangleSelectionEventArgs(IReadOnlyList<PhotoItem> photoItems)
-    {
-        PhotoItems = photoItems ?? throw new ArgumentNullException(nameof(photoItems));
-    }
-
-    public IReadOnlyList<PhotoItem> PhotoItems { get; }
-}
-
-internal sealed class MapPaneNotificationEventArgs : EventArgs
-{
-    public MapPaneNotificationEventArgs(string message, InfoBarSeverity severity)
-    {
-        Message = message ?? throw new ArgumentNullException(nameof(message));
-        Severity = severity;
-    }
-
-    public string Message { get; }
-
-    public InfoBarSeverity Severity { get; }
 }

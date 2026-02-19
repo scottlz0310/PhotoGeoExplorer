@@ -246,6 +246,50 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
+    public void WorkspacePhotoFocusRequestSelectsMatchingItem()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var first = CreatePhotoListItem("first.jpg");
+        var second = CreatePhotoListItem("second.jpg");
+        viewModel.Items.Add(first);
+        viewModel.Items.Add(second);
+
+        // Act
+        workspaceState.RequestPhotoFocus(second.FilePath);
+
+        // Assert
+        Assert.Equal(second, viewModel.SelectedItem);
+        Assert.Single(viewModel.SelectedItems);
+        Assert.Equal(second, viewModel.SelectedItems[0]);
+    }
+
+    [Fact]
+    public void WorkspacePhotoSelectionRequestUpdatesSelection()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var first = CreatePhotoListItem("first.jpg");
+        var second = CreatePhotoListItem("second.jpg");
+        viewModel.Items.Add(first);
+        viewModel.Items.Add(second);
+        var requestedPaths = new List<string> { second.FilePath, first.FilePath };
+
+        // Act
+        workspaceState.RequestPhotoSelection(requestedPaths);
+
+        // Assert
+        Assert.Equal(2, viewModel.SelectedItems.Count);
+        Assert.Equal(second, viewModel.SelectedItems[0]);
+        Assert.Equal(first, viewModel.SelectedItems[1]);
+        Assert.Equal(second, viewModel.SelectedItem);
+    }
+
+    [Fact]
     public async Task LoadFolderAsyncUpdatesCurrentFolderPath()
     {
         // Arrange

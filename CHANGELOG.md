@@ -26,6 +26,11 @@
   - `IExifMetadataService` / `ExifMetadataService` を追加し、EXIF 読み書き依存を抽象化。
   - `MapPaneViewControl` を `IExifLocationPicker` 実装として接続。
   - EXIF ダイアログ要素と EXIF コンテキストメニューに AutomationId を追加し、E2E から安定して操作可能に改善。
+- Map→FileBrowser の橋渡しを `MainWindow` 経由から `WorkspaceState` 経由へ移行（ISSUE#98 PR-3）。
+  - `WorkspaceState` にフォーカス要求・選択要求・通知要求イベントを追加。
+  - `MapPaneViewModel` が `WorkspaceState` へ要求を発行し、`MapPaneViewControl` の独自イベントを撤去。
+  - `FileBrowserPaneViewModel` が `WorkspaceState` の要求を購読し、選択/フォーカスを反映。
+  - `FileBrowserPaneService` に `filePath -> PhotoListItem` 解決ロジックを追加。
 - MapPaneService の CA2025 アナライザ警告を抑制（`SemaphoreSlim` の安全な使用パターン）。
 - Shell + Pane アーキテクチャの導入（ISSUE #70）
   - `IPaneViewModel` インターフェースと `PaneViewModelBase` 基底クラス

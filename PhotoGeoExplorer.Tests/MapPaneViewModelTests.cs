@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.State;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -26,6 +29,16 @@ public class MapPaneViewModelTests
 
         // Assert
         Assert.Equal("Map", viewModel.Title);
+    }
+
+    [Fact]
+    public void ConstructorThrowsWhenWorkspaceStateIsNull()
+    {
+        // Arrange
+        var service = new MapPaneService();
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new MapPaneViewModel(service, null!));
     }
 
     [Fact]
@@ -113,5 +126,61 @@ public class MapPaneViewModelTests
 
         // Assert
         Assert.Null(viewModel.Map);
+    }
+
+    [Fact]
+    public void RequestPhotoFocusPublishesWorkspaceEvent()
+    {
+        // Arrange
+        var workspaceState = new WorkspaceState();
+        var viewModel = new MapPaneViewModel(new MapPaneService(), workspaceState);
+        string? requestedPath = null;
+        workspaceState.PhotoFocusRequested += (_, args) => requestedPath = args.FilePath;
+
+        // Act
+        viewModel.RequestPhotoFocus(@"C:\Photos\focus.jpg");
+
+        // Assert
+        Assert.Equal(@"C:\Photos\focus.jpg", requestedPath);
+    }
+
+    [Fact]
+    public void RequestPhotoSelectionPublishesWorkspaceEvent()
+    {
+        // Arrange
+        var workspaceState = new WorkspaceState();
+        var viewModel = new MapPaneViewModel(new MapPaneService(), workspaceState);
+        IReadOnlyList<string>? requestedPaths = null;
+        workspaceState.PhotoSelectionRequested += (_, args) => requestedPaths = args.FilePaths;
+        var selection = new List<string> { @"C:\Photos\a.jpg", @"C:\Photos\b.jpg" };
+
+        // Act
+        viewModel.RequestPhotoSelection(selection);
+
+        // Assert
+        Assert.NotNull(requestedPaths);
+        Assert.Equal(2, requestedPaths!.Count);
+    }
+
+    [Fact]
+    public void RequestNotificationPublishesWorkspaceEvent()
+    {
+        // Arrange
+        var workspaceState = new WorkspaceState();
+        var viewModel = new MapPaneViewModel(new MapPaneService(), workspaceState);
+        string? requestedMessage = null;
+        InfoBarSeverity? requestedSeverity = null;
+        workspaceState.NotificationRequested += (_, args) =>
+        {
+            requestedMessage = args.Message;
+            requestedSeverity = args.Severity;
+        };
+
+        // Act
+        viewModel.RequestNotification("error", InfoBarSeverity.Error);
+
+        // Assert
+        Assert.Equal("error", requestedMessage);
+        Assert.Equal(InfoBarSeverity.Error, requestedSeverity);
     }
 }

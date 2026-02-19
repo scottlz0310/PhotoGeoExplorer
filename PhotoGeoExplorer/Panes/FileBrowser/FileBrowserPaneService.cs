@@ -127,6 +127,77 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
         return ordered.ToList();
     }
 
+    public PhotoListItem? FindItemByFilePath(IEnumerable<PhotoListItem> items, string filePath)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        if (!TryNormalizePath(filePath, out var normalizedFilePath))
+        {
+            return null;
+        }
+
+        foreach (var item in items)
+        {
+            if (!TryNormalizePath(item.FilePath, out var itemPath))
+            {
+                continue;
+            }
+
+            if (string.Equals(itemPath, normalizedFilePath, StringComparison.OrdinalIgnoreCase))
+            {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    public IReadOnlyList<PhotoListItem> ResolveItemsByFilePaths(IEnumerable<PhotoListItem> items, IReadOnlyList<string> filePaths)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(filePaths);
+
+        if (filePaths.Count == 0)
+        {
+            return Array.Empty<PhotoListItem>();
+        }
+
+        var itemLookup = new Dictionary<string, PhotoListItem>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in items)
+        {
+            if (!TryNormalizePath(item.FilePath, out var itemPath))
+            {
+                continue;
+            }
+
+            itemLookup.TryAdd(itemPath, item);
+        }
+
+        var resolvedItems = new List<PhotoListItem>(filePaths.Count);
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var filePath in filePaths)
+        {
+            if (!TryNormalizePath(filePath, out var normalizedPath))
+            {
+                continue;
+            }
+
+            if (!seenPaths.Add(normalizedPath))
+            {
+                continue;
+            }
+
+            if (itemLookup.TryGetValue(normalizedPath, out var matchedItem))
+            {
+                resolvedItems.Add(matchedItem);
+            }
+        }
+
+        return resolvedItems;
+    }
+
     public string? NavigateBack(string currentPath)
     {
         if (_navigationBackStack.Count == 0)
@@ -330,5 +401,28 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
     {
         return Path.GetFullPath(path)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static bool TryNormalizePath(string? path, out string normalizedPath)
+    {
+        normalizedPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            normalizedPath = NormalizePath(path);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException
+            or NotSupportedException
+            or PathTooLongException
+            or IOException)
+        {
+            AppLog.Error($"Failed to normalize path. Path: '{path}'", ex);
+            return false;
+        }
     }
 }

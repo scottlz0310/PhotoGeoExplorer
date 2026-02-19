@@ -38,6 +38,22 @@ internal interface IFileBrowserPaneService
     List<PhotoListItem> ApplySort(IEnumerable<PhotoListItem> items, FileSortColumn column, SortDirection direction);
 
     /// <summary>
+    /// ファイルパスから一覧内の対応項目を取得する
+    /// </summary>
+    /// <param name="items">検索対象の一覧</param>
+    /// <param name="filePath">検索対象のファイルパス</param>
+    /// <returns>一致する項目。見つからない場合は null</returns>
+    PhotoListItem? FindItemByFilePath(IEnumerable<PhotoListItem> items, string filePath);
+
+    /// <summary>
+    /// ファイルパス一覧を一覧項目へ解決する
+    /// </summary>
+    /// <param name="items">検索対象の一覧</param>
+    /// <param name="filePaths">検索対象のファイルパス一覧</param>
+    /// <returns>一致した項目の一覧（filePaths の順序を維持）</returns>
+    IReadOnlyList<PhotoListItem> ResolveItemsByFilePaths(IEnumerable<PhotoListItem> items, IReadOnlyList<string> filePaths);
+
+    /// <summary>
     /// ナビゲーション履歴を戻る
     /// </summary>
     /// <param name="currentPath">現在のフォルダパス</param>

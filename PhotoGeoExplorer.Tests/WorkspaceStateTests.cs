@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.State;
 using Xunit;
 
@@ -261,5 +263,60 @@ public class WorkspaceStateTests
 
         // Act & Assert - should not throw
         state.SelectPrevious();
+    }
+
+    [Fact]
+    public void RequestPhotoFocusRaisesEvent()
+    {
+        // Arrange
+        var state = new WorkspaceState();
+        string? raisedPath = null;
+        state.PhotoFocusRequested += (_, args) => raisedPath = args.FilePath;
+
+        // Act
+        state.RequestPhotoFocus(@"C:\Photos\sample.jpg");
+
+        // Assert
+        Assert.Equal(@"C:\Photos\sample.jpg", raisedPath);
+    }
+
+    [Fact]
+    public void RequestPhotoSelectionRaisesEvent()
+    {
+        // Arrange
+        var state = new WorkspaceState();
+        IReadOnlyList<string>? raisedPaths = null;
+        state.PhotoSelectionRequested += (_, args) => raisedPaths = args.FilePaths;
+        var requestedPaths = new List<string> { @"C:\Photos\a.jpg", @"C:\Photos\b.jpg" };
+
+        // Act
+        state.RequestPhotoSelection(requestedPaths);
+
+        // Assert
+        Assert.NotNull(raisedPaths);
+        Assert.Equal(2, raisedPaths!.Count);
+        Assert.Equal(@"C:\Photos\a.jpg", raisedPaths[0]);
+        Assert.Equal(@"C:\Photos\b.jpg", raisedPaths[1]);
+    }
+
+    [Fact]
+    public void RequestNotificationRaisesEvent()
+    {
+        // Arrange
+        var state = new WorkspaceState();
+        string? raisedMessage = null;
+        InfoBarSeverity? raisedSeverity = null;
+        state.NotificationRequested += (_, args) =>
+        {
+            raisedMessage = args.Message;
+            raisedSeverity = args.Severity;
+        };
+
+        // Act
+        state.RequestNotification("通知テスト", InfoBarSeverity.Warning);
+
+        // Assert
+        Assert.Equal("通知テスト", raisedMessage);
+        Assert.Equal(InfoBarSeverity.Warning, raisedSeverity);
     }
 }

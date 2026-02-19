@@ -18,6 +18,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.Panes.Map;
@@ -34,6 +35,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private static readonly int[] MapZoomLevelOptions = { 8, 10, 12, 14, 16, 18 };
 
     private readonly IMapPaneService _service;
+    private readonly WorkspaceState _workspaceState;
     private Mapsui.Map? _map;
     private TileLayer? _baseTileLayer;
     private MemoryLayer? _markerLayer;
@@ -47,13 +49,19 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private Visibility _statusVisibility = Visibility.Visible;
 
     public MapPaneViewModel()
-        : this(new MapPaneService())
+        : this(new MapPaneService(), new WorkspaceState())
     {
     }
 
     internal MapPaneViewModel(IMapPaneService service)
+        : this(service, new WorkspaceState())
+    {
+    }
+
+    internal MapPaneViewModel(IMapPaneService service, WorkspaceState workspaceState)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
+        _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         Title = "Map";
     }
 
@@ -330,6 +338,21 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         {
             AppLog.Error("Map tile switch failed.", ex);
         }
+    }
+
+    internal void RequestPhotoFocus(string filePath)
+    {
+        _workspaceState.RequestPhotoFocus(filePath);
+    }
+
+    internal void RequestPhotoSelection(IReadOnlyList<string> filePaths)
+    {
+        _workspaceState.RequestPhotoSelection(filePaths);
+    }
+
+    internal void RequestNotification(string message, InfoBarSeverity severity)
+    {
+        _workspaceState.RequestNotification(message, severity);
     }
 
     private void InitializeMapCore()

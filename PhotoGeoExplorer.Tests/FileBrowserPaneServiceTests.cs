@@ -128,6 +128,46 @@ public class FileBrowserPaneServiceTests
     }
 
     [Fact]
+    public void FindItemByFilePathReturnsMatchingItem()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService(new FileSystemService());
+        var target = CreatePhotoListItemWithPath(@"C:\Photos\B.jpg");
+        var items = new List<PhotoListItem>
+        {
+            CreatePhotoListItemWithPath(@"C:\Photos\A.jpg"),
+            target
+        };
+
+        // Act
+        var result = service.FindItemByFilePath(items, @"C:\Photos\B.jpg");
+
+        // Assert
+        Assert.Same(target, result);
+    }
+
+    [Fact]
+    public void ResolveItemsByFilePathsReturnsItemsInRequestedOrder()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService(new FileSystemService());
+        var first = CreatePhotoListItemWithPath(@"C:\Photos\A.jpg");
+        var second = CreatePhotoListItemWithPath(@"C:\Photos\B.jpg");
+        var items = new List<PhotoListItem> { first, second };
+        var requestedPaths = new List<string> { @"C:\Photos\B.jpg", @"C:\Photos\A.jpg", @"C:\Photos\Unknown.jpg" };
+
+        // Act
+        var resolved = service.ResolveItemsByFilePaths(
+            items,
+            requestedPaths);
+
+        // Assert
+        Assert.Equal(2, resolved.Count);
+        Assert.Same(second, resolved[0]);
+        Assert.Same(first, resolved[1]);
+    }
+
+    [Fact]
     public void NavigateBackReturnsNullWhenNoHistory()
     {
         // Arrange
@@ -276,6 +316,20 @@ public class FileBrowserPaneServiceTests
     {
         var photoItem = new PhotoItem(
             filePath: $"/test/{fileName}",
+            sizeBytes: 1000,
+            modifiedAt: DateTimeOffset.UtcNow,
+            isFolder: false,
+            thumbnailPath: null,
+            pixelWidth: 100,
+            pixelHeight: 100);
+
+        return new ViewModels.PhotoListItem(photoItem, thumbnail: null, toolTipText: null, thumbnailKey: null);
+    }
+
+    private static ViewModels.PhotoListItem CreatePhotoListItemWithPath(string filePath)
+    {
+        var photoItem = new PhotoItem(
+            filePath: filePath,
             sizeBytes: 1000,
             modifiedAt: DateTimeOffset.UtcNow,
             isFolder: false,

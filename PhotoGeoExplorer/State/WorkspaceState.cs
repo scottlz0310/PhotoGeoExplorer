@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.State;
@@ -76,6 +77,21 @@ internal sealed class WorkspaceState : BindableBase
     public Action? SelectPreviousAction { get; set; }
 
     /// <summary>
+    /// Map Pane から FileBrowser へフォーカス要求を通知するイベント
+    /// </summary>
+    public event EventHandler<WorkspacePhotoFocusRequestedEventArgs>? PhotoFocusRequested;
+
+    /// <summary>
+    /// Map Pane から FileBrowser へ複数選択要求を通知するイベント
+    /// </summary>
+    public event EventHandler<WorkspacePhotoSelectionRequestedEventArgs>? PhotoSelectionRequested;
+
+    /// <summary>
+    /// ペインからシェルへ通知表示を要求するイベント
+    /// </summary>
+    public event EventHandler<WorkspaceNotificationRequestedEventArgs>? NotificationRequested;
+
+    /// <summary>
     /// 次の画像に移動可能かどうか
     /// </summary>
     public bool CanSelectNext => CurrentPhotoIndex >= 0 && CurrentPhotoIndex < PhotoListCount - 1;
@@ -100,4 +116,79 @@ internal sealed class WorkspaceState : BindableBase
     {
         SelectPreviousAction?.Invoke();
     }
+
+    /// <summary>
+    /// 特定のファイルへフォーカスする要求を発行する
+    /// </summary>
+    /// <param name="filePath">対象ファイルパス</param>
+    public void RequestPhotoFocus(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        PhotoFocusRequested?.Invoke(this, new WorkspacePhotoFocusRequestedEventArgs(filePath));
+    }
+
+    /// <summary>
+    /// 複数ファイルを選択する要求を発行する
+    /// </summary>
+    /// <param name="filePaths">対象ファイルパス一覧</param>
+    public void RequestPhotoSelection(IReadOnlyList<string> filePaths)
+    {
+        ArgumentNullException.ThrowIfNull(filePaths);
+
+        var filteredPaths = new List<string>(filePaths.Count);
+        foreach (var filePath in filePaths)
+        {
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                filteredPaths.Add(filePath);
+            }
+        }
+
+        PhotoSelectionRequested?.Invoke(this, new WorkspacePhotoSelectionRequestedEventArgs(filteredPaths));
+    }
+
+    /// <summary>
+    /// 通知表示の要求を発行する
+    /// </summary>
+    /// <param name="message">通知メッセージ</param>
+    /// <param name="severity">通知種別</param>
+    public void RequestNotification(string message, InfoBarSeverity severity)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        NotificationRequested?.Invoke(this, new WorkspaceNotificationRequestedEventArgs(message, severity));
+    }
+}
+
+internal sealed class WorkspacePhotoFocusRequestedEventArgs : EventArgs
+{
+    public WorkspacePhotoFocusRequestedEventArgs(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        FilePath = filePath;
+    }
+
+    public string FilePath { get; }
+}
+
+internal sealed class WorkspacePhotoSelectionRequestedEventArgs : EventArgs
+{
+    public WorkspacePhotoSelectionRequestedEventArgs(IReadOnlyList<string> filePaths)
+    {
+        FilePaths = filePaths ?? throw new ArgumentNullException(nameof(filePaths));
+    }
+
+    public IReadOnlyList<string> FilePaths { get; }
+}
+
+internal sealed class WorkspaceNotificationRequestedEventArgs : EventArgs
+{
+    public WorkspaceNotificationRequestedEventArgs(string message, InfoBarSeverity severity)
+    {
+        Message = message ?? throw new ArgumentNullException(nameof(message));
+        Severity = severity;
+    }
+
+    public string Message { get; }
+
+    public InfoBarSeverity Severity { get; }
 }

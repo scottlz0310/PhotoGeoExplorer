@@ -20,6 +20,7 @@ using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Preview;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Graphics;
 using Windows.Foundation;
@@ -82,7 +83,7 @@ public sealed partial class MainWindow : Window, IDisposable
             exifEditorService,
             dialogService);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
-        _mapPaneViewModel = new MapPaneViewModel();
+        _mapPaneViewModel = new MapPaneViewModel(new MapPaneService(), _viewModel.WorkspaceState);
         _settingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         RootGrid.DataContext = _viewModel;
         FileBrowserPaneControl.DataContext = _fileBrowserPaneViewModel;
@@ -90,15 +91,13 @@ public sealed partial class MainWindow : Window, IDisposable
         PreviewPaneControl.DataContext = _previewPaneViewModel;
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         MapPaneControl.DataContext = _mapPaneViewModel;
-        MapPaneControl.PhotoFocusRequested += OnMapPanePhotoFocusRequested;
-        MapPaneControl.RectangleSelectionCompleted += OnMapPaneRectangleSelectionCompleted;
-        MapPaneControl.NotificationRequested += OnMapPaneNotificationRequested;
         Title = LocalizationService.GetString("MainWindow.Title");
         AppLog.Info("MainWindow constructed.");
         Activated += OnActivated;
         Closed += OnClosed;
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
         _viewModel.WorkspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
+        _viewModel.WorkspaceState.NotificationRequested += OnWorkspaceNotificationRequested;
     }
 
     private void OnPreviewMaximizeChanged(object? sender, bool maximize)
@@ -524,11 +523,16 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnWorkspaceStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(State.WorkspaceState.SelectedPhotos))
+        if (e.PropertyName is nameof(WorkspaceState.SelectedPhotos))
         {
             var selectedPhotos = _viewModel.WorkspaceState.SelectedPhotos ?? Array.Empty<PhotoListItem>();
             await _mapPaneViewModel.UpdateMarkersFromSelectionAsync(selectedPhotos).ConfigureAwait(true);
         }
+    }
+
+    private void OnWorkspaceNotificationRequested(object? sender, WorkspaceNotificationRequestedEventArgs e)
+    {
+        _viewModel.ShowNotificationMessage(e.Message, e.Severity);
     }
 
 
@@ -845,6 +849,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
             // WorkspaceState イベントをアンサブスクライブ
             _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
+            _viewModel.WorkspaceState.NotificationRequested -= OnWorkspaceNotificationRequested;
             _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
 
             // MapPaneViewModel のクリーンアップ
@@ -868,9 +873,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
             if (MapPaneControl is not null)
             {
-                MapPaneControl.PhotoFocusRequested -= OnMapPanePhotoFocusRequested;
-                MapPaneControl.RectangleSelectionCompleted -= OnMapPaneRectangleSelectionCompleted;
-                MapPaneControl.NotificationRequested -= OnMapPaneNotificationRequested;
                 MapPaneControl.DataContext = null;
             }
 
@@ -1583,32 +1585,6 @@ public sealed partial class MainWindow : Window, IDisposable
         var hwnd = WindowNative.GetWindowHandle(window);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         return AppWindow.GetFromWindowId(windowId);
-    }
-
-    private void OnMapPanePhotoFocusRequested(object? sender, MapPanePhotoFocusRequestedEventArgs e)
-    {
-        FileBrowserPaneControl.FocusPhotoItem(e.PhotoItem);
-    }
-
-    private void OnMapPaneRectangleSelectionCompleted(object? sender, MapPaneRectangleSelectionEventArgs e)
-    {
-        var selectedItems = new List<PhotoListItem>();
-        foreach (var photoItem in e.PhotoItems)
-        {
-            var listItem = _fileBrowserPaneViewModel.Items.FirstOrDefault(item =>
-                !item.IsFolder && string.Equals(item.FilePath, photoItem.FilePath, StringComparison.OrdinalIgnoreCase));
-            if (listItem is not null)
-            {
-                selectedItems.Add(listItem);
-            }
-        }
-
-        FileBrowserPaneControl.SelectItems(selectedItems);
-    }
-
-    private void OnMapPaneNotificationRequested(object? sender, MapPaneNotificationEventArgs e)
-    {
-        _viewModel.ShowNotificationMessage(e.Message, e.Severity);
     }
 
 }
