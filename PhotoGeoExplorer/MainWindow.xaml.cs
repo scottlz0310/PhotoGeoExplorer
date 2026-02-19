@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -12,7 +11,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.Web.WebView2.Core;
 using Microsoft.Windows.Globalization;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
@@ -32,6 +30,7 @@ using WinRT.Interop;
 namespace PhotoGeoExplorer;
 
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
+[ExcludeFromCodeCoverage]
 public sealed partial class MainWindow : Window, IDisposable
 {
     private const int DefaultMapZoomLevel = 14;
@@ -61,9 +60,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private ThemePreference _themePreference = ThemePreference.System;
     private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
-    private Window? _helpHtmlWindow;
-    private WebView2? _helpHtmlWebView;
-    private readonly bool _settingsFileExistsAtStartup;
+    private readonly HelpService _helpService;
     private bool _showQuickStartOnStartup;
 
     public MainWindow()
@@ -71,7 +68,17 @@ public sealed partial class MainWindow : Window, IDisposable
         InitializeComponent();
         _viewModel = new MainViewModel(new FileSystemService());
         _settingsService = new SettingsService();
+        var settingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         var dialogService = new DialogService(RootGrid, this);
+        _helpService = new HelpService(
+            dialogService,
+            () => _languageOverride,
+            () => _showQuickStartOnStartup,
+            value => _showQuickStartOnStartup = value,
+            () => SaveSettingsAsync(),
+            settingsFileExistsAtStartup,
+            (message, severity) => _viewModel.ShowNotificationMessage(message, severity));
+        _viewModel.ConfigureHelpService(_helpService);
         var exifEditorService = new ExifEditorService(
             dialogService,
             new ExifMetadataService(),
@@ -84,7 +91,6 @@ public sealed partial class MainWindow : Window, IDisposable
             dialogService);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         _mapPaneViewModel = new MapPaneViewModel(new MapPaneService(), _viewModel.WorkspaceState);
-        _settingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         RootGrid.DataContext = _viewModel;
         FileBrowserPaneControl.DataContext = _fileBrowserPaneViewModel;
         FileBrowserPaneControl.HostWindow = this;
@@ -128,7 +134,7 @@ public sealed partial class MainWindow : Window, IDisposable
         // XamlRoot が確定するまでワンテンポ遅らせてからダイアログを表示
         DispatcherQueue.TryEnqueue(async () =>
         {
-            await ShowQuickStartIfNeededAsync().ConfigureAwait(true);
+            await _helpService.ShowQuickStartIfNeededAsync().ConfigureAwait(true);
         });
 
     }
@@ -845,7 +851,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         try
         {
-            CloseHelpHtmlWindow();
+            _helpService.Dispose();
 
             // WorkspaceState イベントをアンサブスクライブ
             _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
@@ -980,35 +986,6 @@ public sealed partial class MainWindow : Window, IDisposable
         await ShowMessageDialogAsync(
             LocalizationService.GetString("Dialog.UpdateCheck.Title"),
             LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
-    }
-
-    private async void OnHelpGettingStartedClicked(object sender, RoutedEventArgs e)
-    {
-        await ShowHelpDialogAsync(
-            "Dialog.Help.GettingStarted.Title",
-            "Dialog.Help.GettingStarted.Detail",
-            includeQuickStartToggle: true).ConfigureAwait(true);
-    }
-
-    private async void OnHelpBasicsClicked(object sender, RoutedEventArgs e)
-    {
-        await ShowHelpDialogAsync(
-            "Dialog.Help.Basics.Title",
-            "Dialog.Help.Basics.Detail").ConfigureAwait(true);
-    }
-
-    private async void OnHelpHtmlWindowClicked(object sender, RoutedEventArgs e)
-    {
-        await OpenHelpHtmlWindowAsync().ConfigureAwait(true);
-    }
-
-    private async void OnAboutClicked(object sender, RoutedEventArgs e)
-    {
-        var version = typeof(App).Assembly.GetName().Version?.ToString()
-            ?? LocalizationService.GetString("Common.Unknown");
-        await ShowMessageDialogAsync(
-            LocalizationService.GetString("Dialog.About.Title"),
-            LocalizationService.Format("Dialog.About.Detail", version)).ConfigureAwait(true);
     }
 
     private async Task ApplyLanguageSettingAsync(string? languageTag, bool showRestartPrompt)
@@ -1211,50 +1188,6 @@ public sealed partial class MainWindow : Window, IDisposable
         await dialog.ShowAsync().AsTask().ConfigureAwait(true);
     }
 
-    private async Task ShowHelpDialogAsync(string titleKey, string detailKey, bool includeQuickStartToggle = false)
-    {
-        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
-        {
-            AppLog.Info($"ShowHelpDialogAsync: XamlRoot unavailable after waiting, skipping dialog '{titleKey}'");
-            return;
-        }
-
-        CheckBox? quickStartToggle = null;
-        UIElement content = CreateHelpDialogContent(LocalizationService.GetString(detailKey));
-        if (includeQuickStartToggle)
-        {
-            quickStartToggle = new CheckBox
-            {
-                Content = LocalizationService.GetString("Dialog.Help.QuickStartToggle"),
-                IsChecked = _showQuickStartOnStartup
-            };
-
-            var stack = new StackPanel
-            {
-                Spacing = 12
-            };
-            stack.Children.Add(content);
-            stack.Children.Add(quickStartToggle);
-            content = stack;
-        }
-
-        var dialog = new ContentDialog
-        {
-            Title = LocalizationService.GetString(titleKey),
-            Content = content,
-            CloseButtonText = LocalizationService.GetString("Common.Ok"),
-            XamlRoot = RootGrid.XamlRoot
-        };
-
-        await dialog.ShowAsync().AsTask().ConfigureAwait(true);
-
-        if (includeQuickStartToggle && quickStartToggle is not null)
-        {
-            _showQuickStartOnStartup = quickStartToggle.IsChecked ?? false;
-            await SaveSettingsAsync().ConfigureAwait(true);
-        }
-    }
-
     /// <summary>
     /// XamlRoot が利用可能になるまで待機します。
     /// WinUI 3 では OnActivated 直後に XamlRoot が null になる環境があるため、
@@ -1307,284 +1240,6 @@ public sealed partial class MainWindow : Window, IDisposable
 
         AppLog.Info($"EnsureXamlRootAsync: XamlRoot still null after {elapsed}ms, giving up.");
         return false;
-    }
-
-    private static ScrollViewer CreateHelpDialogContent(string message)
-    {
-        return new ScrollViewer
-        {
-            MaxHeight = 420,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = new TextBlock
-            {
-                Text = message,
-                TextWrapping = TextWrapping.Wrap
-            }
-        };
-    }
-
-    private async Task ShowQuickStartIfNeededAsync()
-    {
-        if (_settingsFileExistsAtStartup)
-        {
-            if (!_showQuickStartOnStartup)
-            {
-                return;
-            }
-        }
-
-        await ShowHelpDialogAsync(
-            "Dialog.Help.GettingStarted.Title",
-            "Dialog.Help.GettingStarted.Detail",
-            includeQuickStartToggle: true).ConfigureAwait(true);
-    }
-
-    private async Task OpenHelpHtmlWindowAsync()
-    {
-        var uri = TryGetHelpHtmlUri();
-        if (uri is null)
-        {
-            await ShowHelpHtmlMissingDialogAsync().ConfigureAwait(true);
-            return;
-        }
-
-        if (_helpHtmlWindow is not null)
-        {
-            if (_helpHtmlWebView is not null)
-            {
-                _helpHtmlWebView.Source = uri;
-            }
-
-            _helpHtmlWindow.Activate();
-            return;
-        }
-
-        var webView = CreateHelpHtmlWebView(uri);
-        _helpHtmlWebView = webView;
-        var container = new Grid();
-        container.Children.Add(webView);
-
-        var window = new Window
-        {
-            Title = LocalizationService.GetString("Dialog.Help.Html.Title"),
-            Content = container
-        };
-        window.Closed += (_, _) => CleanupHelpHtmlWindow();
-        _helpHtmlWindow = window;
-        window.Activate();
-        TryResizeHelpWindow(window, 980, 720);
-    }
-
-    private WebView2 CreateHelpHtmlWebView(Uri uri)
-    {
-        var webView = new WebView2
-        {
-            Source = uri,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch
-        };
-
-        webView.NavigationStarting += OnHelpWebViewNavigationStarting;
-        webView.CoreWebView2Initialized += OnHelpWebViewInitialized;
-        return webView;
-    }
-
-    private Uri? TryGetHelpHtmlUri()
-    {
-        var helpDirectory = Path.Combine(AppContext.BaseDirectory, "wwwroot", "help");
-        var preferredFileName = GetHelpHtmlFileName();
-        var preferredPath = Path.Combine(helpDirectory, preferredFileName);
-        if (File.Exists(preferredPath))
-        {
-            return new Uri(preferredPath);
-        }
-
-        var fallbackPath = Path.Combine(helpDirectory, "index.html");
-        if (File.Exists(fallbackPath))
-        {
-            if (!string.Equals(preferredFileName, "index.html", StringComparison.OrdinalIgnoreCase))
-            {
-                AppLog.Info($"Help HTML fallback to {fallbackPath}");
-            }
-
-            return new Uri(fallbackPath);
-        }
-
-        AppLog.Error($"Help HTML not found: {preferredPath}");
-        return null;
-    }
-
-    private string GetHelpHtmlFileName()
-    {
-        var language = _languageOverride;
-        if (string.IsNullOrWhiteSpace(language))
-        {
-            language = ApplicationLanguages.Languages.Count > 0
-                ? ApplicationLanguages.Languages[0]
-                : CultureInfo.CurrentUICulture.Name;
-        }
-
-        if (!string.IsNullOrWhiteSpace(language)
-            && language.StartsWith("en", StringComparison.OrdinalIgnoreCase))
-        {
-            return "index.en.html";
-        }
-
-        return "index.html";
-    }
-
-    private async Task ShowHelpHtmlMissingDialogAsync()
-    {
-        await ShowMessageDialogAsync(
-            LocalizationService.GetString("Dialog.Help.HtmlMissing.Title"),
-            LocalizationService.GetString("Dialog.Help.HtmlMissing.Detail")).ConfigureAwait(true);
-    }
-
-    private void CleanupHelpHtmlWindow()
-    {
-        CloseHelpHtmlWebView();
-        _helpHtmlWindow = null;
-    }
-
-    private void CloseHelpHtmlWindow()
-    {
-        if (_helpHtmlWindow is null)
-        {
-            CleanupHelpHtmlWindow();
-            return;
-        }
-
-        try
-        {
-            _helpHtmlWindow.Close();
-        }
-        catch (Exception ex) when (ex is InvalidOperationException
-            or System.Runtime.InteropServices.COMException
-            or UnauthorizedAccessException)
-        {
-            AppLog.Error("Failed to close help window.", ex);
-            CleanupHelpHtmlWindow();
-        }
-    }
-
-    private void CloseHelpHtmlWebView()
-    {
-        if (_helpHtmlWebView is null)
-        {
-            return;
-        }
-
-        try
-        {
-            _helpHtmlWebView.NavigationStarting -= OnHelpWebViewNavigationStarting;
-            _helpHtmlWebView.CoreWebView2Initialized -= OnHelpWebViewInitialized;
-            if (_helpHtmlWebView.CoreWebView2 is not null)
-            {
-                _helpHtmlWebView.CoreWebView2.NewWindowRequested -= OnHelpWebViewNewWindowRequested;
-            }
-            _helpHtmlWebView.Close();
-        }
-        catch (Exception ex) when (ex is InvalidOperationException
-            or System.Runtime.InteropServices.COMException)
-        {
-            AppLog.Error("Failed to close help WebView2.", ex);
-        }
-        finally
-        {
-            _helpHtmlWebView = null;
-        }
-    }
-
-    private void OnHelpWebViewInitialized(WebView2 sender, CoreWebView2InitializedEventArgs args)
-    {
-        if (args.Exception is not null)
-        {
-            AppLog.Error("Help WebView2 initialization failed.", args.Exception);
-            return;
-        }
-
-        sender.CoreWebView2.NewWindowRequested += OnHelpWebViewNewWindowRequested;
-    }
-
-    private void OnHelpWebViewNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs args)
-    {
-        if (TryGetExternalUri(args.Uri, out var uri) && uri is not null)
-        {
-            args.Handled = true;
-            _ = OpenExternalUriAsync(uri);
-        }
-    }
-
-    private void OnHelpWebViewNavigationStarting(WebView2 sender, CoreWebView2NavigationStartingEventArgs args)
-    {
-        if (TryGetExternalUri(args.Uri, out var uri) && uri is not null)
-        {
-            args.Cancel = true;
-            _ = OpenExternalUriAsync(uri);
-        }
-    }
-
-    private static bool TryGetExternalUri(string? uriString, out Uri? uri)
-    {
-        uri = null;
-        if (string.IsNullOrWhiteSpace(uriString))
-        {
-            return false;
-        }
-
-        if (!Uri.TryCreate(uriString, UriKind.Absolute, out var parsed))
-        {
-            return false;
-        }
-
-        if (string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-        {
-            uri = parsed;
-            return true;
-        }
-
-        return false;
-    }
-
-    private async Task OpenExternalUriAsync(Uri uri)
-    {
-        try
-        {
-            await Launcher.LaunchUriAsync(uri);
-        }
-        catch (Exception ex) when (ex is InvalidOperationException
-            or UnauthorizedAccessException
-            or System.Runtime.InteropServices.COMException
-            or ArgumentException)
-        {
-            AppLog.Error("Failed to launch help link.", ex);
-            _viewModel.ShowNotificationMessage(
-                LocalizationService.GetString("Message.LaunchBrowserFailed"),
-                InfoBarSeverity.Error);
-        }
-    }
-
-    private static void TryResizeHelpWindow(Window window, int width, int height)
-    {
-        try
-        {
-            var appWindow = GetAppWindow(window);
-            appWindow.Resize(new SizeInt32(width, height));
-        }
-        catch (Exception ex) when (ex is ArgumentException
-            or InvalidOperationException
-            or System.Runtime.InteropServices.COMException)
-        {
-            AppLog.Error("Failed to resize help window.", ex);
-        }
-    }
-
-    private static AppWindow GetAppWindow(Window window)
-    {
-        var hwnd = WindowNative.GetWindowHandle(window);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-        return AppWindow.GetFromWindowId(windowId);
     }
 
 }

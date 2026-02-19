@@ -31,6 +31,10 @@
   - `MapPaneViewModel` が `WorkspaceState` へ要求を発行し、`MapPaneViewControl` の独自イベントを撤去。
   - `FileBrowserPaneViewModel` が `WorkspaceState` の要求を購読し、選択/フォーカスを反映。
   - `FileBrowserPaneService` に `filePath -> PhotoListItem` 解決ロジックを追加。
+- ヘルプ機能を `IHelpService` / `HelpService` に移管し、MainWindow のヘルプ関連処理をサービスへ集約（ISSUE#103 PR-4）。
+  - Help メニュー（Getting Started / Basic operations / Detailed help / About）を `MainViewModel` の Command バインディングへ変更。
+  - `HelpService` がヘルプダイアログ、HTML ヘルプ別窓、WebView2 寿命管理、外部リンク起動を担当。
+  - `HelpServiceTests` を追加し、ヘルプ HTML のファイル名決定と URI 解決（優先/フォールバック）を検証。
 - MapPaneService の CA2025 アナライザ警告を抑制（`SemaphoreSlim` の安全な使用パターン）。
 - Shell + Pane アーキテクチャの導入（ISSUE #70）
   - `IPaneViewModel` インターフェースと `PaneViewModelBase` 基底クラス

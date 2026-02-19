@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -72,6 +73,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     private SortDirection _sortDirection = SortDirection.Ascending;
     private int _selectedCount;
     private bool _isNavigating;
+    private IHelpService? _helpService;
 
     public MainViewModel(FileSystemService fileSystemService)
         : this(fileSystemService, new State.WorkspaceState())
@@ -88,6 +90,19 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         // WorkspaceState にナビゲーションコールバックを設定
         WorkspaceState.SelectNextAction = SelectNext;
         WorkspaceState.SelectPreviousAction = SelectPrevious;
+
+        ShowGettingStartedCommand = new RelayCommand(
+            () => ExecuteHelpActionAsync(helpService => helpService.ShowGettingStartedAsync()),
+            CanExecuteHelpAction);
+        ShowBasicOperationsCommand = new RelayCommand(
+            () => ExecuteHelpActionAsync(helpService => helpService.ShowBasicsAsync()),
+            CanExecuteHelpAction);
+        ShowDetailedHelpCommand = new RelayCommand(
+            () => ExecuteHelpActionAsync(helpService => helpService.ShowHelpHtmlWindowAsync()),
+            CanExecuteHelpAction);
+        ShowAboutCommand = new RelayCommand(
+            () => ExecuteHelpActionAsync(helpService => helpService.ShowAboutAsync()),
+            CanExecuteHelpAction);
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -413,6 +428,11 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         get => _notificationActionVisibility;
         private set => SetProperty(ref _notificationActionVisibility, value);
     }
+
+    public ICommand ShowGettingStartedCommand { get; }
+    public ICommand ShowBasicOperationsCommand { get; }
+    public ICommand ShowDetailedHelpCommand { get; }
+    public ICommand ShowAboutCommand { get; }
 
     public async Task InitializeAsync()
     {
@@ -1345,11 +1365,42 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         NotificationActionVisibility = Visibility.Visible;
     }
 
+    public void ConfigureHelpService(IHelpService helpService)
+    {
+        _helpService = helpService ?? throw new ArgumentNullException(nameof(helpService));
+        RaiseHelpCommandCanExecuteChanged();
+    }
+
     private void ClearNotificationAction()
     {
         NotificationActionLabel = null;
         NotificationActionUrl = null;
         NotificationActionVisibility = Visibility.Collapsed;
+    }
+
+    private bool CanExecuteHelpAction()
+    {
+        return _helpService is not null;
+    }
+
+    private Task ExecuteHelpActionAsync(Func<IHelpService, Task> execute)
+    {
+        ArgumentNullException.ThrowIfNull(execute);
+
+        if (_helpService is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return execute(_helpService);
+    }
+
+    private void RaiseHelpCommandCanExecuteChanged()
+    {
+        (ShowGettingStartedCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ShowBasicOperationsCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ShowDetailedHelpCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (ShowAboutCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private void UpdateNavigationProperties()

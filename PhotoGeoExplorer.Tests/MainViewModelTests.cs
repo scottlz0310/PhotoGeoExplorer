@@ -24,6 +24,40 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void HelpCommandsAreDisabledBeforeHelpServiceConfiguration()
+    {
+        // Arrange
+        using var viewModel = new MainViewModel(new FileSystemService());
+
+        // Assert
+        Assert.False(viewModel.ShowGettingStartedCommand.CanExecute(null));
+        Assert.False(viewModel.ShowBasicOperationsCommand.CanExecute(null));
+        Assert.False(viewModel.ShowDetailedHelpCommand.CanExecute(null));
+        Assert.False(viewModel.ShowAboutCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void HelpCommandsInvokeConfiguredHelpService()
+    {
+        // Arrange
+        using var viewModel = new MainViewModel(new FileSystemService());
+        using var helpService = new TestHelpService();
+        viewModel.ConfigureHelpService(helpService);
+
+        // Act
+        viewModel.ShowGettingStartedCommand.Execute(null);
+        viewModel.ShowBasicOperationsCommand.Execute(null);
+        viewModel.ShowDetailedHelpCommand.Execute(null);
+        viewModel.ShowAboutCommand.Execute(null);
+
+        // Assert
+        Assert.Equal(1, helpService.ShowGettingStartedCallCount);
+        Assert.Equal(1, helpService.ShowBasicsCallCount);
+        Assert.Equal(1, helpService.ShowHelpHtmlWindowCallCount);
+        Assert.Equal(1, helpService.ShowAboutCallCount);
+    }
+
+    [Fact]
     public async Task NavigateBackAsyncWithoutHistoryDoesNothing()
     {
         // Arrange
@@ -321,6 +355,51 @@ public sealed class MainViewModelTests : IDisposable
             {
                 // Ignore cleanup errors
             }
+        }
+    }
+
+    private sealed class TestHelpService : IHelpService
+    {
+        public int ShowGettingStartedCallCount { get; private set; }
+        public int ShowBasicsCallCount { get; private set; }
+        public int ShowHelpHtmlWindowCallCount { get; private set; }
+        public int ShowAboutCallCount { get; private set; }
+
+        public Task ShowGettingStartedAsync()
+        {
+            ShowGettingStartedCallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task ShowBasicsAsync()
+        {
+            ShowBasicsCallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task ShowHelpHtmlWindowAsync()
+        {
+            ShowHelpHtmlWindowCallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task ShowAboutAsync()
+        {
+            ShowAboutCallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task ShowQuickStartIfNeededAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        public void CloseHelpWindow()
+        {
+        }
+
+        public void Dispose()
+        {
         }
     }
 }
