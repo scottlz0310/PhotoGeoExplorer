@@ -13,6 +13,7 @@
 
 ### 変更
 - v1.6.0 は GitHub Release のみ公開し、Microsoft Store 版は据え置き（次回更新予定）。
+- AI エージェント共通ガイドラインに、MainWindow 肥大化防止ガードレールと最小構成略図を追加。
 - MainWindow スリム化（第2期）PR-8 の最終クリーンアップを実施（#102）。
   - `MainWindow.xaml.cs` の残存不要 `using` を整理し、最終行数 619 行（目標: 800 行以下）を確認。
   - `docs/Architecture/PaneSystem.md` / `MainWindow-Orchestration-Review.md` / `MainWindowSlimdown-Plan.md` を完了状態へ更新。

@@ -30,6 +30,24 @@
 - `PhotoGeoExplorer.E2E/`: E2E テスト
 - `docs/`: ドキュメント
 
+### 構成の略図
+```text
+PhotoGeoExplorer.sln
+├─ PhotoGeoExplorer/        # WinUI Shell + Panes
+│  ├─ MainWindow.xaml(.cs)  # Shell（薄く保つ）
+│  ├─ Panes/                # 機能別UI
+│  ├─ Services/             # アプリ/ドメインサービス
+│  └─ State/                # ペイン間共有状態
+├─ PhotoGeoExplorer.Core/   # コアロジック
+├─ PhotoGeoExplorer.Tests/  # xUnit
+└─ PhotoGeoExplorer.E2E/    # E2E
+```
+
+## MainWindow肥大化防止ガードレール
+- MainWindow は Shell 責務（レイアウト、DI、ライフサイクル）に限定します。
+- 新規機能ロジックは `Panes/*ViewModel` または `Services` に実装し、MainWindow へ直接追加しません。
+- MainWindow にイベントハンドラを追加する場合は「委譲のみ」に留め、処理本体は別層へ移譲します。
+
 ## ビルド・実行・テスト
 - 通常ビルド: `dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64`
 - ローカル実行: `dotnet run --project PhotoGeoExplorer/PhotoGeoExplorer.csproj -c Release -p:Platform=x64`
