@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Windowing;
@@ -29,6 +28,7 @@ public sealed partial class MainWindow : Window, IDisposable
 {
     private readonly MainViewModel _viewModel;
     private readonly SettingsCoordinator _settingsCoordinator;
+    private readonly StartupCoordinator _startupCoordinator;
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
@@ -45,7 +45,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private GridLength _storedMapSplitterHeight;
     private GridLength _storedSplitterWidth;
     private double _storedMapRowMinHeight;
-    private string? _startupFilePath;
     private readonly HelpService _helpService;
     internal FileBrowserPaneViewModel FileBrowserPaneViewModel => _fileBrowserPaneViewModel;
 
@@ -64,6 +63,7 @@ public sealed partial class MainWindow : Window, IDisposable
             _viewModel.WorkspaceState,
             exifEditorService,
             dialogService);
+        _startupCoordinator = new StartupCoordinator(_fileBrowserPaneViewModel);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         _mapPaneViewModel = new MapPaneViewModel(new MapPaneService(), _viewModel.WorkspaceState);
         _settingsCoordinator = new SettingsCoordinator(
@@ -73,7 +73,7 @@ public sealed partial class MainWindow : Window, IDisposable
             _fileBrowserPaneViewModel,
             _mapPaneViewModel,
             _viewModel,
-            () => _startupFilePath);
+            () => _startupCoordinator.StartupFilePath);
         _helpService = new HelpService(
             dialogService,
             () => _settingsCoordinator.LanguageOverride,
@@ -121,8 +121,7 @@ public sealed partial class MainWindow : Window, IDisposable
         await _mapPaneViewModel.InitializeAsync().ConfigureAwait(true);
 
         await _settingsCoordinator.LoadAsync().ConfigureAwait(true);
-        await ApplyStartupFolderOverrideAsync().ConfigureAwait(true);
-        await ApplyStartupFileActivationAsync().ConfigureAwait(true);
+        await _startupCoordinator.ApplyStartupAsync().ConfigureAwait(true);
         await _fileBrowserPaneViewModel.InitializeAsync().ConfigureAwait(true);
 
         // XamlRoot が確定するまでワンテンポ遅らせてからダイアログを表示
@@ -193,122 +192,9 @@ public sealed partial class MainWindow : Window, IDisposable
             AppLog.Error("Failed to set window icon.", ex);
         }
     }
-    private async Task ApplyStartupFolderOverrideAsync()
-    {
-        var folderPath = GetStartupFolderOverride();
-        if (string.IsNullOrWhiteSpace(folderPath))
-        {
-            return;
-        }
-
-        if (!Directory.Exists(folderPath))
-        {
-            AppLog.Error($"Startup folder not found: {folderPath}");
-            return;
-        }
-
-        await _fileBrowserPaneViewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
-    }
-
-    private static string? GetStartupFolderOverride()
-    {
-        var envPath = Environment.GetEnvironmentVariable("PHOTO_GEO_EXPLORER_E2E_FOLDER");
-        if (!string.IsNullOrWhiteSpace(envPath))
-        {
-            return envPath;
-        }
-
-        var args = Environment.GetCommandLineArgs();
-        for (var i = 1; i < args.Length; i++)
-        {
-            var arg = args[i];
-            if (TryGetOptionValue(arg, "--folder", out var value)
-                || TryGetOptionValue(arg, "/folder", out value)
-                || TryGetOptionValue(arg, "--e2e-folder", out value))
-            {
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    return value;
-                }
-
-                if (i + 1 < args.Length)
-                {
-                    return args[i + 1].Trim('"');
-                }
-            }
-        }
-
-        return null;
-    }
-
     public void SetStartupFilePath(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            return;
-        }
-
-        _startupFilePath = filePath;
-    }
-
-    private async Task ApplyStartupFileActivationAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_startupFilePath))
-        {
-            return;
-        }
-
-        var filePath = _startupFilePath;
-        _startupFilePath = null;
-
-        if (!File.Exists(filePath))
-        {
-            AppLog.Error($"Startup file not found: {filePath}");
-            return;
-        }
-
-        var folderPath = Path.GetDirectoryName(filePath);
-        if (string.IsNullOrWhiteSpace(folderPath))
-        {
-            AppLog.Error($"Failed to resolve startup file folder: {filePath}");
-            return;
-        }
-
-        await _fileBrowserPaneViewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
-
-        var item = _fileBrowserPaneViewModel.Items.FirstOrDefault(candidate =>
-            string.Equals(candidate.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
-        if (item is null || item.IsFolder)
-        {
-            AppLog.Error($"Startup file not listed in folder view: {filePath}");
-            return;
-        }
-
-        _fileBrowserPaneViewModel.UpdateSelection(new[] { item });
-        _fileBrowserPaneViewModel.SelectedItem = item;
-    }
-
-    private static bool TryGetOptionValue(string argument, string option, out string? value)
-    {
-        value = null;
-        if (!argument.StartsWith(option, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (argument.Length == option.Length)
-        {
-            return true;
-        }
-
-        var separator = argument[option.Length];
-        if (separator is not '=' and not ':')
-        {
-            return false;
-        }
-
-        value = argument[(option.Length + 1)..].Trim('"');
-        return true;
+        _startupCoordinator.SetStartupFilePath(filePath);
     }
 
     private void OnFileBrowserPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -522,6 +408,7 @@ public sealed partial class MainWindow : Window, IDisposable
         try
         {
             _helpService.Dispose();
+            _startupCoordinator.Dispose();
             _settingsCoordinator.Dispose();
 
             // WorkspaceState イベントをアンサブスクライブ

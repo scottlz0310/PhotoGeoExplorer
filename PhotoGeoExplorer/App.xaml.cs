@@ -14,7 +14,7 @@ namespace PhotoGeoExplorer;
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public partial class App : Application
 {
-    private const int MinimumSplashDurationMs = 2000;
+    private const int MinimumSplashDurationMs = 3000;
     private Window? _window;
     private SplashWindow? _splashWindow;
     private string? _startupFilePath;
@@ -36,12 +36,10 @@ public partial class App : Application
         AppLog.Info("App launched.");
         ApplyLanguageOverrideFromSettings();
         _startupFilePath = GetFileActivationPath();
-        if (!IsPackaged())
-        {
-            _splashWindow = new SplashWindow();
-            _splashWindow.Activate();
-            _splashShownAt = DateTimeOffset.UtcNow;
-        }
+        AppLog.Info($"Running as packaged app (App context): {IsPackaged()}");
+        _splashWindow = new SplashWindow();
+        _splashWindow.Activate();
+        _splashShownAt = DateTimeOffset.UtcNow;
 
         var mainWindow = new MainWindow();
         _window = mainWindow;

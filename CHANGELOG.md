@@ -89,6 +89,12 @@
   - `FileBrowserPaneViewModel` にファイル操作 Command（Open/Create/Rename/Move/MoveToParent/Delete）を追加。
   - `FileBrowserPaneView` が `ConfigureUiActionHandlers(...)` 経由でダイアログ/ピッカーを補助し、ViewModel から直接 UI 依存処理を呼ばない構成に整理。
   - `MainWindow.xaml` の MenuFlyoutItem は `ElementName` バインドから `x:Bind` へ変更し、メニューのポップアップ分離で Command 解決が不安定になる回帰を防止。
+- 起動時のフォルダ/ファイルアクティベーション処理を `IStartupCoordinator` / `StartupCoordinator` に移管し、MainWindow の起動責務を縮小（#104）。
+  - `GetStartupFolderOverride` / `TryGetOptionValue` / `ApplyStartupFolderOverrideAsync` / `ApplyStartupFileActivationAsync` を MainWindow からサービスへ移動。
+  - `StartupCoordinatorTests` を追加し、引数解析と起動時フォルダ・ファイル適用を検証。
+- パッケージ実行（MSIX/Store）でも独自スプラッシュを表示し、最短表示時間を 3 秒に統一。
+  - `App.xaml.cs` でスプラッシュ表示を非パッケージ限定から全起動形態へ変更。
+  - `MinimumSplashDurationMs` を 2000ms から 3000ms に変更。
 - 設定Paneの設定変更が即時反映されないことがある問題を修正。
   - 保存ボタンを廃止し、設定変更をその場で即時適用する動作に統一。
   - ダイアログクローズ時に最終状態を再保存するよう改善。
