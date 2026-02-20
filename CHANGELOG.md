@@ -85,6 +85,10 @@
   - 表示メニューは `Click` ハンドラ経由で `FileBrowserPaneViewModel` を直接更新する実装に戻し、確実に動作するよう改善。
 - 表示メニューの画像フィルタ文言をトグル化し、状態に応じて「全てのファイルを表示」↔「画像のみを表示」を表示するよう改善。
   - MainWindow でメニュー項目テキストを明示更新し、文言が表示されない問題を修正。
+- MainWindow に残っていた File/View メニューの Click リレーハンドラを撤去し、Command バインディングへ再移行（#118）。
+  - `FileBrowserPaneViewModel` にファイル操作 Command（Open/Create/Rename/Move/MoveToParent/Delete）を追加。
+  - `FileBrowserPaneView` が `ConfigureUiActionHandlers(...)` 経由でダイアログ/ピッカーを補助し、ViewModel から直接 UI 依存処理を呼ばない構成に整理。
+  - `MainWindow.xaml` の MenuFlyoutItem は `ElementName` バインドから `x:Bind` へ変更し、メニューのポップアップ分離で Command 解決が不安定になる回帰を防止。
 - 設定Paneの設定変更が即時反映されないことがある問題を修正。
   - 保存ボタンを廃止し、設定変更をその場で即時適用する動作に統一。
   - ダイアログクローズ時に最終状態を再保存するよう改善。

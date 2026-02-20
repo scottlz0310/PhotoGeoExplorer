@@ -56,6 +56,12 @@ public class FileBrowserPaneViewModelTests
         Assert.NotNull(viewModel.ToggleImagesOnlyCommand);
         Assert.NotNull(viewModel.EditExifCommand);
         Assert.NotNull(viewModel.SetViewModeCommand);
+        Assert.NotNull(viewModel.OpenFolderCommand);
+        Assert.NotNull(viewModel.CreateFolderCommand);
+        Assert.NotNull(viewModel.RenameSelectionCommand);
+        Assert.NotNull(viewModel.MoveSelectionCommand);
+        Assert.NotNull(viewModel.MoveSelectionToParentCommand);
+        Assert.NotNull(viewModel.DeleteSelectionCommand);
     }
 
     [Fact]
@@ -576,6 +582,92 @@ public class FileBrowserPaneViewModelTests
 
         // Assert
         Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task OpenFolderCommandInvokesConfiguredUiAction()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var invokedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        viewModel.ConfigureUiActionHandlers(
+            () =>
+            {
+                invokedTcs.TrySetResult(true);
+                return Task.CompletedTask;
+            },
+            null,
+            null,
+            null,
+            null,
+            null);
+
+        // Act
+        viewModel.OpenFolderCommand.Execute(null);
+
+        // Assert
+        var completed = await Task.WhenAny(invokedTcs.Task, Task.Delay(TimeSpan.FromSeconds(1))).ConfigureAwait(true);
+        Assert.Same(invokedTcs.Task, completed);
+    }
+
+    [Fact]
+    public async Task CreateFolderCommandCanExecuteReflectsCurrentFolder()
+    {
+        // Arrange
+        var tempDir = CreateTempTestDirectory();
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        viewModel.ConfigureUiActionHandlers(
+            null,
+            () => Task.CompletedTask,
+            null,
+            null,
+            null,
+            null);
+
+        try
+        {
+            // Act & Assert
+            Assert.False(viewModel.CreateFolderCommand.CanExecute(null));
+
+            await viewModel.LoadFolderAsync(tempDir).ConfigureAwait(true);
+
+            Assert.True(viewModel.CreateFolderCommand.CanExecute(null));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public void RenameSelectionCommandCanExecuteReflectsSelectionCount()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        viewModel.ConfigureUiActionHandlers(
+            null,
+            null,
+            () => Task.CompletedTask,
+            null,
+            null,
+            null);
+        var first = CreatePhotoListItem("first.jpg");
+        var second = CreatePhotoListItem("second.jpg");
+
+        // Act & Assert
+        Assert.False(viewModel.RenameSelectionCommand.CanExecute(null));
+
+        viewModel.UpdateSelection(new[] { first });
+        Assert.True(viewModel.RenameSelectionCommand.CanExecute(null));
+
+        viewModel.UpdateSelection(new[] { first, second });
+        Assert.False(viewModel.RenameSelectionCommand.CanExecute(null));
     }
 
     private static string CreateTempTestDirectory()

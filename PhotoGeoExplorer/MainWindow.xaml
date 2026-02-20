@@ -20,31 +20,31 @@
 
         <MenuBar>
             <MenuBarItem Title="File" x:Uid="MenuFile">
-                <MenuFlyoutItem Text="Open folder..." Click="OnOpenFolderClicked" x:Uid="MenuFileOpenFolder" />
+                <MenuFlyoutItem Text="Open folder..." Command="{x:Bind FileBrowserPaneViewModel.OpenFolderCommand, Mode=OneWay}" x:Uid="MenuFileOpenFolder" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="New folder" Click="OnCreateFolderClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanCreateFolder}" x:Uid="MenuFileNewFolder" />
-                <MenuFlyoutItem Text="Rename" Click="OnRenameClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanRenameSelection}" x:Uid="MenuFileRename" />
-                <MenuFlyoutItem Text="Move..." Click="OnMoveClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanModifySelection}" x:Uid="MenuFileMove" />
-                <MenuFlyoutItem Text="Move to parent" Click="OnMoveToParentClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanMoveToParentSelection}" x:Uid="MenuFileMoveToParent" />
-                <MenuFlyoutItem Text="Delete" Click="OnDeleteClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanModifySelection}" x:Uid="MenuFileDelete" />
+                <MenuFlyoutItem Text="New folder" Command="{x:Bind FileBrowserPaneViewModel.CreateFolderCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanCreateFolder, Mode=OneWay}" x:Uid="MenuFileNewFolder" />
+                <MenuFlyoutItem Text="Rename" Command="{x:Bind FileBrowserPaneViewModel.RenameSelectionCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanRenameSelection, Mode=OneWay}" x:Uid="MenuFileRename" />
+                <MenuFlyoutItem Text="Move..." Command="{x:Bind FileBrowserPaneViewModel.MoveSelectionCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanModifySelection, Mode=OneWay}" x:Uid="MenuFileMove" />
+                <MenuFlyoutItem Text="Move to parent" Command="{x:Bind FileBrowserPaneViewModel.MoveSelectionToParentCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanMoveToParentSelection, Mode=OneWay}" x:Uid="MenuFileMoveToParent" />
+                <MenuFlyoutItem Text="Delete" Command="{x:Bind FileBrowserPaneViewModel.DeleteSelectionCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanModifySelection, Mode=OneWay}" x:Uid="MenuFileDelete" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Refresh" Click="OnRefreshClicked" x:Uid="MenuFileRefresh" />
-                <MenuFlyoutItem Text="Go home" Click="OnNavigateHomeClicked" x:Uid="MenuFileGoHome" />
-                <MenuFlyoutItem Text="Go up" Click="OnNavigateUpClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanNavigateUp}" x:Uid="MenuFileGoUp" />
+                <MenuFlyoutItem Text="Refresh" Command="{x:Bind FileBrowserPaneViewModel.RefreshCommand, Mode=OneWay}" x:Uid="MenuFileRefresh" />
+                <MenuFlyoutItem Text="Go home" Command="{x:Bind FileBrowserPaneViewModel.NavigateHomeCommand, Mode=OneWay}" x:Uid="MenuFileGoHome" />
+                <MenuFlyoutItem Text="Go up" Command="{x:Bind FileBrowserPaneViewModel.NavigateUpCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanNavigateUp, Mode=OneWay}" x:Uid="MenuFileGoUp" />
                 <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="Exit" Click="OnExitClicked" x:Uid="MenuFileExit" />
             </MenuBarItem>
             <MenuBarItem Title="View" x:Uid="MenuView">
-                <MenuFlyoutItem Text="Icon" Tag="Icon" Click="OnViewModeMenuClicked" x:Uid="MenuViewIcon" />
-                <MenuFlyoutItem Text="List" Tag="List" Click="OnViewModeMenuClicked" x:Uid="MenuViewList" />
-                <MenuFlyoutItem Text="Details" Tag="Details" Click="OnViewModeMenuClicked" x:Uid="MenuViewDetails" />
+                <MenuFlyoutItem Text="Icon" Tag="Icon" Command="{x:Bind FileBrowserPaneViewModel.SetViewModeCommand, Mode=OneWay}" CommandParameter="Icon" x:Uid="MenuViewIcon" />
+                <MenuFlyoutItem Text="List" Tag="List" Command="{x:Bind FileBrowserPaneViewModel.SetViewModeCommand, Mode=OneWay}" CommandParameter="List" x:Uid="MenuViewList" />
+                <MenuFlyoutItem Text="Details" Tag="Details" Command="{x:Bind FileBrowserPaneViewModel.SetViewModeCommand, Mode=OneWay}" CommandParameter="Details" x:Uid="MenuViewDetails" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem x:Name="ToggleImagesOnlyMenuItem" Text="Show images only" Click="OnToggleImagesOnlyClicked" x:Uid="MenuViewImagesOnly" />
+                <MenuFlyoutItem x:Name="ToggleImagesOnlyMenuItem" Text="Show images only" Command="{x:Bind FileBrowserPaneViewModel.ToggleImagesOnlyCommand, Mode=OneWay}" x:Uid="MenuViewImagesOnly" />
             </MenuBarItem>
             <MenuBarItem Title="Settings" x:Uid="MenuSettings">
                 <MenuFlyoutItem Text="Settings..." Click="OnOpenSettingsPaneClicked" x:Uid="MenuSettingsOpenPane" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Reset filters" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.ResetFiltersCommand}" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.HasActiveFilters}" x:Uid="MenuSettingsResetFilters" />
+                <MenuFlyoutItem Text="Reset filters" Command="{x:Bind FileBrowserPaneViewModel.ResetFiltersCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.HasActiveFilters, Mode=OneWay}" x:Uid="MenuSettingsResetFilters" />
             </MenuBarItem>
             <MenuBarItem Title="Help" x:Uid="MenuHelp">
                 <MenuFlyoutItem Text="Getting started" Command="{Binding ShowGettingStartedCommand}" x:Uid="MenuHelpGettingStarted" />

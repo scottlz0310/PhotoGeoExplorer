@@ -10,7 +10,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
-using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Preview;
@@ -48,6 +47,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private double _storedMapRowMinHeight;
     private string? _startupFilePath;
     private readonly HelpService _helpService;
+    internal FileBrowserPaneViewModel FileBrowserPaneViewModel => _fileBrowserPaneViewModel;
 
     public MainWindow()
     {
@@ -436,72 +436,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private void OnMapSplitterDragCompleted(object sender, DragCompletedEventArgs e)
     {
         _viewModel.PersistLayoutSettingsCommand.Execute(null);
-    }
-
-    private async void OnOpenFolderClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.OpenFolderAsync().ConfigureAwait(true);
-    }
-
-    private async void OnCreateFolderClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.CreateFolderAsync().ConfigureAwait(true);
-    }
-
-    private async void OnRenameClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.RenameSelectionAsync().ConfigureAwait(true);
-    }
-
-    private async void OnMoveClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.MoveSelectionAsync().ConfigureAwait(true);
-    }
-
-    private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.MoveSelectionToParentAsync().ConfigureAwait(true);
-    }
-
-    private async void OnDeleteClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.DeleteSelectionAsync().ConfigureAwait(true);
-    }
-
-    private async void OnRefreshClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private async void OnNavigateHomeClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.NavigateHomeAsync().ConfigureAwait(true);
-    }
-
-    private async void OnNavigateUpClicked(object sender, RoutedEventArgs e)
-    {
-        await FileBrowserPaneControl.NavigateUpAsync().ConfigureAwait(true);
-    }
-
-
-
-    private async void OnToggleImagesOnlyClicked(object sender, RoutedEventArgs e)
-    {
-        _fileBrowserPaneViewModel.ShowImagesOnly = !_fileBrowserPaneViewModel.ShowImagesOnly;
-        await _fileBrowserPaneViewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private void OnViewModeMenuClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuFlyoutItem item || item.Tag is not string tag)
-        {
-            return;
-        }
-
-        if (Enum.TryParse(tag, out FileViewMode mode))
-        {
-            _fileBrowserPaneViewModel.FileViewMode = mode;
-        }
     }
 
     private async void OnOpenSettingsPaneClicked(object sender, RoutedEventArgs e)

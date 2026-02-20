@@ -71,6 +71,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private int _thumbnailGenerationCompleted;
     private CancellationTokenSource? _thumbnailGenerationCts;
     private DispatcherQueueTimer? _thumbnailUpdateTimer;
+    private Func<Task>? _openFolderAction;
+    private Func<Task>? _createFolderAction;
+    private Func<Task>? _renameSelectionAction;
+    private Func<Task>? _moveSelectionAction;
+    private Func<Task>? _moveSelectionToParentAction;
+    private Func<Task>? _deleteSelectionAction;
 
     public FileBrowserPaneViewModel()
         : this(new FileBrowserPaneService(), new WorkspaceState())
@@ -131,6 +137,24 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
             return Task.CompletedTask;
         });
+        OpenFolderCommand = new RelayCommand(
+            async () => await ExecuteUiActionAsync(_openFolderAction).ConfigureAwait(false),
+            () => _openFolderAction is not null);
+        CreateFolderCommand = new RelayCommand(
+            async () => await ExecuteUiActionAsync(_createFolderAction).ConfigureAwait(false),
+            () => _createFolderAction is not null && CanCreateFolder);
+        RenameSelectionCommand = new RelayCommand(
+            async () => await ExecuteUiActionAsync(_renameSelectionAction).ConfigureAwait(false),
+            () => _renameSelectionAction is not null && CanRenameSelection);
+        MoveSelectionCommand = new RelayCommand(
+            async () => await ExecuteUiActionAsync(_moveSelectionAction).ConfigureAwait(false),
+            () => _moveSelectionAction is not null && CanModifySelection);
+        MoveSelectionToParentCommand = new RelayCommand(
+            async () => await ExecuteUiActionAsync(_moveSelectionToParentAction).ConfigureAwait(false),
+            () => _moveSelectionToParentAction is not null && CanMoveToParentSelection);
+        DeleteSelectionCommand = new RelayCommand(
+            async () => await ExecuteUiActionAsync(_deleteSelectionAction).ConfigureAwait(false),
+            () => _deleteSelectionAction is not null && CanModifySelection);
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -147,6 +171,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanCreateFolder));
                 OnPropertyChanged(nameof(CanMoveToParentSelection));
                 UpdateNavigationCommands();
+                RaiseFileOperationCommandCanExecuteChanged();
                 UpdateStatusBar();
 
                 // WorkspaceState に反映
@@ -303,6 +328,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanRenameSelection));
                 OnPropertyChanged(nameof(CanMoveToParentSelection));
                 OnPropertyChanged(nameof(CanEditExif));
+                RaiseFileOperationCommandCanExecuteChanged();
                 (EditExifCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
@@ -412,6 +438,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public ICommand ToggleImagesOnlyCommand { get; }
     public ICommand EditExifCommand { get; }
     public ICommand SetViewModeCommand { get; }
+    public ICommand OpenFolderCommand { get; }
+    public ICommand CreateFolderCommand { get; }
+    public ICommand RenameSelectionCommand { get; }
+    public ICommand MoveSelectionCommand { get; }
+    public ICommand MoveSelectionToParentCommand { get; }
+    public ICommand DeleteSelectionCommand { get; }
 
     public bool CanNavigateBack => _service.CanNavigateBack;
     public bool CanNavigateForward => _service.CanNavigateForward;
@@ -449,6 +481,23 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     protected override void OnActiveChanged()
     {
         // Paneがアクティブになったときの処理
+    }
+
+    internal void ConfigureUiActionHandlers(
+        Func<Task>? openFolderAction,
+        Func<Task>? createFolderAction,
+        Func<Task>? renameSelectionAction,
+        Func<Task>? moveSelectionAction,
+        Func<Task>? moveSelectionToParentAction,
+        Func<Task>? deleteSelectionAction)
+    {
+        _openFolderAction = openFolderAction;
+        _createFolderAction = createFolderAction;
+        _renameSelectionAction = renameSelectionAction;
+        _moveSelectionAction = moveSelectionAction;
+        _moveSelectionToParentAction = moveSelectionToParentAction;
+        _deleteSelectionAction = deleteSelectionAction;
+        RaiseFileOperationCommandCanExecuteChanged();
     }
 
     public async Task LoadFolderAsync(string folderPath, bool updateHistory = true)
@@ -797,6 +846,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public void Dispose()
     {
         _workspaceState.PhotoFocusRequested -= OnWorkspacePhotoFocusRequested;
+        ConfigureUiActionHandlers(null, null, null, null, null, null);
         CancelThumbnailGeneration();
         CancelMetadataLoad();
         CancelFolderLoad();
@@ -945,6 +995,21 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         (NavigateBackCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (NavigateForwardCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (NavigateUpCommand as RelayCommand)?.RaiseCanExecuteChanged();
+    }
+
+    private static Task ExecuteUiActionAsync(Func<Task>? action)
+    {
+        return action is null ? Task.CompletedTask : action();
+    }
+
+    private void RaiseFileOperationCommandCanExecuteChanged()
+    {
+        (OpenFolderCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (CreateFolderCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (RenameSelectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (MoveSelectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (MoveSelectionToParentCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (DeleteSelectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private void OnSelectedItemChanged()

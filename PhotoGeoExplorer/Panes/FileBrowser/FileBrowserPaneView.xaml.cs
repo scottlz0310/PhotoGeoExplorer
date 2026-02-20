@@ -72,12 +72,20 @@ internal sealed partial class FileBrowserPaneView : UserControl
         if (_previousViewModel is not null)
         {
             _previousViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _previousViewModel.ConfigureUiActionHandlers(null, null, null, null, null, null);
         }
 
         // ViewModel の CanExecute 関連プロパティ変更を監視し、Command の状態を更新
         if (args.NewValue is FileBrowserPaneViewModel vm)
         {
             vm.PropertyChanged += OnViewModelPropertyChanged;
+            vm.ConfigureUiActionHandlers(
+                OpenFolderAsync,
+                CreateFolderAsync,
+                RenameSelectionAsync,
+                MoveSelectionAsync,
+                MoveSelectionToParentAsync,
+                DeleteSelectionAsync);
             _previousViewModel = vm;
         }
         else
