@@ -18,6 +18,11 @@ public sealed class SettingsServiceTests
                 LastFolderPath = "C:\\Photos",
                 ShowImagesOnly = false,
                 FileViewMode = FileViewMode.Icon,
+                ShowDetailsModifiedColumn = false,
+                ShowDetailsResolutionColumn = false,
+                ShowDetailsSizeColumn = false,
+                ShowDetailsTakenAtColumn = true,
+                ShowDetailsLocationColumn = true,
                 Language = "en-US",
                 Theme = ThemePreference.Dark,
                 MapDefaultZoomLevel = 16
@@ -30,6 +35,11 @@ public sealed class SettingsServiceTests
             Assert.Equal(settings.LastFolderPath, imported!.LastFolderPath);
             Assert.Equal(settings.ShowImagesOnly, imported.ShowImagesOnly);
             Assert.Equal(settings.FileViewMode, imported.FileViewMode);
+            Assert.Equal(settings.ShowDetailsModifiedColumn, imported.ShowDetailsModifiedColumn);
+            Assert.Equal(settings.ShowDetailsResolutionColumn, imported.ShowDetailsResolutionColumn);
+            Assert.Equal(settings.ShowDetailsSizeColumn, imported.ShowDetailsSizeColumn);
+            Assert.Equal(settings.ShowDetailsTakenAtColumn, imported.ShowDetailsTakenAtColumn);
+            Assert.Equal(settings.ShowDetailsLocationColumn, imported.ShowDetailsLocationColumn);
             Assert.Equal(settings.Language, imported.Language);
             Assert.Equal(settings.Theme, imported.Theme);
             Assert.Equal(settings.MapDefaultZoomLevel, imported.MapDefaultZoomLevel);

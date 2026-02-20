@@ -25,6 +25,12 @@ internal static class ExifService
         return Task.Run(() => ReadMetadata(filePath, cancellationToken), cancellationToken);
     }
 
+    public static PhotoMetadata? GetMetadata(string filePath)
+    {
+        ArgumentNullException.ThrowIfNull(filePath);
+        return ReadMetadata(filePath, CancellationToken.None);
+    }
+
     public static Task<bool> UpdateMetadataAsync(
         string filePath,
         DateTimeOffset? takenAt,

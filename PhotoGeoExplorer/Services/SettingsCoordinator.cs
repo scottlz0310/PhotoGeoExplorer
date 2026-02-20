@@ -339,6 +339,11 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _fileBrowserPaneViewModel.FileViewMode = Enum.IsDefined<FileViewMode>(settings.FileViewMode)
             ? settings.FileViewMode
             : FileViewMode.Details;
+        _fileBrowserPaneViewModel.ShowDetailsModifiedColumn = settings.ShowDetailsModifiedColumn;
+        _fileBrowserPaneViewModel.ShowDetailsResolutionColumn = settings.ShowDetailsResolutionColumn;
+        _fileBrowserPaneViewModel.ShowDetailsSizeColumn = settings.ShowDetailsSizeColumn;
+        _fileBrowserPaneViewModel.ShowDetailsTakenAtColumn = settings.ShowDetailsTakenAtColumn;
+        _fileBrowserPaneViewModel.ShowDetailsLocationColumn = settings.ShowDetailsLocationColumn;
 
         UpdateShellSettingsState();
 
@@ -417,6 +422,11 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     {
         if (e.PropertyName is nameof(FileBrowserPaneViewModel.ShowImagesOnly)
             or nameof(FileBrowserPaneViewModel.FileViewMode)
+            or nameof(FileBrowserPaneViewModel.ShowDetailsModifiedColumn)
+            or nameof(FileBrowserPaneViewModel.ShowDetailsResolutionColumn)
+            or nameof(FileBrowserPaneViewModel.ShowDetailsSizeColumn)
+            or nameof(FileBrowserPaneViewModel.ShowDetailsTakenAtColumn)
+            or nameof(FileBrowserPaneViewModel.ShowDetailsLocationColumn)
             or nameof(FileBrowserPaneViewModel.CurrentFolderPath))
         {
             ScheduleSave();
@@ -472,6 +482,11 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath,
             ShowImagesOnly = _fileBrowserPaneViewModel.ShowImagesOnly,
             FileViewMode = _fileBrowserPaneViewModel.FileViewMode,
+            ShowDetailsModifiedColumn = _fileBrowserPaneViewModel.ShowDetailsModifiedColumn,
+            ShowDetailsResolutionColumn = _fileBrowserPaneViewModel.ShowDetailsResolutionColumn,
+            ShowDetailsSizeColumn = _fileBrowserPaneViewModel.ShowDetailsSizeColumn,
+            ShowDetailsTakenAtColumn = _fileBrowserPaneViewModel.ShowDetailsTakenAtColumn,
+            ShowDetailsLocationColumn = _fileBrowserPaneViewModel.ShowDetailsLocationColumn,
             Language = _languageOverride,
             Theme = _themePreference,
             MapDefaultZoomLevel = _mapDefaultZoomLevel,

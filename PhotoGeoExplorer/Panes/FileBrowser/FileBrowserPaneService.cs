@@ -110,12 +110,18 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
             FileSortColumn.ModifiedAt => direction == SortDirection.Ascending
                 ? ordered.ThenBy(item => item.Item.ModifiedAt)
                 : ordered.ThenByDescending(item => item.Item.ModifiedAt),
+            FileSortColumn.TakenAt => direction == SortDirection.Ascending
+                ? ordered.ThenBy(item => GetTakenAtSortKey(item, ascending: true))
+                : ordered.ThenByDescending(item => GetTakenAtSortKey(item, ascending: false)),
             FileSortColumn.Resolution => direction == SortDirection.Ascending
                 ? ordered.ThenBy(item => GetResolutionSortKey(item, ascending: true))
                 : ordered.ThenByDescending(item => GetResolutionSortKey(item, ascending: false)),
             FileSortColumn.Size => direction == SortDirection.Ascending
                 ? ordered.ThenBy(item => item.Item.SizeBytes)
                 : ordered.ThenByDescending(item => item.Item.SizeBytes),
+            FileSortColumn.Location => direction == SortDirection.Ascending
+                ? ordered.ThenBy(item => GetLocationSortKey(item, ascending: true))
+                : ordered.ThenByDescending(item => GetLocationSortKey(item, ascending: false)),
             _ => ordered
         };
 
@@ -395,6 +401,26 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
         }
 
         return (long)item.PixelWidth.Value * item.PixelHeight.Value;
+    }
+
+    private static DateTimeOffset GetTakenAtSortKey(PhotoListItem item, bool ascending)
+    {
+        if (item.IsFolder || item.Item.TakenAt is null)
+        {
+            return ascending ? DateTimeOffset.MaxValue : DateTimeOffset.MinValue;
+        }
+
+        return item.Item.TakenAt.Value;
+    }
+
+    private static int GetLocationSortKey(PhotoListItem item, bool ascending)
+    {
+        if (item.IsFolder || item.Item.HasLocation is null)
+        {
+            return ascending ? int.MaxValue : int.MinValue;
+        }
+
+        return item.Item.HasLocation.Value ? 1 : 0;
     }
 
     private static string NormalizePath(string path)

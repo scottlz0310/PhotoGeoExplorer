@@ -6,11 +6,13 @@
 
 ### 追加
 - Cloudflare Pages の `docs` 配信に合わせ、`docs/help/index.html` と `docs/help/index.en.html` を追加。
+- ファイル一覧の詳細表示に、撮影日時列と位置情報有無アイコン列を追加し、列表示の切り替えメニューを実装（#122）。
 
 ### 変更
 - ヘルプ HTML と README のプライバシーポリシー参照先を `https://photogeoexplorer.pages.dev/privacy-policy` に切り替え。
 - Cloudflare 配信方式を GitHub Actions workflow から Cloudflare Pages の Git 連携自動デプロイへ統一。
 - `docs/GitHubPagesSetup.md` と `docs/MicrosoftStore.md` を更新。
+- 詳細表示列の表示/非表示設定を `settings.json` に保存し、再起動時に復元するよう変更（#122）。
 
 ### 修正
 - 設定ペインの表示言語コンボボックスで、システム既定選択時に起動直後の現在値が空表示になることがある問題を修正（#125）。

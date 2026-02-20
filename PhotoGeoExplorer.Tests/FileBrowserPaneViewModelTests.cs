@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Services;
@@ -93,6 +94,38 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
+    public void DetailsColumnsDefaultStateMatchesExpected()
+    {
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        Assert.True(viewModel.ShowDetailsModifiedColumn);
+        Assert.True(viewModel.ShowDetailsResolutionColumn);
+        Assert.True(viewModel.ShowDetailsSizeColumn);
+        Assert.False(viewModel.ShowDetailsTakenAtColumn);
+        Assert.False(viewModel.ShowDetailsLocationColumn);
+        Assert.Equal(Visibility.Visible, viewModel.DetailsModifiedColumnVisibility);
+        Assert.Equal(Visibility.Collapsed, viewModel.DetailsTakenAtColumnVisibility);
+    }
+
+    [Fact]
+    public void SettingDetailsColumnVisibilityPropertiesUpdatesVisibility()
+    {
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        viewModel.ShowDetailsModifiedColumn = false;
+        viewModel.ShowDetailsTakenAtColumn = true;
+
+        Assert.Equal(Visibility.Collapsed, viewModel.DetailsModifiedColumnVisibility);
+        Assert.Equal(Visibility.Visible, viewModel.DetailsTakenAtColumnVisibility);
+    }
+
+    [Fact]
     public void SortColumnDefaultsToName()
     {
         // Arrange
@@ -149,6 +182,22 @@ public class FileBrowserPaneViewModelTests
         // Assert
         Assert.Equal(FileSortColumn.Size, viewModel.SortColumn);
         Assert.Equal(SortDirection.Ascending, viewModel.SortDirection);
+    }
+
+    [Fact]
+    public void ToggleSortSupportsTakenAtAndLocationColumns()
+    {
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        viewModel.ToggleSort(FileSortColumn.TakenAt);
+        Assert.Equal(FileSortColumn.TakenAt, viewModel.SortColumn);
+        Assert.Equal("▲", viewModel.TakenAtSortIndicator);
+
+        viewModel.ToggleSort(FileSortColumn.Location);
+        Assert.Equal(FileSortColumn.Location, viewModel.SortColumn);
+        Assert.Equal("▲", viewModel.LocationSortIndicator);
     }
 
     [Fact]

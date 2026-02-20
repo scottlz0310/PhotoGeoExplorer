@@ -2,6 +2,7 @@ using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Services;
 
 namespace PhotoGeoExplorer.ViewModels;
 
@@ -29,6 +30,22 @@ internal sealed class PhotoListItem : BindableBase
     public string FileName => Item.FileName;
     public string SizeText => Item.SizeText;
     public string ModifiedAtText => Item.ModifiedAtText;
+    public string TakenAtText => Item.TakenAtText ?? string.Empty;
+    public string? LocationStatusGlyph => Item.HasLocation switch
+    {
+        true => "\uE707",
+        false => "\uE711",
+        _ => null
+    };
+    public string? LocationStatusTooltip => Item.HasLocation switch
+    {
+        true => LocalizationService.GetString("StatusBar.GpsAvailable"),
+        false => LocalizationService.GetString("StatusBar.GpsMissing"),
+        _ => null
+    };
+    public Visibility LocationStatusVisibility => IsFolder || Item.HasLocation is null
+        ? Visibility.Collapsed
+        : Visibility.Visible;
     public string ResolutionText
     {
         get

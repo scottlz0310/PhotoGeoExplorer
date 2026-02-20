@@ -24,10 +24,21 @@ namespace PhotoGeoExplorer.Panes.FileBrowser;
 internal sealed partial class FileBrowserPaneView : UserControl
 {
     private const string InternalDragKey = "PhotoGeoExplorer.InternalDrag";
+    private const string DetailsColumnModifiedTag = "Modified";
+    private const string DetailsColumnResolutionTag = "Resolution";
+    private const string DetailsColumnSizeTag = "Size";
+    private const string DetailsColumnTakenAtTag = "TakenAt";
+    private const string DetailsColumnLocationTag = "Location";
     private List<PhotoListItem>? _dragItems;
     private bool _suppressBreadcrumbNavigation;
     private bool _isWaitingForXamlRoot;
     private FileBrowserPaneViewModel? _previousViewModel;
+    private MenuFlyout? _detailsColumnsFlyout;
+    private ToggleMenuFlyoutItem? _detailsModifiedColumnMenuItem;
+    private ToggleMenuFlyoutItem? _detailsResolutionColumnMenuItem;
+    private ToggleMenuFlyoutItem? _detailsSizeColumnMenuItem;
+    private ToggleMenuFlyoutItem? _detailsTakenAtColumnMenuItem;
+    private ToggleMenuFlyoutItem? _detailsLocationColumnMenuItem;
 
     public FileBrowserPaneView()
     {
@@ -238,6 +249,18 @@ internal sealed partial class FileBrowserPaneView : UserControl
     private async void OnApplyFiltersClicked(object sender, RoutedEventArgs e)
     {
         await RefreshAsync().ConfigureAwait(true);
+    }
+
+    private void OnDetailsColumnsClicked(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null || sender is not FrameworkElement anchor)
+        {
+            return;
+        }
+
+        _detailsColumnsFlyout ??= BuildDetailsColumnsFlyout();
+        SyncDetailsColumnsFlyout();
+        _detailsColumnsFlyout.ShowAt(anchor);
     }
 
     private async void OnFiltersChanged(object sender, RoutedEventArgs e)
@@ -859,6 +882,109 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
         ViewModel.ToggleSort(column);
     }
+
+    private MenuFlyout BuildDetailsColumnsFlyout()
+    {
+        var flyout = new MenuFlyout();
+
+        _detailsModifiedColumnMenuItem = CreateDetailsColumnToggleItem(
+            LocalizationService.GetString("DetailsColumnMenu.Modified"),
+            DetailsColumnModifiedTag);
+        _detailsResolutionColumnMenuItem = CreateDetailsColumnToggleItem(
+            LocalizationService.GetString("DetailsColumnMenu.Resolution"),
+            DetailsColumnResolutionTag);
+        _detailsSizeColumnMenuItem = CreateDetailsColumnToggleItem(
+            LocalizationService.GetString("DetailsColumnMenu.Size"),
+            DetailsColumnSizeTag);
+        _detailsTakenAtColumnMenuItem = CreateDetailsColumnToggleItem(
+            LocalizationService.GetString("DetailsColumnMenu.TakenAt"),
+            DetailsColumnTakenAtTag);
+        _detailsLocationColumnMenuItem = CreateDetailsColumnToggleItem(
+            LocalizationService.GetString("DetailsColumnMenu.Location"),
+            DetailsColumnLocationTag);
+
+        flyout.Items.Add(_detailsModifiedColumnMenuItem);
+        flyout.Items.Add(_detailsResolutionColumnMenuItem);
+        flyout.Items.Add(_detailsSizeColumnMenuItem);
+        flyout.Items.Add(_detailsTakenAtColumnMenuItem);
+        flyout.Items.Add(_detailsLocationColumnMenuItem);
+
+        return flyout;
+    }
+
+    private ToggleMenuFlyoutItem CreateDetailsColumnToggleItem(string text, string tag)
+    {
+        var item = new ToggleMenuFlyoutItem
+        {
+            Text = text,
+            Tag = tag
+        };
+        item.Click += OnDetailsColumnMenuItemClicked;
+        return item;
+    }
+
+    private void SyncDetailsColumnsFlyout()
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        if (_detailsModifiedColumnMenuItem is not null)
+        {
+            _detailsModifiedColumnMenuItem.IsChecked = ViewModel.ShowDetailsModifiedColumn;
+        }
+
+        if (_detailsResolutionColumnMenuItem is not null)
+        {
+            _detailsResolutionColumnMenuItem.IsChecked = ViewModel.ShowDetailsResolutionColumn;
+        }
+
+        if (_detailsSizeColumnMenuItem is not null)
+        {
+            _detailsSizeColumnMenuItem.IsChecked = ViewModel.ShowDetailsSizeColumn;
+        }
+
+        if (_detailsTakenAtColumnMenuItem is not null)
+        {
+            _detailsTakenAtColumnMenuItem.IsChecked = ViewModel.ShowDetailsTakenAtColumn;
+        }
+
+        if (_detailsLocationColumnMenuItem is not null)
+        {
+            _detailsLocationColumnMenuItem.IsChecked = ViewModel.ShowDetailsLocationColumn;
+        }
+    }
+
+    private void OnDetailsColumnMenuItemClicked(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null
+            || sender is not ToggleMenuFlyoutItem item
+            || item.Tag is not string tag)
+        {
+            return;
+        }
+
+        switch (tag)
+        {
+            case DetailsColumnModifiedTag:
+                ViewModel.ShowDetailsModifiedColumn = item.IsChecked;
+                break;
+            case DetailsColumnResolutionTag:
+                ViewModel.ShowDetailsResolutionColumn = item.IsChecked;
+                break;
+            case DetailsColumnSizeTag:
+                ViewModel.ShowDetailsSizeColumn = item.IsChecked;
+                break;
+            case DetailsColumnTakenAtTag:
+                ViewModel.ShowDetailsTakenAtColumn = item.IsChecked;
+                break;
+            case DetailsColumnLocationTag:
+                ViewModel.ShowDetailsLocationColumn = item.IsChecked;
+                break;
+        }
+    }
+
     private MenuFlyout BuildFileContextFlyout()
     {
         var viewModel = ViewModel;

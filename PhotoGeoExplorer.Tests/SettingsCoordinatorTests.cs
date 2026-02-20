@@ -28,6 +28,11 @@ public sealed class SettingsCoordinatorTests : IDisposable
             MapTileSource = MapTileSourceType.EsriWorldImagery,
             ShowImagesOnly = false,
             FileViewMode = FileViewMode.Icon,
+            ShowDetailsModifiedColumn = false,
+            ShowDetailsResolutionColumn = false,
+            ShowDetailsSizeColumn = false,
+            ShowDetailsTakenAtColumn = true,
+            ShowDetailsLocationColumn = true,
             ShowQuickStartOnStartup = true,
             ExternalContentBaseUrl = "https://example.com/help"
         };
@@ -41,6 +46,11 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.Equal(MapTileSourceType.EsriWorldImagery, context.MainViewModel.CurrentMapTileSource);
         Assert.False(context.FileBrowserPaneViewModel.ShowImagesOnly);
         Assert.Equal(FileViewMode.Icon, context.FileBrowserPaneViewModel.FileViewMode);
+        Assert.False(context.FileBrowserPaneViewModel.ShowDetailsModifiedColumn);
+        Assert.False(context.FileBrowserPaneViewModel.ShowDetailsResolutionColumn);
+        Assert.False(context.FileBrowserPaneViewModel.ShowDetailsSizeColumn);
+        Assert.True(context.FileBrowserPaneViewModel.ShowDetailsTakenAtColumn);
+        Assert.True(context.FileBrowserPaneViewModel.ShowDetailsLocationColumn);
         Assert.Equal(16, context.MapPaneViewModel.MapDefaultZoomLevel);
         Assert.True(context.Coordinator.ShowQuickStartOnStartup);
         Assert.Equal("https://example.com/help", context.Coordinator.ExternalContentBaseUrl);
@@ -58,6 +68,11 @@ public sealed class SettingsCoordinatorTests : IDisposable
         context.Coordinator.ShowQuickStartOnStartup = true;
         context.FileBrowserPaneViewModel.ShowImagesOnly = false;
         context.FileBrowserPaneViewModel.FileViewMode = FileViewMode.List;
+        context.FileBrowserPaneViewModel.ShowDetailsModifiedColumn = false;
+        context.FileBrowserPaneViewModel.ShowDetailsResolutionColumn = false;
+        context.FileBrowserPaneViewModel.ShowDetailsSizeColumn = false;
+        context.FileBrowserPaneViewModel.ShowDetailsTakenAtColumn = true;
+        context.FileBrowserPaneViewModel.ShowDetailsLocationColumn = true;
 
         await context.Coordinator.SaveAsync().ConfigureAwait(true);
         var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
@@ -69,6 +84,11 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.True(saved.ShowQuickStartOnStartup);
         Assert.False(saved.ShowImagesOnly);
         Assert.Equal(FileViewMode.List, saved.FileViewMode);
+        Assert.False(saved.ShowDetailsModifiedColumn);
+        Assert.False(saved.ShowDetailsResolutionColumn);
+        Assert.False(saved.ShowDetailsSizeColumn);
+        Assert.True(saved.ShowDetailsTakenAtColumn);
+        Assert.True(saved.ShowDetailsLocationColumn);
         Assert.Equal(AppSettings.DefaultExternalContentBaseUrl, saved.ExternalContentBaseUrl);
     }
 
@@ -96,12 +116,14 @@ public sealed class SettingsCoordinatorTests : IDisposable
 
         context.FileBrowserPaneViewModel.ShowImagesOnly = false;
         context.FileBrowserPaneViewModel.FileViewMode = FileViewMode.Icon;
+        context.FileBrowserPaneViewModel.ShowDetailsTakenAtColumn = true;
 
         await Task.Delay(450).ConfigureAwait(true);
         var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
 
         Assert.False(saved.ShowImagesOnly);
         Assert.Equal(FileViewMode.Icon, saved.FileViewMode);
+        Assert.True(saved.ShowDetailsTakenAtColumn);
     }
 
     [Fact]

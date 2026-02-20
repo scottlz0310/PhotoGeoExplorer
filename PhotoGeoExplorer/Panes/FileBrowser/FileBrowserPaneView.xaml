@@ -82,6 +82,8 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Border
                     Width="56"
@@ -118,23 +120,46 @@
                     VerticalAlignment="Center" />
                 <TextBlock
                     Grid.Column="2"
+                    Text="{Binding TakenAtText}"
+                    Margin="12,0,0,0"
+                    Opacity="0.7"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding DataContext.DetailsTakenAtColumnVisibility, ElementName=RootGrid}" />
+                <TextBlock
+                    Grid.Column="3"
                     Text="{Binding ModifiedAtText}"
                     Margin="12,0,0,0"
                     Opacity="0.7"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    Visibility="{Binding DataContext.DetailsModifiedColumnVisibility, ElementName=RootGrid}" />
                 <TextBlock
-                    Grid.Column="3"
+                    Grid.Column="4"
                     Text="{Binding ResolutionText}"
                     Margin="12,0,0,0"
                     Opacity="0.7"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    Visibility="{Binding DataContext.DetailsResolutionColumnVisibility, ElementName=RootGrid}" />
                 <TextBlock
-                    Grid.Column="4"
+                    Grid.Column="5"
                     Text="{Binding SizeText}"
                     Margin="12,0,0,0"
                     Opacity="0.7"
                     HorizontalAlignment="Right"
-                    VerticalAlignment="Center" />
+                    VerticalAlignment="Center"
+                    Visibility="{Binding DataContext.DetailsSizeColumnVisibility, ElementName=RootGrid}" />
+                <Border
+                    Grid.Column="6"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding DataContext.DetailsLocationColumnVisibility, ElementName=RootGrid}">
+                    <FontIcon
+                        Glyph="{Binding LocationStatusGlyph}"
+                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                        Opacity="0.7"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding LocationStatusVisibility}"
+                        ToolTipService.ToolTip="{Binding LocationStatusTooltip}" />
+                </Border>
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
@@ -220,6 +245,11 @@
                 <ComboBoxItem Content="List" x:Uid="ViewModeListItem" />
                 <ComboBoxItem Content="Details" x:Uid="ViewModeDetailsItem" />
             </ComboBox>
+            <Button
+                Content="Columns"
+                Click="OnDetailsColumnsClicked"
+                Visibility="{Binding DetailsViewVisibility}"
+                x:Uid="DetailsColumnsButton" />
         </StackPanel>
         <CheckBox
             Grid.Row="4"
@@ -250,6 +280,8 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Border Width="56" />
                 <Button
@@ -273,10 +305,11 @@
                     BorderThickness="0"
                     HorizontalAlignment="Left"
                     Click="OnDetailsSortClicked"
-                    Tag="ModifiedAt">
+                    Tag="TakenAt"
+                    Visibility="{Binding DetailsTakenAtColumnVisibility}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="Modified" FontWeight="SemiBold" x:Uid="DetailsHeaderModifiedText" />
-                        <TextBlock Text="{Binding ModifiedSortIndicator}" Opacity="0.7" />
+                        <TextBlock Text="Taken at" FontWeight="SemiBold" x:Uid="DetailsHeaderTakenAtText" />
+                        <TextBlock Text="{Binding TakenAtSortIndicator}" Opacity="0.7" />
                     </StackPanel>
                 </Button>
                 <Button
@@ -287,10 +320,11 @@
                     BorderThickness="0"
                     HorizontalAlignment="Left"
                     Click="OnDetailsSortClicked"
-                    Tag="Resolution">
+                    Tag="ModifiedAt"
+                    Visibility="{Binding DetailsModifiedColumnVisibility}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="Resolution" FontWeight="SemiBold" x:Uid="DetailsHeaderResolutionText" />
-                        <TextBlock Text="{Binding ResolutionSortIndicator}" Opacity="0.7" />
+                        <TextBlock Text="Modified" FontWeight="SemiBold" x:Uid="DetailsHeaderModifiedText" />
+                        <TextBlock Text="{Binding ModifiedSortIndicator}" Opacity="0.7" />
                     </StackPanel>
                 </Button>
                 <Button
@@ -299,13 +333,44 @@
                     Margin="12,0,0,0"
                     Background="Transparent"
                     BorderThickness="0"
+                    HorizontalAlignment="Left"
+                    Click="OnDetailsSortClicked"
+                    Tag="Resolution"
+                    Visibility="{Binding DetailsResolutionColumnVisibility}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Resolution" FontWeight="SemiBold" x:Uid="DetailsHeaderResolutionText" />
+                        <TextBlock Text="{Binding ResolutionSortIndicator}" Opacity="0.7" />
+                    </StackPanel>
+                </Button>
+                <Button
+                    Grid.Column="5"
+                    Padding="4,2"
+                    Margin="12,0,0,0"
+                    Background="Transparent"
+                    BorderThickness="0"
                     HorizontalAlignment="Right"
                     HorizontalContentAlignment="Right"
                     Click="OnDetailsSortClicked"
-                    Tag="Size">
+                    Tag="Size"
+                    Visibility="{Binding DetailsSizeColumnVisibility}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <TextBlock Text="Size" FontWeight="SemiBold" x:Uid="DetailsHeaderSizeText" />
                         <TextBlock Text="{Binding SizeSortIndicator}" Opacity="0.7" />
+                    </StackPanel>
+                </Button>
+                <Button
+                    Grid.Column="6"
+                    Padding="4,2"
+                    Margin="12,0,0,0"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    HorizontalAlignment="Left"
+                    Click="OnDetailsSortClicked"
+                    Tag="Location"
+                    Visibility="{Binding DetailsLocationColumnVisibility}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="Location" FontWeight="SemiBold" x:Uid="DetailsHeaderLocationText" />
+                        <TextBlock Text="{Binding LocationSortIndicator}" Opacity="0.7" />
                     </StackPanel>
                 </Button>
             </Grid>

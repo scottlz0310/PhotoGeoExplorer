@@ -1,4 +1,7 @@
 using PhotoGeoExplorer.Services;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace PhotoGeoExplorer.Tests;
 
@@ -126,6 +129,71 @@ public sealed class FileSystemServiceTests
             }).ConfigureAwait(true);
 
             Assert.Null(exception);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task GetPhotoItemsAsyncReadsExifColumnsFromJpeg()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var jpgPath = Path.Combine(root, "test.jpg");
+            using (var image = new Image<Rgba32>(100, 100))
+            {
+                await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
+            }
+
+            var takenAt = new DateTimeOffset(2024, 1, 15, 12, 30, 0, TimeSpan.Zero);
+            await ExifService.UpdateMetadataAsync(
+                jpgPath,
+                takenAt,
+                35.6762,
+                139.6503,
+                updateFileModifiedDate: false,
+                CancellationToken.None).ConfigureAwait(true);
+
+            var service = new FileSystemService();
+            var items = await service.GetPhotoItemsAsync(root, imagesOnly: true, searchText: null).ConfigureAwait(true);
+
+            var item = Assert.Single(items);
+            Assert.NotNull(item.TakenAt);
+            Assert.True(item.HasLocation);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task GetPhotoItemsAsyncFallsBackToFileTimestampWhenExifDateIsMissing()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var jpgPath = Path.Combine(root, "no-exif.jpg");
+            using (var image = new Image<Rgba32>(100, 100))
+            {
+                await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
+            }
+
+            var expectedLastWriteTime = new DateTime(2024, 3, 4, 5, 6, 0);
+            File.SetLastWriteTime(jpgPath, expectedLastWriteTime);
+
+            var service = new FileSystemService();
+            var items = await service.GetPhotoItemsAsync(root, imagesOnly: true, searchText: null).ConfigureAwait(true);
+
+            var item = Assert.Single(items);
+            Assert.NotNull(item.TakenAt);
+            Assert.Equal(expectedLastWriteTime.Year, item.TakenAt!.Value.Year);
+            Assert.Equal(expectedLastWriteTime.Month, item.TakenAt.Value.Month);
+            Assert.Equal(expectedLastWriteTime.Day, item.TakenAt.Value.Day);
+            Assert.False(item.HasLocation.GetValueOrDefault(true));
         }
         finally
         {

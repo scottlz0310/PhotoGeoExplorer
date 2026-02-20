@@ -315,8 +315,14 @@
   <data name="ShowImagesOnlyCheckBox.Content" xml:space="preserve">
     <value>Show images only</value>
   </data>
+  <data name="DetailsColumnsButton.Content" xml:space="preserve">
+    <value>Columns</value>
+  </data>
   <data name="DetailsHeaderNameText.Text" xml:space="preserve">
     <value>Name</value>
+  </data>
+  <data name="DetailsHeaderTakenAtText.Text" xml:space="preserve">
+    <value>Taken at</value>
   </data>
   <data name="DetailsHeaderModifiedText.Text" xml:space="preserve">
     <value>Modified</value>
@@ -326,6 +332,24 @@
   </data>
   <data name="DetailsHeaderSizeText.Text" xml:space="preserve">
     <value>Size</value>
+  </data>
+  <data name="DetailsHeaderLocationText.Text" xml:space="preserve">
+    <value>Location</value>
+  </data>
+  <data name="DetailsColumnMenu.Modified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="DetailsColumnMenu.Resolution" xml:space="preserve">
+    <value>Resolution</value>
+  </data>
+  <data name="DetailsColumnMenu.Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="DetailsColumnMenu.TakenAt" xml:space="preserve">
+    <value>Taken at</value>
+  </data>
+  <data name="DetailsColumnMenu.Location" xml:space="preserve">
+    <value>Location</value>
   </data>
   <data name="PreviewHeader.Text" xml:space="preserve">
     <value>Image Preview</value>

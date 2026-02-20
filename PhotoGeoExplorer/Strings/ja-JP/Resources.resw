@@ -315,8 +315,14 @@
   <data name="ShowImagesOnlyCheckBox.Content" xml:space="preserve">
     <value>画像のみ表示</value>
   </data>
+  <data name="DetailsColumnsButton.Content" xml:space="preserve">
+    <value>列</value>
+  </data>
   <data name="DetailsHeaderNameText.Text" xml:space="preserve">
     <value>名前</value>
+  </data>
+  <data name="DetailsHeaderTakenAtText.Text" xml:space="preserve">
+    <value>撮影日時</value>
   </data>
   <data name="DetailsHeaderModifiedText.Text" xml:space="preserve">
     <value>更新日時</value>
@@ -326,6 +332,24 @@
   </data>
   <data name="DetailsHeaderSizeText.Text" xml:space="preserve">
     <value>サイズ</value>
+  </data>
+  <data name="DetailsHeaderLocationText.Text" xml:space="preserve">
+    <value>位置情報</value>
+  </data>
+  <data name="DetailsColumnMenu.Modified" xml:space="preserve">
+    <value>更新日時</value>
+  </data>
+  <data name="DetailsColumnMenu.Resolution" xml:space="preserve">
+    <value>解像度</value>
+  </data>
+  <data name="DetailsColumnMenu.Size" xml:space="preserve">
+    <value>サイズ</value>
+  </data>
+  <data name="DetailsColumnMenu.TakenAt" xml:space="preserve">
+    <value>撮影日時</value>
+  </data>
+  <data name="DetailsColumnMenu.Location" xml:space="preserve">
+    <value>位置情報</value>
   </data>
   <data name="PreviewHeader.Text" xml:space="preserve">
     <value>画像プレビュー</value>

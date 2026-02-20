@@ -43,6 +43,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private Visibility _statusVisibility = Visibility.Collapsed;
     private InfoBarSeverity _statusSeverity = InfoBarSeverity.Informational;
     private bool _showImagesOnly = true;
+    private bool _showDetailsModifiedColumn = true;
+    private bool _showDetailsResolutionColumn = true;
+    private bool _showDetailsSizeColumn = true;
+    private bool _showDetailsTakenAtColumn;
+    private bool _showDetailsLocationColumn;
     private string? _searchText;
     private FileViewMode _fileViewMode = FileViewMode.Details;
     private FileSortColumn _sortColumn = FileSortColumn.Name;
@@ -245,6 +250,66 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
     }
 
+    public bool ShowDetailsModifiedColumn
+    {
+        get => _showDetailsModifiedColumn;
+        set
+        {
+            if (SetProperty(ref _showDetailsModifiedColumn, value))
+            {
+                OnPropertyChanged(nameof(DetailsModifiedColumnVisibility));
+            }
+        }
+    }
+
+    public bool ShowDetailsResolutionColumn
+    {
+        get => _showDetailsResolutionColumn;
+        set
+        {
+            if (SetProperty(ref _showDetailsResolutionColumn, value))
+            {
+                OnPropertyChanged(nameof(DetailsResolutionColumnVisibility));
+            }
+        }
+    }
+
+    public bool ShowDetailsSizeColumn
+    {
+        get => _showDetailsSizeColumn;
+        set
+        {
+            if (SetProperty(ref _showDetailsSizeColumn, value))
+            {
+                OnPropertyChanged(nameof(DetailsSizeColumnVisibility));
+            }
+        }
+    }
+
+    public bool ShowDetailsTakenAtColumn
+    {
+        get => _showDetailsTakenAtColumn;
+        set
+        {
+            if (SetProperty(ref _showDetailsTakenAtColumn, value))
+            {
+                OnPropertyChanged(nameof(DetailsTakenAtColumnVisibility));
+            }
+        }
+    }
+
+    public bool ShowDetailsLocationColumn
+    {
+        get => _showDetailsLocationColumn;
+        set
+        {
+            if (SetProperty(ref _showDetailsLocationColumn, value))
+            {
+                OnPropertyChanged(nameof(DetailsLocationColumnVisibility));
+            }
+        }
+    }
+
     public int FileViewModeIndex
     {
         get => (int)_fileViewMode;
@@ -262,6 +327,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public Visibility IconViewVisibility => _fileViewMode == FileViewMode.Icon ? Visibility.Visible : Visibility.Collapsed;
     public Visibility ListViewVisibility => _fileViewMode == FileViewMode.List ? Visibility.Visible : Visibility.Collapsed;
     public Visibility DetailsViewVisibility => _fileViewMode == FileViewMode.Details ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility DetailsModifiedColumnVisibility => _showDetailsModifiedColumn ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility DetailsResolutionColumnVisibility => _showDetailsResolutionColumn ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility DetailsSizeColumnVisibility => _showDetailsSizeColumn ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility DetailsTakenAtColumnVisibility => _showDetailsTakenAtColumn ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility DetailsLocationColumnVisibility => _showDetailsLocationColumn ? Visibility.Visible : Visibility.Collapsed;
 
     public bool IsIconView
     {
@@ -458,9 +528,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public bool CanEditExif => SelectedCount == 1 && IsJpegFile(SelectedItem);
 
     public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
+    public string TakenAtSortIndicator => GetSortIndicator(FileSortColumn.TakenAt);
     public string ModifiedSortIndicator => GetSortIndicator(FileSortColumn.ModifiedAt);
     public string ResolutionSortIndicator => GetSortIndicator(FileSortColumn.Resolution);
     public string SizeSortIndicator => GetSortIndicator(FileSortColumn.Size);
+    public string LocationSortIndicator => GetSortIndicator(FileSortColumn.Location);
 
     protected override async Task OnInitializeAsync()
     {
@@ -904,9 +976,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private void NotifySortIndicators()
     {
         OnPropertyChanged(nameof(NameSortIndicator));
+        OnPropertyChanged(nameof(TakenAtSortIndicator));
         OnPropertyChanged(nameof(ModifiedSortIndicator));
         OnPropertyChanged(nameof(ResolutionSortIndicator));
         OnPropertyChanged(nameof(SizeSortIndicator));
+        OnPropertyChanged(nameof(LocationSortIndicator));
     }
 
     private void UpdateFilterState()

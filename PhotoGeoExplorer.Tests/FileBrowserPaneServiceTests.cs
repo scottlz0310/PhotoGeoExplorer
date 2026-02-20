@@ -7,6 +7,9 @@ using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -41,6 +44,69 @@ public class FileBrowserPaneServiceTests
             // Assert
             Assert.NotNull(items);
             Assert.Equal(2, items.Count);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task LoadFolderAsyncMapsTakenAtAndLocationColumns()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var jpgPath = Path.Combine(tempDir, "test.jpg");
+        using (var image = new Image<Rgba32>(100, 100))
+        {
+            await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
+        }
+
+        var takenAt = new DateTimeOffset(2024, 1, 15, 12, 30, 0, TimeSpan.Zero);
+        await ExifService.UpdateMetadataAsync(
+            jpgPath,
+            takenAt,
+            35.6762,
+            139.6503,
+            updateFileModifiedDate: false,
+            CancellationToken.None).ConfigureAwait(true);
+
+        var fileSystemService = new FileSystemService();
+        var service = new FileBrowserPaneService(fileSystemService);
+
+        try
+        {
+            var items = await service.LoadFolderAsync(tempDir, showImagesOnly: true, searchText: null).ConfigureAwait(true);
+
+            var item = Assert.Single(items);
+            Assert.False(string.IsNullOrWhiteSpace(item.TakenAtText));
+            Assert.Equal("\uE707", item.LocationStatusGlyph);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task LoadFolderAsyncShowsFallbackValuesWhenExifIsMissing()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var jpgPath = Path.Combine(tempDir, "test.jpg");
+        using (var image = new Image<Rgba32>(100, 100))
+        {
+            await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
+        }
+
+        var fileSystemService = new FileSystemService();
+        var service = new FileBrowserPaneService(fileSystemService);
+
+        try
+        {
+            var items = await service.LoadFolderAsync(tempDir, showImagesOnly: true, searchText: null).ConfigureAwait(true);
+
+            var item = Assert.Single(items);
+            Assert.False(string.IsNullOrWhiteSpace(item.TakenAtText));
+            Assert.Equal("\uE711", item.LocationStatusGlyph);
         }
         finally
         {
@@ -114,6 +180,40 @@ public class FileBrowserPaneServiceTests
         Assert.Equal("file1.jpg", sorted[0].FileName);
         Assert.Equal("file2.jpg", sorted[1].FileName);
         Assert.Equal("file3.jpg", sorted[2].FileName);
+    }
+
+    [Fact]
+    public void ApplySortSortsByTakenAt()
+    {
+        var fileSystemService = new FileSystemService();
+        var service = new FileBrowserPaneService(fileSystemService);
+        var older = CreatePhotoListItem("older.jpg", new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var newer = CreatePhotoListItem("newer.jpg", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+        var sorted = service.ApplySort(
+            new List<PhotoListItem> { newer, older },
+            FileSortColumn.TakenAt,
+            SortDirection.Ascending);
+
+        Assert.Equal("older.jpg", sorted[0].FileName);
+        Assert.Equal("newer.jpg", sorted[1].FileName);
+    }
+
+    [Fact]
+    public void ApplySortSortsByLocation()
+    {
+        var fileSystemService = new FileSystemService();
+        var service = new FileBrowserPaneService(fileSystemService);
+        var withLocation = CreatePhotoListItem("with-location.jpg", null, true);
+        var withoutLocation = CreatePhotoListItem("without-location.jpg", null, false);
+
+        var sorted = service.ApplySort(
+            new List<PhotoListItem> { withoutLocation, withLocation },
+            FileSortColumn.Location,
+            SortDirection.Descending);
+
+        Assert.Equal("with-location.jpg", sorted[0].FileName);
+        Assert.Equal("without-location.jpg", sorted[1].FileName);
     }
 
     [Fact]
@@ -312,7 +412,10 @@ public class FileBrowserPaneServiceTests
         }
     }
 
-    private static ViewModels.PhotoListItem CreatePhotoListItem(string fileName)
+    private static ViewModels.PhotoListItem CreatePhotoListItem(
+        string fileName,
+        DateTimeOffset? takenAt = null,
+        bool? hasLocation = null)
     {
         var photoItem = new PhotoItem(
             filePath: $"/test/{fileName}",
@@ -321,7 +424,9 @@ public class FileBrowserPaneServiceTests
             isFolder: false,
             thumbnailPath: null,
             pixelWidth: 100,
-            pixelHeight: 100);
+            pixelHeight: 100,
+            takenAt: takenAt,
+            hasLocation: hasLocation);
 
         return new ViewModels.PhotoListItem(photoItem, thumbnail: null, toolTipText: null, thumbnailKey: null);
     }

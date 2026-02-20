@@ -5,5 +5,7 @@ internal enum FileSortColumn
     Name = 0,
     ModifiedAt = 1,
     Resolution = 2,
-    Size = 3
+    Size = 3,
+    TakenAt = 4,
+    Location = 5
 }

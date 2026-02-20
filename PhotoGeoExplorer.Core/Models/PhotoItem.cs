@@ -13,7 +13,9 @@ internal sealed class PhotoItem
         bool isFolder,
         string? thumbnailPath = null,
         int? pixelWidth = null,
-        int? pixelHeight = null)
+        int? pixelHeight = null,
+        DateTimeOffset? takenAt = null,
+        bool? hasLocation = null)
     {
         FilePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
         FileName = Path.GetFileName(filePath);
@@ -23,6 +25,8 @@ internal sealed class PhotoItem
         ThumbnailPath = thumbnailPath;
         PixelWidth = pixelWidth;
         PixelHeight = pixelHeight;
+        TakenAt = takenAt;
+        HasLocation = hasLocation;
     }
 
     public string FilePath { get; }
@@ -33,10 +37,13 @@ internal sealed class PhotoItem
     public string? ThumbnailPath { get; }
     public int? PixelWidth { get; }
     public int? PixelHeight { get; }
+    public DateTimeOffset? TakenAt { get; }
+    public bool? HasLocation { get; }
 
     public string SizeText => IsFolder ? string.Empty : FormatSize(SizeBytes);
     public string ModifiedAtText => ModifiedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
     public string ResolutionText => FormatResolution(PixelWidth, PixelHeight, IsFolder);
+    public string? TakenAtText => TakenAt?.ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);
 
     private static string FormatSize(long sizeBytes)
     {
