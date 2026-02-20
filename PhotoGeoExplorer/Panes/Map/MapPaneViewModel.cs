@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -63,6 +64,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         Title = "Map";
+        _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
     }
 
     /// <summary>
@@ -209,6 +211,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
     protected override void OnCleanup()
     {
+        _workspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
         _mapUpdateCts?.Cancel();
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
@@ -353,6 +356,17 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     internal void RequestNotification(string message, InfoBarSeverity severity)
     {
         _workspaceState.RequestNotification(message, severity);
+    }
+
+    private async void OnWorkspaceStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not nameof(WorkspaceState.SelectedPhotos))
+        {
+            return;
+        }
+
+        var selectedPhotos = _workspaceState.SelectedPhotos ?? Array.Empty<PhotoListItem>();
+        await UpdateMarkersFromSelectionAsync(selectedPhotos).ConfigureAwait(true);
     }
 
     private void InitializeMapCore()

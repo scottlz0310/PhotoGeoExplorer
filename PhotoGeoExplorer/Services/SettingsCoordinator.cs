@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -56,6 +57,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _startupFilePathProvider = startupFilePathProvider ?? throw new ArgumentNullException(nameof(startupFilePathProvider));
         SettingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         UpdateShellSettingsState();
+        _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
     }
 
     public bool SettingsFileExistsAtStartup { get; }
@@ -202,6 +204,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         }
 
         _disposed = true;
+        _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
         _settingsCts?.Cancel();
         _settingsCts?.Dispose();
         _settingsCts = null;
@@ -383,6 +386,16 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             _ => ElementTheme.Default
         };
         _setRequestedTheme(requestedTheme);
+    }
+
+    private void OnFileBrowserPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(FileBrowserPaneViewModel.ShowImagesOnly)
+            or nameof(FileBrowserPaneViewModel.FileViewMode)
+            or nameof(FileBrowserPaneViewModel.CurrentFolderPath))
+        {
+            ScheduleSave();
+        }
     }
 
     private static void ApplyLanguageOverride(string? normalized)

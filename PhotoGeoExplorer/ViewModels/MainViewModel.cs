@@ -154,6 +154,13 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         ImportSettingsCommand = new RelayCommand(
             () => ExecuteSettingsActionAsync(settingsCoordinator => settingsCoordinator.ImportSettingsAsync()),
             CanExecuteSettingsAction);
+        PersistLayoutSettingsCommand = new RelayCommand(
+            () => ExecuteSettingsActionAsync(settingsCoordinator =>
+            {
+                settingsCoordinator.ScheduleSave();
+                return Task.CompletedTask;
+            }),
+            CanExecuteSettingsAction);
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -490,6 +497,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
     public ICommand ChangeMapTileSourceCommand { get; }
     public ICommand ExportSettingsCommand { get; }
     public ICommand ImportSettingsCommand { get; }
+    public ICommand PersistLayoutSettingsCommand { get; }
 
     public string? CurrentLanguage
     {
@@ -1563,6 +1571,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         (ChangeMapTileSourceCommand as RelayCommand<string>)?.RaiseCanExecuteChanged();
         (ExportSettingsCommand as RelayCommand)?.RaiseCanExecuteChanged();
         (ImportSettingsCommand as RelayCommand)?.RaiseCanExecuteChanged();
+        (PersistLayoutSettingsCommand as RelayCommand)?.RaiseCanExecuteChanged();
     }
 
     private void UpdateNavigationProperties()

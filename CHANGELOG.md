@@ -73,6 +73,12 @@
 - `lefthook.yml` と CI（`.github/workflows/ci.yml`）にガイドライン同期チェックを追加。
 
 ### 修正
+- ファイルメニュー（Open/New/Rename/Move/Delete/Refresh/Home/Up）が反応しない回帰を修正。
+  - `MainWindow.xaml` のファイルメニュー項目を `Click` ハンドラ経由に統一し、`FileBrowserPaneView` の操作メソッドへ確実に委譲するよう変更。
+- WorkspaceState 監視を Pane 自己購読へ移行し、MainWindow の仲介を縮小（#101）。
+  - `MapPaneViewModel` が `WorkspaceState.SelectedPhotos` を直接購読して地図マーカー更新を実行するよう変更。
+  - `MainWindow.xaml.cs` の `OnWorkspaceStatePropertyChanged` を削除し、FileBrowser 変更時の設定保存トリガーを `SettingsCoordinator` に集約。
+  - スプリッタ操作の確定時に `PersistLayoutSettingsCommand` 経由で `SettingsCoordinator.ScheduleSave()` を呼ぶ構成へ変更。
 - 複数ピン表示後の `Ctrl + ドラッグ` 矩形選択で部分選択がファイル一覧へ反映されない問題を修正（#114）。
   - `WorkspaceState.PhotoSelectionRequested` を MainWindow で受け取り、`FileBrowserPaneView.SelectItemsByFilePaths` により UI 選択状態を同期するよう改善。
 - 表示メニュー（Icon/List/Details、画像のみ表示）の操作が反映されない問題を修正。

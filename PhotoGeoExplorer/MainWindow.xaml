@@ -20,17 +20,17 @@
 
         <MenuBar>
             <MenuBarItem Title="File" x:Uid="MenuFile">
-                <MenuFlyoutItem Text="Open folder..." Command="{Binding ElementName=FileBrowserPaneControl, Path=OpenFolderCommand}" x:Uid="MenuFileOpenFolder" />
+                <MenuFlyoutItem Text="Open folder..." Click="OnOpenFolderClicked" x:Uid="MenuFileOpenFolder" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="New folder" Command="{Binding ElementName=FileBrowserPaneControl, Path=CreateFolderCommand}" x:Uid="MenuFileNewFolder" />
-                <MenuFlyoutItem Text="Rename" Command="{Binding ElementName=FileBrowserPaneControl, Path=RenameSelectionCommand}" x:Uid="MenuFileRename" />
-                <MenuFlyoutItem Text="Move..." Command="{Binding ElementName=FileBrowserPaneControl, Path=MoveSelectionCommand}" x:Uid="MenuFileMove" />
-                <MenuFlyoutItem Text="Move to parent" Command="{Binding ElementName=FileBrowserPaneControl, Path=MoveSelectionToParentCommand}" x:Uid="MenuFileMoveToParent" />
-                <MenuFlyoutItem Text="Delete" Command="{Binding ElementName=FileBrowserPaneControl, Path=DeleteSelectionCommand}" x:Uid="MenuFileDelete" />
+                <MenuFlyoutItem Text="New folder" Click="OnCreateFolderClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanCreateFolder}" x:Uid="MenuFileNewFolder" />
+                <MenuFlyoutItem Text="Rename" Click="OnRenameClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanRenameSelection}" x:Uid="MenuFileRename" />
+                <MenuFlyoutItem Text="Move..." Click="OnMoveClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanModifySelection}" x:Uid="MenuFileMove" />
+                <MenuFlyoutItem Text="Move to parent" Click="OnMoveToParentClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanMoveToParentSelection}" x:Uid="MenuFileMoveToParent" />
+                <MenuFlyoutItem Text="Delete" Click="OnDeleteClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanModifySelection}" x:Uid="MenuFileDelete" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Refresh" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.RefreshCommand}" x:Uid="MenuFileRefresh" />
-                <MenuFlyoutItem Text="Go home" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.NavigateHomeCommand}" x:Uid="MenuFileGoHome" />
-                <MenuFlyoutItem Text="Go up" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.NavigateUpCommand}" x:Uid="MenuFileGoUp" />
+                <MenuFlyoutItem Text="Refresh" Click="OnRefreshClicked" x:Uid="MenuFileRefresh" />
+                <MenuFlyoutItem Text="Go home" Click="OnNavigateHomeClicked" x:Uid="MenuFileGoHome" />
+                <MenuFlyoutItem Text="Go up" Click="OnNavigateUpClicked" IsEnabled="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CanNavigateUp}" x:Uid="MenuFileGoUp" />
                 <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="Exit" Click="OnExitClicked" x:Uid="MenuFileExit" />
             </MenuBarItem>
@@ -77,6 +77,7 @@
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
                 DragDelta="OnMainSplitterDragDelta"
+                DragCompleted="OnMainSplitterDragCompleted"
                 IsTabStop="False" />
 
             <Grid x:Name="DetailPane" Grid.Column="2" Padding="12">
@@ -99,6 +100,7 @@
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Center"
                     DragDelta="OnMapSplitterDragDelta"
+                    DragCompleted="OnMapSplitterDragCompleted"
                     IsTabStop="False" />
 
                 <Grid x:Name="MapPane" Grid.Row="2">

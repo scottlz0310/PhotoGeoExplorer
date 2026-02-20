@@ -1,10 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using Mapsui;
+using Mapsui.Layers;
+using Mapsui.Tiling.Layers;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.State;
+using PhotoGeoExplorer.ViewModels;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -182,5 +190,102 @@ public class MapPaneViewModelTests
         // Assert
         Assert.Equal("error", requestedMessage);
         Assert.Equal(InfoBarSeverity.Error, requestedSeverity);
+    }
+
+    [Fact]
+    public async Task WorkspaceSelectedPhotosChangeTriggersMarkerUpdate()
+    {
+        // Arrange
+        var workspaceState = new WorkspaceState();
+        var service = new WorkspaceSelectionMapPaneService();
+        var viewModel = new MapPaneViewModel(service, workspaceState);
+        SetMapInitializedForTest(viewModel);
+
+        var photo = new PhotoListItem(
+            new PhotoItem(@"C:\Photos\selected.jpg", 1, DateTimeOffset.UtcNow, isFolder: false),
+            thumbnail: null);
+
+        try
+        {
+            // Act
+            workspaceState.SelectedPhotos = new[] { photo };
+
+            var completed = await Task.WhenAny(service.LoadCalled, Task.Delay(1000)).ConfigureAwait(true);
+
+            // Assert
+            Assert.Same(service.LoadCalled, completed);
+            Assert.Equal(1, service.LoadPhotoMetadataCallCount);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    private static void SetMapInitializedForTest(MapPaneViewModel viewModel)
+    {
+        var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
+        var markerLayerField = typeof(MapPaneViewModel).GetField("_markerLayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var isMapInitializedField = typeof(MapPaneViewModel).GetField("_isMapInitialized", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(mapField);
+        Assert.NotNull(markerLayerField);
+        Assert.NotNull(isMapInitializedField);
+
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        var map = new Mapsui.Map();
+        var markerLayer = new MemoryLayer
+        {
+            Features = Array.Empty<IFeature>()
+        };
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        map.Layers.Add(markerLayer);
+
+        mapField!.SetValue(viewModel, map);
+        markerLayerField!.SetValue(viewModel, markerLayer);
+        isMapInitializedField!.SetValue(viewModel, true);
+    }
+
+    private sealed class WorkspaceSelectionMapPaneService : IMapPaneService
+    {
+        private readonly TaskCompletionSource<bool> _loadCalled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int LoadPhotoMetadataCallCount { get; private set; }
+
+        public Task LoadCalled => _loadCalled.Task;
+
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
+            MapTileSourceType tileSource,
+            string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
+            IReadOnlyList<PhotoListItem> items,
+            CancellationToken cancellationToken)
+        {
+            LoadPhotoMetadataCallCount++;
+            _loadCalled.TrySetResult(true);
+            var metadataItems = items
+                .Select(item => (item, (PhotoMetadata?)new PhotoMetadata(
+                    DateTimeOffset.UtcNow,
+                    null,
+                    null,
+                    latitude: 35.681236,
+                    longitude: 139.767125)))
+                .ToArray();
+            return Task.FromResult<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>>(metadataItems);
+        }
+
+        public string GetTileCacheRootDirectory()
+        {
+            return Path.GetTempPath();
+        }
     }
 }

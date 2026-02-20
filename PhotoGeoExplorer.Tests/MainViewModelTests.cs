@@ -69,6 +69,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(viewModel.ChangeMapTileSourceCommand.CanExecute(nameof(MapTileSourceType.EsriWorldImagery)));
         Assert.False(viewModel.ExportSettingsCommand.CanExecute(null));
         Assert.False(viewModel.ImportSettingsCommand.CanExecute(null));
+        Assert.False(viewModel.PersistLayoutSettingsCommand.CanExecute(null));
     }
 
     [Fact]
@@ -84,6 +85,7 @@ public sealed class MainViewModelTests : IDisposable
         viewModel.ChangeMapTileSourceCommand.Execute(nameof(MapTileSourceType.EsriWorldImagery));
         viewModel.ExportSettingsCommand.Execute(null);
         viewModel.ImportSettingsCommand.Execute(null);
+        viewModel.PersistLayoutSettingsCommand.Execute(null);
 
         Assert.Equal(1, settingsCoordinator.ChangeLanguageCallCount);
         Assert.Equal("ja", settingsCoordinator.LastLanguageTag);
@@ -96,6 +98,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(MapTileSourceType.EsriWorldImagery, settingsCoordinator.LastMapTileSource);
         Assert.Equal(1, settingsCoordinator.ExportCallCount);
         Assert.Equal(1, settingsCoordinator.ImportCallCount);
+        Assert.Equal(1, settingsCoordinator.ScheduleSaveCallCount);
     }
 
     [Fact]
@@ -474,6 +477,7 @@ public sealed class MainViewModelTests : IDisposable
         public int ChangeMapTileSourceCallCount { get; private set; }
         public int ExportCallCount { get; private set; }
         public int ImportCallCount { get; private set; }
+        public int ScheduleSaveCallCount { get; private set; }
         public string? LastLanguageTag { get; private set; }
         public bool LastShowRestartPrompt { get; private set; }
         public ThemePreference LastTheme { get; private set; } = ThemePreference.System;
@@ -493,6 +497,7 @@ public sealed class MainViewModelTests : IDisposable
 
         public void ScheduleSave()
         {
+            ScheduleSaveCallCount++;
         }
 
         public Task SaveAsync()

@@ -87,6 +87,21 @@ public sealed class SettingsCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task FileBrowserPaneSettingChangesAreDebouncedAndPersisted()
+    {
+        using var context = CreateContext();
+
+        context.FileBrowserPaneViewModel.ShowImagesOnly = false;
+        context.FileBrowserPaneViewModel.FileViewMode = FileViewMode.Icon;
+
+        await Task.Delay(450).ConfigureAwait(true);
+        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+
+        Assert.False(saved.ShowImagesOnly);
+        Assert.Equal(FileViewMode.Icon, saved.FileViewMode);
+    }
+
+    [Fact]
     public async Task SaveAsyncCancelsPendingDebouncedSave()
     {
         using var context = CreateContext();

@@ -96,7 +96,6 @@ public sealed partial class MainWindow : Window, IDisposable
         Activated += OnActivated;
         Closed += OnClosed;
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
-        _viewModel.WorkspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
         _viewModel.WorkspaceState.PhotoSelectionRequested += OnWorkspacePhotoSelectionRequested;
         _viewModel.WorkspaceState.NotificationRequested += OnWorkspaceNotificationRequested;
     }
@@ -320,27 +319,11 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             DispatcherQueue.TryEnqueue(UpdateToggleImagesOnlyMenuText);
         }
-
-        if (e.PropertyName is nameof(FileBrowserPaneViewModel.ShowImagesOnly)
-            or nameof(FileBrowserPaneViewModel.FileViewMode)
-            or nameof(FileBrowserPaneViewModel.CurrentFolderPath))
-        {
-            _settingsCoordinator.ScheduleSave();
-        }
     }
 
     private void UpdateToggleImagesOnlyMenuText()
     {
         ToggleImagesOnlyMenuItem.Text = _fileBrowserPaneViewModel.ToggleImagesOnlyMenuText;
-    }
-
-    private async void OnWorkspaceStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(WorkspaceState.SelectedPhotos))
-        {
-            var selectedPhotos = _viewModel.WorkspaceState.SelectedPhotos ?? Array.Empty<PhotoListItem>();
-            await _mapPaneViewModel.UpdateMarkersFromSelectionAsync(selectedPhotos).ConfigureAwait(true);
-        }
     }
 
     private void OnWorkspacePhotoSelectionRequested(object? sender, WorkspacePhotoSelectionRequestedEventArgs e)
@@ -406,6 +389,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         // PreviewPaneViewModel の FitToWindow を設定
         _previewPaneViewModel.FitToWindow = true;
+        _viewModel.PersistLayoutSettingsCommand.Execute(null);
     }
 
     private void OnMainSplitterDragDelta(object sender, DragDeltaEventArgs e)
@@ -426,6 +410,11 @@ public sealed partial class MainWindow : Window, IDisposable
         DetailColumn.Width = new GridLength(1, GridUnitType.Star);
     }
 
+    private void OnMainSplitterDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        _viewModel.PersistLayoutSettingsCommand.Execute(null);
+    }
+
     private void OnMapSplitterDragDelta(object sender, DragDeltaEventArgs e)
     {
         var totalHeight = DetailPane.ActualHeight - MapSplitterRow.ActualHeight;
@@ -442,6 +431,56 @@ public sealed partial class MainWindow : Window, IDisposable
 
         PreviewRow.Height = new GridLength(clampedPreview, GridUnitType.Pixel);
         MapRow.Height = new GridLength(1, GridUnitType.Star);
+    }
+
+    private void OnMapSplitterDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        _viewModel.PersistLayoutSettingsCommand.Execute(null);
+    }
+
+    private async void OnOpenFolderClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.OpenFolderAsync().ConfigureAwait(true);
+    }
+
+    private async void OnCreateFolderClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.CreateFolderAsync().ConfigureAwait(true);
+    }
+
+    private async void OnRenameClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.RenameSelectionAsync().ConfigureAwait(true);
+    }
+
+    private async void OnMoveClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.MoveSelectionAsync().ConfigureAwait(true);
+    }
+
+    private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.MoveSelectionToParentAsync().ConfigureAwait(true);
+    }
+
+    private async void OnDeleteClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.DeleteSelectionAsync().ConfigureAwait(true);
+    }
+
+    private async void OnRefreshClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.RefreshAsync().ConfigureAwait(true);
+    }
+
+    private async void OnNavigateHomeClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.NavigateHomeAsync().ConfigureAwait(true);
+    }
+
+    private async void OnNavigateUpClicked(object sender, RoutedEventArgs e)
+    {
+        await FileBrowserPaneControl.NavigateUpAsync().ConfigureAwait(true);
     }
 
 
@@ -552,7 +591,6 @@ public sealed partial class MainWindow : Window, IDisposable
             _settingsCoordinator.Dispose();
 
             // WorkspaceState イベントをアンサブスクライブ
-            _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
             _viewModel.WorkspaceState.PhotoSelectionRequested -= OnWorkspacePhotoSelectionRequested;
             _viewModel.WorkspaceState.NotificationRequested -= OnWorkspaceNotificationRequested;
             _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
