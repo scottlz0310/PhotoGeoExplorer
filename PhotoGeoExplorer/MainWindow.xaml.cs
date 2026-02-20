@@ -8,7 +8,6 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Preview;
@@ -17,7 +16,6 @@ using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Graphics;
-using Windows.Foundation;
 using Windows.System;
 
 namespace PhotoGeoExplorer;

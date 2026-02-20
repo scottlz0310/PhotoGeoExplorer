@@ -292,7 +292,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         _suppressDirtyTracking = true;
         try
         {
-            Language = _shellViewModel.CurrentLanguage;
+            Language = _shellViewModel.CurrentLanguage ?? string.Empty;
             Theme = _shellViewModel.CurrentTheme;
             MapDefaultZoomLevel = _shellViewModel.CurrentMapZoomLevel;
             MapTileSource = _shellViewModel.CurrentMapTileSource;

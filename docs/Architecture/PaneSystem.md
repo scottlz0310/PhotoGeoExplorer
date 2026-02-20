@@ -2,12 +2,14 @@
 
 ## 概要
 
-PhotoGeoExplorer では、MainWindow の肥大化（4000行超）を防ぐため、**Shell + Pane** アーキテクチャを採用します。
+PhotoGeoExplorer では、MainWindow の肥大化を防ぎ、スリム化後の構成を維持するため、**Shell + Pane** アーキテクチャを採用します。
 
 - **MainWindow (Shell)**: レイアウトとペイン配置のみを担当
 - **Pane (View)**: 機能単位のUI + ViewModel + Service（Viewは UserControl または DataTemplate）
 
 このドキュメントは、新しいPaneの作成方法と、アーキテクチャの責務境界を定義します。
+
+> 更新（2026-02-20）: MainWindow スリム化（第2期、ISSUE #95 / PR-1〜PR-8）が完了し、MainWindow.xaml.cs は 619 行（目標 800 行以下）です。
 
 **サンプル実装:**
 - [`PhotoGeoExplorer/Panes/Settings/`](../../PhotoGeoExplorer/Panes/Settings/) - 設定Paneの実装
@@ -534,7 +536,7 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
   - [x] サンプル実装を実運用レベルに昇格
   - [x] テストパターンの確立
 
-### フェーズ3: 段階的移行（その後のPR群）
+### フェーズ3: 段階的移行（完了）
 
 - [x] Map Pane の移植（フェーズ3-1完了）
   - [x] MapPaneViewModel の実装（地図状態管理、マーカー表示、ズーム制御）
@@ -563,11 +565,13 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
   - [x] MainWindow との統合（FileBrowser UI の配置）
   - [x] MainWindow からファイルブラウザ関連コードの段階的移行（UI/イベント移行）
   - [x] MainWindow 旧 FileBrowser イベント/ヘルパーの削除
-- [ ] 設定メニュー統合（宙ぶらりん状態の解消）
-  - [ ] `Settings (development)` 入口と MainWindow 直下の個別設定項目（言語/テーマ/地図/Export/Import）の導線を統一
-  - [ ] 設定変更処理の責務境界（MainWindow / SettingsPaneViewModel / Service）を再定義して重複を解消
-  - [ ] 運用方針を `docs/Architecture/MainWindow-Orchestration-Review.md` と同期
-- [ ] その他の機能を順次移行
+- [x] 設定メニュー統合（宙ぶらりん状態の解消）
+  - [x] `Settings (development)` 入口と MainWindow 直下の個別設定項目（言語/テーマ/地図/Export/Import）の導線を統一
+  - [x] 設定変更処理の責務境界（MainWindow / SettingsPaneViewModel / Service）を再定義して重複を解消
+  - [x] 運用方針を `docs/Architecture/MainWindow-Orchestration-Review.md` と同期
+- [x] PR-8 最終クリーンアップ・文書更新
+  - [x] MainWindow.xaml.cs の残存不要 `using` を整理し、最終行数 619 行（目標 800 行以下）を確認
+  - [x] `docs/Architecture/PaneSystem.md` / `MainWindow-Orchestration-Review.md` / `MainWindowSlimdown-Plan.md` を完了状態へ更新
 
 ## 参考資料
 
@@ -617,3 +621,4 @@ public class FileBrowserPaneViewModel : PaneViewModelBase
 - **2026-02-05**: FileBrowser Pane の UI 統合（UserControl + MainWindow 統合）- フェーズ3-3完了
 - **2026-02-05**: MainWindow の旧 FileBrowser イベント整理とテスト拡充
 - **2026-02-06**: 次回タスクに「設定メニュー統合（宙ぶらりん状態の解消）」を追記
+- **2026-02-20**: MainWindow スリム化（第2期）完了（PR-8）、最終行数と関連文書を同期

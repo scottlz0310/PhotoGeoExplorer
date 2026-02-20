@@ -10,6 +10,9 @@
 - E2E の Required check 化に向けた運用手順書を追加（`docs/CI-E2E-RequiredCheck.md`）。
 
 ### 変更
+- MainWindow スリム化（第2期）PR-8 の最終クリーンアップを実施（#102）。
+  - `MainWindow.xaml.cs` の残存不要 `using` を整理し、最終行数 619 行（目標: 800 行以下）を確認。
+  - `docs/Architecture/PaneSystem.md` / `MainWindow-Orchestration-Review.md` / `MainWindowSlimdown-Plan.md` を完了状態へ更新。
 - MainWindow のメニュー Click リレーハンドラを撤去し、XAML から直接 Command バインディングに変更（#99）。
   - FileBrowserPaneViewModel に `ToggleImagesOnlyCommand`・`SetViewModeCommand` を追加。
   - FileBrowserPaneView にファイル操作系 Command プロパティを追加（`OpenFolderCommand` 等）。
@@ -73,6 +76,8 @@
 - `lefthook.yml` と CI（`.github/workflows/ci.yml`）にガイドライン同期チェックを追加。
 
 ### 修正
+- 設定ペインの表示言語コンボボックスで、システム既定選択時に現在値が表示されない問題を修正。
+  - `SettingsPaneViewModel` がシステム既定を空文字として保持し、`ComboBoxItem Tag=""` と整合するように改善。
 - ファイルメニュー（Open/New/Rename/Move/Delete/Refresh/Home/Up）が反応しない回帰を修正。
   - `MainWindow.xaml` のファイルメニュー項目を `Click` ハンドラ経由に統一し、`FileBrowserPaneView` の操作メソッドへ確実に委譲するよう変更。
 - WorkspaceState 監視を Pane 自己購読へ移行し、MainWindow の仲介を縮小（#101）。

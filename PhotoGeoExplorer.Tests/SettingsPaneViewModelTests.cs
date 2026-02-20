@@ -159,7 +159,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         viewModel.ResetCommand.Execute(null);
         await WaitForAsync(() => coordinator.SaveCallCount == 1).ConfigureAwait(true);
 
-        Assert.Null(viewModel.Language);
+        Assert.Equal(string.Empty, viewModel.Language);
         Assert.Equal(ThemePreference.System, viewModel.Theme);
         Assert.Equal(14, viewModel.MapDefaultZoomLevel);
         Assert.Equal(MapTileSourceType.OpenStreetMap, viewModel.MapTileSource);
