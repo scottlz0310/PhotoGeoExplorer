@@ -73,6 +73,8 @@
 - `lefthook.yml` と CI（`.github/workflows/ci.yml`）にガイドライン同期チェックを追加。
 
 ### 修正
+- 複数ピン表示後の `Ctrl + ドラッグ` 矩形選択で部分選択がファイル一覧へ反映されない問題を修正（#114）。
+  - `WorkspaceState.PhotoSelectionRequested` を MainWindow で受け取り、`FileBrowserPaneView.SelectItemsByFilePaths` により UI 選択状態を同期するよう改善。
 - 表示メニュー（Icon/List/Details、画像のみ表示）の操作が反映されない問題を修正。
   - 表示メニューは `Click` ハンドラ経由で `FileBrowserPaneViewModel` を直接更新する実装に戻し、確実に動作するよう改善。
 - 表示メニューの画像フィルタ文言をトグル化し、状態に応じて「全てのファイルを表示」↔「画像のみを表示」を表示するよう改善。

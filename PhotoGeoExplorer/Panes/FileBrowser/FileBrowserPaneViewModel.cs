@@ -96,7 +96,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _workspaceState.SelectNextAction = SelectNext;
         _workspaceState.SelectPreviousAction = SelectPrevious;
         _workspaceState.PhotoFocusRequested += OnWorkspacePhotoFocusRequested;
-        _workspaceState.PhotoSelectionRequested += OnWorkspacePhotoSelectionRequested;
 
         Title = "File Browser";
         Items = new ObservableCollection<PhotoListItem>();
@@ -710,6 +709,14 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
     }
 
+    internal IReadOnlyList<PhotoListItem> ResolveItemsByFilePaths(IReadOnlyList<string> filePaths)
+    {
+        var resolvedItems = _service.ResolveItemsByFilePaths(Items, filePaths);
+        return resolvedItems
+            .Where(item => !item.IsFolder)
+            .ToList();
+    }
+
     public void ResetFilters()
     {
         SearchText = null;
@@ -790,7 +797,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public void Dispose()
     {
         _workspaceState.PhotoFocusRequested -= OnWorkspacePhotoFocusRequested;
-        _workspaceState.PhotoSelectionRequested -= OnWorkspacePhotoSelectionRequested;
         CancelThumbnailGeneration();
         CancelMetadataLoad();
         CancelFolderLoad();
@@ -808,22 +814,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
 
         SelectedItem = target;
-    }
-
-    private void OnWorkspacePhotoSelectionRequested(object? sender, WorkspacePhotoSelectionRequestedEventArgs e)
-    {
-        ArgumentNullException.ThrowIfNull(e);
-
-        var selectedItems = _service.ResolveItemsByFilePaths(Items, e.FilePaths);
-        if (selectedItems.Count == 0)
-        {
-            UpdateSelection(Array.Empty<PhotoListItem>());
-            SelectedItem = null;
-            return;
-        }
-
-        UpdateSelection(selectedItems);
-        SelectedItem = selectedItems[0];
     }
 
     private void UpdateBreadcrumbs(string folderPath)

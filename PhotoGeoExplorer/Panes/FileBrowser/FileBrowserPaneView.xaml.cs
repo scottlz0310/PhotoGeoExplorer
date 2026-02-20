@@ -188,6 +188,17 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
     }
 
+    internal void SelectItemsByFilePaths(IReadOnlyList<string> filePaths)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        var selectedItems = ViewModel.ResolveItemsByFilePaths(filePaths);
+        SelectItems(selectedItems);
+    }
+
     internal void FocusPhotoItem(PhotoItem photoItem)
     {
         if (ViewModel is null)

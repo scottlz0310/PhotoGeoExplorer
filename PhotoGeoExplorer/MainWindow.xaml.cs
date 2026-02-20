@@ -97,6 +97,7 @@ public sealed partial class MainWindow : Window, IDisposable
         Closed += OnClosed;
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
         _viewModel.WorkspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
+        _viewModel.WorkspaceState.PhotoSelectionRequested += OnWorkspacePhotoSelectionRequested;
         _viewModel.WorkspaceState.NotificationRequested += OnWorkspaceNotificationRequested;
     }
 
@@ -342,6 +343,12 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
+    private void OnWorkspacePhotoSelectionRequested(object? sender, WorkspacePhotoSelectionRequestedEventArgs e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+        FileBrowserPaneControl.SelectItemsByFilePaths(e.FilePaths);
+    }
+
     private void OnWorkspaceNotificationRequested(object? sender, WorkspaceNotificationRequestedEventArgs e)
     {
         _viewModel.ShowNotificationMessage(e.Message, e.Severity);
@@ -546,6 +553,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
             // WorkspaceState イベントをアンサブスクライブ
             _viewModel.WorkspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
+            _viewModel.WorkspaceState.PhotoSelectionRequested -= OnWorkspacePhotoSelectionRequested;
             _viewModel.WorkspaceState.NotificationRequested -= OnWorkspaceNotificationRequested;
             _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
 

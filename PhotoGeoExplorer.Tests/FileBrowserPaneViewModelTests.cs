@@ -267,29 +267,6 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
-    public void WorkspacePhotoSelectionRequestUpdatesSelection()
-    {
-        // Arrange
-        var service = new FileBrowserPaneService();
-        var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
-        var first = CreatePhotoListItem("first.jpg");
-        var second = CreatePhotoListItem("second.jpg");
-        viewModel.Items.Add(first);
-        viewModel.Items.Add(second);
-        var requestedPaths = new List<string> { second.FilePath, first.FilePath };
-
-        // Act
-        workspaceState.RequestPhotoSelection(requestedPaths);
-
-        // Assert
-        Assert.Equal(2, viewModel.SelectedItems.Count);
-        Assert.Equal(second, viewModel.SelectedItems[0]);
-        Assert.Equal(first, viewModel.SelectedItems[1]);
-        Assert.Equal(second, viewModel.SelectedItem);
-    }
-
-    [Fact]
     public async Task LoadFolderAsyncUpdatesCurrentFolderPath()
     {
         // Arrange
@@ -560,6 +537,45 @@ public class FileBrowserPaneViewModelTests
 
         // Assert
         Assert.Equal(original, viewModel.FileViewMode);
+    }
+
+    [Fact]
+    public void ResolveItemsByFilePathsReturnsOnlyMatchingPhotoItems()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        var photo = CreatePhotoListItem("match.jpg");
+        var folder = CreateFolderListItem("folder");
+        viewModel.Items.Add(photo);
+        viewModel.Items.Add(folder);
+
+        // Act
+        var requestedPaths = new[] { photo.FilePath.ToUpperInvariant(), folder.FilePath };
+        var result = viewModel.ResolveItemsByFilePaths(requestedPaths);
+
+        // Assert
+        Assert.Collection(
+            result,
+            item => Assert.Equal(photo.FilePath, item.FilePath));
+    }
+
+    [Fact]
+    public void ResolveItemsByFilePathsReturnsEmptyWhenNoMatch()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        viewModel.Items.Add(CreatePhotoListItem("exists.jpg"));
+
+        // Act
+        var requestedPaths = new[] { @"C:\test\missing.jpg" };
+        var result = viewModel.ResolveItemsByFilePaths(requestedPaths);
+
+        // Assert
+        Assert.Empty(result);
     }
 
     private static string CreateTempTestDirectory()
