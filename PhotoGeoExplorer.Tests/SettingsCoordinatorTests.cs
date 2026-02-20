@@ -28,7 +28,8 @@ public sealed class SettingsCoordinatorTests : IDisposable
             MapTileSource = MapTileSourceType.EsriWorldImagery,
             ShowImagesOnly = false,
             FileViewMode = FileViewMode.Icon,
-            ShowQuickStartOnStartup = true
+            ShowQuickStartOnStartup = true,
+            ExternalContentBaseUrl = "https://example.com/help"
         };
         await context.SettingsService.SaveAsync(persisted).ConfigureAwait(true);
 
@@ -42,6 +43,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.Equal(FileViewMode.Icon, context.FileBrowserPaneViewModel.FileViewMode);
         Assert.Equal(16, context.MapPaneViewModel.MapDefaultZoomLevel);
         Assert.True(context.Coordinator.ShowQuickStartOnStartup);
+        Assert.Equal("https://example.com/help", context.Coordinator.ExternalContentBaseUrl);
     }
 
     [Fact]
@@ -67,6 +69,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.True(saved.ShowQuickStartOnStartup);
         Assert.False(saved.ShowImagesOnly);
         Assert.Equal(FileViewMode.List, saved.FileViewMode);
+        Assert.Equal(AppSettings.DefaultExternalContentBaseUrl, saved.ExternalContentBaseUrl);
     }
 
     [Fact]
@@ -141,6 +144,19 @@ public sealed class SettingsCoordinatorTests : IDisposable
     public void NormalizeMapZoomLevelReturnsExpectedValue(int input, int expected)
     {
         var actual = SettingsCoordinator.NormalizeMapZoomLevel(input);
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("https://photogeoexplorer.pages.dev", "https://photogeoexplorer.pages.dev")]
+    [InlineData("https://photogeoexplorer.pages.dev/", "https://photogeoexplorer.pages.dev")]
+    [InlineData("http://example.com/help", "http://example.com/help")]
+    [InlineData("ftp://example.com", null)]
+    public void NormalizeExternalContentBaseUrlReturnsExpectedValue(string? input, string? expected)
+    {
+        var actual = SettingsCoordinator.NormalizeExternalContentBaseUrl(input);
         Assert.Equal(expected, actual);
     }
 

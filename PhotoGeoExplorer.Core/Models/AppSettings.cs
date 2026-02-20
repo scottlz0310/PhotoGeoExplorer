@@ -10,6 +10,8 @@ internal enum MapTileSourceType
 
 internal sealed class AppSettings
 {
+    internal const string DefaultExternalContentBaseUrl = "https://photogeoexplorer.pages.dev";
+
     public string? LastFolderPath { get; set; }
     public bool ShowImagesOnly { get; set; } = true;
     public FileViewMode FileViewMode { get; set; } = FileViewMode.Details;
@@ -19,4 +21,5 @@ internal sealed class AppSettings
     public int MapDefaultZoomLevel { get; set; } = 14;
     public MapTileSourceType MapTileSource { get; set; } = MapTileSourceType.OpenStreetMap;
     public bool ShowQuickStartOnStartup { get; set; }
+    public string? ExternalContentBaseUrl { get; set; } = DefaultExternalContentBaseUrl;
 }

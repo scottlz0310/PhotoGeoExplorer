@@ -20,6 +20,7 @@ internal sealed class HelpService : IHelpService
 {
     private readonly IDialogService _dialogService;
     private readonly Func<string?> _getLanguageOverride;
+    private readonly Func<string?> _getExternalContentBaseUrl;
     private readonly Func<bool> _getShowQuickStartOnStartup;
     private readonly Action<bool> _setShowQuickStartOnStartup;
     private readonly Func<Task> _saveQuickStartPreferenceAsync;
@@ -28,10 +29,13 @@ internal sealed class HelpService : IHelpService
     private bool _disposed;
     private Window? _helpHtmlWindow;
     private WebView2? _helpHtmlWebView;
+    private Uri? _helpHtmlLocalFallbackUri;
+    private Uri? _helpHtmlExternalBaseUri;
 
     public HelpService(
         IDialogService dialogService,
         Func<string?> getLanguageOverride,
+        Func<string?> getExternalContentBaseUrl,
         Func<bool> getShowQuickStartOnStartup,
         Action<bool> setShowQuickStartOnStartup,
         Func<Task> saveQuickStartPreferenceAsync,
@@ -40,6 +44,7 @@ internal sealed class HelpService : IHelpService
     {
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _getLanguageOverride = getLanguageOverride ?? throw new ArgumentNullException(nameof(getLanguageOverride));
+        _getExternalContentBaseUrl = getExternalContentBaseUrl ?? throw new ArgumentNullException(nameof(getExternalContentBaseUrl));
         _getShowQuickStartOnStartup = getShowQuickStartOnStartup ?? throw new ArgumentNullException(nameof(getShowQuickStartOnStartup));
         _setShowQuickStartOnStartup = setShowQuickStartOnStartup ?? throw new ArgumentNullException(nameof(setShowQuickStartOnStartup));
         _saveQuickStartPreferenceAsync = saveQuickStartPreferenceAsync ?? throw new ArgumentNullException(nameof(saveQuickStartPreferenceAsync));
@@ -64,12 +69,23 @@ internal sealed class HelpService : IHelpService
 
     public async Task ShowHelpHtmlWindowAsync()
     {
-        var uri = TryGetHelpHtmlUri();
+        var localFallbackUri = TryGetHelpHtmlUri();
+        var externalUri = TryGetExternalHelpHtmlUri(
+            _getExternalContentBaseUrl(),
+            _getLanguageOverride(),
+            ApplicationLanguages.Languages,
+            CultureInfo.CurrentUICulture.Name);
+        var uri = externalUri ?? localFallbackUri;
         if (uri is null)
         {
             await ShowHelpHtmlMissingDialogAsync().ConfigureAwait(true);
             return;
         }
+
+        _helpHtmlLocalFallbackUri = localFallbackUri;
+        _helpHtmlExternalBaseUri = externalUri is null
+            ? null
+            : GetExternalContentBaseUri(_getExternalContentBaseUrl());
 
         if (_helpHtmlWindow is not null)
         {
@@ -193,6 +209,32 @@ internal sealed class HelpService : IHelpService
         return "index.html";
     }
 
+    internal static Uri? TryGetExternalHelpHtmlUri(
+        string? externalContentBaseUrl,
+        string? languageOverride,
+        IReadOnlyList<string>? preferredLanguages,
+        string currentUiCultureName)
+    {
+        ArgumentNullException.ThrowIfNull(currentUiCultureName);
+
+        var baseUri = GetExternalContentBaseUri(externalContentBaseUrl);
+        if (baseUri is null)
+        {
+            return null;
+        }
+
+        var fileName = GetHelpHtmlFileName(languageOverride, preferredLanguages, currentUiCultureName);
+        return new Uri(baseUri, $"help/{fileName}");
+    }
+
+    internal static Uri? GetExternalPrivacyPolicyUri(string? externalContentBaseUrl)
+    {
+        var baseUri = GetExternalContentBaseUri(externalContentBaseUrl);
+        return baseUri is null
+            ? null
+            : new Uri(baseUri, "privacy-policy");
+    }
+
     private async Task ShowHelpDialogAsync(string titleKey, string detailKey, bool includeQuickStartToggle = false)
     {
         CheckBox? quickStartToggle = null;
@@ -258,6 +300,28 @@ internal sealed class HelpService : IHelpService
             CultureInfo.CurrentUICulture.Name);
     }
 
+    private static Uri? GetExternalContentBaseUri(string? externalContentBaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(externalContentBaseUrl))
+        {
+            return null;
+        }
+
+        var normalized = externalContentBaseUrl.Trim().TrimEnd('/') + "/";
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var parsed))
+        {
+            return null;
+        }
+
+        if (string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
+
     private async Task ShowHelpHtmlMissingDialogAsync()
     {
         await _dialogService.ShowMessageDialogAsync(
@@ -275,6 +339,7 @@ internal sealed class HelpService : IHelpService
         };
 
         webView.NavigationStarting += OnHelpWebViewNavigationStarting;
+        webView.NavigationCompleted += OnHelpWebViewNavigationCompleted;
         webView.CoreWebView2Initialized += OnHelpWebViewInitialized;
         return webView;
     }
@@ -316,6 +381,7 @@ internal sealed class HelpService : IHelpService
         try
         {
             _helpHtmlWebView.NavigationStarting -= OnHelpWebViewNavigationStarting;
+            _helpHtmlWebView.NavigationCompleted -= OnHelpWebViewNavigationCompleted;
             _helpHtmlWebView.CoreWebView2Initialized -= OnHelpWebViewInitialized;
             if (_helpHtmlWebView.CoreWebView2 is not null)
             {
@@ -332,6 +398,8 @@ internal sealed class HelpService : IHelpService
         finally
         {
             _helpHtmlWebView = null;
+            _helpHtmlLocalFallbackUri = null;
+            _helpHtmlExternalBaseUri = null;
         }
     }
 
@@ -350,8 +418,18 @@ internal sealed class HelpService : IHelpService
     {
         if (TryGetExternalUri(args.Uri, out var uri) && uri is not null)
         {
+            if (ShouldOpenOutsideHelpWindow(uri))
+            {
+                args.Handled = true;
+                _ = OpenExternalUriAsync(ResolveExternalUri(uri));
+                return;
+            }
+
             args.Handled = true;
-            _ = OpenExternalUriAsync(uri);
+            if (_helpHtmlWebView is not null)
+            {
+                _helpHtmlWebView.Source = uri;
+            }
         }
     }
 
@@ -359,9 +437,61 @@ internal sealed class HelpService : IHelpService
     {
         if (TryGetExternalUri(args.Uri, out var uri) && uri is not null)
         {
-            args.Cancel = true;
-            _ = OpenExternalUriAsync(uri);
+            if (ShouldOpenOutsideHelpWindow(uri))
+            {
+                args.Cancel = true;
+                _ = OpenExternalUriAsync(ResolveExternalUri(uri));
+            }
         }
+    }
+
+    private void OnHelpWebViewNavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+    {
+        if (args.IsSuccess || _helpHtmlExternalBaseUri is null || _helpHtmlLocalFallbackUri is null)
+        {
+            return;
+        }
+
+        if (sender.Source is null || AreSameUri(sender.Source, _helpHtmlLocalFallbackUri))
+        {
+            return;
+        }
+
+        AppLog.Info("External help page load failed. Falling back to local help content.");
+        _helpHtmlExternalBaseUri = null;
+        sender.Source = _helpHtmlLocalFallbackUri;
+    }
+
+    private bool ShouldOpenOutsideHelpWindow(Uri uri)
+    {
+        if (_helpHtmlExternalBaseUri is null)
+        {
+            return true;
+        }
+
+        return !AreSameOrigin(uri, _helpHtmlExternalBaseUri);
+    }
+
+    private static bool AreSameOrigin(Uri left, Uri right)
+    {
+        return string.Equals(left.Scheme, right.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(left.Host, right.Host, StringComparison.OrdinalIgnoreCase)
+            && left.Port == right.Port;
+    }
+
+    private static bool AreSameUri(Uri left, Uri right)
+    {
+        return string.Equals(left.AbsoluteUri, right.AbsoluteUri, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private Uri ResolveExternalUri(Uri uri)
+    {
+        if (uri.AbsolutePath.Contains("privacy-policy", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetExternalPrivacyPolicyUri(_getExternalContentBaseUrl()) ?? uri;
+        }
+
+        return uri;
     }
 
     private static bool TryGetExternalUri(string? uriString, out Uri? uri)

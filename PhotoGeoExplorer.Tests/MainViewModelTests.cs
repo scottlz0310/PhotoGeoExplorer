@@ -488,6 +488,8 @@ public sealed class MainViewModelTests : IDisposable
 
         public string? LanguageOverride => null;
 
+        public string? ExternalContentBaseUrl => null;
+
         public bool ShowQuickStartOnStartup { get; set; }
 
         public Task LoadAsync()

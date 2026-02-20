@@ -98,19 +98,18 @@ Partner Center から現在の情報をエクスポートし、修正してイ�
 - [x] 年齢制限の設定
 - [x] プライバシーポリシー URL の準備
 
-#### プライバシーポリシー（GitHub Pages）
+#### プライバシーポリシー（Cloudflare Pages）
 
 - [x] `docs/privacy-policy.html` を作成（完了）
-- [x] GitHub Pages を有効化
-  - [ ] GitHub の Settings → Pages → **Build and deployment**
-    - Source: **Deploy from a branch**
-    - Branch: `main`
-    - Folder: `/docs`
+- [x] Cloudflare Pages プロジェクトを作成
+  - [x] Project: `photogeoexplorer`
+  - [x] Production branch: `main`
+  - [x] デプロイは GitHub Actions（`.github/workflows/cloudflare-pages-deploy.yml`）で実行
   - 詳細は `docs/GitHubPagesSetup.md` を参照
 - [x] 公開 URL を Partner Center の「プライバシーポリシー URL」に設定
-  - 例: `https://scottlz0310.github.io/PhotoGeoExplorer/privacy-policy.html`
+  - 例: `https://photogeoexplorer.pages.dev/privacy-policy`
 - [x] ルート URL でも到達できることを確認
-  - `https://scottlz0310.github.io/PhotoGeoExplorer/` → `privacy-policy.html` に転送
+  - `https://photogeoexplorer.pages.dev/` → `privacy-policy` に転送
 
 ## アセット準備
 
@@ -221,7 +220,7 @@ Store提出用のパッケージをローカルでサイドローディングし
 ### 法的文書
 
 - [x] プライバシーポリシー作成（完了）
-- [x] プライバシーポリシー公開（GitHub Pages 有効化が必要）
+- [x] プライバシーポリシー公開（Cloudflare Pages 連携が必要）
 - [ ] 利用規約（オプション）
 - [x] サポートページ
 

@@ -75,6 +75,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _helpService = new HelpService(
             dialogService,
             () => _settingsCoordinator.LanguageOverride,
+            () => _settingsCoordinator.ExternalContentBaseUrl,
             () => _settingsCoordinator.ShowQuickStartOnStartup,
             value => _settingsCoordinator.ShowQuickStartOnStartup = value,
             () => _settingsCoordinator.SaveAsync(),

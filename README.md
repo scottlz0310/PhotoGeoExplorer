@@ -151,4 +151,4 @@ MSIX を使う場合は、証明書の信頼登録が必要です。以下のス
 
 ## プライバシーポリシー
 
-プライバシーポリシーは [こちら](https://scottlz0310.github.io/PhotoGeoExplorer/privacy-policy.html) で確認できます。
+プライバシーポリシーは [こちら](https://photogeoexplorer.pages.dev/privacy-policy) で確認できます。

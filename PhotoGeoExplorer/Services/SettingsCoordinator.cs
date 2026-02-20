@@ -37,6 +37,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
     private bool _showQuickStartOnStartup;
+    private string? _externalContentBaseUrl = AppSettings.DefaultExternalContentBaseUrl;
     private bool _disposed;
 
     public SettingsCoordinator(
@@ -63,6 +64,8 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     public bool SettingsFileExistsAtStartup { get; }
 
     public string? LanguageOverride => _languageOverride;
+
+    public string? ExternalContentBaseUrl => _externalContentBaseUrl;
 
     public bool ShowQuickStartOnStartup
     {
@@ -249,6 +252,27 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         return MapZoomLevelCatalog.Default;
     }
 
+    internal static string? NormalizeExternalContentBaseUrl(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(baseUrl.Trim(), UriKind.Absolute, out var parsed))
+        {
+            return null;
+        }
+
+        if (!string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return parsed.AbsoluteUri.TrimEnd('/');
+    }
+
     internal static string? FindValidAncestorPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -298,6 +322,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _mapDefaultZoomLevel = NormalizeMapZoomLevel(settings.MapDefaultZoomLevel);
         _mapPaneViewModel.MapDefaultZoomLevel = _mapDefaultZoomLevel;
         _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
+        _externalContentBaseUrl = NormalizeExternalContentBaseUrl(settings.ExternalContentBaseUrl);
 
         var savedTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
         if (savedTileSource != _mapTileSource)
@@ -451,7 +476,8 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             Theme = _themePreference,
             MapDefaultZoomLevel = _mapDefaultZoomLevel,
             MapTileSource = _mapTileSource,
-            ShowQuickStartOnStartup = _showQuickStartOnStartup
+            ShowQuickStartOnStartup = _showQuickStartOnStartup,
+            ExternalContentBaseUrl = _externalContentBaseUrl
         };
     }
 

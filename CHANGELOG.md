@@ -4,8 +4,17 @@
 
 ## [Unreleased]
 
+### 追加
+- Cloudflare Pages 向けデプロイ workflow（`.github/workflows/cloudflare-pages-deploy.yml`）を追加。
+  - `docs/privacy-policy.html` と `PhotoGeoExplorer/wwwroot/help/index*.html` の更新時のみ発火するように設定。
+
+### 変更
+- ヘルプ HTML と README のプライバシーポリシー参照先を `https://photogeoexplorer.pages.dev/privacy-policy` に切り替え。
+- `docs/GitHubPagesSetup.md` と `docs/MicrosoftStore.md` を Cloudflare Pages 運用手順に更新。
+
 ### 修正
 - 設定ペインの表示言語コンボボックスで、システム既定選択時に起動直後の現在値が空表示になることがある問題を修正（#125）。
+- ヘルプ表示で外部 URL の読み込みに失敗した場合、ローカル同梱ヘルプへ自動フォールバックするよう改善。
 
 ## [1.6.0] - 2026-02-20
 

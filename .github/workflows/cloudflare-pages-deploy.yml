@@ -1,0 +1,46 @@
+name: Cloudflare Pages Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/index.html"
+      - "docs/privacy-policy.html"
+      - "PhotoGeoExplorer/wwwroot/help/index.html"
+      - "PhotoGeoExplorer/wwwroot/help/index.en.html"
+      - ".github/workflows/cloudflare-pages-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare static bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf cloudflare-deploy
+          mkdir -p cloudflare-deploy/help
+          mkdir -p cloudflare-deploy/privacy-policy
+          cp docs/index.html cloudflare-deploy/index.html
+          cp docs/privacy-policy.html cloudflare-deploy/privacy-policy.html
+          cp docs/privacy-policy.html cloudflare-deploy/privacy-policy/index.html
+          cp PhotoGeoExplorer/wwwroot/help/index.html cloudflare-deploy/help/index.html
+          cp PhotoGeoExplorer/wwwroot/help/index.en.html cloudflare-deploy/help/index.en.html
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy cloudflare-deploy --project-name=photogeoexplorer

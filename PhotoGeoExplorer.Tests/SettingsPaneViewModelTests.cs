@@ -252,6 +252,8 @@ public sealed class SettingsPaneViewModelTests : IDisposable
 
         public string? LanguageOverride => LastLanguageTag;
 
+        public string? ExternalContentBaseUrl => null;
+
         public bool ShowQuickStartOnStartup { get; set; }
 
         public int SaveCallCount { get; private set; }

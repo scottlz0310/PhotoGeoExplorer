@@ -11,6 +11,8 @@ internal interface ISettingsCoordinator : IDisposable
 
     string? LanguageOverride { get; }
 
+    string? ExternalContentBaseUrl { get; }
+
     bool ShowQuickStartOnStartup { get; set; }
 
     Task LoadAsync();

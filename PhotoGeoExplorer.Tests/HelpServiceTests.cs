@@ -107,6 +107,40 @@ public sealed class HelpServiceTests : IDisposable
         Assert.Null(uri);
     }
 
+    [Fact]
+    public void TryGetExternalHelpHtmlUriReturnsNullWhenBaseUrlIsMissing()
+    {
+        var uri = HelpService.TryGetExternalHelpHtmlUri(
+            externalContentBaseUrl: null,
+            languageOverride: "ja-JP",
+            preferredLanguages: null,
+            currentUiCultureName: "ja-JP");
+
+        Assert.Null(uri);
+    }
+
+    [Fact]
+    public void TryGetExternalHelpHtmlUriBuildsEnglishHelpUrl()
+    {
+        var uri = HelpService.TryGetExternalHelpHtmlUri(
+            externalContentBaseUrl: "https://photogeoexplorer.pages.dev",
+            languageOverride: "en-US",
+            preferredLanguages: null,
+            currentUiCultureName: "ja-JP");
+
+        Assert.NotNull(uri);
+        Assert.Equal("https://photogeoexplorer.pages.dev/help/index.en.html", uri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public void GetExternalPrivacyPolicyUriBuildsExpectedUrl()
+    {
+        var uri = HelpService.GetExternalPrivacyPolicyUri("https://photogeoexplorer.pages.dev/");
+
+        Assert.NotNull(uri);
+        Assert.Equal("https://photogeoexplorer.pages.dev/privacy-policy", uri!.AbsoluteUri);
+    }
+
     public void Dispose()
     {
         foreach (var directory in _tempDirectories)
