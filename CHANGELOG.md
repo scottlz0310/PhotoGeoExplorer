@@ -4,12 +4,15 @@
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-02-20
+
 ### 追加
 - AI エージェント共通ガイドラインに「PR 作成後の自動レビュー対応ルーティン」を追加。
 - MainWindow スリム化（第2期）の実装計画書とタスク細分文書を追加（`docs/Architecture/MainWindowSlimdown-Plan.md`, `MainWindowSlimdown-Tasks.md`）。
 - E2E の Required check 化に向けた運用手順書を追加（`docs/CI-E2E-RequiredCheck.md`）。
 
 ### 変更
+- v1.6.0 は GitHub Release のみ公開し、Microsoft Store 版は据え置き（次回更新予定）。
 - MainWindow スリム化（第2期）PR-8 の最終クリーンアップを実施（#102）。
   - `MainWindow.xaml.cs` の残存不要 `using` を整理し、最終行数 619 行（目標: 800 行以下）を確認。
   - `docs/Architecture/PaneSystem.md` / `MainWindow-Orchestration-Review.md` / `MainWindowSlimdown-Plan.md` を完了状態へ更新。
