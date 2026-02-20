@@ -104,12 +104,12 @@ Partner Center から現在の情報をエクスポートし、修正してイ�
 - [x] Cloudflare Pages プロジェクトを作成
   - [x] Project: `photogeoexplorer`
   - [x] Production branch: `main`
-  - [x] デプロイは GitHub Actions（`.github/workflows/cloudflare-pages-deploy.yml`）で実行
+  - [x] デプロイは Cloudflare Pages の Git 連携で自動実行
   - 詳細は `docs/GitHubPagesSetup.md` を参照
 - [x] 公開 URL を Partner Center の「プライバシーポリシー URL」に設定
   - 例: `https://photogeoexplorer.pages.dev/privacy-policy`
 - [x] ルート URL でも到達できることを確認
-  - `https://photogeoexplorer.pages.dev/` → `privacy-policy` に転送
+  - `https://photogeoexplorer.pages.dev/` → `privacy-policy.html` に転送
 
 ## アセット準備
 

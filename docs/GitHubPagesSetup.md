@@ -1,34 +1,30 @@
 # Cloudflare Pages セットアップガイド
 
-このドキュメントでは、PhotoGeoExplorer の静的ページ（`privacy-policy` / `help`）を Cloudflare Pages へデプロイする運用手順を説明します。
+このドキュメントでは、PhotoGeoExplorer の静的ページ（`privacy-policy` / `help`）を Cloudflare Pages へ配信する手順を説明します。
 
 ## 前提条件
 
 - Cloudflare Pages に `photogeoexplorer` プロジェクトを作成済みであること
 - Production branch が `main` に設定されていること
-- GitHub Actions Secrets に以下を設定済みであること
-  - `CLOUDFLARE_API_TOKEN`
-  - `CLOUDFLARE_ACCOUNT_ID`
+- Root directory が `docs` に設定されていること
 
 ## デプロイ方式
 
-- デプロイは GitHub Actions の `cloudflare-pages-deploy.yml` で実行します。
-- 以下のファイルが更新されたときのみデプロイを実行します。
-  - `docs/index.html`
-  - `docs/privacy-policy.html`
-  - `PhotoGeoExplorer/wwwroot/help/index.html`
-  - `PhotoGeoExplorer/wwwroot/help/index.en.html`
+- GitHub Actions は使用せず、Cloudflare Pages の Git 連携による自動デプロイを使用します。
+- `main` への push（または merge）で Cloudflare 側のデプロイが実行されます。
 
-これにより、アプリ本体の通常変更では Cloudflare デプロイが発火しません。
+## 配信対象
 
-## デプロイ内容
-
-ワークフローはリポジトリ内の静的ファイルから一時的な配信用ディレクトリを組み立て、Cloudflare Pages へ反映します。
+`docs` 配下の以下ファイルが配信対象です。
 
 - `/` → `docs/index.html`
-- `/privacy-policy` / `/privacy-policy.html` → `docs/privacy-policy.html`
-- `/help/index.html` → `PhotoGeoExplorer/wwwroot/help/index.html`
-- `/help/index.en.html` → `PhotoGeoExplorer/wwwroot/help/index.en.html`
+- `/privacy-policy` → `docs/privacy-policy/index.html`
+- `/privacy-policy.html` → `docs/privacy-policy.html`
+- `/help/index.html` → `docs/help/index.html`
+- `/help/index.en.html` → `docs/help/index.en.html`
+
+> [!NOTE]
+> `docs/help/index*.html` はアプリ同梱ヘルプ（`PhotoGeoExplorer/wwwroot/help/index*.html`）と同じ内容を維持してください。
 
 ## 確認 URL
 
@@ -45,15 +41,10 @@
 
 ## トラブルシューティング
 
-### デプロイが失敗する
+### URL が 404 になる
 
-- `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` の値を確認してください。
-- Cloudflare 側プロジェクト名が `photogeoexplorer` であることを確認してください。
-
-### プライバシーポリシー URL が 404 になる
-
-- GitHub Actions の `Cloudflare Pages Deploy` 実行結果を確認してください。
-- `docs/privacy-policy.html` が `main` に反映済みか確認してください。
+- Cloudflare Pages の最新デプロイが成功しているか確認してください。
+- `docs/privacy-policy.html` / `docs/help/index*.html` が `main` に反映済みか確認してください。
 
 ### ヘルプが外部表示されない
 
