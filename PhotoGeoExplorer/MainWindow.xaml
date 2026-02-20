@@ -35,11 +35,11 @@
                 <MenuFlyoutItem Text="Exit" Click="OnExitClicked" x:Uid="MenuFileExit" />
             </MenuBarItem>
             <MenuBarItem Title="View" x:Uid="MenuView">
-                <MenuFlyoutItem Text="Icon" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.SetViewModeCommand}" CommandParameter="Icon" x:Uid="MenuViewIcon" />
-                <MenuFlyoutItem Text="List" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.SetViewModeCommand}" CommandParameter="List" x:Uid="MenuViewList" />
-                <MenuFlyoutItem Text="Details" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.SetViewModeCommand}" CommandParameter="Details" x:Uid="MenuViewDetails" />
+                <MenuFlyoutItem Text="Icon" Tag="Icon" Click="OnViewModeMenuClicked" x:Uid="MenuViewIcon" />
+                <MenuFlyoutItem Text="List" Tag="List" Click="OnViewModeMenuClicked" x:Uid="MenuViewList" />
+                <MenuFlyoutItem Text="Details" Tag="Details" Click="OnViewModeMenuClicked" x:Uid="MenuViewDetails" />
                 <MenuFlyoutSeparator />
-                <MenuFlyoutItem Text="Show images only" Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.ToggleImagesOnlyCommand}" x:Uid="MenuViewImagesOnly" />
+                <MenuFlyoutItem x:Name="ToggleImagesOnlyMenuItem" Text="Show images only" Click="OnToggleImagesOnlyClicked" x:Uid="MenuViewImagesOnly" />
             </MenuBarItem>
             <MenuBarItem Title="Settings" x:Uid="MenuSettings">
                 <MenuFlyoutItem Text="Settings..." Click="OnOpenSettingsPaneClicked" x:Uid="MenuSettingsOpenPane" />

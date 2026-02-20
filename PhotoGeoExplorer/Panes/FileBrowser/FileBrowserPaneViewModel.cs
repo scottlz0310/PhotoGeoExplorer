@@ -182,9 +182,14 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             if (SetProperty(ref _showImagesOnly, value))
             {
                 UpdateFilterState();
+                OnPropertyChanged(nameof(ToggleImagesOnlyMenuText));
             }
         }
     }
+
+    public string ToggleImagesOnlyMenuText => ShowImagesOnly
+        ? LocalizationService.GetString("MenuViewAllFiles.Text")
+        : LocalizationService.GetString("MenuViewImagesOnly.Text");
 
     public string? SearchText
     {

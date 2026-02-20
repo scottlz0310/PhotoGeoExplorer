@@ -90,6 +90,7 @@ public sealed partial class MainWindow : Window, IDisposable
         PreviewPaneControl.DataContext = _previewPaneViewModel;
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         MapPaneControl.DataContext = _mapPaneViewModel;
+        UpdateToggleImagesOnlyMenuText();
         Title = LocalizationService.GetString("MainWindow.Title");
         AppLog.Info("MainWindow constructed.");
         Activated += OnActivated;
@@ -314,12 +315,22 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         // 地図の更新は WorkspaceState 経由で MapPaneViewModel が行うため、ここでは不要
 
+        if (e.PropertyName is nameof(FileBrowserPaneViewModel.ShowImagesOnly))
+        {
+            DispatcherQueue.TryEnqueue(UpdateToggleImagesOnlyMenuText);
+        }
+
         if (e.PropertyName is nameof(FileBrowserPaneViewModel.ShowImagesOnly)
             or nameof(FileBrowserPaneViewModel.FileViewMode)
             or nameof(FileBrowserPaneViewModel.CurrentFolderPath))
         {
             _settingsCoordinator.ScheduleSave();
         }
+    }
+
+    private void UpdateToggleImagesOnlyMenuText()
+    {
+        ToggleImagesOnlyMenuItem.Text = _fileBrowserPaneViewModel.ToggleImagesOnlyMenuText;
     }
 
     private async void OnWorkspaceStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -427,6 +438,25 @@ public sealed partial class MainWindow : Window, IDisposable
     }
 
 
+
+    private async void OnToggleImagesOnlyClicked(object sender, RoutedEventArgs e)
+    {
+        _fileBrowserPaneViewModel.ShowImagesOnly = !_fileBrowserPaneViewModel.ShowImagesOnly;
+        await _fileBrowserPaneViewModel.RefreshAsync().ConfigureAwait(true);
+    }
+
+    private void OnViewModeMenuClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuFlyoutItem item || item.Tag is not string tag)
+        {
+            return;
+        }
+
+        if (Enum.TryParse(tag, out FileViewMode mode))
+        {
+            _fileBrowserPaneViewModel.FileViewMode = mode;
+        }
+    }
 
     private async void OnOpenSettingsPaneClicked(object sender, RoutedEventArgs e)
     {

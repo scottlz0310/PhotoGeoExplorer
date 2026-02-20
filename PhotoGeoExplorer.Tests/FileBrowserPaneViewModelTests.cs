@@ -498,12 +498,21 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
         using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
         var initialValue = viewModel.ShowImagesOnly;
+        var expectedTextBeforeToggle = initialValue
+            ? LocalizationService.GetString("MenuViewAllFiles.Text")
+            : LocalizationService.GetString("MenuViewImagesOnly.Text");
 
         // Act
+        var menuTextBeforeToggle = viewModel.ToggleImagesOnlyMenuText;
         viewModel.ToggleImagesOnlyCommand.Execute(null);
 
         // Assert
+        Assert.Equal(expectedTextBeforeToggle, menuTextBeforeToggle);
         Assert.NotEqual(initialValue, viewModel.ShowImagesOnly);
+        var expectedTextAfterToggle = viewModel.ShowImagesOnly
+            ? LocalizationService.GetString("MenuViewAllFiles.Text")
+            : LocalizationService.GetString("MenuViewImagesOnly.Text");
+        Assert.Equal(expectedTextAfterToggle, viewModel.ToggleImagesOnlyMenuText);
     }
 
     [Fact]
