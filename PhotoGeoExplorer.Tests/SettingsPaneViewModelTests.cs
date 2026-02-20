@@ -49,6 +49,22 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task InitializeAsyncWithSystemLanguageShowsSystemOptionValue()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        _mainViewModel.ApplySettingsState(
+            language: null,
+            theme: ThemePreference.System,
+            mapZoomLevel: 14,
+            mapTileSource: MapTileSourceType.OpenStreetMap);
+
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        Assert.Equal("system", viewModel.Language);
+    }
+
+    [Fact]
     public async Task SaveCommandPersistsCurrentState()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
@@ -159,7 +175,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         viewModel.ResetCommand.Execute(null);
         await WaitForAsync(() => coordinator.SaveCallCount == 1).ConfigureAwait(true);
 
-        Assert.Equal(string.Empty, viewModel.Language);
+        Assert.Equal("system", viewModel.Language);
         Assert.Equal(ThemePreference.System, viewModel.Theme);
         Assert.Equal(14, viewModel.MapDefaultZoomLevel);
         Assert.Equal(MapTileSourceType.OpenStreetMap, viewModel.MapTileSource);

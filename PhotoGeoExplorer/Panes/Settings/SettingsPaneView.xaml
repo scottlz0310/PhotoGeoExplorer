@@ -54,7 +54,7 @@
                             <ComboBoxItem
                                 x:Uid="SettingsPaneLanguageSystemOption"
                                 Content="システムデフォルト"
-                                Tag="" />
+                                Tag="system" />
                             <ComboBoxItem
                                 x:Uid="SettingsPaneLanguageJapaneseOption"
                                 Content="日本語"

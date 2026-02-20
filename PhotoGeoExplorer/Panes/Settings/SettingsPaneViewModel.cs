@@ -19,6 +19,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
     private readonly ISettingsCoordinator _settingsCoordinator;
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly MainViewModel _shellViewModel;
+    private const string SystemLanguageOptionValue = "system";
 
     private string? _language;
     private ThemePreference _theme = ThemePreference.System;
@@ -239,7 +240,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         _suppressDirtyTracking = true;
         try
         {
-            Language = null;
+            Language = SystemLanguageOptionValue;
             Theme = ThemePreference.System;
             MapDefaultZoomLevel = MapZoomLevelCatalog.Default;
             MapTileSource = MapTileSourceType.OpenStreetMap;
@@ -292,7 +293,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         _suppressDirtyTracking = true;
         try
         {
-            Language = _shellViewModel.CurrentLanguage ?? string.Empty;
+            Language = _shellViewModel.CurrentLanguage ?? SystemLanguageOptionValue;
             Theme = _shellViewModel.CurrentTheme;
             MapDefaultZoomLevel = _shellViewModel.CurrentMapZoomLevel;
             MapTileSource = _shellViewModel.CurrentMapTileSource;
@@ -411,7 +412,10 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             return null;
         }
 
-        return language.Trim();
+        var trimmed = language.Trim();
+        return string.Equals(trimmed, SystemLanguageOptionValue, StringComparison.OrdinalIgnoreCase)
+            ? null
+            : trimmed;
     }
 
     private static int NormalizeMapZoomLevel(int level)
