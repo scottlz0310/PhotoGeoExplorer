@@ -7,5 +7,36 @@
     "github>scottlz0310/renovate-config//presets/options/automerge",
     "github>scottlz0310/renovate-config//presets/options/schedule",
     "github>scottlz0310/renovate-config//presets/options/security"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track netX.Y in TargetFramework",
+      "fileMatch": [
+        "(^|/)PhotoGeoExplorer/PhotoGeoExplorer\\.csproj$",
+        "(^|/)PhotoGeoExplorer\\.Tests/PhotoGeoExplorer\\.Tests\\.csproj$"
+      ],
+      "matchStrings": [
+        "<TargetFramework>net(?<currentValue>\\d+\\.\\d+)-windows10\\.0\\.19041\\.0</TargetFramework>"
+      ],
+      "depNameTemplate": "dotnet-sdk",
+      "datasourceTemplate": "dotnet-version",
+      "extractVersionTemplate": "^(?<version>\\d+\\.\\d+)",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Track netX.Y mention in archived plan",
+      "fileMatch": [
+        "(^|/)docs/archive/PhotoGeoExplorer_plan\\.md$"
+      ],
+      "matchStrings": [
+        "net(?<currentValue>\\d+\\.\\d+)-windows10\\.0\\.19041\\.0"
+      ],
+      "depNameTemplate": "dotnet-sdk",
+      "datasourceTemplate": "dotnet-version",
+      "extractVersionTemplate": "^(?<version>\\d+\\.\\d+)",
+      "versioningTemplate": "semver"
+    }
   ]
 }

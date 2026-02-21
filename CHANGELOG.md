@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 変更
+- Renovate の `customManagers`（regex）を追加し、`PhotoGeoExplorer.csproj` / `PhotoGeoExplorer.Tests.csproj` と `docs/archive/PhotoGeoExplorer_plan.md` の `netX.Y-windows10.0.19041.0` 表記で `netX.Y` 部分を追従更新できるように変更。
+
 ## [1.7.0] - 2026-02-21
 
 ### 追加
