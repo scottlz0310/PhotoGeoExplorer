@@ -15,6 +15,16 @@ internal interface ISettingsCoordinator : IDisposable
 
     bool ShowQuickStartOnStartup { get; set; }
 
+    PaneLayoutPreset PaneLayoutPreset { get; }
+
+    PaneViewType PaneRegion1View { get; }
+
+    PaneViewType PaneRegion2View { get; }
+
+    PaneViewType PaneRegion3View { get; }
+
+    event EventHandler<PaneLayoutChangedEventArgs>? PaneLayoutChanged;
+
     Task LoadAsync();
 
     void ScheduleSave();
@@ -28,6 +38,8 @@ internal interface ISettingsCoordinator : IDisposable
     void ChangeMapZoomLevel(int level);
 
     void ChangeMapTileSource(MapTileSourceType sourceType);
+
+    void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View);
 
     Task ExportSettingsAsync();
 

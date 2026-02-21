@@ -7,17 +7,25 @@
 ### 追加
 - Cloudflare Pages の `docs` 配信に合わせ、`docs/help/index.html` と `docs/help/index.en.html` を追加。
 - ファイル一覧の詳細表示に、撮影日時列と位置情報有無アイコン列を追加し、列表示の切り替えメニューを実装（#122）。
+- 設定ペインに、ペインレイアウトプリセット（左・中央・右 / 左・右上/右下 / 左上左下・右）と領域ビュー割り当て（File / Preview / Map）を追加（#124）。
 
 ### 変更
 - ヘルプ HTML と README のプライバシーポリシー参照先を `https://photogeoexplorer.pages.dev/privacy-policy` に切り替え。
 - Cloudflare 配信方式を GitHub Actions workflow から Cloudflare Pages の Git 連携自動デプロイへ統一。
 - `docs/GitHubPagesSetup.md` と `docs/MicrosoftStore.md` を更新。
 - 詳細表示列の表示/非表示設定を `settings.json` に保存し、再起動時に復元するよう変更（#122）。
+- ペインレイアウト設定（プリセット/領域割り当て）を `settings.json` に保存し、起動時に MainWindow レイアウトへ復元するよう変更（#124）。
+- AI エージェント共通ガイドラインの PR 監視ループに、通常コメント（Issue comments: Codecov など Bot コメント）確認を追加。
+- レイアウト分割計算・ペイン配置判定・プレビュー操作計算を純粋関数化し、UI依存なしで単体テストできるよう整理。
+- `MainWindowLayoutCoordinator` のスプリッター更新計算を `TryComputeSplitterLengths` に集約し、`GridLength` 更新分岐を単体テストで検証できるよう整理。
 
 ### 修正
 - 設定ペインの表示言語コンボボックスで、システム既定選択時に起動直後の現在値が空表示になることがある問題を修正（#125）。
 - ヘルプ表示で外部 URL の読み込みに失敗した場合、ローカル同梱ヘルプへ自動フォールバックするよう改善。
 - Cloudflare 配信の `/privacy-policy` パスが確実に解決されるよう、`docs/privacy-policy/index.html` を追加。
+- ペインレイアウト変更直後に、プレビューの自動再フィットと Fit ボタン（View）が効かないことがある問題を修正（#124）。
+- 設定ペインのレイアウト設定向け `Resources.resw` に残っていた未使用キーを整理し、参照実体のあるキーのみへ統一。
+- 設定ペインのレイアウト設定ロジック（プリセット切替・領域重複解消・領域ラベル）と `SettingsCoordinator` の同値レイアウト早期 return 分岐に対する単体テストを追加し、`codecov/patch` 失敗の要因を解消。
 
 ## [1.6.0] - 2026-02-20
 

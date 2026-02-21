@@ -38,6 +38,10 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
     private bool _showQuickStartOnStartup;
     private string? _externalContentBaseUrl = AppSettings.DefaultExternalContentBaseUrl;
+    private PaneLayoutPreset _paneLayoutPreset = AppSettings.DefaultPaneLayoutPreset;
+    private PaneViewType _paneRegion1View = AppSettings.DefaultPaneRegion1View;
+    private PaneViewType _paneRegion2View = AppSettings.DefaultPaneRegion2View;
+    private PaneViewType _paneRegion3View = AppSettings.DefaultPaneRegion3View;
     private bool _disposed;
 
     public SettingsCoordinator(
@@ -72,6 +76,16 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         get => _showQuickStartOnStartup;
         set => _showQuickStartOnStartup = value;
     }
+
+    public PaneLayoutPreset PaneLayoutPreset => _paneLayoutPreset;
+
+    public PaneViewType PaneRegion1View => _paneRegion1View;
+
+    public PaneViewType PaneRegion2View => _paneRegion2View;
+
+    public PaneViewType PaneRegion3View => _paneRegion3View;
+
+    public event EventHandler<PaneLayoutChangedEventArgs>? PaneLayoutChanged;
 
     public async Task LoadAsync()
     {
@@ -150,6 +164,13 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         {
             ScheduleSave();
         }
+    }
+
+    public void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
+    {
+        var normalizedPreset = NormalizePaneLayoutPreset(preset);
+        var normalizedViews = NormalizePaneRegionViews(region1View, region2View, region3View);
+        ApplyPaneLayoutSettings(normalizedPreset, normalizedViews.Region1View, normalizedViews.Region2View, normalizedViews.Region3View, saveSettings: true);
     }
 
     public async Task ExportSettingsAsync()
@@ -273,6 +294,42 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         return parsed.AbsoluteUri.TrimEnd('/');
     }
 
+    internal static PaneLayoutPreset NormalizePaneLayoutPreset(PaneLayoutPreset preset)
+    {
+        return Enum.IsDefined(preset)
+            ? preset
+            : AppSettings.DefaultPaneLayoutPreset;
+    }
+
+    internal static (PaneViewType Region1View, PaneViewType Region2View, PaneViewType Region3View) NormalizePaneRegionViews(
+        PaneViewType region1View,
+        PaneViewType region2View,
+        PaneViewType region3View)
+    {
+        var values = new[]
+        {
+            NormalizePaneView(region1View),
+            NormalizePaneView(region2View),
+            NormalizePaneView(region3View)
+        };
+
+        var allViews = Enum.GetValues<PaneViewType>();
+        var used = new HashSet<PaneViewType>();
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (used.Add(values[i]))
+            {
+                continue;
+            }
+
+            var replacement = allViews.FirstOrDefault(candidate => !used.Contains(candidate));
+            values[i] = replacement;
+            used.Add(values[i]);
+        }
+
+        return (values[0], values[1], values[2]);
+    }
+
     internal static string? FindValidAncestorPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -344,6 +401,18 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _fileBrowserPaneViewModel.ShowDetailsSizeColumn = settings.ShowDetailsSizeColumn;
         _fileBrowserPaneViewModel.ShowDetailsTakenAtColumn = settings.ShowDetailsTakenAtColumn;
         _fileBrowserPaneViewModel.ShowDetailsLocationColumn = settings.ShowDetailsLocationColumn;
+        var normalizedPreset = NormalizePaneLayoutPreset(settings.PaneLayoutPreset);
+        var normalizedViews = NormalizePaneRegionViews(settings.PaneRegion1View, settings.PaneRegion2View, settings.PaneRegion3View);
+        settings.PaneLayoutPreset = normalizedPreset;
+        settings.PaneRegion1View = normalizedViews.Region1View;
+        settings.PaneRegion2View = normalizedViews.Region2View;
+        settings.PaneRegion3View = normalizedViews.Region3View;
+        ApplyPaneLayoutSettings(
+            normalizedPreset,
+            normalizedViews.Region1View,
+            normalizedViews.Region2View,
+            normalizedViews.Region3View,
+            saveSettings: false);
 
         UpdateShellSettingsState();
 
@@ -416,6 +485,40 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             _ => ElementTheme.Default
         };
         _setRequestedTheme(requestedTheme);
+    }
+
+    private void ApplyPaneLayoutSettings(
+        PaneLayoutPreset preset,
+        PaneViewType region1View,
+        PaneViewType region2View,
+        PaneViewType region3View,
+        bool saveSettings)
+    {
+        var changed = _paneLayoutPreset != preset
+            || _paneRegion1View != region1View
+            || _paneRegion2View != region2View
+            || _paneRegion3View != region3View;
+
+        _paneLayoutPreset = preset;
+        _paneRegion1View = region1View;
+        _paneRegion2View = region2View;
+        _paneRegion3View = region3View;
+
+        if (!changed)
+        {
+            return;
+        }
+
+        PaneLayoutChanged?.Invoke(this, new PaneLayoutChangedEventArgs(
+            _paneLayoutPreset,
+            _paneRegion1View,
+            _paneRegion2View,
+            _paneRegion3View));
+
+        if (saveSettings && !_isApplyingSettings)
+        {
+            ScheduleSave();
+        }
     }
 
     private void OnFileBrowserPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -492,7 +595,11 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             MapDefaultZoomLevel = _mapDefaultZoomLevel,
             MapTileSource = _mapTileSource,
             ShowQuickStartOnStartup = _showQuickStartOnStartup,
-            ExternalContentBaseUrl = _externalContentBaseUrl
+            ExternalContentBaseUrl = _externalContentBaseUrl,
+            PaneLayoutPreset = _paneLayoutPreset,
+            PaneRegion1View = _paneRegion1View,
+            PaneRegion2View = _paneRegion2View,
+            PaneRegion3View = _paneRegion3View
         };
     }
 
@@ -503,5 +610,12 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             _themePreference,
             _mapDefaultZoomLevel,
             _mapTileSource);
+    }
+
+    private static PaneViewType NormalizePaneView(PaneViewType view)
+    {
+        return Enum.IsDefined(view)
+            ? view
+            : PaneViewType.File;
     }
 }

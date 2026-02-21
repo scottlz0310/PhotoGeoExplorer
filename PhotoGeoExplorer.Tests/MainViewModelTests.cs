@@ -492,6 +492,16 @@ public sealed class MainViewModelTests : IDisposable
 
         public bool ShowQuickStartOnStartup { get; set; }
 
+        public PaneLayoutPreset PaneLayoutPreset => AppSettings.DefaultPaneLayoutPreset;
+
+        public PaneViewType PaneRegion1View => AppSettings.DefaultPaneRegion1View;
+
+        public PaneViewType PaneRegion2View => AppSettings.DefaultPaneRegion2View;
+
+        public PaneViewType PaneRegion3View => AppSettings.DefaultPaneRegion3View;
+
+        public event EventHandler<PaneLayoutChangedEventArgs>? PaneLayoutChanged;
+
         public Task LoadAsync()
         {
             return Task.CompletedTask;
@@ -531,6 +541,11 @@ public sealed class MainViewModelTests : IDisposable
         {
             ChangeMapTileSourceCallCount++;
             LastMapTileSource = sourceType;
+        }
+
+        public void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
+        {
+            PaneLayoutChanged?.Invoke(this, new PaneLayoutChangedEventArgs(preset, region1View, region2View, region3View));
         }
 
         public Task ExportSettingsAsync()

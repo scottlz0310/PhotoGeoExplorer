@@ -140,6 +140,24 @@ public class PreviewPaneViewModelTests
     }
 
     [Fact]
+    public void ExecuteFitRaisesFitRequested()
+    {
+        // Arrange
+        var service = new MockPreviewPaneService();
+        var workspaceState = new WorkspaceState();
+        var vm = new PreviewPaneViewModel(service, workspaceState);
+        vm.FitToWindow = false;
+        var raised = false;
+        vm.FitRequested += (_, _) => raised = true;
+
+        // Act
+        vm.FitCommand.Execute(null);
+
+        // Assert
+        Assert.True(raised);
+    }
+
+    [Fact]
     public void ExecuteZoomInIncrementsZoomFactor()
     {
         // Arrange

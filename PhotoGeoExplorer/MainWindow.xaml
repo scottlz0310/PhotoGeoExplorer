@@ -66,7 +66,30 @@
             </Grid.ColumnDefinitions>
 
             <Grid x:Name="FileBrowserPane" Grid.Column="0">
-                <fileBrowser:FileBrowserPaneView x:Name="FileBrowserPaneControl" />
+                <Grid x:Name="LeftSingleHost" />
+
+                <Grid x:Name="LeftVerticalSplitHost" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition x:Name="LeftTopRow" Height="*" MinHeight="200" />
+                        <RowDefinition x:Name="LeftSplitterRow" Height="Auto" />
+                        <RowDefinition x:Name="LeftBottomRow" Height="*" MinHeight="200" />
+                    </Grid.RowDefinitions>
+
+                    <Grid x:Name="LeftTopHost" Grid.Row="0" />
+
+                    <primitives:Thumb
+                        x:Name="LeftRowSplitter"
+                        Grid.Row="1"
+                        Height="6"
+                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        DragDelta="OnLeftSplitterDragDelta"
+                        DragCompleted="OnInnerSplitterDragCompleted"
+                        IsTabStop="False" />
+
+                    <Grid x:Name="LeftBottomHost" Grid.Row="2" />
+                </Grid>
             </Grid>
 
             <primitives:Thumb
@@ -81,31 +104,61 @@
                 IsTabStop="False" />
 
             <Grid x:Name="DetailPane" Grid.Column="2" Padding="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition x:Name="PreviewRow" Height="*" MinHeight="200" />
-                    <RowDefinition x:Name="MapSplitterRow" Height="Auto" />
-                    <RowDefinition x:Name="MapRow" Height="*" MinHeight="200" />
-                </Grid.RowDefinitions>
+                <Grid x:Name="RightSingleHost" Visibility="Collapsed" />
 
-                <!-- PreviewPane を UserControl として配置 -->
-                <preview:PreviewPaneViewControl
-                    x:Name="PreviewPaneControl"
-                    Grid.Row="0" />
+                <Grid x:Name="RightVerticalSplitHost">
+                    <Grid.RowDefinitions>
+                        <RowDefinition x:Name="PreviewRow" Height="*" MinHeight="200" />
+                        <RowDefinition x:Name="MapSplitterRow" Height="Auto" />
+                        <RowDefinition x:Name="MapRow" Height="*" MinHeight="200" />
+                    </Grid.RowDefinitions>
 
-                <primitives:Thumb
-                    x:Name="MapRowSplitter"
-                    Grid.Row="1"
-                    Height="6"
-                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Center"
-                    DragDelta="OnMapSplitterDragDelta"
-                    DragCompleted="OnMapSplitterDragCompleted"
-                    IsTabStop="False" />
+                    <Grid x:Name="RightTopHost" Grid.Row="0" />
 
-                <Grid x:Name="MapPane" Grid.Row="2">
-                    <map:MapPaneViewControl x:Name="MapPaneControl" />
+                    <primitives:Thumb
+                        x:Name="MapRowSplitter"
+                        Grid.Row="1"
+                        Height="6"
+                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        DragDelta="OnMapSplitterDragDelta"
+                        DragCompleted="OnMapSplitterDragCompleted"
+                        IsTabStop="False" />
+
+                    <Grid x:Name="MapPane" Grid.Row="2">
+                        <Grid x:Name="RightBottomHost" />
+                    </Grid>
                 </Grid>
+
+                <Grid x:Name="RightHorizontalSplitHost" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="RightLeftColumn" Width="*" MinWidth="220" />
+                        <ColumnDefinition x:Name="RightSplitterColumn" Width="Auto" />
+                        <ColumnDefinition x:Name="RightRightColumn" Width="*" MinWidth="220" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid x:Name="RightHorizontalLeftHost" Grid.Column="0" />
+
+                    <primitives:Thumb
+                        x:Name="RightColumnSplitter"
+                        Grid.Column="1"
+                        Width="6"
+                        Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        DragDelta="OnRightHorizontalSplitterDragDelta"
+                        DragCompleted="OnInnerSplitterDragCompleted"
+                        IsTabStop="False" />
+
+                    <Grid x:Name="RightHorizontalRightHost" Grid.Column="2" />
+                </Grid>
+            </Grid>
+
+            <Grid x:Name="PaneStagingArea" Grid.ColumnSpan="3" Visibility="Collapsed">
+                <fileBrowser:FileBrowserPaneView x:Name="FileBrowserPaneControl" />
+                <preview:PreviewPaneViewControl x:Name="PreviewPaneControl" />
+                <map:MapPaneViewControl x:Name="MapPaneControl" />
             </Grid>
         </Grid>
 

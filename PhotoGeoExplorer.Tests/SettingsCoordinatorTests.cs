@@ -34,7 +34,11 @@ public sealed class SettingsCoordinatorTests : IDisposable
             ShowDetailsTakenAtColumn = true,
             ShowDetailsLocationColumn = true,
             ShowQuickStartOnStartup = true,
-            ExternalContentBaseUrl = "https://example.com/help"
+            ExternalContentBaseUrl = "https://example.com/help",
+            PaneLayoutPreset = PaneLayoutPreset.LeftCenterRight,
+            PaneRegion1View = PaneViewType.Preview,
+            PaneRegion2View = PaneViewType.Map,
+            PaneRegion3View = PaneViewType.File
         };
         await context.SettingsService.SaveAsync(persisted).ConfigureAwait(true);
 
@@ -54,6 +58,10 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.Equal(16, context.MapPaneViewModel.MapDefaultZoomLevel);
         Assert.True(context.Coordinator.ShowQuickStartOnStartup);
         Assert.Equal("https://example.com/help", context.Coordinator.ExternalContentBaseUrl);
+        Assert.Equal(PaneLayoutPreset.LeftCenterRight, context.Coordinator.PaneLayoutPreset);
+        Assert.Equal(PaneViewType.Preview, context.Coordinator.PaneRegion1View);
+        Assert.Equal(PaneViewType.Map, context.Coordinator.PaneRegion2View);
+        Assert.Equal(PaneViewType.File, context.Coordinator.PaneRegion3View);
     }
 
     [Fact]
@@ -73,6 +81,11 @@ public sealed class SettingsCoordinatorTests : IDisposable
         context.FileBrowserPaneViewModel.ShowDetailsSizeColumn = false;
         context.FileBrowserPaneViewModel.ShowDetailsTakenAtColumn = true;
         context.FileBrowserPaneViewModel.ShowDetailsLocationColumn = true;
+        context.Coordinator.ChangePaneLayout(
+            PaneLayoutPreset.LeftSplitAndRight,
+            PaneViewType.Map,
+            PaneViewType.File,
+            PaneViewType.Preview);
 
         await context.Coordinator.SaveAsync().ConfigureAwait(true);
         var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
@@ -90,6 +103,10 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.True(saved.ShowDetailsTakenAtColumn);
         Assert.True(saved.ShowDetailsLocationColumn);
         Assert.Equal(AppSettings.DefaultExternalContentBaseUrl, saved.ExternalContentBaseUrl);
+        Assert.Equal(PaneLayoutPreset.LeftSplitAndRight, saved.PaneLayoutPreset);
+        Assert.Equal(PaneViewType.Map, saved.PaneRegion1View);
+        Assert.Equal(PaneViewType.File, saved.PaneRegion2View);
+        Assert.Equal(PaneViewType.Preview, saved.PaneRegion3View);
     }
 
     [Fact]
@@ -142,6 +159,27 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.Equal(sentinel, persisted);
     }
 
+    [Fact]
+    public void ChangePaneLayoutDoesNotRaiseEventWhenValuesUnchanged()
+    {
+        using var context = CreateContext();
+        var eventCount = 0;
+        context.Coordinator.PaneLayoutChanged += (_, _) => eventCount++;
+
+        context.Coordinator.ChangePaneLayout(
+            PaneLayoutPreset.LeftSplitAndRight,
+            PaneViewType.Map,
+            PaneViewType.File,
+            PaneViewType.Preview);
+        context.Coordinator.ChangePaneLayout(
+            PaneLayoutPreset.LeftSplitAndRight,
+            PaneViewType.Map,
+            PaneViewType.File,
+            PaneViewType.Preview);
+
+        Assert.Equal(1, eventCount);
+    }
+
     [Theory]
     [InlineData(null, null)]
     [InlineData("", null)]
@@ -180,6 +218,63 @@ public sealed class SettingsCoordinatorTests : IDisposable
     {
         var actual = SettingsCoordinator.NormalizeExternalContentBaseUrl(input);
         Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void NormalizePaneLayoutPresetReturnsInputWhenDefined(int input)
+    {
+        var preset = (PaneLayoutPreset)input;
+        var actual = SettingsCoordinator.NormalizePaneLayoutPreset(preset);
+        Assert.Equal(preset, actual);
+    }
+
+    [Fact]
+    public void NormalizePaneLayoutPresetReturnsDefaultForInvalidValue()
+    {
+        var actual = SettingsCoordinator.NormalizePaneLayoutPreset((PaneLayoutPreset)999);
+        Assert.Equal(AppSettings.DefaultPaneLayoutPreset, actual);
+    }
+
+    [Fact]
+    public void NormalizePaneRegionViewsReturnsSameValuesWhenDistinct()
+    {
+        var actual = SettingsCoordinator.NormalizePaneRegionViews(
+            PaneViewType.Map,
+            PaneViewType.Preview,
+            PaneViewType.File);
+
+        Assert.Equal(PaneViewType.Map, actual.Region1View);
+        Assert.Equal(PaneViewType.Preview, actual.Region2View);
+        Assert.Equal(PaneViewType.File, actual.Region3View);
+    }
+
+    [Fact]
+    public void NormalizePaneRegionViewsReplacesDuplicateWithUnusedValue()
+    {
+        var actual = SettingsCoordinator.NormalizePaneRegionViews(
+            PaneViewType.File,
+            PaneViewType.File,
+            PaneViewType.Map);
+
+        Assert.Equal(PaneViewType.File, actual.Region1View);
+        Assert.Equal(PaneViewType.Preview, actual.Region2View);
+        Assert.Equal(PaneViewType.Map, actual.Region3View);
+    }
+
+    [Fact]
+    public void NormalizePaneRegionViewsNormalizesInvalidAndRemovesDuplicates()
+    {
+        var actual = SettingsCoordinator.NormalizePaneRegionViews(
+            (PaneViewType)99,
+            (PaneViewType)100,
+            PaneViewType.File);
+
+        Assert.Equal(PaneViewType.File, actual.Region1View);
+        Assert.Equal(PaneViewType.Preview, actual.Region2View);
+        Assert.Equal(PaneViewType.Map, actual.Region3View);
     }
 
     public void Dispose()

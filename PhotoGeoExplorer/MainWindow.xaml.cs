@@ -30,20 +30,12 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
-    private bool _layoutStored;
     private bool _mapInitialized;
     private bool _disposed;
-    private bool _previewMaximized;
     private bool _windowSized;
     private bool _windowIconSet;
-    private GridLength _storedDetailWidth;
-    private GridLength _storedFileBrowserWidth;
-    private GridLength _storedPreviewRowHeight;
-    private GridLength _storedMapRowHeight;
-    private GridLength _storedMapSplitterHeight;
-    private GridLength _storedSplitterWidth;
-    private double _storedMapRowMinHeight;
     private readonly HelpService _helpService;
+    private readonly MainWindowLayoutCoordinator _layoutCoordinator;
     internal FileBrowserPaneViewModel FileBrowserPaneViewModel => _fileBrowserPaneViewModel;
 
     public MainWindow()
@@ -89,6 +81,54 @@ public sealed partial class MainWindow : Window, IDisposable
         PreviewPaneControl.DataContext = _previewPaneViewModel;
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         MapPaneControl.DataContext = _mapPaneViewModel;
+        var paneLayoutHostService = new PaneLayoutHostService(
+            FileBrowserPane,
+            DetailPane,
+            MainSplitter,
+            LeftSingleHost,
+            LeftVerticalSplitHost,
+            LeftTopHost,
+            LeftBottomHost,
+            LeftRowSplitter,
+            RightSingleHost,
+            RightVerticalSplitHost,
+            RightTopHost,
+            RightBottomHost,
+            MapPane,
+            MapRowSplitter,
+            RightHorizontalSplitHost,
+            RightHorizontalLeftHost,
+            RightHorizontalRightHost,
+            RightColumnSplitter,
+            PaneStagingArea,
+            FileBrowserPaneControl,
+            PreviewPaneControl,
+            MapPaneControl);
+        _layoutCoordinator = new MainWindowLayoutCoordinator(
+            paneLayoutHostService,
+            PreviewPaneControl,
+            FileBrowserColumn,
+            SplitterColumn,
+            DetailColumn,
+            MainContentGrid,
+            RightVerticalSplitHost,
+            PreviewRow,
+            MapRow,
+            MapSplitterRow,
+            LeftVerticalSplitHost,
+            LeftTopRow,
+            LeftBottomRow,
+            LeftSplitterRow,
+            RightHorizontalSplitHost,
+            RightLeftColumn,
+            RightRightColumn,
+            RightSplitterColumn);
+        _settingsCoordinator.PaneLayoutChanged += OnPaneLayoutChanged;
+        _layoutCoordinator.ApplyPaneLayout(
+            _settingsCoordinator.PaneLayoutPreset,
+            _settingsCoordinator.PaneRegion1View,
+            _settingsCoordinator.PaneRegion2View,
+            _settingsCoordinator.PaneRegion3View);
         UpdateToggleImagesOnlyMenuText();
         Title = LocalizationService.GetString("MainWindow.Title");
         AppLog.Info("MainWindow constructed.");
@@ -101,7 +141,8 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void OnPreviewMaximizeChanged(object? sender, bool maximize)
     {
-        TogglePreviewMaximize(maximize);
+        _layoutCoordinator.TogglePreviewMaximize(maximize);
+        _viewModel.PersistLayoutSettingsCommand.Execute(null);
     }
 
     private async void OnActivated(object sender, WindowActivatedEventArgs args)
@@ -222,77 +263,21 @@ public sealed partial class MainWindow : Window, IDisposable
         _viewModel.ShowNotificationMessage(e.Message, e.Severity);
     }
 
-
-    private void TogglePreviewMaximize(bool maximize)
+    private void OnPaneLayoutChanged(object? sender, PaneLayoutChangedEventArgs e)
     {
-        if (maximize == _previewMaximized)
+        DispatcherQueue.TryEnqueue(() =>
         {
-            return;
-        }
-
-        if (!_layoutStored)
-        {
-            _storedFileBrowserWidth = FileBrowserColumn.Width;
-            _storedSplitterWidth = SplitterColumn.Width;
-            _storedDetailWidth = DetailColumn.Width;
-            _storedPreviewRowHeight = PreviewRow.Height;
-            _storedMapRowHeight = MapRow.Height;
-            _storedMapSplitterHeight = MapSplitterRow.Height;
-            _storedMapRowMinHeight = MapRow.MinHeight;
-            _layoutStored = true;
-        }
-
-        _previewMaximized = maximize;
-        if (maximize)
-        {
-            FileBrowserColumn.Width = new GridLength(0);
-            SplitterColumn.Width = new GridLength(0);
-            DetailColumn.Width = new GridLength(1, GridUnitType.Star);
-            PreviewRow.Height = new GridLength(1, GridUnitType.Star);
-            MapRow.Height = new GridLength(0);
-            MapSplitterRow.Height = new GridLength(0);
-            MapRow.MinHeight = 0;
-            FileBrowserPane.Visibility = Visibility.Collapsed;
-            MapPane.Visibility = Visibility.Collapsed;
-            MainSplitter.Visibility = Visibility.Collapsed;
-            MapRowSplitter.Visibility = Visibility.Collapsed;
-        }
-        else
-        {
-            FileBrowserColumn.Width = _storedFileBrowserWidth;
-            SplitterColumn.Width = _storedSplitterWidth;
-            DetailColumn.Width = _storedDetailWidth;
-            PreviewRow.Height = _storedPreviewRowHeight;
-            MapRow.Height = _storedMapRowHeight;
-            MapSplitterRow.Height = _storedMapSplitterHeight;
-            MapRow.MinHeight = _storedMapRowMinHeight;
-            FileBrowserPane.Visibility = Visibility.Visible;
-            MapPane.Visibility = Visibility.Visible;
-            MainSplitter.Visibility = Visibility.Visible;
-            MapRowSplitter.Visibility = Visibility.Visible;
-        }
-
-        // PreviewPaneViewModel の FitToWindow を設定
-        _previewPaneViewModel.FitToWindow = true;
-        _viewModel.PersistLayoutSettingsCommand.Execute(null);
+            _layoutCoordinator.ApplyPaneLayout(
+                e.Preset,
+                e.Region1View,
+                e.Region2View,
+                e.Region3View);
+        });
     }
 
     private void OnMainSplitterDragDelta(object sender, DragDeltaEventArgs e)
     {
-        var totalWidth = MainContentGrid.ActualWidth - SplitterColumn.ActualWidth;
-        if (totalWidth <= 0)
-        {
-            return;
-        }
-
-        const double minLeft = 220;
-        const double minRight = 320;
-        var targetLeft = FileBrowserColumn.ActualWidth + e.HorizontalChange;
-        var maxLeft = totalWidth - minRight;
-        var clampedLeft = Math.Clamp(targetLeft, minLeft, maxLeft);
-
-        FileBrowserColumn.Width = new GridLength(clampedLeft, GridUnitType.Pixel);
-        DetailColumn.Width = new GridLength(1, GridUnitType.Star);
+        _layoutCoordinator.ApplyMainSplitterDelta(e.HorizontalChange);
     }
 
     private void OnMainSplitterDragCompleted(object sender, DragCompletedEventArgs e)
@@ -302,23 +287,25 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void OnMapSplitterDragDelta(object sender, DragDeltaEventArgs e)
     {
-        var totalHeight = DetailPane.ActualHeight - MapSplitterRow.ActualHeight;
-        if (totalHeight <= 0)
-        {
-            return;
-        }
-
-        const double minPreview = 200;
-        const double minMap = 200;
-        var targetPreview = PreviewRow.ActualHeight + e.VerticalChange;
-        var maxPreview = totalHeight - minMap;
-        var clampedPreview = Math.Clamp(targetPreview, minPreview, maxPreview);
-
-        PreviewRow.Height = new GridLength(clampedPreview, GridUnitType.Pixel);
-        MapRow.Height = new GridLength(1, GridUnitType.Star);
+        _layoutCoordinator.ApplyMapSplitterDelta(e.VerticalChange);
     }
 
     private void OnMapSplitterDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        _viewModel.PersistLayoutSettingsCommand.Execute(null);
+    }
+
+    private void OnLeftSplitterDragDelta(object sender, DragDeltaEventArgs e)
+    {
+        _layoutCoordinator.ApplyLeftSplitterDelta(e.VerticalChange);
+    }
+
+    private void OnRightHorizontalSplitterDragDelta(object sender, DragDeltaEventArgs e)
+    {
+        _layoutCoordinator.ApplyRightHorizontalSplitterDelta(e.HorizontalChange);
+    }
+
+    private void OnInnerSplitterDragCompleted(object sender, DragCompletedEventArgs e)
     {
         _viewModel.PersistLayoutSettingsCommand.Execute(null);
     }
@@ -408,6 +395,7 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             _helpService.Dispose();
             _startupCoordinator.Dispose();
+            _settingsCoordinator.PaneLayoutChanged -= OnPaneLayoutChanged;
             _settingsCoordinator.Dispose();
 
             // WorkspaceState イベントをアンサブスクライブ

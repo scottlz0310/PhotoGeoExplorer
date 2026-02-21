@@ -225,6 +225,78 @@
   <data name="SettingsPaneShowQuickStartOnStartup.Header" xml:space="preserve">
     <value>Show quick start on startup</value>
   </data>
+  <data name="SettingsPaneLayoutSectionTitle.Text" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="SettingsPaneLayoutPreset.Header" xml:space="preserve">
+    <value>Layout preset</value>
+  </data>
+  <data name="SettingsPaneLayoutPresetLeftCenterRightOption.Content" xml:space="preserve">
+    <value>Left, center, right</value>
+  </data>
+  <data name="SettingsPaneLayoutPresetLeftAndRightSplitOption.Content" xml:space="preserve">
+    <value>Left + right top/bottom</value>
+  </data>
+  <data name="SettingsPaneLayoutPresetLeftSplitAndRightOption.Content" xml:space="preserve">
+    <value>Left top/bottom + right</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion1View.Header" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion2View.Header" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion3View.Header" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion1ViewFileOption.Content" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion2ViewFileOption.Content" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion3ViewFileOption.Content" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion1ViewPreviewOption.Content" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion2ViewPreviewOption.Content" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion3ViewPreviewOption.Content" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion1ViewMapOption.Content" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion2ViewMapOption.Content" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion3ViewMapOption.Content" xml:space="preserve">
+    <value>Map</value>
+  </data>
+  <data name="SettingsPaneLayoutRegionLeft" xml:space="preserve">
+    <value>Left</value>
+  </data>
+  <data name="SettingsPaneLayoutRegionCenter" xml:space="preserve">
+    <value>Center</value>
+  </data>
+  <data name="SettingsPaneLayoutRegionRight" xml:space="preserve">
+    <value>Right</value>
+  </data>
+  <data name="SettingsPaneLayoutRegionTopLeft" xml:space="preserve">
+    <value>Top left</value>
+  </data>
+  <data name="SettingsPaneLayoutRegionBottomLeft" xml:space="preserve">
+    <value>Bottom left</value>
+  </data>
+  <data name="SettingsPaneLayoutRegionTopRight" xml:space="preserve">
+    <value>Top right</value>
+  </data>
+  <data name="SettingsPaneLayoutRegionBottomRight" xml:space="preserve">
+    <value>Bottom right</value>
+  </data>
   <data name="SettingsPaneLastFolderSection.Text" xml:space="preserve">
     <value>Last opened folder</value>
   </data>

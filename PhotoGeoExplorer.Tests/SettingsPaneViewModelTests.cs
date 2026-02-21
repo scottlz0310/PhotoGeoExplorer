@@ -27,7 +27,11 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel)
         {
-            ShowQuickStartOnStartup = true
+            ShowQuickStartOnStartup = true,
+            PaneLayoutPreset = PaneLayoutPreset.LeftCenterRight,
+            PaneRegion1View = PaneViewType.Preview,
+            PaneRegion2View = PaneViewType.File,
+            PaneRegion3View = PaneViewType.Map
         };
 
         _mainViewModel.ApplySettingsState(
@@ -46,6 +50,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.Equal(MapTileSourceType.EsriWorldImagery, viewModel.MapTileSource);
         Assert.False(viewModel.ShowImagesOnly);
         Assert.True(viewModel.ShowQuickStartOnStartup);
+        Assert.Equal(0, viewModel.PaneLayoutPresetIndex);
+        Assert.Equal(1, viewModel.PaneRegion1ViewIndex);
+        Assert.Equal(0, viewModel.PaneRegion2ViewIndex);
+        Assert.Equal(2, viewModel.PaneRegion3ViewIndex);
     }
 
     [Fact]
@@ -77,6 +85,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         viewModel.MapTileSource = MapTileSourceType.EsriWorldImagery;
         viewModel.ShowImagesOnly = false;
         viewModel.ShowQuickStartOnStartup = true;
+        viewModel.PaneLayoutPresetIndex = 2;
+        viewModel.PaneRegion1ViewIndex = 2;
+        viewModel.PaneRegion2ViewIndex = 1;
+        viewModel.PaneRegion3ViewIndex = 0;
 
         Assert.True(viewModel.SaveCommand.CanExecute(null));
 
@@ -90,6 +102,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.Equal(MapTileSourceType.EsriWorldImagery, coordinator.LastMapTileSource);
         Assert.True(coordinator.ShowQuickStartOnStartup);
         Assert.False(_fileBrowserPaneViewModel.ShowImagesOnly);
+        Assert.Equal(PaneLayoutPreset.LeftSplitAndRight, coordinator.PaneLayoutPreset);
+        Assert.Equal(PaneViewType.Map, coordinator.PaneRegion1View);
+        Assert.Equal(PaneViewType.Preview, coordinator.PaneRegion2View);
+        Assert.Equal(PaneViewType.File, coordinator.PaneRegion3View);
     }
 
     [Fact]
@@ -110,6 +126,119 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.Equal(MapTileSourceType.EsriWorldImagery, coordinator.LastMapTileSource);
         Assert.False(_fileBrowserPaneViewModel.ShowImagesOnly);
         Assert.Equal(1, coordinator.ScheduleSaveCallCount);
+    }
+
+    [Fact]
+    public async Task PaneRegionViewSelectionSwapsDuplicateAssignments()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        viewModel.PaneRegion1ViewIndex = (int)PaneViewType.Map;
+
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+        Assert.Equal(PaneViewType.Map, coordinator.PaneRegion1View);
+        Assert.Equal(PaneViewType.Preview, coordinator.PaneRegion2View);
+        Assert.Equal(PaneViewType.File, coordinator.PaneRegion3View);
+    }
+
+    [Fact]
+    public async Task PaneLayoutPresetIndexMapsKnownAndDefaultValues()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        viewModel.PaneLayoutPresetIndex = 0;
+        Assert.Equal(PaneLayoutPreset.LeftCenterRight, viewModel.SelectedPaneLayoutPreset);
+
+        viewModel.PaneLayoutPresetIndex = 1;
+        Assert.Equal(PaneLayoutPreset.LeftAndRightSplit, viewModel.SelectedPaneLayoutPreset);
+    }
+
+    [Fact]
+    public async Task RegionLabelsFollowSelectedLayoutPreset()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionLeft"), viewModel.Region1Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionTopRight"), viewModel.Region2Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionBottomRight"), viewModel.Region3Label);
+
+        viewModel.PaneLayoutPresetIndex = 0;
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionLeft"), viewModel.Region1Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionCenter"), viewModel.Region2Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionRight"), viewModel.Region3Label);
+
+        viewModel.PaneLayoutPresetIndex = 2;
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionTopLeft"), viewModel.Region1Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionBottomLeft"), viewModel.Region2Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionRight"), viewModel.Region3Label);
+    }
+
+    [Fact]
+    public async Task PaneRegion2SelectionSwapsWithRegion1WhenDuplicate()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        viewModel.PaneRegion2ViewIndex = (int)PaneViewType.File;
+
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+    }
+
+    [Fact]
+    public async Task PaneRegion2SelectionSwapsWithRegion3WhenDuplicate()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        viewModel.PaneRegion2ViewIndex = (int)PaneViewType.Map;
+
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+    }
+
+    [Fact]
+    public async Task PaneRegion3SelectionSwapsWithRegion1OrRegion2WhenDuplicate()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        viewModel.PaneRegion3ViewIndex = (int)PaneViewType.Preview;
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+
+        viewModel.PaneRegion3ViewIndex = (int)PaneViewType.File;
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+    }
+
+    [Fact]
+    public async Task PaneRegionSelectionAcceptsUnexpectedEnumWithoutSwapping()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        viewModel.PaneRegion2View = (PaneViewType)99;
+
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+        Assert.Equal((PaneViewType)99, coordinator.PaneRegion2View);
     }
 
     [Fact]
@@ -181,6 +310,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.Equal(MapTileSourceType.OpenStreetMap, viewModel.MapTileSource);
         Assert.True(viewModel.ShowImagesOnly);
         Assert.False(viewModel.ShowQuickStartOnStartup);
+        Assert.Equal((int)AppSettings.DefaultPaneLayoutPreset, viewModel.PaneLayoutPresetIndex);
+        Assert.Equal((int)AppSettings.DefaultPaneRegion1View, viewModel.PaneRegion1ViewIndex);
+        Assert.Equal((int)AppSettings.DefaultPaneRegion2View, viewModel.PaneRegion2ViewIndex);
+        Assert.Equal((int)AppSettings.DefaultPaneRegion3View, viewModel.PaneRegion3ViewIndex);
     }
 
     [Fact]
@@ -246,6 +379,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
             LastTheme = ThemePreference.System;
             LastMapZoomLevel = 14;
             LastMapTileSource = MapTileSourceType.OpenStreetMap;
+            PaneLayoutPreset = AppSettings.DefaultPaneLayoutPreset;
+            PaneRegion1View = AppSettings.DefaultPaneRegion1View;
+            PaneRegion2View = AppSettings.DefaultPaneRegion2View;
+            PaneRegion3View = AppSettings.DefaultPaneRegion3View;
         }
 
         public bool SettingsFileExistsAtStartup => false;
@@ -255,6 +392,16 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         public string? ExternalContentBaseUrl => null;
 
         public bool ShowQuickStartOnStartup { get; set; }
+
+        public PaneLayoutPreset PaneLayoutPreset { get; set; }
+
+        public PaneViewType PaneRegion1View { get; set; }
+
+        public PaneViewType PaneRegion2View { get; set; }
+
+        public PaneViewType PaneRegion3View { get; set; }
+
+        public event EventHandler<PaneLayoutChangedEventArgs>? PaneLayoutChanged;
 
         public int SaveCallCount { get; private set; }
 
@@ -316,6 +463,15 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         {
             LastMapTileSource = sourceType;
             _mainViewModel.ApplySettingsState(LastLanguageTag, LastTheme, LastMapZoomLevel, LastMapTileSource);
+        }
+
+        public void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
+        {
+            PaneLayoutPreset = preset;
+            PaneRegion1View = region1View;
+            PaneRegion2View = region2View;
+            PaneRegion3View = region3View;
+            PaneLayoutChanged?.Invoke(this, new PaneLayoutChangedEventArgs(preset, region1View, region2View, region3View));
         }
 
         public Task ExportSettingsAsync()

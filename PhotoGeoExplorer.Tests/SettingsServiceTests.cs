@@ -25,7 +25,11 @@ public sealed class SettingsServiceTests
                 ShowDetailsLocationColumn = true,
                 Language = "en-US",
                 Theme = ThemePreference.Dark,
-                MapDefaultZoomLevel = 16
+                MapDefaultZoomLevel = 16,
+                PaneLayoutPreset = PaneLayoutPreset.LeftCenterRight,
+                PaneRegion1View = PaneViewType.Preview,
+                PaneRegion2View = PaneViewType.Map,
+                PaneRegion3View = PaneViewType.File
             };
 
             await SettingsService.ExportAsync(settings, path).ConfigureAwait(true);
@@ -43,6 +47,10 @@ public sealed class SettingsServiceTests
             Assert.Equal(settings.Language, imported.Language);
             Assert.Equal(settings.Theme, imported.Theme);
             Assert.Equal(settings.MapDefaultZoomLevel, imported.MapDefaultZoomLevel);
+            Assert.Equal(settings.PaneLayoutPreset, imported.PaneLayoutPreset);
+            Assert.Equal(settings.PaneRegion1View, imported.PaneRegion1View);
+            Assert.Equal(settings.PaneRegion2View, imported.PaneRegion2View);
+            Assert.Equal(settings.PaneRegion3View, imported.PaneRegion3View);
         }
         finally
         {

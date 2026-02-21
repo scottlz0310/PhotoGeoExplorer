@@ -136,6 +136,110 @@
                             IsOn="{Binding ShowQuickStartOnStartup, Mode=TwoWay}" />
                     </StackPanel>
 
+                    <!-- レイアウト設定 -->
+                    <StackPanel Spacing="8">
+                        <TextBlock
+                            x:Uid="SettingsPaneLayoutSectionTitle"
+                            Text="レイアウト"
+                            Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <ComboBox
+                            x:Uid="SettingsPaneLayoutPreset"
+                            Header="レイアウトプリセット"
+                            SelectedIndex="{Binding PaneLayoutPresetIndex, Mode=TwoWay}"
+                            MinWidth="260">
+                            <ComboBoxItem
+                                x:Uid="SettingsPaneLayoutPresetLeftCenterRightOption"
+                                Content="左・中央・右" />
+                            <ComboBoxItem
+                                x:Uid="SettingsPaneLayoutPresetLeftAndRightSplitOption"
+                                Content="左・右上/右下" />
+                            <ComboBoxItem
+                                x:Uid="SettingsPaneLayoutPresetLeftSplitAndRightOption"
+                                Content="左上/左下・右" />
+                        </ComboBox>
+
+                        <Grid ColumnSpacing="12" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock
+                                Grid.Row="0"
+                                Grid.Column="0"
+                                Text="{Binding Region1Label}"
+                                VerticalAlignment="Center" />
+                            <ComboBox
+                                Grid.Row="0"
+                                Grid.Column="1"
+                                x:Uid="SettingsPaneLayoutRegion1View"
+                                Header="表示ビュー"
+                                SelectedIndex="{Binding PaneRegion1ViewIndex, Mode=TwoWay}"
+                                MinWidth="220">
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion1ViewFileOption"
+                                    Content="File" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion1ViewPreviewOption"
+                                    Content="Preview" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion1ViewMapOption"
+                                    Content="Map" />
+                            </ComboBox>
+
+                            <TextBlock
+                                Grid.Row="1"
+                                Grid.Column="0"
+                                Text="{Binding Region2Label}"
+                                VerticalAlignment="Center" />
+                            <ComboBox
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                x:Uid="SettingsPaneLayoutRegion2View"
+                                Header="表示ビュー"
+                                SelectedIndex="{Binding PaneRegion2ViewIndex, Mode=TwoWay}"
+                                MinWidth="220">
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion2ViewFileOption"
+                                    Content="File" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion2ViewPreviewOption"
+                                    Content="Preview" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion2ViewMapOption"
+                                    Content="Map" />
+                            </ComboBox>
+
+                            <TextBlock
+                                Grid.Row="2"
+                                Grid.Column="0"
+                                Text="{Binding Region3Label}"
+                                VerticalAlignment="Center" />
+                            <ComboBox
+                                Grid.Row="2"
+                                Grid.Column="1"
+                                x:Uid="SettingsPaneLayoutRegion3View"
+                                Header="表示ビュー"
+                                SelectedIndex="{Binding PaneRegion3ViewIndex, Mode=TwoWay}"
+                                MinWidth="220">
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion3ViewFileOption"
+                                    Content="File" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion3ViewPreviewOption"
+                                    Content="Preview" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion3ViewMapOption"
+                                    Content="Map" />
+                            </ComboBox>
+                        </Grid>
+                    </StackPanel>
+
                     <!-- インポート/エクスポート -->
                     <StackPanel Spacing="8">
                         <TextBlock

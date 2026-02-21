@@ -31,10 +31,40 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         InitializeComponent();
     }
 
+    internal void EnsureViewModelAttached()
+    {
+        AttachViewModel(DataContext as PreviewPaneViewModel);
+    }
+
+    internal void SetFitToWindow()
+    {
+        EnsureViewModelAttached();
+        if (_viewModel is not null)
+        {
+            _viewModel.FitToWindow = true;
+        }
+    }
+
+    internal void RequestRefitIfNeeded()
+    {
+        EnsureViewModelAttached();
+        var viewModel = _viewModel;
+        if (viewModel is null || !viewModel.FitToWindow)
+        {
+            return;
+        }
+
+        if (viewModel.FitCommand.CanExecute(null))
+        {
+            viewModel.FitCommand.Execute(null);
+        }
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         AttachViewModel(DataContext as PreviewPaneViewModel);
         await SubscribeToXamlRootChangedAsync().ConfigureAwait(true);
+        ApplyFitIfNeeded(resetOffsets: false, remainingRetries: 3);
     }
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
@@ -58,7 +88,7 @@ internal sealed partial class PreviewPaneViewControl : UserControl
 
     private void OnViewModelFitRequested(object? sender, EventArgs e)
     {
-        ApplyFitIfNeeded(resetOffsets: true);
+        ApplyFitIfNeeded(resetOffsets: true, remainingRetries: 3);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -173,7 +203,7 @@ internal sealed partial class PreviewPaneViewControl : UserControl
     private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args)
     {
         var newScale = sender.RasterizationScale;
-        if (Math.Abs(newScale - _lastRasterizationScale) < 0.0001)
+        if (!HasMeaningfulRasterizationScaleChange(_lastRasterizationScale, newScale))
         {
             return;
         }
@@ -204,16 +234,17 @@ internal sealed partial class PreviewPaneViewControl : UserControl
 
     private void OnImageOpened(object sender, RoutedEventArgs e)
     {
-        ApplyFitIfNeeded(resetOffsets: true);
+        ApplyFitIfNeeded(resetOffsets: true, remainingRetries: 3);
     }
 
     private void OnImageSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        ApplyFitIfNeeded(resetOffsets: true);
+        ApplyFitIfNeeded(resetOffsets: true, remainingRetries: 3);
     }
 
-    private void ApplyFitIfNeeded(bool resetOffsets)
+    private void ApplyFitIfNeeded(bool resetOffsets, int remainingRetries = 0)
     {
+        EnsureViewModelAttached();
         var viewModel = _viewModel;
         if (viewModel is null || !viewModel.FitToWindow)
         {
@@ -227,9 +258,22 @@ internal sealed partial class PreviewPaneViewControl : UserControl
 
         DispatcherQueue.TryEnqueue(() =>
         {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            var viewportWidth = PreviewScrollViewer.ViewportWidth;
+            var viewportHeight = PreviewScrollViewer.ViewportHeight;
+            if (ShouldRetryFit(viewportWidth, viewportHeight, remainingRetries))
+            {
+                _ = RetryApplyFitAsync(resetOffsets, remainingRetries - 1);
+                return;
+            }
+
             viewModel.OnViewportSizeChanged(
-                PreviewScrollViewer.ViewportWidth,
-                PreviewScrollViewer.ViewportHeight,
+                viewportWidth,
+                viewportHeight,
                 PreviewImage.ActualWidth,
                 PreviewImage.ActualHeight);
             if (resetOffsets)
@@ -242,6 +286,17 @@ internal sealed partial class PreviewPaneViewControl : UserControl
             }
         });
 
+    }
+
+    private async Task RetryApplyFitAsync(bool resetOffsets, int remainingRetries)
+    {
+        await Task.Delay(50).ConfigureAwait(true);
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        ApplyFitIfNeeded(resetOffsets, remainingRetries);
     }
 
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
@@ -269,18 +324,21 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         var current = scrollViewer.ZoomFactor;
         var target = viewModel.ZoomFactor;
 
-        if (System.Math.Abs(target - current) < 0.0001f)
+        if (!HasZoomFactorChanged(current, target))
         {
             return;
         }
 
         var cursor = point.Position;
-        var contentX = (scrollViewer.HorizontalOffset + cursor.X) / current;
-        var contentY = (scrollViewer.VerticalOffset + cursor.Y) / current;
-        var targetOffsetX = contentX * target - cursor.X;
-        var targetOffsetY = contentY * target - cursor.Y;
+        var targetOffsets = CalculateZoomOffsets(
+            current,
+            scrollViewer.HorizontalOffset,
+            scrollViewer.VerticalOffset,
+            cursor.X,
+            cursor.Y,
+            target);
 
-        scrollViewer.ChangeView(targetOffsetX, targetOffsetY, target, disableAnimation: true);
+        scrollViewer.ChangeView(targetOffsets.TargetOffsetX, targetOffsets.TargetOffsetY, target, disableAnimation: true);
         e.Handled = true;
     }
 
@@ -315,9 +373,10 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         var point = e.GetCurrentPoint(scrollViewer).Position;
         var deltaX = point.X - _dragStart.X;
         var deltaY = point.Y - _dragStart.Y;
+        var targetOffsets = CalculateDragOffsets(_dragStartHorizontalOffset, _dragStartVerticalOffset, deltaX, deltaY);
         scrollViewer.ChangeView(
-            _dragStartHorizontalOffset - deltaX,
-            _dragStartVerticalOffset - deltaY,
+            targetOffsets.HorizontalOffset,
+            targetOffsets.VerticalOffset,
             null,
             disableAnimation: true);
         e.Handled = true;
@@ -338,6 +397,47 @@ internal sealed partial class PreviewPaneViewControl : UserControl
     private void OnPointerCaptureLost(object sender, PointerRoutedEventArgs e)
     {
         _isDragging = false;
+    }
+
+    internal static bool HasMeaningfulRasterizationScaleChange(double previousScale, double nextScale)
+    {
+        return Math.Abs(nextScale - previousScale) >= 0.0001;
+    }
+
+    internal static bool ShouldRetryFit(double viewportWidth, double viewportHeight, int remainingRetries)
+    {
+        return (viewportWidth <= 0 || viewportHeight <= 0) && remainingRetries > 0;
+    }
+
+    internal static bool HasZoomFactorChanged(double currentZoom, double targetZoom)
+    {
+        return Math.Abs(targetZoom - currentZoom) >= 0.0001f;
+    }
+
+    internal static (double TargetOffsetX, double TargetOffsetY) CalculateZoomOffsets(
+        double currentZoom,
+        double horizontalOffset,
+        double verticalOffset,
+        double cursorX,
+        double cursorY,
+        double targetZoom)
+    {
+        var contentX = (horizontalOffset + cursorX) / currentZoom;
+        var contentY = (verticalOffset + cursorY) / currentZoom;
+        return (
+            TargetOffsetX: contentX * targetZoom - cursorX,
+            TargetOffsetY: contentY * targetZoom - cursorY);
+    }
+
+    internal static (double HorizontalOffset, double VerticalOffset) CalculateDragOffsets(
+        double dragStartHorizontalOffset,
+        double dragStartVerticalOffset,
+        double deltaX,
+        double deltaY)
+    {
+        return (
+            HorizontalOffset: dragStartHorizontalOffset - deltaX,
+            VerticalOffset: dragStartVerticalOffset - deltaY);
     }
 
     private void OnMaximizeChecked(object sender, RoutedEventArgs e)
