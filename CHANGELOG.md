@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-02-21
+
 ### 追加
 - Cloudflare Pages の `docs` 配信に合わせ、`docs/help/index.html` と `docs/help/index.en.html` を追加。
 - ファイル一覧の詳細表示に、撮影日時列と位置情報有無アイコン列を追加し、列表示の切り替えメニューを実装（#122）。
@@ -18,6 +20,7 @@
 - AI エージェント共通ガイドラインの PR 監視ループに、通常コメント（Issue comments: Codecov など Bot コメント）確認を追加。
 - レイアウト分割計算・ペイン配置判定・プレビュー操作計算を純粋関数化し、UI依存なしで単体テストできるよう整理。
 - `MainWindowLayoutCoordinator` のスプリッター更新計算を `TryComputeSplitterLengths` に集約し、`GridLength` 更新分岐を単体テストで検証できるよう整理。
+- Renovate での追従更新を前提に、`.NET SDK 10.0.103` を `global.json`（`rollForward: latestPatch`）と GitHub Actions (`actions/setup-dotnet`) の両方で明示固定。
 
 ### 修正
 - 設定ペインの表示言語コンボボックスで、システム既定選択時に起動直後の現在値が空表示になることがある問題を修正（#125）。
