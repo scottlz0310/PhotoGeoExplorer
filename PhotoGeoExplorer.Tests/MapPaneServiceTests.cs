@@ -105,6 +105,34 @@ public class MapPaneServiceTests
     }
 
     [Fact]
+    public void CreateTileLayerFallsBackWhenCacheRootIsAFile()
+    {
+        // Arrange
+        var cacheRoot = CreateTempCacheRoot();
+        var cacheRootFile = Path.Combine(cacheRoot, "cache-root-file.txt");
+        File.WriteAllText(cacheRootFile, "cache root file");
+        var service = new MapPaneService(cacheRootFile);
+        const string userAgent = "PhotoGeoExplorer/Test";
+
+        try
+        {
+            // Act
+            var layer = service.CreateTileLayer(MapTileSourceType.OpenStreetMap, userAgent);
+
+            // Assert
+            Assert.NotNull(layer);
+            Assert.Equal("OpenStreetMap", layer.Name);
+
+            // Cleanup
+            layer.Dispose();
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
+    [Fact]
     public void GetTileCacheRootDirectoryReturnsValidPath()
     {
         // Arrange

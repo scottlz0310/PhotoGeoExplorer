@@ -7,6 +7,9 @@
 ### 変更
 - Renovate の `customManagers`（regex）を追加し、`PhotoGeoExplorer.csproj` / `PhotoGeoExplorer.Tests.csproj` と `docs/archive/PhotoGeoExplorer_plan.md` の `netX.Y-windows10.0.19041.0` 表記で `netX.Y` 部分を追従更新できるように変更。
 
+### 修正
+- Store 版などでタイルキャッシュディレクトリ初期化に失敗した場合でも、永続キャッシュなしで地図レイヤーを継続生成するフォールバックを追加し、地図表示不能によるマスク残留を回避。
+
 ## [1.7.0] - 2026-02-21
 
 ### 追加

@@ -64,10 +64,7 @@ internal sealed class MapPaneService : IMapPaneService
     {
         ArgumentNullException.ThrowIfNull(userAgent);
 
-        var cacheDirectory = GetTileCacheRootDirectory();
-        var sourceDirectory = Path.Combine(cacheDirectory, sourceType.ToString());
-        Directory.CreateDirectory(sourceDirectory);
-        var persistentCache = new FileCache(sourceDirectory, "png");
+        var persistentCache = CreatePersistentCache(sourceType);
 
         return sourceType switch
         {
@@ -109,6 +106,25 @@ internal sealed class MapPaneService : IMapPaneService
     public string GetTileCacheRootDirectory()
     {
         return _tileCacheRootDirectory;
+    }
+
+    private FileCache? CreatePersistentCache(MapTileSourceType sourceType)
+    {
+        var cacheDirectory = GetTileCacheRootDirectory();
+        var sourceDirectory = Path.Combine(cacheDirectory, sourceType.ToString());
+        try
+        {
+            Directory.CreateDirectory(sourceDirectory);
+            return new FileCache(sourceDirectory, "png");
+        }
+        catch (Exception ex) when (ex is IOException
+            or UnauthorizedAccessException
+            or ArgumentException
+            or NotSupportedException)
+        {
+            AppLog.Error($"Failed to initialize tile cache directory '{sourceDirectory}'. Continuing without persistent cache.", ex);
+            return null;
+        }
     }
 
     private static async Task<(PhotoListItem Item, PhotoMetadata? Metadata)> LoadMetadataForItemAsync(
