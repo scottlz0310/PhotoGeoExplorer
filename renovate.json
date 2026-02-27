@@ -12,9 +12,9 @@
     {
       "customType": "regex",
       "description": "Track netX.Y in TargetFramework",
-      "fileMatch": [
-        "(^|/)PhotoGeoExplorer/PhotoGeoExplorer\\.csproj$",
-        "(^|/)PhotoGeoExplorer\\.Tests/PhotoGeoExplorer\\.Tests\\.csproj$"
+      "managerFilePatterns": [
+        "/(^|/)PhotoGeoExplorer/PhotoGeoExplorer\\.csproj$/",
+        "/(^|/)PhotoGeoExplorer\\.Tests/PhotoGeoExplorer\\.Tests\\.csproj$/"
       ],
       "matchStrings": [
         "<TargetFramework>net(?<currentValue>\\d+\\.\\d+)-windows10\\.0\\.19041\\.0</TargetFramework>"
@@ -27,8 +27,8 @@
     {
       "customType": "regex",
       "description": "Track netX.Y mention in archived plan",
-      "fileMatch": [
-        "(^|/)docs/archive/PhotoGeoExplorer_plan\\.md$"
+      "managerFilePatterns": [
+        "/(^|/)docs/archive/PhotoGeoExplorer_plan\\.md$/"
       ],
       "matchStrings": [
         "net(?<currentValue>\\d+\\.\\d+)-windows10\\.0\\.19041\\.0"
