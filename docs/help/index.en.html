@@ -6,13 +6,27 @@
   <title>PhotoGeoExplorer Detailed Help</title>
   <style>
     :root {
-      color-scheme: light;
+      color-scheme: light dark;
       --bg: #f4f6f8;
       --card: #ffffff;
       --text: #1f2328;
       --muted: #59636e;
       --accent: #1f6feb;
       --border: #d8dee4;
+      --tag-bg: #e7f0ff;
+      --tag-text: #0b4db3;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --card: #161b22;
+        --text: #e6edf3;
+        --muted: #9da7b3;
+        --accent: #58a6ff;
+        --border: #30363d;
+        --tag-bg: #1f2a3d;
+        --tag-text: #9cc2ff;
+      }
     }
     * {
       box-sizing: border-box;
@@ -97,8 +111,8 @@
       padding: 2px 8px;
       border-radius: 999px;
       font-size: 12px;
-      background: #e7f0ff;
-      color: #0b4db3;
+      background: var(--tag-bg);
+      color: var(--tag-text);
       margin-right: 6px;
     }
   </style>

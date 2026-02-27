@@ -6,6 +6,7 @@
 
 ### 変更
 - Renovate の `customManagers`（regex）を追加し、`PhotoGeoExplorer.csproj` / `PhotoGeoExplorer.Tests.csproj` と `docs/archive/PhotoGeoExplorer_plan.md` の `netX.Y-windows10.0.19041.0` 表記で `netX.Y` 部分を追従更新できるように変更。
+- `docs/help/index*.html` / `docs/privacy-policy*.html` / `docs/index.html` の配色を `prefers-color-scheme`（light/dark）追随に更新し、テーマ切替時の視認性を改善。
 
 ### 修正
 - Store 版などでタイルキャッシュディレクトリ初期化に失敗した場合でも、永続キャッシュなしで地図レイヤーを継続生成するフォールバックを追加し、地図表示不能によるマスク残留を回避。
