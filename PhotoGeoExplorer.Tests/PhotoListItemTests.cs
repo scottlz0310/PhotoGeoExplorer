@@ -175,4 +175,21 @@ public sealed class PhotoListItemTests
         Assert.Equal(1920, listItem.PixelWidth);
         Assert.Equal(1080, listItem.PixelHeight);
     }
+
+    [Fact]
+    public void UpdateMetadataUpdatesTakenAtAndLocationProperties()
+    {
+        var photoItem = new PhotoItem("C:\\test\\file.jpg", 1024, DateTimeOffset.UtcNow, isFolder: false);
+        var listItem = new PhotoListItem(photoItem, thumbnail: null);
+        var takenAt = new DateTimeOffset(2024, 1, 2, 3, 4, 0, TimeSpan.Zero);
+
+        var result = listItem.UpdateMetadata(takenAt, hasLocation: true);
+
+        Assert.True(result);
+        Assert.Equal(takenAt, listItem.TakenAt);
+        Assert.Equal("2024-01-02 03:04", listItem.TakenAtText);
+        Assert.True(listItem.HasLocation);
+        Assert.Equal("\uE707", listItem.LocationStatusGlyph);
+        Assert.Equal(Visibility.Visible, listItem.LocationStatusVisibility);
+    }
 }

@@ -35,7 +35,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private readonly SemaphoreSlim _thumbnailGenerationSemaphore = new(ThumbnailGenerationConcurrency, ThumbnailGenerationConcurrency);
     private readonly HashSet<string> _thumbnailsInProgress = new();
     private readonly object _thumbnailsInProgressLock = new();
-    private readonly List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height)> _pendingThumbnailUpdates = new();
+    private readonly List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height, DateTimeOffset? TakenAt, bool? HasLocation)> _pendingThumbnailUpdates = new();
     private readonly object _pendingThumbnailUpdatesLock = new();
 
     private string? _currentFolderPath;
@@ -1341,10 +1341,22 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                     return;
                 }
 
+                DateTimeOffset? takenAt = null;
+                bool? hasLocation = null;
+                if (IsJpegFile(listItem))
+                {
+                    var metadata = await ExifService.GetMetadataAsync(listItem.FilePath, cancellationToken).ConfigureAwait(false);
+                    if (metadata is not null)
+                    {
+                        takenAt = metadata.TakenAt;
+                        hasLocation = metadata.HasLocation;
+                    }
+                }
+
                 // UIスレッドで BitmapImage を作成して更新をキューに追加
                 lock (_pendingThumbnailUpdatesLock)
                 {
-                    _pendingThumbnailUpdates.Add((listItem, result.ThumbnailPath, key, listItem.Generation, result.Width, result.Height));
+                    _pendingThumbnailUpdates.Add((listItem, result.ThumbnailPath, key, listItem.Generation, result.Width, result.Height, takenAt, hasLocation));
                 }
             }
             finally
@@ -1390,7 +1402,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         // まず、生成完了チェックを実行（キューの有無に関わらず）
         var shouldStopTimer = Volatile.Read(ref _thumbnailGenerationCompleted) >= _thumbnailGenerationTotal;
 
-        List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height)> updates;
+        List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height, DateTimeOffset? TakenAt, bool? HasLocation)> updates;
 
         lock (_pendingThumbnailUpdatesLock)
         {
@@ -1405,24 +1417,30 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 return;
             }
 
-            updates = new List<(PhotoListItem, string?, string?, int, int?, int?)>(_pendingThumbnailUpdates);
+            updates = new List<(PhotoListItem, string?, string?, int, int?, int?, DateTimeOffset?, bool?)>(_pendingThumbnailUpdates);
             _pendingThumbnailUpdates.Clear();
         }
 
         var successCount = 0;
-        foreach (var (item, thumbnailPath, key, generation, width, height) in updates)
+        var metadataUpdatedCount = 0;
+        foreach (var (item, thumbnailPath, key, generation, width, height, takenAt, hasLocation) in updates)
         {
             // UIスレッドでBitmapImageを作成
             var thumbnail = CreateThumbnailImage(thumbnailPath);
-            if (thumbnail is not null && item.UpdateThumbnail(thumbnail, key, generation, width, height))
+            if (item.UpdateThumbnail(thumbnail, key, generation, width, height))
             {
                 successCount++;
             }
+
+            if (item.UpdateMetadata(takenAt, hasLocation))
+            {
+                metadataUpdatedCount++;
+            }
         }
 
-        if (successCount > 0)
+        if (successCount > 0 || metadataUpdatedCount > 0)
         {
-            AppLog.Info($"ApplyPendingThumbnailUpdates: Applied {successCount} thumbnail updates");
+            AppLog.Info($"ApplyPendingThumbnailUpdates: Applied {successCount} thumbnail updates and {metadataUpdatedCount} metadata updates");
         }
 
         // 生成完了チェック後、キューも確認してタイマーを停止

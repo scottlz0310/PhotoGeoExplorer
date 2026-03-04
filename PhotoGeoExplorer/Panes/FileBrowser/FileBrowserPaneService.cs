@@ -351,22 +351,22 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
 
     private static DateTimeOffset GetTakenAtSortKey(PhotoListItem item, bool ascending)
     {
-        if (item.IsFolder || item.Item.TakenAt is null)
+        if (item.IsFolder || item.TakenAt is null)
         {
             return ascending ? DateTimeOffset.MaxValue : DateTimeOffset.MinValue;
         }
 
-        return item.Item.TakenAt.Value;
+        return item.TakenAt.Value;
     }
 
     private static int GetLocationSortKey(PhotoListItem item, bool ascending)
     {
-        if (item.IsFolder || item.Item.HasLocation is null)
+        if (item.IsFolder || item.HasLocation is null)
         {
             return ascending ? int.MaxValue : int.MinValue;
         }
 
-        return item.Item.HasLocation.Value ? 1 : 0;
+        return item.HasLocation.Value ? 1 : 0;
     }
 
     private static string NormalizePath(string path)
