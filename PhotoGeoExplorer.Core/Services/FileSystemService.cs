@@ -22,12 +22,6 @@ internal sealed class FileSystemService
         ".webp"
     };
 
-    private static readonly HashSet<string> ExifMetadataExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".jpg",
-        ".jpeg"
-    };
-
     public Task<List<PhotoItem>> GetPhotoItemsAsync(string folderPath, bool imagesOnly, string? searchText)
     {
         ArgumentNullException.ThrowIfNull(folderPath);
@@ -84,9 +78,6 @@ internal sealed class FileSystemService
                 bool? hasLocation = null;
                 if (IsImage(info.FullName))
                 {
-                    takenAt = info.LastWriteTime;
-                    hasLocation = false;
-
                     thumbnailPath = ThumbnailService.GetCachedThumbnailPath(
                         info.FullName,
                         info.LastWriteTimeUtc);
@@ -97,16 +88,6 @@ internal sealed class FileSystemService
                         var size = ThumbnailService.GetImageSize(info.FullName);
                         pixelWidth = size.Width;
                         pixelHeight = size.Height;
-                    }
-
-                    if (IsExifMetadataTarget(info.FullName))
-                    {
-                        var metadata = ExifService.GetMetadata(info.FullName);
-                        if (metadata is not null)
-                        {
-                            takenAt = metadata.TakenAt ?? info.LastWriteTime;
-                            hasLocation = metadata.HasLocation;
-                        }
                     }
                 }
 
@@ -143,12 +124,6 @@ internal sealed class FileSystemService
     {
         var extension = Path.GetExtension(path);
         return _imageExtensions.Contains(extension);
-    }
-
-    private static bool IsExifMetadataTarget(string path)
-    {
-        var extension = Path.GetExtension(path);
-        return ExifMetadataExtensions.Contains(extension);
     }
 
     public static List<BreadcrumbChild> GetChildDirectories(string folderPath)

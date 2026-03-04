@@ -137,7 +137,7 @@ public sealed class FileSystemServiceTests
     }
 
     [Fact]
-    public async Task GetPhotoItemsAsyncReadsExifColumnsFromJpeg()
+    public async Task GetPhotoItemsAsyncDoesNotReadExifColumnsDuringInitialEnumeration()
     {
         var root = CreateTempDirectory();
         try
@@ -161,8 +161,8 @@ public sealed class FileSystemServiceTests
             var items = await service.GetPhotoItemsAsync(root, imagesOnly: true, searchText: null).ConfigureAwait(true);
 
             var item = Assert.Single(items);
-            Assert.NotNull(item.TakenAt);
-            Assert.True(item.HasLocation);
+            Assert.Null(item.TakenAt);
+            Assert.Null(item.HasLocation);
         }
         finally
         {
@@ -171,7 +171,7 @@ public sealed class FileSystemServiceTests
     }
 
     [Fact]
-    public async Task GetPhotoItemsAsyncFallsBackToFileTimestampWhenExifDateIsMissing()
+    public async Task GetPhotoItemsAsyncLeavesExifColumnsUnresolvedWhenExifIsMissing()
     {
         var root = CreateTempDirectory();
         try
@@ -182,18 +182,12 @@ public sealed class FileSystemServiceTests
                 await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
             }
 
-            var expectedLastWriteTime = new DateTime(2024, 3, 4, 5, 6, 0);
-            File.SetLastWriteTime(jpgPath, expectedLastWriteTime);
-
             var service = new FileSystemService();
             var items = await service.GetPhotoItemsAsync(root, imagesOnly: true, searchText: null).ConfigureAwait(true);
 
             var item = Assert.Single(items);
-            Assert.NotNull(item.TakenAt);
-            Assert.Equal(expectedLastWriteTime.Year, item.TakenAt!.Value.Year);
-            Assert.Equal(expectedLastWriteTime.Month, item.TakenAt.Value.Month);
-            Assert.Equal(expectedLastWriteTime.Day, item.TakenAt.Value.Day);
-            Assert.False(item.HasLocation.GetValueOrDefault(true));
+            Assert.Null(item.TakenAt);
+            Assert.Null(item.HasLocation);
         }
         finally
         {

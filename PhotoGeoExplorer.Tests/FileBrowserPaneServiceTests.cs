@@ -52,7 +52,7 @@ public class FileBrowserPaneServiceTests
     }
 
     [Fact]
-    public async Task LoadFolderAsyncMapsTakenAtAndLocationColumns()
+    public async Task LoadFolderAsyncLeavesTakenAtAndLocationColumnsUnresolvedInitially()
     {
         var tempDir = CreateTempTestDirectory();
         var jpgPath = Path.Combine(tempDir, "test.jpg");
@@ -78,8 +78,8 @@ public class FileBrowserPaneServiceTests
             var items = await service.LoadFolderAsync(tempDir, showImagesOnly: true, searchText: null).ConfigureAwait(true);
 
             var item = Assert.Single(items);
-            Assert.False(string.IsNullOrWhiteSpace(item.TakenAtText));
-            Assert.Equal("\uE707", item.LocationStatusGlyph);
+            Assert.True(string.IsNullOrWhiteSpace(item.TakenAtText));
+            Assert.Null(item.LocationStatusGlyph);
         }
         finally
         {
@@ -88,7 +88,7 @@ public class FileBrowserPaneServiceTests
     }
 
     [Fact]
-    public async Task LoadFolderAsyncShowsFallbackValuesWhenExifIsMissing()
+    public async Task LoadFolderAsyncLeavesColumnsUnresolvedWhenExifIsMissing()
     {
         var tempDir = CreateTempTestDirectory();
         var jpgPath = Path.Combine(tempDir, "test.jpg");
@@ -105,8 +105,8 @@ public class FileBrowserPaneServiceTests
             var items = await service.LoadFolderAsync(tempDir, showImagesOnly: true, searchText: null).ConfigureAwait(true);
 
             var item = Assert.Single(items);
-            Assert.False(string.IsNullOrWhiteSpace(item.TakenAtText));
-            Assert.Equal("\uE711", item.LocationStatusGlyph);
+            Assert.True(string.IsNullOrWhiteSpace(item.TakenAtText));
+            Assert.Null(item.LocationStatusGlyph);
         }
         finally
         {
