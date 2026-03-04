@@ -15,7 +15,7 @@
 
 1. Store 向けパッケージ生成
    ```powershell
-   .\scripts\DevInstall.ps1 -Build
+   .\scripts\DevInstall.ps1
    ```
 2. WACK 実行
    ```powershell

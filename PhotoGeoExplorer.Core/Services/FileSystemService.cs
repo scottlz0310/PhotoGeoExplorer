@@ -70,26 +70,12 @@ internal sealed class FileSystemService
 
                 var info = new FileInfo(path);
 
-                // キャッシュ済みサムネイルのみ取得（新規生成はしない）
+                // 初期列挙ではサムネイル・解像度・EXIF を解決しない（遅延反映）
                 string? thumbnailPath = null;
                 int? pixelWidth = null;
                 int? pixelHeight = null;
                 DateTimeOffset? takenAt = null;
                 bool? hasLocation = null;
-                if (IsImage(info.FullName))
-                {
-                    thumbnailPath = ThumbnailService.GetCachedThumbnailPath(
-                        info.FullName,
-                        info.LastWriteTimeUtc);
-
-                    // キャッシュがある場合は解像度も取得
-                    if (thumbnailPath is not null)
-                    {
-                        var size = ThumbnailService.GetImageSize(info.FullName);
-                        pixelWidth = size.Width;
-                        pixelHeight = size.Height;
-                    }
-                }
 
                 files.Add(new PhotoItem(
                     info.FullName,

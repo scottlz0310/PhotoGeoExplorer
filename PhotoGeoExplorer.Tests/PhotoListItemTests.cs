@@ -45,6 +45,18 @@ public sealed class PhotoListItemTests
     }
 
     [Fact]
+    public void UpdateThumbnailReturnsFalseWhenNoThumbnailAndNoResolutionUpdate()
+    {
+        var photoItem = new PhotoItem("C:\\test\\file.jpg", 1024, DateTimeOffset.UtcNow, isFolder: false);
+        var listItem = new PhotoListItem(photoItem, thumbnail: null, toolTipText: null, thumbnailKey: "key123");
+
+        var result = listItem.UpdateThumbnail(thumbnail: null, expectedKey: "key123", expectedGeneration: 0);
+
+        Assert.False(result);
+        Assert.Null(listItem.Thumbnail);
+    }
+
+    [Fact]
     public void SetThumbnailKeyIncrementsGeneration()
     {
         var photoItem = new PhotoItem("C:\\test\\file.jpg", 1024, DateTimeOffset.UtcNow, isFolder: false);
@@ -174,5 +186,35 @@ public sealed class PhotoListItemTests
         Assert.True(result);
         Assert.Equal(1920, listItem.PixelWidth);
         Assert.Equal(1080, listItem.PixelHeight);
+    }
+
+    [Fact]
+    public void UpdateMetadataUpdatesTakenAtAndLocationProperties()
+    {
+        var photoItem = new PhotoItem("C:\\test\\file.jpg", 1024, DateTimeOffset.UtcNow, isFolder: false);
+        var listItem = new PhotoListItem(photoItem, thumbnail: null);
+        var takenAt = new DateTimeOffset(2024, 1, 2, 3, 4, 0, TimeSpan.Zero);
+
+        var result = listItem.UpdateMetadata(takenAt, hasLocation: true);
+
+        Assert.True(result);
+        Assert.Equal(takenAt, listItem.TakenAt);
+        Assert.Equal("2024-01-02 03:04", listItem.TakenAtText);
+        Assert.True(listItem.HasLocation);
+        Assert.Equal("\uE707", listItem.LocationStatusGlyph);
+        Assert.Equal(Visibility.Visible, listItem.LocationStatusVisibility);
+    }
+
+    [Fact]
+    public void UpdateThumbnailRegeneratesGeneratedToolTipWhenResolutionChanges()
+    {
+        var photoItem = new PhotoItem("C:\\test\\file.jpg", 1024, DateTimeOffset.UtcNow, isFolder: false);
+        var listItem = new PhotoListItem(photoItem, thumbnail: null, toolTipText: "initial", thumbnailKey: "key123", isGeneratedToolTip: true);
+
+        var result = listItem.UpdateThumbnail(thumbnail: null, expectedKey: "key123", expectedGeneration: 0, width: 1920, height: 1080);
+
+        Assert.True(result);
+        Assert.NotNull(listItem.ToolTipText);
+        Assert.Contains("1920 x 1080", listItem.ToolTipText, StringComparison.Ordinal);
     }
 }

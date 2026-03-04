@@ -912,7 +912,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             }
         }
 
-        return new PhotoListItem(item, thumbnail, toolTipText, thumbnailKey);
+        return new PhotoListItem(item, thumbnail, toolTipText, thumbnailKey, isGeneratedToolTip: true);
     }
 
     private static bool IsImageFile(string filePath)

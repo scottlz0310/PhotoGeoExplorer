@@ -35,7 +35,7 @@ Visual Studio Installer で以下を選択してください：
 PowerShell を開き、以下のコマンドを実行します。
 
 ```powershell
-.\scripts\DevInstall.ps1 -Build
+.\scripts\DevInstall.ps1
 ```
 
 このコマンドは以下の処理を自動で行います：
@@ -47,12 +47,12 @@ PowerShell を開き、以下のコマンドを実行します。
    - WinUI 3 アプリ (`runFullTrust`) の要件として、証明書を `Local Machine` ストアに登録する必要があります。
 5. **アプリインストール**: 署名済みパッケージをシステムにインストールします。
 
-### 再インストール（ビルドスキップ）
+### 再インストール（ビルド再利用）
 
-コードを変更せず、パッケージ化とインストールだけやり直したい場合（または署名エラーのデバッグ時など）は `-Build` を省略できます。
+コードを変更せず、既存のビルド成果物を再利用してパッケージ化とインストールだけやり直したい場合（または署名エラーのデバッグ時など）は `-ReuseBuild` を指定します。
 
 ```powershell
-.\scripts\DevInstall.ps1
+.\scripts\DevInstall.ps1 -ReuseBuild
 ```
 
 ### クリーンアップ
