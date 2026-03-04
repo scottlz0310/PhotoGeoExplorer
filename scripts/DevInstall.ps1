@@ -28,9 +28,15 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$buildOptionProvided = $PSBoundParameters.ContainsKey('Build') -or $PSBoundParameters.ContainsKey('ReuseBuild')
+if ($Build -and $ReuseBuild) {
+    throw "-Build and -ReuseBuild cannot be specified together. Use only one option."
+}
+
 $shouldBuild = -not $ReuseBuild
 if ($Build) {
     Write-Host "-Build is now the default behavior. You can omit -Build." -ForegroundColor Yellow
+    $shouldBuild = $true
 }
 
 $scriptDir = $PSScriptRoot
@@ -81,7 +87,10 @@ if ($Clean) {
 
     Write-Host "Cleanup complete." -ForegroundColor Green
 
-    if (-not ($PSBoundParameters.ContainsKey('Build') -or $PSBoundParameters.ContainsKey('ReuseBuild'))) { exit }
+    if (-not $buildOptionProvided) {
+        Write-Host "-Clean specified without build options. Exiting after cleanup." -ForegroundColor Yellow
+        exit
+    }
 }
 
 # --- Build ---

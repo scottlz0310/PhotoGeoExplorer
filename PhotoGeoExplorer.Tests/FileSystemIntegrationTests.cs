@@ -7,7 +7,7 @@ namespace PhotoGeoExplorer.Tests;
 public sealed class FileSystemIntegrationTests
 {
     [Fact]
-    public async Task GetPhotoItemsAsyncReturnsCachedThumbnailForImage()
+    public async Task GetPhotoItemsAsyncDoesNotReturnCachedThumbnailDuringInitialEnumeration()
     {
         var root = CreateTempDirectory();
         string? thumbnailPath = null;
