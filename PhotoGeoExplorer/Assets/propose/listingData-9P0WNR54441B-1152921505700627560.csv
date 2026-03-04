@@ -8,11 +8,11 @@ ReleaseNotes,3,テキスト,,"Release Notes (v1.7.1)
 - Improved folder open responsiveness by restoring icon-first rendering and background thumbnail loading
 - Removed synchronous EXIF parsing and thumbnail decoding from initial enumeration to avoid UI blocking on large folders
 - Fixed delayed metadata reflection so Taken-at and Location columns are updated reliably after background loading
-- Changed local dev install flow: `DevInstall.ps1` now rebuilds by default, with reuse available only via `-ReuseBuild`","リリースノート（v1.7.1）
+- Improved map rendering resilience by adding a fallback path when tile cache initialization fails","リリースノート（v1.7.1）
 - フォルダ読み込み時の表示応答性を改善し、アイコン先行表示 + サムネイル遅延読み込みを復元
 - 初期列挙から同期 EXIF 解析と同期サムネイルデコードを除去し、大量ファイル時の UI ブロックを回避
 - 遅延読み込み後に撮影日時列・位置情報列が確実に反映されるよう修正
-- 開発用インストール手順を改善し、`DevInstall.ps1` は既定でリビルド、`-ReuseBuild` 指定時のみ再利用に変更"
+- タイルキャッシュ初期化に失敗した場合でも地図表示を継続できるよう安定性を改善"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
