@@ -78,9 +78,6 @@ internal sealed class FileSystemService
                 bool? hasLocation = null;
                 if (IsImage(info.FullName))
                 {
-                    takenAt = info.LastWriteTime;
-                    hasLocation = false;
-
                     thumbnailPath = ThumbnailService.GetCachedThumbnailPath(
                         info.FullName,
                         info.LastWriteTimeUtc);
