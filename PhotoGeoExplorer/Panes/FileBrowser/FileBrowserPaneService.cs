@@ -290,7 +290,7 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
             }
         }
 
-        return new PhotoListItem(item, thumbnail: null, toolTipText, thumbnailKey);
+        return new PhotoListItem(item, thumbnail: null, toolTipText, thumbnailKey, isGeneratedToolTip: true);
     }
 
     private static bool IsImageFile(string filePath)
