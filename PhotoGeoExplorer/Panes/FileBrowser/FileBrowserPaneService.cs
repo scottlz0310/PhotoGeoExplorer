@@ -5,8 +5,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
@@ -279,7 +277,6 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
 
     private static PhotoListItem CreateListItem(PhotoItem item)
     {
-        var thumbnail = CanInitializeBitmapImage() ? CreateThumbnailImage(item.ThumbnailPath) : null;
         var toolTipText = GenerateToolTipText(item);
 
         // サムネイルキーを生成（画像ファイルのみ）
@@ -293,7 +290,7 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
             }
         }
 
-        return new PhotoListItem(item, thumbnail, toolTipText, thumbnailKey);
+        return new PhotoListItem(item, thumbnail: null, toolTipText, thumbnailKey);
     }
 
     private static bool IsImageFile(string filePath)
@@ -335,57 +332,6 @@ internal sealed class FileBrowserPaneService : IFileBrowserPaneService
         lines.Add($"{LocalizationService.GetString("ToolTip.FullPath")}: {item.FilePath}");
 
         return string.Join("\n", lines);
-    }
-
-    private static BitmapImage? CreateThumbnailImage(string? thumbnailPath)
-    {
-        if (string.IsNullOrWhiteSpace(thumbnailPath))
-        {
-            return null;
-        }
-
-        try
-        {
-            return new BitmapImage(new Uri(thumbnailPath));
-        }
-        catch (ArgumentException ex)
-        {
-            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
-            return null;
-        }
-        catch (IOException ex)
-        {
-            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
-            return null;
-        }
-        catch (UriFormatException ex)
-        {
-            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
-            return null;
-        }
-    }
-
-    private static bool CanInitializeBitmapImage()
-    {
-        // テスト環境または CI 環境では BitmapImage を作成しない
-        var ci = Environment.GetEnvironmentVariable("CI");
-        var githubActions = Environment.GetEnvironmentVariable("GITHUB_ACTIONS");
-        if (!string.IsNullOrEmpty(ci) || !string.IsNullOrEmpty(githubActions))
-        {
-            return false;
-        }
-
-        // AppDomain 名による検出（フォールバック）
-        var name = AppDomain.CurrentDomain.FriendlyName;
-        if (!string.IsNullOrWhiteSpace(name)
-            && (name.Contains("testhost", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("vstest", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("xunit", StringComparison.OrdinalIgnoreCase)))
-        {
-            return false;
-        }
-
-        return DispatcherQueue.GetForCurrentThread() is not null;
     }
 
     private static long GetResolutionSortKey(PhotoListItem item, bool ascending)

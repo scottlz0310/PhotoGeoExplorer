@@ -1,28 +1,37 @@
 <#
 .SYNOPSIS
-    Builds (optional), Signs, and Installs the app for local development/testing.
+    Builds (default), Signs, and Installs the app for local development/testing.
 
 .DESCRIPTION
     Streamlines the workflow of testing the Store-ready build locally.
-    1. (Optional) Builds the project using Store configuration.
+    1. (Default) Builds the project using Store configuration.
     2. Takes the resulting msixupload (Store artifact).
     3. Re-signs it with a local self-signed certificate (generated automatically if missing).
     4. Installs the certificate to Trusted People.
     5. Installs the package.
 
+.PARAMETER ReuseBuild
+    If set, skips dotnet publish and reuses existing build artifacts.
+
 .PARAMETER Build
-    If set, runs dotnet publish before signing.
+    Legacy option kept for compatibility. Build is now the default behavior.
 
 .PARAMETER Clean
     If set, cleans previous artifacts in temp folders and removes the installed app/certificate.
 #>
 param(
+    [switch]$ReuseBuild,
     [switch]$Build,
     [switch]$Clean
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+$shouldBuild = -not $ReuseBuild
+if ($Build) {
+    Write-Host "-Build is now the default behavior. You can omit -Build." -ForegroundColor Yellow
+}
 
 $scriptDir = $PSScriptRoot
 $projectRoot = Split-Path -Parent $scriptDir
@@ -51,7 +60,8 @@ if ($Clean) {
             Write-Host "Removing from LocalMachine\TrustedPeople: $($c.Thumbprint)"
             $store.Remove($c)
         }
-    } finally {
+    }
+    finally {
         $store.Close()
     }
 
@@ -61,20 +71,21 @@ if ($Clean) {
     try {
         $certsUser = $storeUser.Certificates | Where-Object { $_.Subject -eq $certSubject }
         foreach ($c in $certsUser) {
-             Write-Host "Removing from CurrentUser\TrustedPeople: $($c.Thumbprint)"
-             $storeUser.Remove($c)
+            Write-Host "Removing from CurrentUser\TrustedPeople: $($c.Thumbprint)"
+            $storeUser.Remove($c)
         }
-    } finally {
+    }
+    finally {
         $storeUser.Close()
     }
 
     Write-Host "Cleanup complete." -ForegroundColor Green
 
-    if (-not $Build) { exit }
+    if (-not ($PSBoundParameters.ContainsKey('Build') -or $PSBoundParameters.ContainsKey('ReuseBuild'))) { exit }
 }
 
 # --- Build ---
-if ($Build) {
+if ($shouldBuild) {
     Write-Host "Building project for Store Upload..." -ForegroundColor Cyan
     Push-Location $projectRoot
     try {
@@ -89,16 +100,16 @@ if ($Build) {
 # --- Find MSIX Upload ---
 Write-Host "Searching for latest msixupload..." -ForegroundColor Cyan
 if (-not (Test-Path $appPackagesDir)) {
-    throw "AppPackages directory not found at $appPackagesDir. Run with -Build switch."
+    throw "AppPackages directory not found at $appPackagesDir. Run without -ReuseBuild to create artifacts first."
 }
 
 $uploads = Get-ChildItem -Path $appPackagesDir -Recurse -Filter "*.msixupload" |
-           Sort-Object { [version]($_.BaseName -replace '^PhotoGeoExplorer_(\d+\.\d+\.\d+\.\d+).*', '$1') } -Descending
+Sort-Object { [version]($_.BaseName -replace '^PhotoGeoExplorer_(\d+\.\d+\.\d+\.\d+).*', '$1') } -Descending
 
 $latestUpload = $uploads | Select-Object -First 1
 
 if (-not $latestUpload) {
-    throw "No msixupload found in $appPackagesDir. Run with -Build switch."
+    throw "No msixupload found in $appPackagesDir. Run without -ReuseBuild to create artifacts first."
 }
 Write-Host "Found: $($latestUpload.Name)" -ForegroundColor Green
 $version = $latestUpload.BaseName -replace '^PhotoGeoExplorer_(\d+\.\d+\.\d+\.\d+).*', '$1'
@@ -119,7 +130,8 @@ if (-not (Test-Path $pfxPath)) {
         -NotAfter (Get-Date).AddYears(1)
 
     Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $securePassword | Out-Null
-} else {
+}
+else {
     Write-Host "Using existing certificate: $pfxPath" -ForegroundColor Green
 }
 
@@ -156,9 +168,9 @@ $msixExtractDir = Join-Path $workDir "msix_content"
 
 # Find SDK Tools
 $sdkBinDir = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Directory |
-             Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
-             Sort-Object { [version]$_.Name } -Descending |
-             Select-Object -First 1
+Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+Sort-Object { [version]$_.Name } -Descending |
+Select-Object -First 1
 
 if (-not $sdkBinDir) { throw "Windows SDK not found." }
 
@@ -206,7 +218,8 @@ if ($isAdmin) {
     Write-Host "Running as Admin: Importing to LocalMachine\TrustedPeople..." -ForegroundColor Cyan
     Import-Certificate -FilePath $cerPath -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople' | Out-Null
     Write-Host "Imported to LocalMachine." -ForegroundColor Green
-} else {
+}
+else {
     # Check if already exists in Machine store
     $machineCert = Get-ChildItem 'Cert:\LocalMachine\TrustedPeople' -ErrorAction SilentlyContinue | Where-Object { $_.Thumbprint -eq $thumbprint }
 
@@ -219,10 +232,12 @@ if ($isAdmin) {
 
         if ($proc.ExitCode -eq 0) {
             Write-Host "Successfully imported to LocalMachine." -ForegroundColor Green
-        } else {
+        }
+        else {
             Write-Warning "Failed to import to LocalMachine. Installation may fail with 0x800B0109."
         }
-    } else {
+    }
+    else {
         Write-Host "Certificate already present in LocalMachine." -ForegroundColor Green
     }
 }

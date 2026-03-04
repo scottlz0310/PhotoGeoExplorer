@@ -67,8 +67,8 @@ PhotoGeoExplorer.sln
 - フォーマット: `dotnet format PhotoGeoExplorer.sln`
 
 ### パッケージ作成・インストール（MSIX）
-- `.\\scripts\\DevInstall.ps1 -Build`: ビルド、署名、インストールを一括実行
-- `.\\scripts\\DevInstall.ps1`: 既存ビルドの再インストール・署名のみ
+- `.\\scripts\\DevInstall.ps1`: ビルド、署名、インストールを一括実行（既定でリビルド）
+- `.\\scripts\\DevInstall.ps1 -ReuseBuild`: 既存ビルドの再インストール・署名のみ
 - `.\\scripts\\DevInstall.ps1 -Clean`: アンインストールとクリーンアップ
 
 ### WACK テスト
@@ -78,7 +78,7 @@ PhotoGeoExplorer.sln
 1. コード変更
 2. フォーマットとビルド確認: `dotnet format; dotnet build -c Release -p:Platform=x64`
 3. クイック動作確認: `dotnet run --project PhotoGeoExplorer/PhotoGeoExplorer.csproj -c Release -p:Platform=x64`
-4. 実機インストール確認（リリース前）: `.\\scripts\\DevInstall.ps1 -Build`
+4. 実機インストール確認（リリース前）: `.\\scripts\\DevInstall.ps1`
 5. `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` の確認
 
 ## コーディングスタイルと命名規則

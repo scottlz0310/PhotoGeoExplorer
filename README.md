@@ -65,7 +65,7 @@ PhotoGeoExplorer は **Shell + Pane** アーキテクチャを採用していま
 Store 提出用パッケージ相当をローカルでビルド・署名・インストールするには、以下のスクリプトを使用します（Windows SDK が必要です）。
 
 ```powershell
-.\scripts\DevInstall.ps1 -Build
+.\scripts\DevInstall.ps1
 ```
 
 ## ビルド (Core Build)
@@ -143,6 +143,7 @@ MSIX を使う場合は、証明書の信頼登録が必要です。以下のス
 ```
 
 管理者権限で動作し、証明書は LocalMachine にインポートされます。
+既定では毎回リビルドし、既存ビルドを再利用したい場合は `-ReuseBuild` を指定します。
 ストア向けパッケージ生成やテストの詳細は `docs/DeveloperGuide.md` を参照してください。
 
 ## ライセンス

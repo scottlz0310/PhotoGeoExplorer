@@ -78,17 +78,8 @@ internal sealed class FileSystemService
                 bool? hasLocation = null;
                 if (IsImage(info.FullName))
                 {
-                    thumbnailPath = ThumbnailService.GetCachedThumbnailPath(
-                        info.FullName,
-                        info.LastWriteTimeUtc);
-
-                    // キャッシュがある場合は解像度も取得
-                    if (thumbnailPath is not null)
-                    {
-                        var size = ThumbnailService.GetImageSize(info.FullName);
-                        pixelWidth = size.Width;
-                        pixelHeight = size.Height;
-                    }
+                    // 初期列挙ではキャッシュ確認や画像情報取得を行わない。
+                    // サムネイル・解像度はバックグラウンド処理で遅延反映する。
                 }
 
                 files.Add(new PhotoItem(

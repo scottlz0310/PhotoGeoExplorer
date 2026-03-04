@@ -7,10 +7,12 @@
 ### 変更
 - Renovate の `customManagers`（regex）を追加し、`PhotoGeoExplorer.csproj` / `PhotoGeoExplorer.Tests.csproj` と `docs/archive/PhotoGeoExplorer_plan.md` の `netX.Y-windows10.0.19041.0` 表記で `netX.Y` 部分を追従更新できるように変更。
 - `docs/help/index*.html` / `docs/privacy-policy*.html` / `docs/index.html` の配色を `prefers-color-scheme`（light/dark）追随に更新し、テーマ切替時の視認性を改善。
+- `scripts/DevInstall.ps1` の既定動作を「ビルド再利用」から「毎回リビルド」へ変更し、ビルド再利用は `-ReuseBuild` 明示時のみ行うように変更。
 
 ### 修正
 - Store 版などでタイルキャッシュディレクトリ初期化に失敗した場合でも、永続キャッシュなしで地図レイヤーを継続生成するフォールバックを追加し、地図表示不能によるマスク残留を回避。
 - フォルダ読み込み初期列挙で JPEG の EXIF を同期解析していた処理を除去し、一覧の初期表示が全件解析待ちでブロックされる回帰を修正（アイコン先行表示 + サムネイル遅延反映の応答性を回復）。
+- フォルダ読み込み初期列挙でキャッシュ済みサムネイル確認・解像度取得・サムネイル同期デコードを行わないようにし、詳細列表示時でもアイコン先行表示と遅延反映を維持するよう改善。
 
 ## [1.7.0] - 2026-02-21
 

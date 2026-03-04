@@ -11,10 +11,10 @@
 開発環境 (`scripts/DevInstall.ps1`) と同じコマンドで、Store 提出用の `msixupload` を生成します。
 
 ```powershell
-.\scripts\DevInstall.ps1 -Build
+.\scripts\DevInstall.ps1
 ```
 
-`-Build` オプションを指定すると、内部で `dotnet publish ... UapAppxPackageBuildMode=StoreUpload` が実行されます。
+既定で内部の `dotnet publish ... UapAppxPackageBuildMode=StoreUpload` が実行されます。
 
 **生成物**:
 - `PhotoGeoExplorer\AppPackages` 配下の `PhotoGeoExplorer_x.y.z.0_x64_bundle.msixupload`
@@ -194,10 +194,10 @@ Store提出用のパッケージをローカルでサイドローディングし
 ビルドから署名、インストールまでを自動化しています。
 
 ```powershell
-.\scripts\DevInstall.ps1 -Build
+.\scripts\DevInstall.ps1
 ```
 
-`-Build` を省略すると、最後にビルドされた既存の `msixupload` を使用します。
+既存の `msixupload` を再利用する場合は、`-ReuseBuild` を指定します。
 
 ### CI/CD パイプライン
 

@@ -39,10 +39,9 @@ public sealed class FileSystemIntegrationTests
 
             var cachedItems = await service.GetPhotoItemsAsync(root, imagesOnly: true, searchText: null).ConfigureAwait(true);
             var cachedItem = Assert.Single(cachedItems);
-            Assert.NotNull(cachedItem.ThumbnailPath);
-            Assert.True(File.Exists(cachedItem.ThumbnailPath));
-            Assert.Equal(1, cachedItem.PixelWidth);
-            Assert.Equal(1, cachedItem.PixelHeight);
+            Assert.Null(cachedItem.ThumbnailPath);
+            Assert.Null(cachedItem.PixelWidth);
+            Assert.Null(cachedItem.PixelHeight);
         }
         finally
         {
