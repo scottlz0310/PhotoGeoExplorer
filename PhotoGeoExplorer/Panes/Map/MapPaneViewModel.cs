@@ -47,7 +47,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private string _statusTitle = string.Empty;
     private string _statusDetail = string.Empty;
     private Symbol _statusIcon = Symbol.Map;
-    private Visibility _statusVisibility = Visibility.Visible;
+    private Visibility _statusVisibility = Visibility.Collapsed;
 
     public MapPaneViewModel()
         : this(new MapPaneService(), new WorkspaceState())

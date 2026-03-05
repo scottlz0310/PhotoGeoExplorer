@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 修正
+- 位置情報のある写真を選択したとき `MapStatusOverlay`（暗いオーバーレイ）が消えずにマップ全体にマスクがかかったままになるリグレッションを修正。`_statusVisibility` 初期値を `Collapsed` に変更し、`Map` プロパティ変更時にも `UpdateMapStatusFromViewModel()` を呼ぶよう修正。
+
 ## [1.7.1] - 2026-03-04
 
 ### 変更
