@@ -60,6 +60,7 @@ public class MapPaneViewModelTests
         Assert.Null(viewModel.Map);
         Assert.Equal(MapTileSourceType.OpenStreetMap, viewModel.CurrentTileSource);
         Assert.Equal(14, viewModel.MapDefaultZoomLevel);
+        Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, viewModel.StatusVisibility);
     }
 
     [Fact]
