@@ -63,10 +63,9 @@ public sealed class AppE2ETests
                 var summary = WaitForMetadataSummary(window, automation, app, _output);
                 Assert.Contains("Fujifilm", summary, StringComparison.Ordinal);
 
-                if (!TryWaitForMapReady(window))
-                {
-                    _output.WriteLine("Map readiness check skipped (status panel still visible).");
-                }
+                Assert.True(
+                    TryWaitForMapReady(window),
+                    "Map readiness check failed: MapStatusPanel is still visible after selecting sample.jpg.");
             }
             finally
             {

@@ -150,6 +150,10 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
         if (propertyName == nameof(MapPaneViewModel.Map))
         {
             ApplyMapFromViewModel();
+            if (!_restoreMapStatusAfterExifPick)
+            {
+                UpdateMapStatusFromViewModel();
+            }
             return;
         }
 
