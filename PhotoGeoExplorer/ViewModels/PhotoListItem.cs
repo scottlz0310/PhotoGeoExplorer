@@ -1,5 +1,6 @@
 using System;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
@@ -15,6 +16,7 @@ internal sealed class PhotoListItem : BindableBase
     private int? _pixelHeight;
     private DateTimeOffset? _takenAt;
     private bool? _hasLocation;
+    private bool _isLocationFixFailed;
     private string? _toolTipText;
     private readonly bool _isGeneratedToolTip;
 
@@ -30,6 +32,7 @@ internal sealed class PhotoListItem : BindableBase
         _pixelHeight = item.PixelHeight;
         _takenAt = item.TakenAt;
         _hasLocation = item.HasLocation;
+        _isLocationFixFailed = false;
     }
 
     public PhotoItem Item { get; }
@@ -40,15 +43,17 @@ internal sealed class PhotoListItem : BindableBase
     public DateTimeOffset? TakenAt => _takenAt;
     public bool? HasLocation => _hasLocation;
     public string TakenAtText => _takenAt?.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.CurrentCulture) ?? string.Empty;
-    public string? LocationStatusGlyph => _hasLocation switch
+    public Symbol LocationStatusSymbol => _hasLocation switch
     {
-        true => "\uE707",
-        false => "\uE711",
-        _ => null
+        true => Symbol.Map,
+        false when _isLocationFixFailed => Symbol.Important,
+        false => Symbol.Cancel,
+        _ => Symbol.Map
     };
     public string? LocationStatusTooltip => _hasLocation switch
     {
         true => LocalizationService.GetString("StatusBar.GpsAvailable"),
+        false when _isLocationFixFailed => LocalizationService.GetString("StatusBar.GpsFixFailed"),
         false => LocalizationService.GetString("StatusBar.GpsMissing"),
         _ => null
     };
@@ -147,19 +152,23 @@ internal sealed class PhotoListItem : BindableBase
         _generation++;
     }
 
-    public bool UpdateMetadata(DateTimeOffset? takenAt, bool? hasLocation)
+    public bool UpdateMetadata(DateTimeOffset? takenAt, bool? hasLocation, bool isLocationFixFailed = false)
     {
-        if (_takenAt == takenAt && _hasLocation == hasLocation)
+        var normalizedFixFailed = hasLocation == false && isLocationFixFailed;
+        if (_takenAt == takenAt
+            && _hasLocation == hasLocation
+            && _isLocationFixFailed == normalizedFixFailed)
         {
             return false;
         }
 
         _takenAt = takenAt;
         _hasLocation = hasLocation;
+        _isLocationFixFailed = normalizedFixFailed;
         OnPropertyChanged(nameof(TakenAt));
         OnPropertyChanged(nameof(HasLocation));
         OnPropertyChanged(nameof(TakenAtText));
-        OnPropertyChanged(nameof(LocationStatusGlyph));
+        OnPropertyChanged(nameof(LocationStatusSymbol));
         OnPropertyChanged(nameof(LocationStatusTooltip));
         OnPropertyChanged(nameof(LocationStatusVisibility));
         return true;

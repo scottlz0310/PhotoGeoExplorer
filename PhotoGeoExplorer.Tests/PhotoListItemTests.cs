@@ -1,6 +1,8 @@
 using System;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.Tests;
@@ -201,7 +203,24 @@ public sealed class PhotoListItemTests
         Assert.Equal(takenAt, listItem.TakenAt);
         Assert.Equal("2024-01-02 03:04", listItem.TakenAtText);
         Assert.True(listItem.HasLocation);
-        Assert.Equal("\uE707", listItem.LocationStatusGlyph);
+        Assert.Equal(Symbol.Map, listItem.LocationStatusSymbol);
+        Assert.Equal(LocalizationService.GetString("StatusBar.GpsAvailable"), listItem.LocationStatusTooltip);
+        Assert.Equal(Visibility.Visible, listItem.LocationStatusVisibility);
+    }
+
+    [Fact]
+    public void UpdateMetadataSetsFixFailedIconAndTooltip()
+    {
+        var photoItem = new PhotoItem("C:\\test\\file.jpg", 1024, DateTimeOffset.UtcNow, isFolder: false);
+        var listItem = new PhotoListItem(photoItem, thumbnail: null);
+        var takenAt = new DateTimeOffset(2024, 1, 2, 3, 4, 0, TimeSpan.Zero);
+
+        var result = listItem.UpdateMetadata(takenAt, hasLocation: false, isLocationFixFailed: true);
+
+        Assert.True(result);
+        Assert.False(listItem.HasLocation);
+        Assert.Equal(Symbol.Important, listItem.LocationStatusSymbol);
+        Assert.Equal(LocalizationService.GetString("StatusBar.GpsFixFailed"), listItem.LocationStatusTooltip);
         Assert.Equal(Visibility.Visible, listItem.LocationStatusVisibility);
     }
 

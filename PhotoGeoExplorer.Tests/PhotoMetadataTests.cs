@@ -46,4 +46,24 @@ public sealed class PhotoMetadataTests
 
         Assert.Equal("2024-01-02 03:04", metadata.TakenAtText);
     }
+
+    [Fact]
+    public void HasValidLocationReturnsFalseForZeroCoordinates()
+    {
+        var metadata = new PhotoMetadata(null, null, null, 0, 0, hasGpsData: true);
+
+        Assert.True(metadata.HasLocation);
+        Assert.False(metadata.HasValidLocation);
+        Assert.True(metadata.IsLikelyLocationFixFailed);
+    }
+
+    [Fact]
+    public void HasValidLocationReturnsTrueForNonZeroCoordinates()
+    {
+        var metadata = new PhotoMetadata(null, null, null, 35.681236, 139.767125, hasGpsData: true);
+
+        Assert.True(metadata.HasLocation);
+        Assert.True(metadata.HasValidLocation);
+        Assert.False(metadata.IsLikelyLocationFixFailed);
+    }
 }

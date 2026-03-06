@@ -531,6 +531,9 @@
   <data name="StatusBar.GpsMissing" xml:space="preserve">
     <value>GPS location missing</value>
   </data>
+  <data name="StatusBar.GpsFixFailed" xml:space="preserve">
+    <value>GPS fix may have failed</value>
+  </data>
   <data name="MapStatus.ControlMissingTitle" xml:space="preserve">
     <value>Map control unavailable</value>
   </data>

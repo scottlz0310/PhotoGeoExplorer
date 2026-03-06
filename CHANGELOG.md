@@ -7,6 +7,7 @@
 ### 修正
 - 位置情報のある写真を選択したとき `MapStatusOverlay`（暗いオーバーレイ）が消えずにマップ全体にマスクがかかったままになるリグレッションを修正。`_statusVisibility` 初期値を `Collapsed` に変更し、`Map` プロパティ変更時にも `UpdateMapStatusFromViewModel()` を呼ぶよう修正。
 - 上記リグレッションの再発防止として、`MapPaneViewModelTests.InitialStateIsCorrect` に `StatusVisibility == Collapsed` の検証を追加し、E2E で `sample.jpg` 選択後に `MapStatusPanel` が非表示になることをアサートするよう修正。
+- ファイルビュー(詳細)の位置情報表示に「測位失敗の可能性」状態を追加し、`0,0` など地図で無効扱いの座標は専用アイコンとツールチップで区別表示するよう改善。
 
 ## [1.7.1] - 2026-03-04
 
