@@ -1438,7 +1438,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
         else if (SelectedMetadata.IsLikelyLocationFixFailed)
         {
             StatusBarLocationVisibility = Visibility.Visible;
-            StatusBarLocationGlyph = "\uE711";
+            StatusBarLocationGlyph = "\uE8C9";
             StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsFixFailed");
         }
         else
