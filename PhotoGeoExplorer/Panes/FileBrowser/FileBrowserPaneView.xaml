@@ -152,9 +152,8 @@
                     Margin="12,0,0,0"
                     VerticalAlignment="Center"
                     Visibility="{Binding DataContext.DetailsLocationColumnVisibility, ElementName=RootGrid}">
-                    <FontIcon
-                        Glyph="{Binding LocationStatusGlyph}"
-                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                    <SymbolIcon
+                        Symbol="{Binding LocationStatusSymbol}"
                         Opacity="0.7"
                         VerticalAlignment="Center"
                         Visibility="{Binding LocationStatusVisibility}"

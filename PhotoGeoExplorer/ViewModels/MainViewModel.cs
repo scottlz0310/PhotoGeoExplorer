@@ -1423,7 +1423,7 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             return;
         }
 
-        if (SelectedMetadata?.HasLocation == true)
+        if (SelectedMetadata?.HasValidLocation == true)
         {
             StatusBarLocationVisibility = Visibility.Visible;
             StatusBarLocationGlyph = "\uE707";
@@ -1434,6 +1434,12 @@ internal sealed class MainViewModel : BindableBase, IDisposable
             StatusBarLocationVisibility = Visibility.Collapsed;
             StatusBarLocationGlyph = null;
             StatusBarLocationTooltip = null;
+        }
+        else if (SelectedMetadata.IsLikelyLocationFixFailed)
+        {
+            StatusBarLocationVisibility = Visibility.Visible;
+            StatusBarLocationGlyph = "\uE711";
+            StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsFixFailed");
         }
         else
         {

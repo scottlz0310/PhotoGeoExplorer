@@ -111,7 +111,13 @@ internal static class ExifService
             takenAt = new DateTimeOffset(localTime);
         }
 
-        return new PhotoMetadata(takenAt, cameraMake, cameraModel, latitude, longitude);
+        return new PhotoMetadata(
+            takenAt,
+            cameraMake,
+            cameraModel,
+            latitude,
+            longitude,
+            hasGpsData: gpsDirectory is not null);
     }
 
     private static bool WriteMetadata(

@@ -79,7 +79,7 @@ public class FileBrowserPaneServiceTests
 
             var item = Assert.Single(items);
             Assert.True(string.IsNullOrWhiteSpace(item.TakenAtText));
-            Assert.Null(item.LocationStatusGlyph);
+            Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, item.LocationStatusVisibility);
         }
         finally
         {
@@ -106,7 +106,7 @@ public class FileBrowserPaneServiceTests
 
             var item = Assert.Single(items);
             Assert.True(string.IsNullOrWhiteSpace(item.TakenAtText));
-            Assert.Null(item.LocationStatusGlyph);
+            Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, item.LocationStatusVisibility);
         }
         finally
         {

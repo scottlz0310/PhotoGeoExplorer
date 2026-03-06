@@ -556,14 +556,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     {
         latitude = 0;
         longitude = 0;
-        if (!metadata.HasLocation
+        if (!metadata.HasValidLocation
             || metadata.Latitude is not double lat
             || metadata.Longitude is not double lon)
-        {
-            return false;
-        }
-
-        if (Math.Abs(lat) < 0.000001 && Math.Abs(lon) < 0.000001)
         {
             return false;
         }

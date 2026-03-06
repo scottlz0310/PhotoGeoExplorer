@@ -35,7 +35,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private readonly SemaphoreSlim _thumbnailGenerationSemaphore = new(ThumbnailGenerationConcurrency, ThumbnailGenerationConcurrency);
     private readonly HashSet<string> _thumbnailsInProgress = new();
     private readonly object _thumbnailsInProgressLock = new();
-    private readonly List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height, DateTimeOffset? TakenAt, bool? HasLocation)> _pendingThumbnailUpdates = new();
+    private readonly List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height, DateTimeOffset? TakenAt, bool? HasLocation, bool IsLocationFixFailed)> _pendingThumbnailUpdates = new();
     private readonly object _pendingThumbnailUpdatesLock = new();
 
     private string? _currentFolderPath;
@@ -69,7 +69,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private Visibility _statusPrimaryActionVisibility = Visibility.Collapsed;
     private Visibility _statusSecondaryActionVisibility = Visibility.Collapsed;
     private string? _statusBarText;
-    private string? _statusBarLocationGlyph;
+    private Symbol _statusBarLocationSymbol = Symbol.Map;
     private Visibility _statusBarLocationVisibility = Visibility.Collapsed;
     private string? _statusBarLocationTooltip;
     private int _thumbnailGenerationTotal;
@@ -480,10 +480,10 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         private set => SetProperty(ref _statusBarText, value);
     }
 
-    public string? StatusBarLocationGlyph
+    public Symbol StatusBarLocationSymbol
     {
-        get => _statusBarLocationGlyph;
-        private set => SetProperty(ref _statusBarLocationGlyph, value);
+        get => _statusBarLocationSymbol;
+        private set => SetProperty(ref _statusBarLocationSymbol, value);
     }
 
     public Visibility StatusBarLocationVisibility
@@ -1133,27 +1133,33 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         if (SelectedItem is null || SelectedItem.IsFolder)
         {
             StatusBarLocationVisibility = Visibility.Collapsed;
-            StatusBarLocationGlyph = null;
+            StatusBarLocationSymbol = Symbol.Map;
             StatusBarLocationTooltip = null;
             return;
         }
 
-        if (_selectedMetadata?.HasLocation == true)
+        if (_selectedMetadata?.HasValidLocation == true)
         {
             StatusBarLocationVisibility = Visibility.Visible;
-            StatusBarLocationGlyph = "\uE707";
+            StatusBarLocationSymbol = Symbol.Map;
             StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsAvailable");
         }
         else if (_selectedMetadata is null)
         {
             StatusBarLocationVisibility = Visibility.Collapsed;
-            StatusBarLocationGlyph = null;
+            StatusBarLocationSymbol = Symbol.Map;
             StatusBarLocationTooltip = null;
+        }
+        else if (_selectedMetadata.IsLikelyLocationFixFailed)
+        {
+            StatusBarLocationVisibility = Visibility.Visible;
+            StatusBarLocationSymbol = Symbol.Important;
+            StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsFixFailed");
         }
         else
         {
             StatusBarLocationVisibility = Visibility.Visible;
-            StatusBarLocationGlyph = "\uE711";
+            StatusBarLocationSymbol = Symbol.Cancel;
             StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsMissing");
         }
     }
@@ -1343,20 +1349,22 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
                 DateTimeOffset? takenAt = null;
                 bool? hasLocation = null;
+                var isLocationFixFailed = false;
                 if (IsJpegFile(listItem))
                 {
                     var metadata = await ExifService.GetMetadataAsync(listItem.FilePath, cancellationToken).ConfigureAwait(false);
                     if (metadata is not null)
                     {
                         takenAt = metadata.TakenAt;
-                        hasLocation = metadata.HasLocation;
+                        hasLocation = metadata.HasValidLocation;
+                        isLocationFixFailed = metadata.IsLikelyLocationFixFailed;
                     }
                 }
 
                 // UIスレッドで BitmapImage を作成して更新をキューに追加
                 lock (_pendingThumbnailUpdatesLock)
                 {
-                    _pendingThumbnailUpdates.Add((listItem, result.ThumbnailPath, key, listItem.Generation, result.Width, result.Height, takenAt, hasLocation));
+                    _pendingThumbnailUpdates.Add((listItem, result.ThumbnailPath, key, listItem.Generation, result.Width, result.Height, takenAt, hasLocation, isLocationFixFailed));
                 }
             }
             finally
@@ -1402,7 +1410,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         // まず、生成完了チェックを実行（キューの有無に関わらず）
         var shouldStopTimer = Volatile.Read(ref _thumbnailGenerationCompleted) >= _thumbnailGenerationTotal;
 
-        List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height, DateTimeOffset? TakenAt, bool? HasLocation)> updates;
+        List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height, DateTimeOffset? TakenAt, bool? HasLocation, bool IsLocationFixFailed)> updates;
 
         lock (_pendingThumbnailUpdatesLock)
         {
@@ -1417,13 +1425,13 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 return;
             }
 
-            updates = new List<(PhotoListItem, string?, string?, int, int?, int?, DateTimeOffset?, bool?)>(_pendingThumbnailUpdates);
+            updates = new List<(PhotoListItem, string?, string?, int, int?, int?, DateTimeOffset?, bool?, bool)>(_pendingThumbnailUpdates);
             _pendingThumbnailUpdates.Clear();
         }
 
         var successCount = 0;
         var metadataUpdatedCount = 0;
-        foreach (var (item, thumbnailPath, key, generation, width, height, takenAt, hasLocation) in updates)
+        foreach (var (item, thumbnailPath, key, generation, width, height, takenAt, hasLocation, isLocationFixFailed) in updates)
         {
             // UIスレッドでBitmapImageを作成
             var thumbnail = CreateThumbnailImage(thumbnailPath);
@@ -1432,7 +1440,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 successCount++;
             }
 
-            if (item.UpdateMetadata(takenAt, hasLocation))
+            if (item.UpdateMetadata(takenAt, hasLocation, isLocationFixFailed))
             {
                 metadataUpdatedCount++;
             }
