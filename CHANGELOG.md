@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 変更
+- CI/CD ワークフロー（ci.yml, security-check.yml, e2e.yml, release.yml）の `dotnet-version` を `10.0.103` から `10.0.200` に更新。
+
 ## [1.7.2] - 2026-03-06
 
 ### 修正
