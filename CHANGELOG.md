@@ -5,7 +5,7 @@
 ## [Unreleased]
 
 ### 変更
-- CI/CD ワークフロー（ci.yml, security-check.yml, e2e.yml, release.yml）の `dotnet-version` を `10.0.103` から `10.0.200` に更新。
+- CI/CD ワークフロー（ci.yml, security-check.yml, e2e.yml, release.yml）の `dotnet-version` 直書きを廃止し、`global-json-file: global.json` を使用して SDK バージョンを `global.json` で一元管理するよう変更。
 
 ## [1.7.2] - 2026-03-06
 
