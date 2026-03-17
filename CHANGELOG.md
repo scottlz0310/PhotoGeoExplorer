@@ -6,6 +6,7 @@
 
 ### 変更
 - CI/CD ワークフロー（ci.yml, security-check.yml, e2e.yml, release.yml）の `dotnet-version` 直書きを廃止し、`global-json-file: global.json` を使用して SDK バージョンを `global.json` で一元管理するよう変更。
+- `ci.yml`: Codecov アップロード失敗時の `fail_ci_if_error` を `true` から `false` へ変更し、Codecov 側の問題（"Repository not found"）が CI を止めないようにした（`CODECOV_TOKEN` 再設定後に `true` へ戻す）。
 
 ## [1.7.2] - 2026-03-06
 

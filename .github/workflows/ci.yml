@@ -104,7 +104,7 @@ jobs:
           files: TestResults/**/coverage.cobertura.xml
           flags: unittests
           disable_search: true
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
       - name: Upload test results
         if: always()
