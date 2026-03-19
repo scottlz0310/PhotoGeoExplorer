@@ -84,7 +84,8 @@ private async void OnFileItemsDragStarting(object sender, DragItemsStartingEvent
     e.Data.Properties[InternalDragKey] = true;
 
     // 外部アプリ向けに StorageItems を追加セット（非同期のため Deferral を取得）
-    var deferral = e.Data.GetDeferral();
+    // ※ GetDeferral() は DragItemsStartingEventArgs (e) のメソッド。DataPackage には存在しない
+    var deferral = e.GetDeferral();
     try
     {
         var storageItems = new List<IStorageItem>();
@@ -95,10 +96,13 @@ private async void OnFileItemsDragStarting(object sender, DragItemsStartingEvent
             else
                 storageItems.Add(await StorageFile.GetFileFromPathAsync(item.FilePath));
         }
-        // readOnly: true — 外部アプリによるファイル変更を防ぐ（コピー専用）
+        // readOnly: true — ドロップ先アプリにストレージアイテムへの書き込みアクセスを付与しない
+        // （ドロップ操作の種類 Copy/Move とは独立した設定）
         e.Data.SetStorageItems(storageItems, readOnly: true);
-        // Copy と Move の両方を許可（外部は Copy、内部は Move として扱う）
-        e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
+        // 方針: 外部アプリへのドロップは Copy のみ許可。Move を許可すると
+        // Shift キーや同一ドライブ判定により外部アプリがファイル移動を実行し得るため。
+        // 内部 Move は IsInternalDrag() で判定し、Drop ハンドラー側で制御する。
+        e.Data.RequestedOperation = DataPackageOperation.Copy;
     }
     catch (Exception ex)
     {
