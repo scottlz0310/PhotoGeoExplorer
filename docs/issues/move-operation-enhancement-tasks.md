@@ -1,4 +1,4 @@
-# tasks.md: FileBrowserPane MVVM リファクタリング ＋ ISSUE #69 機能追加
+# タスクリスト: FileBrowserPane MVVM リファクタリング ＋ ISSUE #69 機能追加
 
 > 背景 ISSUE: [#69 ファイル移動操作の強化](https://github.com/scottlz0310/PhotoGeoExplorer/issues/69)
 > 実装計画書: [move-operation-enhancement-plan.md](./move-operation-enhancement-plan.md)

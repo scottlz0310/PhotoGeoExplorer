@@ -73,7 +73,7 @@ ViewModel に3つのメソッドを追加し、View から呼び出す。
 #### 本 Issue での方針（Option B: ViewModel がループ制御を担う）
 
 **`MoveItemsToFolderAsync()` のループ制御・カウント集計・キャンセル管理は ViewModel（`ExecuteMoveOperationAsync`）に実装する。**
-View はダイアログコールバック（`ShowMoveConflictDialogAsync`）の㉷渡す。
+View はダイアログコールバック（`ShowMoveConflictDialogAsync`）を渡す。
 
 理由：
 - MVVM 責務ガードレールの原則（ViewModel の単体テスト可能性）に準拠する
@@ -90,23 +90,27 @@ View はダイアログコールバック（`ShowMoveConflictDialogAsync`）の�
 
 ```
 FileBrowserPaneView.xaml.cs（View - UI/IO層）
-  ├─ ConflictResolution [nested enum] ← 新規追加
   ├─ MoveItemsToFolderAsync()             ← 大幅改修
-  │    ├─ ViewModel.StartMoveOperation()  ← 新規
-  │    ├─ foreach ループ
-  │    │   ├─ token.ThrowIfCancellationRequested()
-  │    │   ├─ 競合チェック → ShowMoveConflictDialogAsync()  ← 新規
-  │    │   ├─ ファイル移動（上書き/スキップ対応）
-  │    │   └─ ViewModel.IncrementMoveProgress()  ← 新規
-  │    ├─ ViewModel.FinishMoveOperation()  ← 新規
-  │    └─ ViewModel.RefreshAsync()
+  │    └─ ViewModel.ExecuteMoveOperationAsync(   ← 新規
+  │           targetPath, items,
+  │           ShowMoveConflictDialogAsync)       ← UIコールバック渡し
   └─ ShowMoveConflictDialogAsync()        ← 新規追加
 
 FileBrowserPaneViewModel.cs（ViewModel - 状態管理層）
+  ├─ ConflictResolution [internal enum]   ← 新規追加
   ├─ _moveCts: CancellationTokenSource?   ← 新規フィールド
   ├─ _moveTotal: int                      ← 新規フィールド
   ├─ _moveCompleted: int                  ← 新規フィールド
   ├─ _moveUpdateTimer: DispatcherQueueTimer? ← 新規フィールド
+  ├─ ExecuteMoveOperationAsync(targetPath, items, confirmCallback) ← 新規
+  │    ├─ StartMoveOperation(total)
+  │    ├─ foreach ループ
+  │    │   ├─ token.ThrowIfCancellationRequested()
+  │    │   ├─ 競合チェック → confirmCallback()  ← View コールバック呼び出し
+  │    │   ├─ ファイル移動（上書き/スキップ対応）
+  │    │   └─ IncrementMoveProgress()
+  │    ├─ FinishMoveOperation(succeeded, failed, skipped)
+  │    └─ RefreshAsync()
   ├─ StartMoveOperation(total): CancellationToken ← 新規メソッド
   ├─ IncrementMoveProgress()              ← 新規メソッド
   └─ FinishMoveOperation(succeeded, failed, skipped) ← 新規メソッド
@@ -198,7 +202,7 @@ private void OnMoveUpdateTimerTick(DispatcherQueueTimer sender, object args)
     var completed = Volatile.Read(ref _moveCompleted);
     var total = _moveTotal;
     // 例: 「5 / 120 ファイルを移動中...」
-    StatusBarText = LocalizationService.GetString("Status.MovingFiles", completed, total);
+    StatusBarText = LocalizationService.Format("Status.MovingFiles", completed, total);
 }
 ```
 
@@ -209,7 +213,7 @@ private static string BuildMoveSummary(int succeeded, int failed, int skipped)
 {
     // ローカライズ済み文字列でサマリー構築
     // 例: 「移動完了: 10 件成功 / 2 件失敗 / 3 件スキップ」
-    return LocalizationService.GetString("Status.MoveCompleted", succeeded, failed, skipped);
+    return LocalizationService.Format("Status.MoveCompleted", succeeded, failed, skipped);
 }
 ```
 
@@ -217,18 +221,10 @@ private static string BuildMoveSummary(int succeeded, int failed, int skipped)
 
 ### 4-2. `FileBrowserPaneView.xaml.cs` への追加・変更
 
-#### `ConflictResolution` enum（既存の private enum がある位置の近くに追加）
+#### `ConflictResolution` enum（`FileBrowserPaneViewModel.cs` に定義済み - View への追加不要）
 
-```csharp
-private enum ConflictResolution
-{
-    Overwrite,
-    OverwriteAll,
-    Skip,
-    SkipAll,
-    Cancel,
-}
-```
+`ConflictResolution` は ViewModel の `internal enum` として定義するため、View 側への追加は不要です。
+View は `FileBrowserPaneViewModel.ConflictResolution` をそのまま参照できます（同一アセンブリ内の `internal` 型）。
 
 #### `ShowMoveConflictDialogAsync()` 新規メソッド
 
@@ -249,7 +245,7 @@ private async Task<ConflictResolution> ShowMoveConflictDialogAsync(
         Title = LocalizationService.GetString("Dialog.FileConflict.Title"),
         Content = new TextBlock
         {
-            Text = LocalizationService.GetString("Dialog.FileConflict.Detail", fileName),
+            Text = LocalizationService.Format("Dialog.FileConflict.Detail", fileName),
             TextWrapping = TextWrapping.Wrap,
         },
         PrimaryButtonText = LocalizationService.GetString("Dialog.FileConflict.Overwrite"),
