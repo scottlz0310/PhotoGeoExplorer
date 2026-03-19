@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### ドキュメント
+- `AgentGuidelineSource.md` に MVVM 責務ガードレールを追加（View/ViewModel/Service 各層の記述可否ルール・判断基準・コード例）。
+- `AgentGuidelineSource.md` のトークン削減：PR レビュールーティンを `docs/pr-review-routine.md` へ分離、開発時確認サイクルセクション削除、プロジェクト構成の箇条書きを ASCII ツリーに統合。
+- ブランチ運用ルールを更新：`main` 直接コミットを完全禁止（ブランチ保護前提）、CHANGELOG・tasks.md の更新を PR 内包含に変更。
+- ISSUE #69（ファイル移動操作強化）の実装計画書 `docs/issues/move-operation-enhancement-plan.md` と タスクリスト `docs/issues/move-operation-enhancement-tasks.md` を追加。
+- `AGENTS.md` / `CLAUDE.md` / `.github/copilot-instructions.md` を `AgentGuidelineSource.md` と同期。
+
 ### 変更
 - CI/CD ワークフロー（ci.yml, security-check.yml, e2e.yml, release.yml）の `dotnet-version` 直書きを廃止し、`global-json-file: global.json` を使用して SDK バージョンを `global.json` で一元管理するよう変更。
 
