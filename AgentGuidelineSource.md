@@ -21,16 +21,6 @@
 - 配布は Microsoft Store（MSIX）を基準とし、MSI インストーラー配布は廃止済みです。
 
 ## プロジェクト構成
-- `PhotoGeoExplorer/`: WinUI 3 アプリ本体（XAML + code-behind）
-- `PhotoGeoExplorer.Core/`: プラットフォーム非依存のコアロジック
-- `PhotoGeoExplorer/Models`, `Services`, `ViewModels`: UI 層のドメインロジックと MVVM
-- `PhotoGeoExplorer/Panes/Map`: Mapsui ベースの地図 UI/ロジック
-- `PhotoGeoExplorer/wwwroot/`: WebView2 で読み込む静的ファイル（ヘルプ等）
-- `PhotoGeoExplorer.Tests/`: xUnit テスト
-- `PhotoGeoExplorer.E2E/`: E2E テスト
-- `docs/`: ドキュメント
-
-### 構成の略図
 ```text
 PhotoGeoExplorer.sln
 ├─ PhotoGeoExplorer/        # WinUI Shell + Panes
@@ -48,6 +38,65 @@ PhotoGeoExplorer.sln
 - 新規機能ロジックは `Panes/*ViewModel` または `Services` に実装し、MainWindow へ直接追加しません。
 - MainWindow にイベントハンドラを追加する場合は「委譲のみ」に留め、処理本体は別層へ移譲します。
 
+## MVVM 責務ガードレール
+
+View（`*.xaml.cs`）は UI 表示・入力受付に限定し、ビジネスロジックを書かないこと。
+
+### View に書いてよいもの（純粋な UI 責務）
+- ダイアログ・フライアウト・ピッカーの表示と結果の受け取り
+- コンテキストメニューやアニメーションの構築
+- ビジュアルツリー操作（`FindAncestor` 等）
+- WinRT Interop が必要な処理（`FolderPicker` の HWND 初期化など）
+- イベントハンドラ（処理本体は ViewModel/Service へ委譲する）
+
+### View に書いてはいけないもの（ViewModel か Service で実装する）
+- `foreach` ループでファイルを処理する操作ロジック（移動・削除・リネーム等）
+- 成功 / 失敗 / スキップのカウント集計
+- パス検証・比較（`IsSamePath`, `IsDescendantPath` 等）
+- ファイル名の正規化・バリデーション
+- `CancellationTokenSource` の作成・管理
+- ステータスバーへの進捗・サマリー表示ロジック
+- `CancellationToken` を受け取るループ処理全般
+
+### 連携パターン（View と ViewModel の正しい分担）
+
+複数ファイル操作においては以下のパターンを使うこと：
+
+```csharp
+// View（ダイアログ表示のみ担当）
+private async Task MoveSelectionAsync()
+{
+    var targetPath = await PickFolderAsync();          // UI: フォルダ選択
+    if (targetPath is null) return;
+
+    await ViewModel.ExecuteMoveOperationAsync(         // ロジック: ViewModel に委譲
+        targetPath,
+        ViewModel.SelectedItems,
+        ShowMoveConflictDialogAsync);                  // UI コールバック: 競合ダイアログ
+}
+
+// ViewModel（ループ・カウント・キャンセル管理を担当）
+internal async Task ExecuteMoveOperationAsync(
+    string targetPath,
+    IReadOnlyList<PhotoListItem> items,
+    Func<string, bool, Task<ConflictResolution>> confirmCallback)
+{
+    // foreach・キャンセル判定・カウント集計はここで行う
+}
+```
+
+> **判断基準**: そのコードを「ViewModel の単体テストで検証できるか？」を問いかける。
+> できなければ View に置くべきではなく、ViewModel または Service へ移動する。
+
+### ViewModel に書いてはいけないもの（Service に委譲する）
+- ファイルシステムへの直接アクセス（`System.IO` 呼び出し）
+- パス構造の解析・変換ロジック（パス結合・親フォルダ取得・拡張子操作等）
+- ファイル名生成ルール（連番付与・重複回避・正規化等）
+- 副作用を伴うビジネスロジック（ファイル移動・削除・リネームの実処理）
+
+> **判断基準**: そのコードを「Service の単体テストで検証できるか？」を問いかける。
+> ファイルシステムや外部リソースに直接触れる処理は Service へ移動する。
+
 ## ビルド・実行・テスト
 - 通常ビルド: `dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64`
 - ローカル実行: `dotnet run --project PhotoGeoExplorer/PhotoGeoExplorer.csproj -c Release -p:Platform=x64`
@@ -62,12 +111,6 @@ PhotoGeoExplorer.sln
 ### WACK テスト
 - `.\\scripts\\RunWackTests.ps1`: ローカルインストールパッケージに対して WACK テストを実行
 
-## 開発時の確認サイクル
-1. コード変更
-2. フォーマットとビルド確認: `dotnet format; dotnet build -c Release -p:Platform=x64`
-3. クイック動作確認: `dotnet run --project PhotoGeoExplorer/PhotoGeoExplorer.csproj -c Release -p:Platform=x64`
-4. 実機インストール確認（リリース前）: `.\\scripts\\DevInstall.ps1`
-5. `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` の確認
 
 ## コーディングスタイルと命名規則
 - C# は 4 スペースインデント。既存の `.editorconfig` と既存実装に合わせます。
@@ -86,12 +129,12 @@ PhotoGeoExplorer.sln
 - 依存更新は `chore(deps): ... (#NN)`（Renovate 形式）を使います。
 - PR には要約、理由、検証方法（コマンド/ログ）を含めます。
 - UI 変更はスクリーンショットを添付し、関連 Issue があればリンクします。
-- ソースコードまたはドキュメントなどプロジェクト成果物に変更を加えた場合は、必ず `CHANGELOG.md` を更新します。
+- ソースコードまたはドキュメントなどプロジェクト成果物に変更を加えた場合は、`CHANGELOG.md` の更新を **PR に含めます**（マージ後の後追い更新は不可）。
+- `tasks.md` など作業管理ファイルの更新も同様に PR に含めます。
 
 ## ブランチ運用
-- 原則として `main` に直接コミットせず、サブブランチで作業して PR でマージします。
+- `main` へのブランチ保護ルールにより直接コミットは **完全禁止** です。すべての変更はサブブランチで作業し PR でマージします。
 - 大きいタスクは先に Issue を作成して整理します。
-- ドキュメント更新やリリース準備は `main` で直接作業しても構いません。
 
 ## セキュリティと設定
 - ログは `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` に出力し、起動時にリセットします。
@@ -100,36 +143,7 @@ PhotoGeoExplorer.sln
 
 ## PR 作成後の自動レビュー対応ルーティン
 
-PR を作成した後は、Copilot 自動レビューおよび CI の結果を確認し、指摘がなくなるまで自動で修正イテレーションを行います。
-
-### 監視ループ
-
-- PR 作成直後に監視ループを開始します。
-- 監視頻度：**2 分間隔**、最大継続時間：**10 分（6 回チェック）**。
-- 各チェックで以下を確認します。
-  1. PR のレビューコメント（Copilot 自動レビュー等）と通常コメント（Issue comments: Codecov など Bot コメントを含む）の有無
-  2. CI（GitHub Actions）のステータス（pending / running / success / failure）
-- 「Copilot code review」ワークフロー（Copilot がレビューリクエスト時に自動実行する特別なワークフロー）が実行中の場合は、レビュー未完了として待機を継続します。
-
-### 指摘・CI エラー検出時の修正
-
-- レビューコメント、通常コメント（Issue comments）、または CI 失敗を検出した場合は、即座に修正を行います。
-- レビューコメントと通常コメント（Issue comments）は内容を精査し、採否を判断します。正当な指摘は修正し、的外れな指摘は理由を付けて却下します。いずれの場合もコメントに返信を残してください。
-- 修正後は**必ず新しいコミットを作成して push** します（Copilot 自動レビューは新しいコミットの push でのみ再実行されるため）。
-- コード変更がない場合でも、空コミットで push して再レビューを発火させます。
-  ```bash
-  git commit --allow-empty -m "chore: Copilot 自動レビューを再実行"
-  git push
-  ```
-- push 完了後、**監視ループを最初からリセット**（再度 10 分間の監視）して再確認します。
-
-### 完了条件
-
-以下がすべて満たされた場合、PR を「レビュー完了」とみなしループを終了します。
-
-- 新しいレビューコメントと通常コメント（Issue comments）が無い
-- CI がすべて成功している
-- 「Copilot code review」ワークフローが完了済みである
+詳細手順: [`docs/pr-review-routine.md`](docs/pr-review-routine.md) を参照してください。
 
 ## バージョン調査の注意
 - AI から見て不自然に新しいバージョンに感じても、勝手にバージョンダウンしないでください。
