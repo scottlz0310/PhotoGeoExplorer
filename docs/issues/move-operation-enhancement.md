@@ -7,7 +7,7 @@
 
 選択ファイルをフォルダへ移動する基本機能（コンテキストメニュー「移動」→フォルダ選択→`File.Move`）はすでに実装済みです。
 
-- コンテキストメニュー: `BuildFileContextFlyout()`（`FileBrowserPaneView.xaml.cs:988`）に「移動」「親フォルダへ移動」が存在
+- コンテキストメニュー: `BuildFileContextFlyout()`（`FileBrowserPaneView.xaml.cs:988`）に「移動」「親フォルダーへ移動」が存在
 - フォルダ選択: `PickFolderAsync()`（同:1324）に `FolderPicker` 実装済み
 - 移動処理: `MoveItemsToFolderAsync()`（同:1127）に `System.IO.File.Move` / `Directory.Move` 実装済み
 
