@@ -25,12 +25,14 @@
 
 ### 2-1. `ConflictResolution` enum の配置
 
-`FileBrowserPaneView.xaml.cs` 内のネスト型として定義する。View 側のダイアログ処理でのみ使用するため、外部公開不要。
+`FileBrowserPaneViewModel.cs` 内の `internal enum` として定義する。
+ViewModel の `ExecuteMoveOperationAsync` が `Func<..., Task<ConflictResolution>>` を受け取るため、View↔ViewModel 境界を跨いで参照できる場所（ViewModel 側）に定義する必要がある。
 
 ```csharp
-// FileBrowserPaneView.xaml.cs 内
-private enum ConflictResolution
+// FileBrowserPaneViewModel.cs 内
+internal enum ConflictResolution
 {
+    None,          // 初期値 — 個別確認モード
     Overwrite,     // 上書き
     OverwriteAll,  // すべて上書き
     Skip,          // スキップ
@@ -68,19 +70,19 @@ ViewModel に3つのメソッドを追加し、View から呼び出す。
 | ダイアログ表示 | View | View（正しい） |
 | StatusBarText 更新 | ViewModel | ViewModel（正しい） |
 
-#### 本 Issue での方針（Option A）
+#### 本 Issue での方針（Option B: ViewModel がループ制御を担う）
 
-**既存コードの一貫性を優先し、`MoveItemsToFolderAsync()` は View に残す。**
+**`MoveItemsToFolderAsync()` のループ制御・カウント集計・キャンセル管理は ViewModel（`ExecuteMoveOperationAsync`）に実装する。**
+View はダイアログコールバック（`ShowMoveConflictDialogAsync`）の㉷渡す。
 
 理由：
-- 既存の削除・リネーム等の操作も同様に View（`FileBrowserPaneView.xaml.cs`）に実装されており、一貫性を保つ
-- ViewModel へのロジック移行は全ファイル操作を対象とした大規模リファクタリングになるため別 Issue として切り出す
-- 今回の目標（上書き確認・プログレス・キャンセル・スキップ）は既存パターンの延長で実現できる
+- MVVM 責務ガードレールの原則（ViewModel の単体テスト可能性）に準拠する
+- `ConflictResolution` を ViewModel 内 `internal enum` に定義できるため、View↔ViewModel 境界で型の参照が成立する
+- PR-D でリファクタリング（ループ移転）と ISSUE #69 機能追加を同時に実施する
 
 #### 将来の対応（別 Issue 推奨）
 
-> ファイル操作ロジック（移動・削除・リネーム）を ViewModel または Service 層に移譲し、
-> View はダイアログ表示コールバックを渡すだけにする MVVM リファクタリング
+> 削除・リネーム操作のループ制御も同様に ViewModel 層または Service 層に移譲する MVVM リファクタリング
 
 ---
 
@@ -137,7 +139,7 @@ internal CancellationToken StartMoveOperation(int total)
     _moveCts = cts;
     if (previousCts is not null)
     {
-        previousCts.Cancel();
+        previousCts.CancelAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         previousCts.Dispose();
     }
 
@@ -302,6 +304,7 @@ private async Task MoveItemsToFolderAsync(string targetFolderPath, IReadOnlyList
 
             // 4. 競合チェック
             var targetPath = Path.Combine(targetFolderPath, Path.GetFileName(item.FullPath));
+            bool shouldOverwrite = false;
             if (File.Exists(targetPath) || Directory.Exists(targetPath))
             {
                 ConflictResolution resolution;
@@ -335,7 +338,8 @@ private async Task MoveItemsToFolderAsync(string targetFolderPath, IReadOnlyList
                     ViewModel.IncrementMoveProgress();
                     continue;
                 }
-                // Overwrite: overwrite=true で続行
+                // Overwrite / OverwriteAll: overwrite=true で続行
+                shouldOverwrite = true;
             }
 
             // 5. 移動実行
@@ -344,7 +348,7 @@ private async Task MoveItemsToFolderAsync(string targetFolderPath, IReadOnlyList
                 if (Directory.Exists(item.FullPath))
                     Directory.Move(item.FullPath, targetPath);
                 else
-                    File.Move(item.FullPath, targetPath, overwrite: true);
+                    File.Move(item.FullPath, targetPath, overwrite: shouldOverwrite);
                 succeeded++;
             }
             catch (IOException ex)
@@ -423,7 +427,7 @@ private async Task MoveItemsToFolderAsync(string targetFolderPath, IReadOnlyList
 | 上書き時の `File.Move` | `File.Move(src, dst, overwrite: true)` を使用（第3引数に `true` を渡す） |
 | `Directory.Move` の上書き | `Directory.Move` は上書き不可のため、競合チェックで `Directory.Exists` 時はスキップ扱いとする（または別のエラー扱いする） |
 
-### DataTemplate の上書き制限への対応
+### Directory.Move の上書き制限への対応
 
 > ⚠️ **重要**: `System.IO.Directory.Move()` は移動先が既に存在すると例外を投げるため、
 > フォルダ同士の上書き（マージ）は本実装ではサポートしません。
@@ -446,7 +450,7 @@ private async Task MoveItemsToFolderAsync(string targetFolderPath, IReadOnlyList
 
 | リスク | 対策 |
 |---|---|
-| ContentDialog で5択以上が実現できない | カスタムコンテンツ（ChekBox）でボタン数を3択に抑え、「すべて〜」はチェックボックスで選択させる |
+| ContentDialog で5択以上が実現できない | カスタムコンテンツ（CheckBox）でボタン数を3択に抑え、「すべて〜」はチェックボックスで選択させる |
 | DispatcherQueue 取得タイミング（テスト環境） | `_dispatcherQueue is null` の場合はタイマーをスキップ（既存サムネイルパターンと同様） |
 | フォルダ移動（Directory.Move）の上書き | フォルダ競合はスキップ扱いとして一貫 |
 | 長大な MoveItemsToFolderAsync() | リファクタリングで `ExecuteMoveItemAsync()` ヘルパーを抽出することを検討 |

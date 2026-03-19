@@ -76,6 +76,7 @@ private async Task MoveSelectionAsync()
 }
 
 // ViewModel（ループ・カウント・キャンセル管理を担当）
+// ConflictResolution は ViewModel 内 internal enum として定義（View↔ViewModel 境界を跨いで参照するため）
 internal async Task ExecuteMoveOperationAsync(
     string targetPath,
     IReadOnlyList<PhotoListItem> items,
@@ -143,7 +144,7 @@ internal async Task ExecuteMoveOperationAsync(
 
 ## PR 作成後の自動レビュー対応ルーティン
 
-詳細手順: [`docs/pr-review-routine.md`](docs/pr-review-routine.md) を参照してください。
+詳細手順: `docs/pr-review-routine.md` を参照してください。
 
 ## バージョン調査の注意
 - AI から見て不自然に新しいバージョンに感じても、勝手にバージョンダウンしないでください。

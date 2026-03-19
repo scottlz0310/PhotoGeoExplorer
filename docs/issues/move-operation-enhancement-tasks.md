@@ -159,9 +159,12 @@
   - ループ制御・カウント集計・キャンセル判定を ViewModel が担う
   - 競合発生時は `confirmCallback`（View のダイアログ）に委譲
 
-### View 層の改修
+### ViewModel 層の追加（続き）
 
-- [ ] **D-10** `ConflictResolution` private enum を追加（`None` / `Overwrite` / `OverwriteAll` / `Skip` / `SkipAll` / `Cancel`）
+- [ ] **D-10** `ConflictResolution` internal enum を `FileBrowserPaneViewModel.cs` 内に追加（`None` / `Overwrite` / `OverwriteAll` / `Skip` / `SkipAll` / `Cancel`）
+  - ViewModel の `ExecuteMoveOperationAsync` が `Func<..., Task<ConflictResolution>>` を受け取るため、View↔ViewModel 境界を跨いで参照できる場所に定義する必要がある
+
+### View 層の改修
 - [ ] **D-11** `ShowMoveConflictDialogAsync(string fileName, bool hasRemainingItems): Task<ConflictResolution>` を実装
   - `EnsureXamlRootAsync()` で XamlRoot 待機
   - 単一/複数で ContentDialog コンテンツを切り替え
