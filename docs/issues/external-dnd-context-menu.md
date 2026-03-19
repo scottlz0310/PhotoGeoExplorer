@@ -70,6 +70,8 @@ XAML では `CanDragItems="True"` が3つのリストビュー（Details / Icon 
 
 ドラッグ開始時に `StorageItems` を `DataPackage` にセットする。
 
+> **注意 — `async void` と例外処理**: `DragItemsStartingEventArgs` はイベントハンドラーであるため `async void` は適切。ただし、`StorageFile.GetFileFromPathAsync` などが例外をスローした場合（権限エラー等）、`deferral.Complete()` が呼ばれないとドラッグ操作がハングするリスクがある。`try/finally` で `deferral.Complete()` を必ず呼ぶようにし、例外は `AppLog.Error` でログ記録してからドラッグを中断する実装とする。
+
 ```csharp
 private async void OnFileItemsDragStarting(object sender, DragItemsStartingEventArgs e)
 {
@@ -81,7 +83,7 @@ private async void OnFileItemsDragStarting(object sender, DragItemsStartingEvent
     // 内部ドラッグマークは引き続きセット
     e.Data.Properties[InternalDragKey] = true;
 
-    // 外部アプリ向けに StorageItems を追加セット
+    // 外部アプリ向けに StorageItems を追加セット（非同期のため Deferral を取得）
     var deferral = e.Data.GetDeferral();
     try
     {
@@ -93,9 +95,16 @@ private async void OnFileItemsDragStarting(object sender, DragItemsStartingEvent
             else
                 storageItems.Add(await StorageFile.GetFileFromPathAsync(item.FilePath));
         }
-        e.Data.SetStorageItems(storageItems, readOnly: false);
+        // readOnly: true — 外部アプリによるファイル変更を防ぐ（コピー専用）
+        e.Data.SetStorageItems(storageItems, readOnly: true);
         // Copy と Move の両方を許可（外部は Copy、内部は Move として扱う）
         e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
+    }
+    catch (Exception ex)
+    {
+        // 権限エラーなどでドラッグを中断
+        AppLog.Error("Failed to set StorageItems for drag operation.", ex);
+        _dragItems = null;
     }
     finally
     {
@@ -162,9 +171,14 @@ private void OnFileItemsDragCompleted(object sender, DragItemsCompletedEventArgs
 既存の `CanModifySelection` / `CanRenameSelection` に倣い追加：
 
 ```csharp
+/// <summary>1件以上選択されている場合に有効</summary>
 public bool CanShowInExplorer => CanModifySelection;
+
+/// <summary>1件以上選択されている場合に有効（複数選択時は改行区切りで全パスをコピー）</summary>
 public bool CanCopyPath => CanModifySelection;
-public bool CanOpenWithDefaultApp => CanRenameSelection; // 1件のみ対象
+
+/// <summary>1件のみ選択されている場合に有効（複数ファイルの同時起動は対象外）</summary>
+public bool CanOpenWithDefaultApp => CanRenameSelection;
 ```
 
 `UpdateSelection` や選択状態変更時に `OnPropertyChanged` も追加する。
