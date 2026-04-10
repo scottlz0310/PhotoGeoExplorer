@@ -5,6 +5,10 @@
 ## [Unreleased]
 
 ### ドキュメント
+- `docs/refactor_plan_v1.8/phase1_ideal_architecture.md` と `docs/refactor_plan_v1.8/phase2_repository_audit.md` を追加し、v1.8 リファクタリング計画の Phase 1 / Phase 2 文書を整備。
+- 上記リファクタリング計画書をブラッシュアップし、例外禁止ポリシー、アンチパターン定義、禁止判断、テスト起点監査、優先順位付けルール、Issue 分解ヒントを追加。
+- `docs/refactor_plan_v1.8/phase2_audit_result.md` を追加し、Phase 2 の実監査結果を根拠コード・重大度・優先順位・ViewModel スコアつきで整理。
+- `docs/refactor_plan_v1.8/phase2_audit_result.md` の Phase 3 接続を見直し、A-01 の Issue 粒度をユースケース単位へ細分化し、A-03 を優先度前倒し、Application Service / Infrastructure Service 観点の Issue 種別を追加。
 - `AgentGuidelineSource.md` に MVVM 責務ガードレールを追加（View/ViewModel/Service 各層の記述可否ルール・判断基準・コード例）。
 - `AgentGuidelineSource.md` のトークン削減：PR レビュールーティンを `docs/pr-review-routine.md` へ分離、開発時確認サイクルセクション削除、プロジェクト構成の箇条書きを ASCII ツリーに統合。
 - ブランチ運用ルールを更新：`main` 直接コミットを完全禁止（ブランチ保護前提）、CHANGELOG・tasks.md の更新を PR 内包含に変更。
