@@ -72,7 +72,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5.0.0
         with:
           fail-on-severity: moderate
           deny-licenses: GPL-2.0, LGPL-2.0, LGPL-2.1
