@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 変更
+- `SixLabors.ImageSharp` を 3.1.12 → 4.0.0 に更新。v4 はビルド時ライセンス検証（`ValidateLicenseTask`）が必須のため、`Directory.Build.props` に環境変数 `SIXLABORS_LICENSE_KEY` から `$(SixLaborsLicenseKey)` への転写を追加し、CI ワークフロー（ci.yml / e2e.yml / release.yml）に GitHub シークレット `SIXLABORS_LICENSE_KEY` の受け渡しを追加。**このプロジェクトは MIT ライセンスのオープンソースプロジェクトであり SixLabors コミュニティライセンス（無償）の取得対象です。** ライセンスキーは https://licensing.sixlabors.com/ で取得し、GitHub リポジトリの Secrets に `SIXLABORS_LICENSE_KEY` として設定してください。
+
 ### ドキュメント
 - `docs/refactor_plan_v1.8/phase1_ideal_architecture.md` と `docs/refactor_plan_v1.8/phase2_repository_audit.md` を追加し、v1.8 リファクタリング計画の Phase 1 / Phase 2 文書を整備。
 - 上記リファクタリング計画書をブラッシュアップし、例外禁止ポリシー、アンチパターン定義、禁止判断、テスト起点監査、優先順位付けルール、Issue 分解ヒントを追加。

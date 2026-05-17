@@ -18,6 +18,8 @@ jobs:
       matrix:
         configuration: [Release]
         platform: [x64]
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
     steps:
       - uses: actions/checkout@v6

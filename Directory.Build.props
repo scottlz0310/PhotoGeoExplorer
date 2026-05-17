@@ -7,4 +7,11 @@
     <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
+
+  <!-- SixLabors.ImageSharp v4 以降はビルド時ライセンス検証が必須。
+       SIXLABORS_LICENSE_KEY 環境変数（GitHub シークレット）から SixLaborsLicenseKey に転写する。
+       https://sixlabors.com/posts/licence-enforcement-changes/ -->
+  <PropertyGroup Condition="'$(SixLaborsLicenseKey)' == '' AND '$(SIXLABORS_LICENSE_KEY)' != ''">
+    <SixLaborsLicenseKey>$(SIXLABORS_LICENSE_KEY)</SixLaborsLicenseKey>
+  </PropertyGroup>
 </Project>
