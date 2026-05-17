@@ -85,7 +85,7 @@ jobs:
       contents: read
       security-events: write
     env:
-      SIXLABORS_LICENSE_KEY: ${{ vars.SIXLABORS_LICENSE_KEY }}
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
     steps:
       - name: Checkout repository
