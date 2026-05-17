@@ -12,6 +12,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
     steps:
       - uses: actions/checkout@v6
