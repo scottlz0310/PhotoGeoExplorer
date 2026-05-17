@@ -9,7 +9,8 @@
   </PropertyGroup>
 
   <!-- SixLabors.ImageSharp v4 以降はビルド時ライセンス検証が必須。
-       SIXLABORS_LICENSE_KEY 環境変数（GitHub シークレット）から SixLaborsLicenseKey に転写する。
+       SIXLABORS_LICENSE_KEY 環境変数（GitHub リポジトリ変数 vars.SIXLABORS_LICENSE_KEY）から SixLaborsLicenseKey に転写する。
+       リポジトリ変数は fork PR でも参照可能なため secrets ではなく vars を使用する。
        https://sixlabors.com/posts/licence-enforcement-changes/ -->
   <PropertyGroup Condition="'$(SixLaborsLicenseKey)' == '' AND '$(SIXLABORS_LICENSE_KEY)' != ''">
     <SixLaborsLicenseKey>$(SIXLABORS_LICENSE_KEY)</SixLaborsLicenseKey>
