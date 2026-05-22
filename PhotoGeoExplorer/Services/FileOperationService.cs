@@ -42,7 +42,8 @@ internal sealed class FileOperationService : IFileOperationService
         var normalizedCandidate = Path.GetFullPath(candidate)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;
-        return normalizedCandidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+        return normalizedCandidate.Length > normalizedRoot.Length
+            && normalizedCandidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
     }
 
     public bool IsSamePath(string left, string right)
