@@ -176,6 +176,54 @@ public class MapPaneServiceTests
         Assert.Empty(result);
     }
 
+    // =========================================================
+    // GetPinImagePath
+    // =========================================================
+
+    [Fact]
+    public void GetPinImagePath_TakenAt10DaysAgo_ReturnsGreenPin()
+    {
+        var service = new MapPaneService();
+        var metadata = new PhotoMetadata(DateTimeOffset.Now.AddDays(-10), null, null, 35.0, 135.0);
+
+        var path = service.GetPinImagePath(metadata);
+
+        Assert.EndsWith("green_pin.png", path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GetPinImagePath_TakenAt100DaysAgo_ReturnsBluePin()
+    {
+        var service = new MapPaneService();
+        var metadata = new PhotoMetadata(DateTimeOffset.Now.AddDays(-100), null, null, 35.0, 135.0);
+
+        var path = service.GetPinImagePath(metadata);
+
+        Assert.EndsWith("blue_pin.png", path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GetPinImagePath_TakenAt400DaysAgo_ReturnsRedPin()
+    {
+        var service = new MapPaneService();
+        var metadata = new PhotoMetadata(DateTimeOffset.Now.AddDays(-400), null, null, 35.0, 135.0);
+
+        var path = service.GetPinImagePath(metadata);
+
+        Assert.EndsWith("red_pin.png", path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GetPinImagePath_TakenAtNull_ReturnsRedPin()
+    {
+        var service = new MapPaneService();
+        var metadata = new PhotoMetadata(null, null, null, 35.0, 135.0);
+
+        var path = service.GetPinImagePath(metadata);
+
+        Assert.EndsWith("red_pin.png", path, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string CreateTempCacheRoot()
     {
         var path = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorer.Tests", Guid.NewGuid().ToString("N"));
