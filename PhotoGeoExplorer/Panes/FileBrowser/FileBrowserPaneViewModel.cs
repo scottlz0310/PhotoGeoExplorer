@@ -28,6 +28,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private const int ThumbnailUpdateBatchIntervalMs = 300;
 
     private readonly IFileBrowserPaneService _service;
+    private readonly IFileOperationService _fileOperationService;
     private readonly IExifEditorService? _exifEditorService;
     private readonly IDialogService? _dialogService;
     private DispatcherQueue? _dispatcherQueue;
@@ -92,12 +93,14 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         IFileBrowserPaneService service,
         WorkspaceState workspaceState,
         IExifEditorService? exifEditorService = null,
-        IDialogService? dialogService = null)
+        IDialogService? dialogService = null,
+        IFileOperationService? fileOperationService = null)
     {
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(workspaceState);
 
         _service = service;
+        _fileOperationService = fileOperationService ?? new FileOperationService();
         _workspaceState = workspaceState;
         _exifEditorService = exifEditorService;
         _dialogService = dialogService;
@@ -570,6 +573,110 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _moveSelectionToParentAction = moveSelectionToParentAction;
         _deleteSelectionAction = deleteSelectionAction;
         RaiseFileOperationCommandCanExecuteChanged();
+    }
+
+    internal async Task<FileOperationResult> ExecuteCreateFolderAsync(string folderName)
+    {
+        if (_fileOperationService.ContainsInvalidFileNameChars(folderName))
+        {
+            return FileOperationResult.Failure(FileOperationError.InvalidName);
+        }
+
+        if (string.IsNullOrWhiteSpace(CurrentFolderPath))
+        {
+            return FileOperationResult.Failure(FileOperationError.NoParent);
+        }
+
+        var result = _fileOperationService.CreateFolder(CurrentFolderPath, folderName);
+        if (result.IsSuccess)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+            if (result.ResultPath is not null)
+            {
+                SelectItemByPath(result.ResultPath);
+            }
+        }
+
+        return result;
+    }
+
+    internal async Task<FileOperationResult> ExecuteRenameAsync(PhotoListItem item, string newName)
+    {
+        var normalizedName = _fileOperationService.NormalizeName(item, newName);
+
+        if (string.Equals(normalizedName, item.FileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return FileOperationResult.Success();
+        }
+
+        if (_fileOperationService.ContainsInvalidFileNameChars(normalizedName))
+        {
+            return FileOperationResult.Failure(FileOperationError.InvalidName);
+        }
+
+        var result = _fileOperationService.RenameItem(item, normalizedName);
+        if (result.IsSuccess)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+            if (result.ResultPath is not null)
+            {
+                SelectItemByPath(result.ResultPath);
+            }
+        }
+
+        return result;
+    }
+
+    internal async Task<FileOperationSummary> ExecuteMoveItemsToFolderAsync(
+        IReadOnlyList<PhotoListItem> items, string destinationFolder)
+    {
+        var summary = _fileOperationService.MoveItems(items, destinationFolder);
+        if (summary.SuccessCount > 0)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
+
+        return summary;
+    }
+
+    internal async Task<FileOperationSummary> ExecuteMoveToParentAsync()
+    {
+        if (string.IsNullOrWhiteSpace(CurrentFolderPath) || SelectedItems.Count == 0)
+        {
+            return new FileOperationSummary(0, Array.Empty<FileOperationFailure>());
+        }
+
+        var parentPath = _fileOperationService.GetParentPath(CurrentFolderPath);
+        if (parentPath is null)
+        {
+            return new FileOperationSummary(0, Array.Empty<FileOperationFailure>());
+        }
+
+        return await ExecuteMoveItemsToFolderAsync(SelectedItems, parentPath).ConfigureAwait(false);
+    }
+
+    internal async Task<FileOperationSummary> ExecuteDeleteItemsAsync(
+        IReadOnlyList<PhotoListItem> items)
+    {
+        var summary = _fileOperationService.DeleteItems(items);
+        if (summary.SuccessCount > 0)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
+
+        return summary;
+    }
+
+    internal async Task HandleExternalFileDropAsync(string filePath)
+    {
+        var directory = _fileOperationService.GetParentPath(filePath);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return;
+        }
+
+        await LoadFolderAsync(directory).ConfigureAwait(false);
+        SelectItemByPath(filePath);
     }
 
     public async Task LoadFolderAsync(string folderPath, bool updateHistory = true)

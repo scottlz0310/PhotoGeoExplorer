@@ -1,0 +1,24 @@
+using System.Collections.Generic;
+using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.ViewModels;
+
+namespace PhotoGeoExplorer.Services;
+
+internal interface IFileOperationService
+{
+    // パス検証・変換
+    bool ContainsInvalidFileNameChars(string name);
+    string NormalizeName(PhotoListItem item, string newName);
+    bool IsDescendantPath(string root, string candidate);
+    bool IsSamePath(string left, string right);
+    string? GetParentPath(string path);
+    bool ItemExistsAtPath(string path);
+
+    // ファイル操作（単発）
+    FileOperationResult CreateFolder(string parentFolder, string folderName);
+    FileOperationResult RenameItem(PhotoListItem item, string normalizedName);
+
+    // ファイル操作（複数件）
+    FileOperationSummary MoveItems(IReadOnlyList<PhotoListItem> items, string destinationFolder);
+    FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items);
+}

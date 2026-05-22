@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -426,8 +424,12 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        await MoveItemsToFolderAsync(_dragItems ?? ViewModel.SelectedItems, target.FullPath)
-            .ConfigureAwait(true);
+        var items = _dragItems ?? ViewModel.SelectedItems;
+        var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(items, target.FullPath).ConfigureAwait(true);
+        if (summary.HasFailures)
+        {
+            await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+        }
     }
     private void OnFileListDragOver(object sender, DragEventArgs e)
     {
@@ -472,8 +474,13 @@ internal sealed partial class FileBrowserPaneView : UserControl
             if (sender is ListViewBase listView
                 && TryGetDropTargetFolder(listView, RootGrid, e, out var targetFolder))
             {
-                await MoveItemsToFolderAsync(_dragItems ?? ViewModel.SelectedItems, targetFolder.FilePath)
+                var selectedItems = _dragItems ?? ViewModel.SelectedItems;
+                var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(selectedItems, targetFolder.FilePath)
                     .ConfigureAwait(true);
+                if (summary.HasFailures)
+                {
+                    await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+                }
             }
 
             return;
@@ -517,14 +524,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var directory = Path.GetDirectoryName(firstFile.Path);
-        if (string.IsNullOrWhiteSpace(directory))
-        {
-            return;
-        }
-
-        await ViewModel.LoadFolderAsync(directory).ConfigureAwait(true);
-        ViewModel.SelectItemByPath(firstFile.Path);
+        await ViewModel.HandleExternalFileDropAsync(firstFile.Path).ConfigureAwait(true);
     }
 
     private void OnFileItemsDragStarting(object sender, DragItemsStartingEventArgs e)
@@ -636,13 +636,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private async Task CreateFolderAsyncCore()
     {
-        if (ViewModel is null)
-        {
-            return;
-        }
-
-        var currentFolder = ViewModel.CurrentFolderPath;
-        if (string.IsNullOrWhiteSpace(currentFolder))
+        if (ViewModel is null || string.IsNullOrWhiteSpace(ViewModel.CurrentFolderPath))
         {
             return;
         }
@@ -657,42 +651,11 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        if (ContainsInvalidFileNameChars(folderName))
+        var result = await ViewModel.ExecuteCreateFolderAsync(folderName).ConfigureAwait(true);
+        if (!result.IsSuccess)
         {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.InvalidName.Title"),
-                LocalizationService.GetString("Dialog.InvalidName.Detail")).ConfigureAwait(true);
-            return;
+            await ShowFileOperationErrorDialogAsync(result.Error, "Dialog.CreateFolderFailed.Title").ConfigureAwait(true);
         }
-
-        var targetPath = Path.Combine(currentFolder, folderName);
-        if (Directory.Exists(targetPath) || File.Exists(targetPath))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExists.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        try
-        {
-            Directory.CreateDirectory(targetPath);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException
-            or IOException
-            or NotSupportedException
-            or ArgumentException
-            or PathTooLongException)
-        {
-            AppLog.Error($"Failed to create folder: {targetPath}", ex);
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.CreateFolderFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
-            return;
-        }
-
-        await ViewModel.RefreshAsync().ConfigureAwait(true);
-        ViewModel.SelectItemByPath(targetPath);
     }
 
     private async void OnRenameClicked(object sender, RoutedEventArgs e)
@@ -707,15 +670,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var parent = Path.GetDirectoryName(item.FilePath);
-        if (string.IsNullOrWhiteSpace(parent))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.RenameNotAvailable.Title"),
-                LocalizationService.GetString("Dialog.RenameNotAvailable.Detail")).ConfigureAwait(true);
-            return;
-        }
-
         var newName = await ShowTextInputDialogAsync(
             LocalizationService.GetString("Dialog.Rename.Title"),
             LocalizationService.GetString("Dialog.Rename.Primary"),
@@ -726,55 +680,11 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var normalizedName = NormalizeRename(item, newName);
-        if (string.Equals(normalizedName, item.FileName, StringComparison.OrdinalIgnoreCase))
+        var result = await ViewModel.ExecuteRenameAsync(item, newName).ConfigureAwait(true);
+        if (!result.IsSuccess)
         {
-            return;
+            await ShowFileOperationErrorDialogAsync(result.Error, "Dialog.RenameFailed.Title").ConfigureAwait(true);
         }
-
-        if (ContainsInvalidFileNameChars(normalizedName))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.InvalidName.Title"),
-                LocalizationService.GetString("Dialog.InvalidName.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        var targetPath = Path.Combine(parent, normalizedName);
-        if (Directory.Exists(targetPath) || File.Exists(targetPath))
-        {
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExists.Detail")).ConfigureAwait(true);
-            return;
-        }
-
-        try
-        {
-            if (item.IsFolder)
-            {
-                Directory.Move(item.FilePath, targetPath);
-            }
-            else
-            {
-                File.Move(item.FilePath, targetPath);
-            }
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException
-            or IOException
-            or NotSupportedException
-            or ArgumentException
-            or PathTooLongException)
-        {
-            AppLog.Error($"Failed to rename item: {item.FilePath}", ex);
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.RenameFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
-            return;
-        }
-
-        await ViewModel.RefreshAsync().ConfigureAwait(true);
-        ViewModel.SelectItemByPath(targetPath);
     }
 
     private async void OnMoveClicked(object sender, RoutedEventArgs e)
@@ -784,12 +694,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private async Task MoveSelectionAsyncCore()
     {
-        if (ViewModel is null)
-        {
-            return;
-        }
-
-        if (ViewModel.SelectedItems.Count == 0)
+        if (ViewModel is null || ViewModel.SelectedItems.Count == 0)
         {
             return;
         }
@@ -806,7 +711,12 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        await MoveItemsToFolderAsync(ViewModel.SelectedItems, destination.Path).ConfigureAwait(true);
+        var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(ViewModel.SelectedItems, destination.Path)
+            .ConfigureAwait(true);
+        if (summary.HasFailures)
+        {
+            await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+        }
     }
 
     private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
@@ -816,29 +726,16 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private async Task MoveSelectionToParentAsyncCore()
     {
-        if (ViewModel is null)
+        if (ViewModel is null || ViewModel.SelectedItems.Count == 0)
         {
             return;
         }
 
-        if (ViewModel.SelectedItems.Count == 0)
+        var summary = await ViewModel.ExecuteMoveToParentAsync().ConfigureAwait(true);
+        if (summary.HasFailures)
         {
-            return;
+            await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
         }
-
-        var currentFolder = ViewModel.CurrentFolderPath;
-        if (string.IsNullOrWhiteSpace(currentFolder))
-        {
-            return;
-        }
-
-        var parent = Directory.GetParent(currentFolder);
-        if (parent is null)
-        {
-            return;
-        }
-
-        await MoveItemsToFolderAsync(ViewModel.SelectedItems, parent.FullName).ConfigureAwait(true);
     }
 
     private async void OnDeleteClicked(object sender, RoutedEventArgs e)
@@ -865,7 +762,12 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        await DeleteItemsAsync(ViewModel.SelectedItems).ConfigureAwait(true);
+        var itemsToDelete = ViewModel.SelectedItems.ToList();
+        var summary = await ViewModel.ExecuteDeleteItemsAsync(itemsToDelete).ConfigureAwait(true);
+        if (summary.HasFailures)
+        {
+            await ShowDeleteOperationErrorDialogAsync(summary).ConfigureAwait(true);
+        }
     }
 
     private void OnDetailsSortClicked(object sender, RoutedEventArgs e)
@@ -1124,102 +1026,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
         return false;
     }
-    private async Task MoveItemsToFolderAsync(IReadOnlyList<PhotoListItem>? items, string destinationFolder)
-    {
-        if (ViewModel is null)
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(destinationFolder))
-        {
-            return;
-        }
-
-        if (items is null || items.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var item in items)
-        {
-            var sourcePath = item.FilePath;
-            var parent = Path.GetDirectoryName(sourcePath);
-            if (string.IsNullOrWhiteSpace(parent))
-            {
-                continue;
-            }
-
-            if (IsSamePath(parent, destinationFolder))
-            {
-                continue;
-            }
-
-            if (item.IsFolder && IsDescendantPath(sourcePath, destinationFolder))
-            {
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                    LocalizationService.GetString("Dialog.MoveIntoSelf.Detail")).ConfigureAwait(true);
-                return;
-            }
-
-            var targetPath = Path.Combine(destinationFolder, item.FileName);
-            if (Directory.Exists(targetPath) || File.Exists(targetPath))
-            {
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                    LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")).ConfigureAwait(true);
-                return;
-            }
-
-            try
-            {
-                if (item.IsFolder)
-                {
-                    Directory.Move(sourcePath, targetPath);
-                }
-                else
-                {
-                    File.Move(sourcePath, targetPath);
-                }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException
-                or IOException
-                or NotSupportedException
-                or ArgumentException
-                or PathTooLongException)
-            {
-                AppLog.Error($"Failed to move item: {sourcePath}", ex);
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                    LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
-                return;
-            }
-        }
-
-        await ViewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
-    private static bool IsSamePath(string left, string right)
-    {
-        var normalizedLeft = Path.GetFullPath(left)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var normalizedRight = Path.GetFullPath(right)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return string.Equals(normalizedLeft, normalizedRight, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsDescendantPath(string root, string candidate)
-    {
-        var normalizedRoot = Path.GetFullPath(root)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        var normalizedCandidate = Path.GetFullPath(candidate)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        return normalizedCandidate.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
-    }
-
     private static T? FindAncestor<T>(DependencyObject? source) where T : DependencyObject
     {
         var current = source;
@@ -1252,56 +1058,73 @@ internal sealed partial class FileBrowserPaneView : UserControl
         return false;
     }
 
-    private async Task DeleteItemsAsync(IReadOnlyList<PhotoListItem> items)
-    {
-        if (ViewModel is null)
-        {
-            return;
-        }
-
-        foreach (var item in items)
-        {
-            if (item.IsFolder && Directory.GetParent(item.FilePath) is null)
-            {
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.DeleteNotAvailable.Title"),
-                    LocalizationService.GetString("Dialog.DeleteNotAvailable.Detail")).ConfigureAwait(true);
-                return;
-            }
-
-            try
-            {
-                if (item.IsFolder)
-                {
-                    Directory.Delete(item.FilePath, recursive: true);
-                }
-                else
-                {
-                    File.Delete(item.FilePath);
-                }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException
-                or IOException
-                or NotSupportedException
-                or ArgumentException
-                or PathTooLongException)
-            {
-                AppLog.Error($"Failed to delete item: {item.FilePath}", ex);
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.DeleteFailed.Title"),
-                    LocalizationService.GetString("Dialog.SeeLogDetail")).ConfigureAwait(true);
-                return;
-            }
-        }
-
-        await ViewModel.RefreshAsync().ConfigureAwait(true);
-    }
-
     private static string BuildDeleteMessage(PhotoListItem item)
     {
         return item.IsFolder
             ? LocalizationService.Format("Dialog.DeleteConfirm.Folder", item.FileName)
             : LocalizationService.Format("Dialog.DeleteConfirm.File", item.FileName);
+    }
+
+    private Task ShowFileOperationErrorDialogAsync(FileOperationError error, string defaultTitleKey)
+    {
+        var (title, message) = error switch
+        {
+            FileOperationError.InvalidName => (
+                LocalizationService.GetString("Dialog.InvalidName.Title"),
+                LocalizationService.GetString("Dialog.InvalidName.Detail")),
+            FileOperationError.AlreadyExists => (
+                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
+                LocalizationService.GetString("Dialog.AlreadyExists.Detail")),
+            FileOperationError.NoParent => (
+                LocalizationService.GetString("Dialog.RenameNotAvailable.Title"),
+                LocalizationService.GetString("Dialog.RenameNotAvailable.Detail")),
+            FileOperationError.Unauthorized => (
+                LocalizationService.GetString(defaultTitleKey),
+                LocalizationService.GetString("Dialog.SeeLogDetail")),
+            _ => (
+                LocalizationService.GetString(defaultTitleKey),
+                LocalizationService.GetString("Dialog.SeeLogDetail")),
+        };
+        return ShowMessageDialogAsync(title, message);
+    }
+
+    private Task ShowMoveOperationErrorDialogAsync(FileOperationSummary summary)
+    {
+        var firstError = summary.Failures[0].Error;
+        var (title, message) = firstError switch
+        {
+            FileOperationError.DescendantPath => (
+                LocalizationService.GetString("Dialog.MoveFailed.Title"),
+                LocalizationService.GetString("Dialog.MoveIntoSelf.Detail")),
+            FileOperationError.AlreadyExists => (
+                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
+                LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")),
+            FileOperationError.Unauthorized => (
+                LocalizationService.GetString("Dialog.MoveFailed.Title"),
+                LocalizationService.GetString("Dialog.SeeLogDetail")),
+            _ => (
+                LocalizationService.GetString("Dialog.MoveFailed.Title"),
+                LocalizationService.GetString("Dialog.SeeLogDetail")),
+        };
+        return ShowMessageDialogAsync(title, message);
+    }
+
+    private Task ShowDeleteOperationErrorDialogAsync(FileOperationSummary summary)
+    {
+        var firstError = summary.Failures[0].Error;
+        var (title, message) = firstError switch
+        {
+            FileOperationError.NoParent => (
+                LocalizationService.GetString("Dialog.DeleteNotAvailable.Title"),
+                LocalizationService.GetString("Dialog.DeleteNotAvailable.Detail")),
+            FileOperationError.Unauthorized => (
+                LocalizationService.GetString("Dialog.DeleteFailed.Title"),
+                LocalizationService.GetString("Dialog.SeeLogDetail")),
+            _ => (
+                LocalizationService.GetString("Dialog.DeleteFailed.Title"),
+                LocalizationService.GetString("Dialog.SeeLogDetail")),
+        };
+        return ShowMessageDialogAsync(title, message);
     }
 
     private async Task OpenFolderPickerAsync()
@@ -1352,34 +1175,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         return null;
-    }
-
-    private static bool ContainsInvalidFileNameChars(string name)
-    {
-        return name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0;
-    }
-
-    private static string NormalizeRename(PhotoListItem item, string newName)
-    {
-        var trimmed = newName.Trim();
-        if (item.IsFolder)
-        {
-            return trimmed;
-        }
-
-        var originalExtension = Path.GetExtension(item.FileName);
-        if (string.IsNullOrWhiteSpace(originalExtension))
-        {
-            return trimmed;
-        }
-
-        var newExtension = Path.GetExtension(trimmed);
-        if (string.IsNullOrWhiteSpace(newExtension))
-        {
-            return $"{trimmed}{originalExtension}";
-        }
-
-        return trimmed;
     }
 
     private async Task<string?> ShowTextInputDialogAsync(
