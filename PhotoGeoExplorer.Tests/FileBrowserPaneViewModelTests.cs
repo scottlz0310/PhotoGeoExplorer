@@ -788,7 +788,7 @@ public class FileBrowserPaneViewModelTests
         {
             using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
             stubOp.CreateFolderResult = FileOperationResult.Failure(FileOperationError.AlreadyExists);
-            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(true);
 
             var result = await vm.ExecuteCreateFolderAsync("ExistingFolder");
 
@@ -809,7 +809,7 @@ public class FileBrowserPaneViewModelTests
         {
             using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
             stubOp.CreateFolderResult = FileOperationResult.Success(Path.Combine(tempDir, "NewFolder"));
-            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(true);
             var before = fakePaneService.LoadFolderCallCount;
 
             var result = await vm.ExecuteCreateFolderAsync("NewFolder");
@@ -859,7 +859,7 @@ public class FileBrowserPaneViewModelTests
         {
             using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
             stubOp.RenameItemResult = FileOperationResult.Success(Path.Combine(tempDir, "renamed.jpg"));
-            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(true);
             var before = fakePaneService.LoadFolderCallCount;
             var item = CreatePhotoListItem("original.jpg");
 
@@ -901,7 +901,7 @@ public class FileBrowserPaneViewModelTests
             var failure = new FileOperationFailure("path2", "file2.jpg", FileOperationError.AlreadyExists);
             using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
             stubOp.MoveItemsResult = new FileOperationSummary(1, new[] { failure });
-            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(true);
             var before = fakePaneService.LoadFolderCallCount;
 
             var summary = await vm.ExecuteMoveItemsToFolderAsync(new List<PhotoListItem>(), Path.GetTempPath());
@@ -941,7 +941,7 @@ public class FileBrowserPaneViewModelTests
         {
             using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
             stubOp.DeleteItemsResult = new FileOperationSummary(1, Array.Empty<FileOperationFailure>());
-            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(true);
             var before = fakePaneService.LoadFolderCallCount;
 
             var summary = await vm.ExecuteDeleteItemsAsync(new List<PhotoListItem>());
