@@ -303,7 +303,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
         var settingsPath = Path.Combine(root, "settings.json");
         var settingsService = new SettingsService(settingsPath);
         var workspaceState = new WorkspaceState();
-        var shellViewModel = new MainViewModel(new FileSystemService(), workspaceState);
+        var shellViewModel = new MainViewModel(workspaceState);
         var fileBrowserPaneViewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), workspaceState);
         var mapPaneViewModel = new MapPaneViewModel(new MapPaneService(), workspaceState);
         var dialogService = new FakeDialogService();
@@ -370,7 +370,6 @@ public sealed class SettingsCoordinatorTests : IDisposable
             Coordinator.Dispose();
             MapPaneViewModel.Cleanup();
             FileBrowserPaneViewModel.Dispose();
-            MainViewModel.Dispose();
         }
     }
 

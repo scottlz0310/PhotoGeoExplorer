@@ -18,7 +18,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
 
     public SettingsPaneViewModelTests()
     {
-        _mainViewModel = new MainViewModel(new FileSystemService(), _workspaceState);
+        _mainViewModel = new MainViewModel(_workspaceState);
         _fileBrowserPaneViewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), _workspaceState);
     }
 
@@ -354,7 +354,6 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public void Dispose()
     {
         _fileBrowserPaneViewModel.Dispose();
-        _mainViewModel.Dispose();
     }
 
     private static async Task WaitForAsync(Func<bool> condition, int timeoutMs = 2000)

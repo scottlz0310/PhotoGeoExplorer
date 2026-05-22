@@ -5,6 +5,16 @@
 ## [Unreleased]
 
 ### リファクタリング
+- MVVM 境界違反修正（#92 PR-C）: `MainViewModel` から旧ファイルブラウザ責務を完全削除。
+  - `Items`, `BreadcrumbItems`, `CurrentFolderPath`, `SelectedItem`, `SelectedMetadata`, `SelectedPreview` など旧ファイルブラウザ状態フィールドをすべて削除。
+  - `LoadFolderAsync`, `NavigateUpAsync`, `NavigateBackAsync`, `NavigateForwardAsync`, `RefreshAsync`, `ToggleSort`, `SelectNext`, `SelectPrevious`, `SelectItemByPath`, `ResetFilters`, `UpdateSelection`, `InitializeAsync`, `OpenHomeAsync` などのメソッドをすべて削除。
+  - サムネイル非同期生成インフラ（`StartBackgroundThumbnailGeneration`, `GenerateThumbnailAsync`, タイマー, セマフォ）を削除。
+  - ステータスオーバーレイ関連（`StatusTitle/Detail/Symbol/PrimaryAction/SecondaryAction`）を削除。
+  - ステータスバー（`StatusBarText`, `StatusBarLocationGlyph/Visibility/Tooltip`）を削除。
+  - `FileSystemService` コンストラクタ依存を削除。`IDisposable` を除去。
+  - `using System.IO;`, `System.Collections.ObjectModel;`, `System.Linq;`, `Microsoft.UI.Dispatching;`, `Microsoft.UI.Xaml.Media.Imaging;` を削除。
+  - `MainViewModelTests` から旧ファイルブラウザのテスト 12 件を削除し、Shell 責務 4 件のみ残存。
+  - `SettingsPaneViewModelTests` / `SettingsCoordinatorTests` のコンストラクタ呼び出しを `new MainViewModel(workspaceState)` に更新。
 - MVVM 境界違反修正（#92 PR-B）: `MapPaneViewModel` / `PreviewPaneViewModel` の IO 依存・直接サービス呼び出しを移管。
   - `MapPaneViewModel.GetPinPath`（`Path.Combine` によるピン画像パス生成）→ `IMapPaneService.GetPinImagePath` へ移管。
   - `MapPaneViewModel.TryCreatePinStyle` の `File.Exists` → `IMapPaneService.FileExistsAtPath` へ移管。
