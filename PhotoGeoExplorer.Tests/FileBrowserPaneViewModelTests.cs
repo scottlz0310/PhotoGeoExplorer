@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -751,6 +752,337 @@ public class FileBrowserPaneViewModelTests
                 // ベストエフォート
             }
         }
+    }
+
+    // =========================================================
+    // ExecuteCreateFolderAsync
+    // =========================================================
+
+    [Fact]
+    public async Task ExecuteCreateFolderAsync_NullCurrentFolder_ReturnsNoParent()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+
+        var result = await vm.ExecuteCreateFolderAsync("NewFolder");
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(FileOperationError.NoParent, result.Error);
+    }
+
+    [Fact]
+    public async Task ExecuteCreateFolderAsync_InvalidName_ReturnsInvalidName()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+
+        var result = await vm.ExecuteCreateFolderAsync("bad:name");
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(FileOperationError.InvalidName, result.Error);
+    }
+
+    [Fact]
+    public async Task ExecuteCreateFolderAsync_ServiceReturnsAlreadyExists_ReturnsAlreadyExists()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.CreateFolderResult = FileOperationResult.Failure(FileOperationError.AlreadyExists);
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+
+            var result = await vm.ExecuteCreateFolderAsync("ExistingFolder");
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(FileOperationError.AlreadyExists, result.Error);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteCreateFolderAsync_Success_CallsRefresh()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.CreateFolderResult = FileOperationResult.Success(Path.Combine(tempDir, "NewFolder"));
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            var before = fakePaneService.LoadFolderCallCount;
+
+            var result = await vm.ExecuteCreateFolderAsync("NewFolder");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(before + 1, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    // =========================================================
+    // ExecuteRenameAsync
+    // =========================================================
+
+    [Fact]
+    public async Task ExecuteRenameAsync_SameName_ReturnsSuccessWithoutRenameCall()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out var stubOp);
+        var item = CreatePhotoListItem("photo.jpg");
+
+        var result = await vm.ExecuteRenameAsync(item, "photo.jpg");
+
+        Assert.True(result.IsSuccess);
+        Assert.False(stubOp.RenameItemWasCalled);
+    }
+
+    [Fact]
+    public async Task ExecuteRenameAsync_InvalidName_ReturnsInvalidName()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        var item = CreatePhotoListItem("photo.jpg");
+
+        var result = await vm.ExecuteRenameAsync(item, "bad:name");
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(FileOperationError.InvalidName, result.Error);
+    }
+
+    [Fact]
+    public async Task ExecuteRenameAsync_Success_CallsRefresh()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.RenameItemResult = FileOperationResult.Success(Path.Combine(tempDir, "renamed.jpg"));
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            var before = fakePaneService.LoadFolderCallCount;
+            var item = CreatePhotoListItem("original.jpg");
+
+            var result = await vm.ExecuteRenameAsync(item, "renamed.jpg");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(before + 1, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    // =========================================================
+    // ExecuteMoveItemsToFolderAsync
+    // =========================================================
+
+    [Fact]
+    public async Task ExecuteMoveItemsToFolderAsync_AllFail_DoesNotCallRefresh()
+    {
+        var failure = new FileOperationFailure("path", "photo.jpg", FileOperationError.AlreadyExists);
+        using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+        stubOp.MoveItemsResult = new FileOperationSummary(0, new[] { failure });
+
+        var summary = await vm.ExecuteMoveItemsToFolderAsync(new List<PhotoListItem>(), Path.GetTempPath());
+
+        Assert.Equal(0, summary.SuccessCount);
+        Assert.True(summary.HasFailures);
+        Assert.Equal(0, fakePaneService.LoadFolderCallCount);
+    }
+
+    [Fact]
+    public async Task ExecuteMoveItemsToFolderAsync_PartialSuccess_CallsRefresh()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var failure = new FileOperationFailure("path2", "file2.jpg", FileOperationError.AlreadyExists);
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.MoveItemsResult = new FileOperationSummary(1, new[] { failure });
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            var before = fakePaneService.LoadFolderCallCount;
+
+            var summary = await vm.ExecuteMoveItemsToFolderAsync(new List<PhotoListItem>(), Path.GetTempPath());
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.Equal(before + 1, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    // =========================================================
+    // ExecuteDeleteItemsAsync
+    // =========================================================
+
+    [Fact]
+    public async Task ExecuteDeleteItemsAsync_AllFail_DoesNotCallRefresh()
+    {
+        var failure = new FileOperationFailure("path", "locked.jpg", FileOperationError.IoError);
+        using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+        stubOp.DeleteItemsResult = new FileOperationSummary(0, new[] { failure });
+
+        var summary = await vm.ExecuteDeleteItemsAsync(new List<PhotoListItem>());
+
+        Assert.Equal(0, summary.SuccessCount);
+        Assert.True(summary.HasFailures);
+        Assert.Equal(0, fakePaneService.LoadFolderCallCount);
+    }
+
+    [Fact]
+    public async Task ExecuteDeleteItemsAsync_Success_CallsRefresh()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.DeleteItemsResult = new FileOperationSummary(1, Array.Empty<FileOperationFailure>());
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(false);
+            var before = fakePaneService.LoadFolderCallCount;
+
+            var summary = await vm.ExecuteDeleteItemsAsync(new List<PhotoListItem>());
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.Equal(before + 1, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    // =========================================================
+    // ExecuteMoveToParentAsync
+    // =========================================================
+
+    [Fact]
+    public async Task ExecuteMoveToParentAsync_NoCurrentFolder_ReturnsEmptySummary()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+
+        var summary = await vm.ExecuteMoveToParentAsync();
+
+        Assert.Equal(0, summary.SuccessCount);
+        Assert.False(summary.HasFailures);
+    }
+
+    // =========================================================
+    // HandleExternalFileDropAsync
+    // =========================================================
+
+    [Fact]
+    public async Task HandleExternalFileDropAsync_NullDirectory_DoesNotLoadFolder()
+    {
+        using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+        stubOp.ParentPath = null;
+
+        await vm.HandleExternalFileDropAsync("some_path_without_parent");
+
+        Assert.Equal(0, fakePaneService.LoadFolderCallCount);
+    }
+
+    [Fact]
+    public async Task HandleExternalFileDropAsync_ValidDirectory_LoadsFolder()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.ParentPath = tempDir;
+
+            await vm.HandleExternalFileDropAsync(Path.Combine(tempDir, "photo.jpg"));
+
+            Assert.Equal(1, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    // =========================================================
+    // Execute* 系テスト用ヘルパー
+    // =========================================================
+
+    private static FileBrowserPaneViewModel CreateViewModelWithFakes(
+        out FakeFileBrowserPaneService fakePaneService,
+        out StubFileOperationService stubOp)
+    {
+        fakePaneService = new FakeFileBrowserPaneService();
+        stubOp = new StubFileOperationService();
+        return new FileBrowserPaneViewModel(fakePaneService, new WorkspaceState(), null, null, stubOp);
+    }
+
+    private sealed class FakeFileBrowserPaneService : IFileBrowserPaneService
+    {
+        public int LoadFolderCallCount { get; private set; }
+
+        public Task<List<PhotoListItem>> LoadFolderAsync(string folderPath, bool showImagesOnly, string? searchText)
+        {
+            LoadFolderCallCount++;
+            return Task.FromResult(new List<PhotoListItem>());
+        }
+
+        public ObservableCollection<BreadcrumbSegment> GetBreadcrumbs(string folderPath) => [];
+        public List<PhotoListItem> ApplySort(IEnumerable<PhotoListItem> items, FileSortColumn column, SortDirection direction) => [.. items];
+        public PhotoListItem? FindItemByFilePath(IEnumerable<PhotoListItem> items, string filePath) => null;
+        public IReadOnlyList<PhotoListItem> ResolveItemsByFilePaths(IEnumerable<PhotoListItem> items, IReadOnlyList<string> filePaths) => Array.Empty<PhotoListItem>();
+        public string? NavigateBack(string currentPath) => null;
+        public string? NavigateForward(string currentPath) => null;
+        public void PushToBackStack(string path) { }
+        public void PushToForwardStack(string path) { }
+        public void ClearForwardStack() { }
+        public bool CanNavigateBack => false;
+        public bool CanNavigateForward => false;
+    }
+
+    private sealed class StubFileOperationService : IFileOperationService
+    {
+        public FileOperationResult CreateFolderResult { get; set; } = FileOperationResult.Success("result");
+        public FileOperationResult RenameItemResult { get; set; } = FileOperationResult.Success("result");
+        public FileOperationSummary MoveItemsResult { get; set; } = new(1, Array.Empty<FileOperationFailure>());
+        public FileOperationSummary DeleteItemsResult { get; set; } = new(1, Array.Empty<FileOperationFailure>());
+        public string? ParentPath { get; set; } = Path.GetTempPath();
+        public bool RenameItemWasCalled { get; private set; }
+
+        public bool ContainsInvalidFileNameChars(string name) => name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0;
+
+        public string NormalizeName(PhotoListItem item, string newName)
+        {
+            var trimmed = newName.Trim();
+            if (item.IsFolder)
+            {
+                return trimmed;
+            }
+
+            var originalExt = Path.GetExtension(item.FileName);
+            if (string.IsNullOrEmpty(originalExt))
+            {
+                return trimmed;
+            }
+
+            var newExt = Path.GetExtension(trimmed);
+            return string.IsNullOrEmpty(newExt) ? $"{trimmed}{originalExt}" : trimmed;
+        }
+
+        public bool IsDescendantPath(string root, string candidate) => false;
+        public bool IsSamePath(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+        public string? GetParentPath(string path) => ParentPath;
+        public bool ItemExistsAtPath(string path) => false;
+        public FileOperationResult CreateFolder(string parentFolder, string folderName) => CreateFolderResult;
+
+        public FileOperationResult RenameItem(PhotoListItem item, string normalizedName)
+        {
+            RenameItemWasCalled = true;
+            return RenameItemResult;
+        }
+
+        public FileOperationSummary MoveItems(IReadOnlyList<PhotoListItem> items, string destinationFolder) => MoveItemsResult;
+        public FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items) => DeleteItemsResult;
     }
 
     private static PhotoListItem CreatePhotoListItem(string fileName)

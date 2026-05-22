@@ -631,7 +631,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         IReadOnlyList<PhotoListItem> items, string destinationFolder)
     {
         var summary = _fileOperationService.MoveItems(items, destinationFolder);
-        await RefreshAsync().ConfigureAwait(false);
+        if (summary.SuccessCount > 0)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
+
         return summary;
     }
 
@@ -655,7 +659,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         IReadOnlyList<PhotoListItem> items)
     {
         var summary = _fileOperationService.DeleteItems(items);
-        await RefreshAsync().ConfigureAwait(false);
+        if (summary.SuccessCount > 0)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
+
         return summary;
     }
 

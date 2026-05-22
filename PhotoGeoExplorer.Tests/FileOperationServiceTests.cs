@@ -343,6 +343,8 @@ public sealed class FileOperationServiceTests
             var summary = _service.MoveItems(items, destFolder);
 
             Assert.False(summary.IsAllSuccess);
+            Assert.True(summary.HasFailures);
+            Assert.Equal(1, summary.FailureCount);
             Assert.Equal(FileOperationError.DescendantPath, summary.Failures[0].Error);
         }
         finally
@@ -367,6 +369,8 @@ public sealed class FileOperationServiceTests
             var summary = _service.MoveItems(items, destDir);
 
             Assert.False(summary.IsAllSuccess);
+            Assert.True(summary.HasFailures);
+            Assert.Equal(1, summary.FailureCount);
             Assert.Equal(FileOperationError.AlreadyExists, summary.Failures[0].Error);
         }
         finally
@@ -392,6 +396,8 @@ public sealed class FileOperationServiceTests
             var summary = _service.MoveItems(items, destDir);
 
             Assert.False(summary.IsAllSuccess);
+            Assert.True(summary.HasFailures);
+            Assert.Equal(1, summary.FailureCount);
             Assert.Equal(FileOperationError.IoError, summary.Failures[0].Error);
         }
         finally
@@ -465,6 +471,8 @@ public sealed class FileOperationServiceTests
             var summary = _service.DeleteItems(items);
 
             Assert.False(summary.IsAllSuccess);
+            Assert.True(summary.HasFailures);
+            Assert.Equal(1, summary.FailureCount);
             Assert.Equal(FileOperationError.IoError, summary.Failures[0].Error);
         }
         finally

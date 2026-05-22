@@ -8,3 +8,4 @@ fixes:
 ignore:
   - "PhotoGeoExplorer.Tests/**"
   - "PhotoGeoExplorer.E2E/**"
+  - "PhotoGeoExplorer/Panes/**/*View.xaml.cs"
