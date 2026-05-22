@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### 修正
+- E2E テスト `ExifEditorSaveAndReopenKeepsCoordinates` のフレーキー修正（#95）。
+  - `OpenExifMenuForItemName` の catch 節に `NoClickablePointException` を追加。`listItem.RightClick()` が `NoClickablePointException` を投げると catch されずにテスト失敗していた問題を解消。
+  - `TryScrollIntoView` / `WaitForElementClickable` ヘルパーを追加し、右クリック前にリスト項目を可視領域にスクロールして描画完了を待機するよう改善。
+  - `listItem.RightClick()` を `RightClickElementCenter(listItem)` に統一し、BoundingRectangle が無効な場合のクリックを回避。
+  - `WaitForListItems` に安定化待機を追加。アイテム数が揃った後、先頭アイテムの BoundingRectangle が非ゼロになるまで待機することで CI ランナーの描画遅延に対応。
+
 ### リファクタリング
 - MVVM 境界違反修正（#92 PR-C）: `MainViewModel` から旧ファイルブラウザ責務を完全削除。
   - `Items`, `BreadcrumbItems`, `CurrentFolderPath`, `SelectedItem`, `SelectedMetadata`, `SelectedPreview` など旧ファイルブラウザ状態フィールドをすべて削除。
