@@ -474,8 +474,8 @@ internal sealed partial class FileBrowserPaneView : UserControl
             if (sender is ListViewBase listView
                 && TryGetDropTargetFolder(listView, RootGrid, e, out var targetFolder))
             {
-                var items = _dragItems ?? ViewModel.SelectedItems;
-                var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(items, targetFolder.FilePath)
+                var selectedItems = _dragItems ?? ViewModel.SelectedItems;
+                var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(selectedItems, targetFolder.FilePath)
                     .ConfigureAwait(true);
                 if (summary.HasFailures)
                 {
