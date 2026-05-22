@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### リファクタリング
+- MVVM 境界違反修正（#91）: `FileBrowserPaneView.xaml.cs` から `System.IO` 依存・ファイル操作 `foreach` ループ・パス検証関数（`IsSamePath`/`IsDescendantPath`/`ContainsInvalidFileNameChars`/`NormalizeRename`）を完全撤去。
+  - `IFileOperationService` / `FileOperationService` を `Services/` に新設し、フォルダ作成・リネーム・移動・削除の実処理とパス検証ロジックを集約。
+  - `FileBrowserPaneViewModel` に `Execute*` メソッド群を追加（`ExecuteCreateFolderAsync`, `ExecuteRenameAsync`, `ExecuteMoveItemsToFolderAsync`, `ExecuteMoveToParentAsync`, `ExecuteDeleteItemsAsync`, `HandleExternalFileDropAsync`）。
+  - View は Picker / ダイアログ表示 / D&D イベント受付 / エラー表示に限定。
+  - `FileOperationResult`（単発操作）と `FileOperationSummary`（複数件操作）DTO を導入し、成功/失敗詳細を VM → View へ型安全に伝達。
+  - `FileOperationServiceTests.cs` を追加し、パス検証・ファイル操作成功・エラー変換（IoError / AlreadyExists / DescendantPath）を網羅。
+
 ### 変更
 - `SixLabors.ImageSharp` を 3.1.12 → 4.0.0 に更新。v4 はビルド時ライセンス検証（`ValidateLicenseTask`）が必須のため、`Directory.Build.props` に環境変数 `SIXLABORS_LICENSE_KEY` から `$(SixLaborsLicenseKey)` への転写を追加し、CI ワークフロー（ci.yml / e2e.yml / release.yml）に GitHub シークレット `SIXLABORS_LICENSE_KEY` の受け渡しを追加。**このプロジェクトは MIT ライセンスのオープンソースプロジェクトであり SixLabors コミュニティライセンス（無償）の取得対象です。** ライセンスキーは https://licensing.sixlabors.com/ で取得し、GitHub リポジトリの Secrets に `SIXLABORS_LICENSE_KEY` として設定してください。
 
