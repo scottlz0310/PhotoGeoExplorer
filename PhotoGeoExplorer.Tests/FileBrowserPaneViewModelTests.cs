@@ -1073,6 +1073,13 @@ public class FileBrowserPaneViewModelTests
         public bool IsSamePath(string left, string right) => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
         public string? GetParentPath(string path) => ParentPath;
         public bool ItemExistsAtPath(string path) => false;
+        public bool FolderExistsAtPath(string path) => Directory.Exists(path);
+        public bool IsJpegFile(string filePath)
+        {
+            var ext = Path.GetExtension(filePath);
+            return string.Equals(ext, ".jpg", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(ext, ".jpeg", StringComparison.OrdinalIgnoreCase);
+        }
         public FileOperationResult CreateFolder(string parentFolder, string folderName) => CreateFolderResult;
 
         public FileOperationResult RenameItem(PhotoListItem item, string normalizedName)

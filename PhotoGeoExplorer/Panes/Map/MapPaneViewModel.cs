@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -488,9 +487,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _map.Navigator.ZoomToBox(bounds, MBoxFit.Fit, 0, Mapsui.Animations.Easing.CubicOut);
     }
 
-    private static IStyle[] CreatePinStyles(PhotoMetadata metadata)
+    private IStyle[] CreatePinStyles(PhotoMetadata metadata)
     {
-        var pinPath = GetPinPath(metadata);
+        var pinPath = _service.GetPinImagePath(metadata);
         if (TryCreatePinStyle(pinPath, out var pinStyle))
         {
             return new IStyle[] { pinStyle };
@@ -499,10 +498,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         return new IStyle[] { CreateFallbackMarkerStyle() };
     }
 
-    private static bool TryCreatePinStyle(string imagePath, out ImageStyle pinStyle)
+    private bool TryCreatePinStyle(string imagePath, out ImageStyle pinStyle)
     {
         pinStyle = null!;
-        if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+        if (string.IsNullOrWhiteSpace(imagePath) || !_service.FileExistsAtPath(imagePath))
         {
             if (!string.IsNullOrWhiteSpace(imagePath))
             {
@@ -530,26 +529,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             Fill = new Brush(Color.FromArgb(255, 32, 128, 255)),
             Outline = new Pen(Color.White, 2)
         };
-    }
-
-    private static string GetPinPath(PhotoMetadata metadata)
-    {
-        var assetsRoot = Path.Combine(AppContext.BaseDirectory, "Assets", "MapPins");
-        if (metadata.TakenAt is DateTimeOffset takenAt)
-        {
-            var age = DateTimeOffset.Now - takenAt;
-            if (age <= TimeSpan.FromDays(30))
-            {
-                return Path.Combine(assetsRoot, "green_pin.png");
-            }
-
-            if (age <= TimeSpan.FromDays(365))
-            {
-                return Path.Combine(assetsRoot, "blue_pin.png");
-            }
-        }
-
-        return Path.Combine(assetsRoot, "red_pin.png");
     }
 
     private static bool TryGetValidLocation(PhotoMetadata metadata, out double latitude, out double longitude)

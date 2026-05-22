@@ -61,6 +61,16 @@ internal sealed class FileOperationService : IFileOperationService
     public bool ItemExistsAtPath(string path)
         => Directory.Exists(path) || File.Exists(path);
 
+    public bool FolderExistsAtPath(string path)
+        => Directory.Exists(path);
+
+    public bool IsJpegFile(string filePath)
+    {
+        var ext = Path.GetExtension(filePath);
+        return string.Equals(ext, ".jpg", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(ext, ".jpeg", StringComparison.OrdinalIgnoreCase);
+    }
+
     public FileOperationResult CreateFolder(string parentFolder, string folderName)
     {
         var targetPath = Path.Combine(parentFolder, folderName);

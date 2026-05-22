@@ -5,6 +5,19 @@
 ## [Unreleased]
 
 ### リファクタリング
+- MVVM 境界違反修正（#92 PR-B）: `MapPaneViewModel` / `PreviewPaneViewModel` の IO 依存・直接サービス呼び出しを移管。
+  - `MapPaneViewModel.GetPinPath`（`Path.Combine` によるピン画像パス生成）→ `IMapPaneService.GetPinImagePath` へ移管。
+  - `MapPaneViewModel.TryCreatePinStyle` の `File.Exists` → `IMapPaneService.FileExistsAtPath` へ移管。
+  - `GetPinPath` private static メソッドを削除し `using System.IO;` を `MapPaneViewModel` から除去。
+  - `PreviewPaneViewModel` の `ExifService.GetMetadataAsync` 直呼び出し → `IPreviewPaneService.GetMetadataAsync` 経由へ統一。
+  - `PreviewPaneService` に `GetMetadataAsync` を追加し `ExifService` へ委譲。
+- MVVM 境界違反修正（#92 PR-A）: `FileBrowserPaneViewModel` から `System.IO` 直接依存を除去。
+  - `Directory.GetParent` → `IFileOperationService.GetParentPath` に置き換え（`CanNavigateUp`, `CanMoveToParentSelection`, `NavigateUpAsync`）。
+  - `Directory.Exists` → `IFileOperationService.FolderExistsAtPath` に置き換え（`LoadFolderAsync`, `OpenHomeAsync`）。
+  - `Path.GetExtension` による JPEG 判定 → `IFileOperationService.IsJpegFile` に移管（`IsJpegFile` プライベートメソッド）。
+  - `IFileOperationService` に `FolderExistsAtPath` / `IsJpegFile` を追加し `FileOperationService` に実装。
+  - `using System.IO;` を `FileBrowserPaneViewModel.cs` から削除。
+  - `FileOperationServiceTests` に `FolderExistsAtPath` / `IsJpegFile` のテストを追加。
 - MVVM 境界違反修正（#91）: `FileBrowserPaneView.xaml.cs` から `System.IO` 依存・ファイル操作 `foreach` ループ・パス検証関数（`IsSamePath`/`IsDescendantPath`/`ContainsInvalidFileNameChars`/`NormalizeRename`）を完全撤去。
   - `IFileOperationService` / `FileOperationService` を `Services/` に新設し、フォルダ作成・リネーム・移動・削除の実処理とパス検証ロジックを集約。
   - `FileBrowserPaneViewModel` に `Execute*` メソッド群を追加（`ExecuteCreateFolderAsync`, `ExecuteRenameAsync`, `ExecuteMoveItemsToFolderAsync`, `ExecuteMoveToParentAsync`, `ExecuteDeleteItemsAsync`, `HandleExternalFileDropAsync`）。

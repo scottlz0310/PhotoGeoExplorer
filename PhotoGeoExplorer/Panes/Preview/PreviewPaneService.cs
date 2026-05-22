@@ -1,7 +1,10 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media.Imaging;
+using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Services;
 
 namespace PhotoGeoExplorer.Panes.Preview;
 
@@ -41,6 +44,12 @@ internal sealed class PreviewPaneService : IPreviewPaneService
             return null;
         }
     }
+
+    /// <summary>
+    /// 指定ファイルの EXIF メタデータを非同期で読み込む
+    /// </summary>
+    public Task<PhotoMetadata?> GetMetadataAsync(string filePath, CancellationToken cancellationToken)
+        => ExifService.GetMetadataAsync(filePath, cancellationToken);
 
     /// <summary>
     /// ビューポートに画像をフィットさせるズームファクターを計算
