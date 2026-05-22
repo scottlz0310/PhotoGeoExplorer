@@ -5,6 +5,12 @@
 ## [Unreleased]
 
 ### リファクタリング
+- MVVM 境界違反修正（#92 PR-B）: `MapPaneViewModel` / `PreviewPaneViewModel` の IO 依存・直接サービス呼び出しを移管。
+  - `MapPaneViewModel.GetPinPath`（`Path.Combine` によるピン画像パス生成）→ `IMapPaneService.GetPinImagePath` へ移管。
+  - `MapPaneViewModel.TryCreatePinStyle` の `File.Exists` → `IMapPaneService.FileExistsAtPath` へ移管。
+  - `GetPinPath` private static メソッドを削除し `using System.IO;` を `MapPaneViewModel` から除去。
+  - `PreviewPaneViewModel` の `ExifService.GetMetadataAsync` 直呼び出し → `IPreviewPaneService.GetMetadataAsync` 経由へ統一。
+  - `PreviewPaneService` に `GetMetadataAsync` を追加し `ExifService` へ委譲。
 - MVVM 境界違反修正（#92 PR-A）: `FileBrowserPaneViewModel` から `System.IO` 直接依存を除去。
   - `Directory.GetParent` → `IFileOperationService.GetParentPath` に置き換え（`CanNavigateUp`, `CanMoveToParentSelection`, `NavigateUpAsync`）。
   - `Directory.Exists` → `IFileOperationService.FolderExistsAtPath` に置き換え（`LoadFolderAsync`, `OpenHomeAsync`）。

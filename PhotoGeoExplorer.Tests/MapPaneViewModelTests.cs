@@ -288,5 +288,11 @@ public class MapPaneViewModelTests
         {
             return Path.GetTempPath();
         }
+
+        public string GetPinImagePath(PhotoMetadata metadata)
+            => Path.Combine(Path.GetTempPath(), "red_pin.png");
+
+        public bool FileExistsAtPath(string path)
+            => false;
     }
 }

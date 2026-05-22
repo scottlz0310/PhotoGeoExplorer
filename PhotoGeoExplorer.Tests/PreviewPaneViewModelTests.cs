@@ -51,6 +51,11 @@ public class PreviewPaneViewModelTests
             var correctedZoom = (float)(currentZoom * oldScale / newScale);
             return Math.Clamp(correctedZoom, minZoom, maxZoom);
         }
+
+        public System.Threading.Tasks.Task<PhotoGeoExplorer.Models.PhotoMetadata?> GetMetadataAsync(
+            string filePath,
+            System.Threading.CancellationToken cancellationToken)
+            => System.Threading.Tasks.Task.FromResult<PhotoGeoExplorer.Models.PhotoMetadata?>(null);
     }
 
     [Fact]

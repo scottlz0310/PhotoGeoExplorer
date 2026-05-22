@@ -47,4 +47,18 @@ internal interface IMapPaneService
     /// タイルキャッシュのルートディレクトリを取得する
     /// </summary>
     string GetTileCacheRootDirectory();
+
+    /// <summary>
+    /// メタデータに基づいてピン画像のパスを返す
+    /// </summary>
+    /// <param name="metadata">写真メタデータ</param>
+    /// <returns>ピン画像のフルパス</returns>
+    string GetPinImagePath(PhotoMetadata metadata);
+
+    /// <summary>
+    /// 指定パスにファイルが存在するか確認する
+    /// </summary>
+    /// <param name="path">確認するファイルパス</param>
+    /// <returns>ファイルが存在する場合 true</returns>
+    bool FileExistsAtPath(string path);
 }

@@ -1,5 +1,7 @@
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media.Imaging;
+using PhotoGeoExplorer.Models;
 
 namespace PhotoGeoExplorer.Panes.Preview;
 
@@ -15,6 +17,14 @@ internal interface IPreviewPaneService
     /// <param name="filePath">画像ファイルパス</param>
     /// <returns>BitmapImage オブジェクト</returns>
     Task<BitmapImage?> LoadImageAsync(string filePath);
+
+    /// <summary>
+    /// 指定ファイルの EXIF メタデータを非同期で読み込む
+    /// </summary>
+    /// <param name="filePath">画像ファイルパス</param>
+    /// <param name="cancellationToken">キャンセルトークン</param>
+    /// <returns>PhotoMetadata オブジェクト</returns>
+    Task<PhotoMetadata?> GetMetadataAsync(string filePath, CancellationToken cancellationToken);
 
     /// <summary>
     /// ビューポートに画像をフィットさせるズームファクターを計算

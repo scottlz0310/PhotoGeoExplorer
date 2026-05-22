@@ -355,7 +355,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         _currentFilePath = filePath;
 
         var image = await _service.LoadImageAsync(filePath).ConfigureAwait(false);
-        var metadata = await ExifService.GetMetadataAsync(filePath, CancellationToken.None).ConfigureAwait(false);
+        var metadata = await _service.GetMetadataAsync(filePath, CancellationToken.None).ConfigureAwait(false);
 
         // UI スレッドで更新
         var dispatcherQueue = TryGetDispatcherQueue();

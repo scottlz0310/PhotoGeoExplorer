@@ -108,6 +108,29 @@ internal sealed class MapPaneService : IMapPaneService
         return _tileCacheRootDirectory;
     }
 
+    public string GetPinImagePath(PhotoMetadata metadata)
+    {
+        var assetsRoot = Path.Combine(AppContext.BaseDirectory, "Assets", "MapPins");
+        if (metadata.TakenAt is DateTimeOffset takenAt)
+        {
+            var age = DateTimeOffset.Now - takenAt;
+            if (age <= TimeSpan.FromDays(30))
+            {
+                return Path.Combine(assetsRoot, "green_pin.png");
+            }
+
+            if (age <= TimeSpan.FromDays(365))
+            {
+                return Path.Combine(assetsRoot, "blue_pin.png");
+            }
+        }
+
+        return Path.Combine(assetsRoot, "red_pin.png");
+    }
+
+    public bool FileExistsAtPath(string path)
+        => File.Exists(path);
+
     private FileCache? CreatePersistentCache(MapTileSourceType sourceType)
     {
         var cacheDirectory = GetTileCacheRootDirectory();
