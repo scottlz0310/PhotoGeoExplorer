@@ -215,6 +215,24 @@ public sealed class AppE2ETests
             () => list.Items.Length < minimumCount,
             timeout: TimeSpan.FromSeconds(20),
             interval: TimeSpan.FromMilliseconds(200));
+
+        // アイテムが画面に描画されるまで安定化を待つ（CI ランナーの描画遅延対策）
+        Retry.WhileTrue(
+            () =>
+            {
+                var firstItem = list.Items.FirstOrDefault();
+                if (firstItem is null)
+                {
+                    return true;
+                }
+
+                var width = SafeGet(() => firstItem.BoundingRectangle.Width, 0d);
+                var height = SafeGet(() => firstItem.BoundingRectangle.Height, 0d);
+                return width <= 1 || height <= 1;
+            },
+            timeout: TimeSpan.FromSeconds(5),
+            interval: TimeSpan.FromMilliseconds(100),
+            throwOnTimeout: false);
     }
 
     private static void TerminateApp(Application? app)
@@ -295,6 +313,10 @@ public sealed class AppE2ETests
                 TryFocusElement(window);
                 SelectListItem(listItem);
                 TryFocusElement(listItem);
+
+                // スクロールして可視領域に入れ、描画完了を待つ
+                TryScrollIntoView(listItem);
+                WaitForElementClickable(listItem);
                 ClickElementCenter(listItem);
 
                 Keyboard.Type(VirtualKeyShort.APPS);
@@ -304,7 +326,9 @@ public sealed class AppE2ETests
                     return byAppsKey;
                 }
 
-                listItem.RightClick();
+                // listItem.RightClick() は NoClickablePointException を投げる可能性があるため
+                // 安全な RightClickElementCenter を使用する
+                RightClickElementCenter(listItem);
                 var byRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(3));
                 if (byRightClick is not null)
                 {
@@ -332,7 +356,7 @@ public sealed class AppE2ETests
                     return byShiftF10;
                 }
             }
-            catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException)
+            catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException or NoClickablePointException)
             {
             }
 
@@ -362,6 +386,39 @@ public sealed class AppE2ETests
             interval: TimeSpan.FromMilliseconds(150),
             ignoreException: true,
             throwOnTimeout: false).Result;
+    }
+
+    private static void TryScrollIntoView(AutomationElement element)
+    {
+        try
+        {
+            if (element.Patterns.ScrollItem.IsSupported)
+            {
+                element.Patterns.ScrollItem.Pattern.ScrollIntoView();
+            }
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or ElementNotAvailableException or NoClickablePointException)
+        {
+        }
+    }
+
+    private static void WaitForElementClickable(AutomationElement element)
+    {
+        Retry.WhileTrue(
+            () =>
+            {
+                if (SafeGet(() => element.IsOffscreen, false))
+                {
+                    return true;
+                }
+
+                var width = SafeGet(() => element.BoundingRectangle.Width, 0d);
+                var height = SafeGet(() => element.BoundingRectangle.Height, 0d);
+                return width <= 1 || height <= 1;
+            },
+            timeout: TimeSpan.FromSeconds(3),
+            interval: TimeSpan.FromMilliseconds(100),
+            throwOnTimeout: false);
     }
 
     private static void RightClickElementCenter(AutomationElement element)
