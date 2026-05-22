@@ -41,7 +41,7 @@ public sealed partial class MainWindow : Window, IDisposable
     public MainWindow()
     {
         InitializeComponent();
-        _viewModel = new MainViewModel(new FileSystemService());
+        _viewModel = new MainViewModel();
         var dialogService = new DialogService(RootGrid, this);
         var exifEditorService = new ExifEditorService(
             dialogService,
@@ -426,7 +426,6 @@ public sealed partial class MainWindow : Window, IDisposable
             _previewPaneViewModel?.Cleanup();
             _fileBrowserPaneViewModel.Dispose();
 
-            _viewModel?.Dispose();
         }
         finally
         {
