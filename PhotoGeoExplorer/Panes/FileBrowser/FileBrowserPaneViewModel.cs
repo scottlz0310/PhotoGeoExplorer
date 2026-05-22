@@ -577,14 +577,14 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     internal async Task<FileOperationResult> ExecuteCreateFolderAsync(string folderName)
     {
-        if (string.IsNullOrWhiteSpace(CurrentFolderPath))
-        {
-            return FileOperationResult.Failure(FileOperationError.NoParent);
-        }
-
         if (_fileOperationService.ContainsInvalidFileNameChars(folderName))
         {
             return FileOperationResult.Failure(FileOperationError.InvalidName);
+        }
+
+        if (string.IsNullOrWhiteSpace(CurrentFolderPath))
+        {
+            return FileOperationResult.Failure(FileOperationError.NoParent);
         }
 
         var result = _fileOperationService.CreateFolder(CurrentFolderPath, folderName);
