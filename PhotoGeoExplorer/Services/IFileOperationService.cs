@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.Services;
 

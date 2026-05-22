@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.Services;
 
