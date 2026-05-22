@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -520,14 +519,14 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     public bool CanNavigateBack => _service.CanNavigateBack;
     public bool CanNavigateForward => _service.CanNavigateForward;
-    public bool CanNavigateUp => !string.IsNullOrWhiteSpace(CurrentFolderPath) && Directory.GetParent(CurrentFolderPath) is not null;
+    public bool CanNavigateUp => !string.IsNullOrWhiteSpace(CurrentFolderPath) && _fileOperationService.GetParentPath(CurrentFolderPath) is not null;
     public bool CanCreateFolder => !string.IsNullOrWhiteSpace(CurrentFolderPath);
     public bool CanModifySelection => SelectedCount > 0;
     public bool CanRenameSelection => SelectedCount == 1;
     public bool CanMoveToParentSelection
         => SelectedCount > 0
            && !string.IsNullOrWhiteSpace(CurrentFolderPath)
-           && Directory.GetParent(CurrentFolderPath) is not null;
+           && _fileOperationService.GetParentPath(CurrentFolderPath) is not null;
     public bool CanEditExif => SelectedCount == 1 && IsJpegFile(SelectedItem);
 
     public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
@@ -690,7 +689,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             return;
         }
 
-        if (!Directory.Exists(folderPath))
+        if (!_fileOperationService.FolderExistsAtPath(folderPath))
         {
             await RunOnUIThreadAsync(() =>
             {
@@ -792,7 +791,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public async Task OpenHomeAsync()
     {
         var homePath = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-        if (string.IsNullOrWhiteSpace(homePath) || !Directory.Exists(homePath))
+        if (string.IsNullOrWhiteSpace(homePath) || !_fileOperationService.FolderExistsAtPath(homePath))
         {
             await RunOnUIThreadAsync(() =>
             {
@@ -841,10 +840,10 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             return;
         }
 
-        var parent = Directory.GetParent(CurrentFolderPath);
-        if (parent is not null)
+        var parentPath = _fileOperationService.GetParentPath(CurrentFolderPath);
+        if (parentPath is not null)
         {
-            await LoadFolderAsync(parent.FullName).ConfigureAwait(false);
+            await LoadFolderAsync(parentPath).ConfigureAwait(false);
         }
     }
 
@@ -1329,17 +1328,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
     }
 
-    private static bool IsJpegFile(PhotoListItem? item)
-    {
-        if (item is null || item.IsFolder)
-        {
-            return false;
-        }
-
-        var extension = Path.GetExtension(item.FilePath);
-        return string.Equals(extension, ".jpg", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase);
-    }
+    private bool IsJpegFile(PhotoListItem? item)
+        => item is { IsFolder: false } && _fileOperationService.IsJpegFile(item.FilePath);
 
     private void CancelFolderLoad()
     {

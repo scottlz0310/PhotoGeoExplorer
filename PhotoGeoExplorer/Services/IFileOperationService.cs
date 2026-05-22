@@ -13,6 +13,8 @@ internal interface IFileOperationService
     bool IsSamePath(string left, string right);
     string? GetParentPath(string path);
     bool ItemExistsAtPath(string path);
+    bool FolderExistsAtPath(string path);
+    bool IsJpegFile(string filePath);
 
     // ファイル操作（単発）
     FileOperationResult CreateFolder(string parentFolder, string folderName);

@@ -166,6 +166,57 @@ public sealed class FileOperationServiceTests
     }
 
     // =========================================================
+    // FolderExistsAtPath
+    // =========================================================
+
+    [Fact]
+    public void FolderExistsAtPath_ExistingDirectory_ReturnsTrue()
+    {
+        Assert.True(_service.FolderExistsAtPath(Path.GetTempPath()));
+    }
+
+    [Fact]
+    public void FolderExistsAtPath_ExistingFile_ReturnsFalse()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            Assert.False(_service.FolderExistsAtPath(tempFile));
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public void FolderExistsAtPath_NonExistentPath_ReturnsFalse()
+    {
+        Assert.False(_service.FolderExistsAtPath(Path.Combine(Path.GetTempPath(), $"nonexistent-{Guid.NewGuid()}")));
+    }
+
+    // =========================================================
+    // IsJpegFile
+    // =========================================================
+
+    [Theory]
+    [InlineData("photo.jpg")]
+    [InlineData("photo.JPG")]
+    [InlineData("photo.jpeg")]
+    [InlineData("photo.JPEG")]
+    public void IsJpegFile_JpegExtension_ReturnsTrue(string fileName)
+        => Assert.True(_service.IsJpegFile(Path.Combine(@"C:\photos", fileName)));
+
+    [Theory]
+    [InlineData("photo.png")]
+    [InlineData("photo.heic")]
+    [InlineData("photo.tiff")]
+    [InlineData("noextension")]
+    [InlineData("")]
+    public void IsJpegFile_NonJpegExtension_ReturnsFalse(string fileName)
+        => Assert.False(_service.IsJpegFile(fileName));
+
+    // =========================================================
     // CreateFolder
     // =========================================================
 
