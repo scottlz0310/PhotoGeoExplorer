@@ -505,7 +505,7 @@ public sealed class FileOperationServiceTests
             Assert.False(summary.IsAllSuccess);
             Assert.Equal(1, summary.FailureCount);
             Assert.Equal(FileOperationError.AlreadyExists, summary.Failures[0].Error);
-            Assert.Equal("conflict", File.ReadAllText(conflictPath), "コピー先は上書きされていない");
+            Assert.Equal("conflict", File.ReadAllText(conflictPath));
         }
         finally
         {
