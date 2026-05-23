@@ -522,6 +522,9 @@
   <data name="StatusBar.Selected" xml:space="preserve">
     <value>選択: {0}</value>
   </data>
+  <data name="StatusBar.SelectedMultiple" xml:space="preserve">
+    <value>{0} 件を選択中</value>
+  </data>
   <data name="StatusBar.Items" xml:space="preserve">
     <value>{0} 件</value>
   </data>
@@ -704,8 +707,26 @@
   <data name="Menu.MoveToParent" xml:space="preserve">
     <value>親フォルダーへ移動</value>
   </data>
+  <data name="Menu.Copy" xml:space="preserve">
+    <value>コピー</value>
+  </data>
+  <data name="Menu.CopyPath" xml:space="preserve">
+    <value>パスをコピー</value>
+  </data>
+  <data name="Menu.OpenInExplorer" xml:space="preserve">
+    <value>ファイルの場所を開く</value>
+  </data>
+  <data name="Menu.OpenFolderInExplorer" xml:space="preserve">
+    <value>Explorer で開く</value>
+  </data>
+  <data name="Menu.OpenInGoogleMaps" xml:space="preserve">
+    <value>Google Maps で開く</value>
+  </data>
   <data name="Menu.Delete" xml:space="preserve">
     <value>削除</value>
+  </data>
+  <data name="Dialog.CopyFailed.Title" xml:space="preserve">
+    <value>コピーに失敗しました</value>
   </data>
   <data name="Dialog.MoveFailed.Title" xml:space="preserve">
     <value>移動に失敗しました</value>

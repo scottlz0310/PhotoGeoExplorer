@@ -522,6 +522,9 @@
   <data name="StatusBar.Selected" xml:space="preserve">
     <value>Selected: {0}</value>
   </data>
+  <data name="StatusBar.SelectedMultiple" xml:space="preserve">
+    <value>{0} items selected</value>
+  </data>
   <data name="StatusBar.Items" xml:space="preserve">
     <value>{0} items</value>
   </data>
@@ -704,8 +707,26 @@
   <data name="Menu.MoveToParent" xml:space="preserve">
     <value>Move to parent</value>
   </data>
+  <data name="Menu.Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Menu.CopyPath" xml:space="preserve">
+    <value>Copy Path</value>
+  </data>
+  <data name="Menu.OpenInExplorer" xml:space="preserve">
+    <value>Show in Explorer</value>
+  </data>
+  <data name="Menu.OpenFolderInExplorer" xml:space="preserve">
+    <value>Open in Explorer</value>
+  </data>
+  <data name="Menu.OpenInGoogleMaps" xml:space="preserve">
+    <value>Open in Google Maps</value>
+  </data>
   <data name="Menu.Delete" xml:space="preserve">
     <value>Delete</value>
+  </data>
+  <data name="Dialog.CopyFailed.Title" xml:space="preserve">
+    <value>Copy failed</value>
   </data>
   <data name="Dialog.MoveFailed.Title" xml:space="preserve">
     <value>Move failed</value>

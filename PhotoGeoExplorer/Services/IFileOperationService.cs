@@ -22,5 +22,6 @@ internal interface IFileOperationService
 
     // ファイル操作（複数件）
     FileOperationSummary MoveItems(IReadOnlyList<PhotoListItem> items, string destinationFolder);
+    FileOperationSummary CopyItems(IReadOnlyList<PhotoListItem> items, string destinationFolder);
     FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items);
 }
