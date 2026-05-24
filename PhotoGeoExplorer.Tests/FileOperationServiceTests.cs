@@ -472,7 +472,7 @@ public sealed class FileOperationServiceTests
         try
         {
             var srcPath = Path.Combine(tempDir, "photo.jpg");
-            File.WriteAllText(srcPath, "content");
+            await File.WriteAllTextAsync(srcPath, "content");
             var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
 
             var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Skip));
@@ -498,15 +498,15 @@ public sealed class FileOperationServiceTests
         {
             var srcPath = Path.Combine(tempDir, "photo.jpg");
             var conflictPath = Path.Combine(destDir, "photo.jpg");
-            File.WriteAllText(srcPath, "original");
-            File.WriteAllText(conflictPath, "conflict");
+            await File.WriteAllTextAsync(srcPath, "original");
+            await File.WriteAllTextAsync(conflictPath, "conflict");
             var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
 
             var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Skip));
 
             Assert.Equal(0, summary.SuccessCount);
             Assert.Equal(1, summary.SkipCount);
-            Assert.Equal("conflict", File.ReadAllText(conflictPath));
+            Assert.Equal("conflict", await File.ReadAllTextAsync(conflictPath));
         }
         finally
         {
@@ -524,15 +524,15 @@ public sealed class FileOperationServiceTests
         {
             var srcPath = Path.Combine(tempDir, "photo.jpg");
             var conflictPath = Path.Combine(destDir, "photo.jpg");
-            File.WriteAllText(srcPath, "original");
-            File.WriteAllText(conflictPath, "conflict");
+            await File.WriteAllTextAsync(srcPath, "original");
+            await File.WriteAllTextAsync(conflictPath, "conflict");
             var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
 
             var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Overwrite));
 
             Assert.Equal(1, summary.SuccessCount);
             Assert.Equal(0, summary.SkipCount);
-            Assert.Equal("original", File.ReadAllText(conflictPath));
+            Assert.Equal("original", await File.ReadAllTextAsync(conflictPath));
         }
         finally
         {
@@ -550,8 +550,8 @@ public sealed class FileOperationServiceTests
         {
             var srcPath = Path.Combine(tempDir, "photo.jpg");
             var conflictPath = Path.Combine(destDir, "photo.jpg");
-            File.WriteAllText(srcPath, "original");
-            File.WriteAllText(conflictPath, "conflict");
+            await File.WriteAllTextAsync(srcPath, "original");
+            await File.WriteAllTextAsync(conflictPath, "conflict");
             var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
 
             var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Cancel));
@@ -576,11 +576,11 @@ public sealed class FileOperationServiceTests
         {
             var src1 = Path.Combine(tempDir, "a.jpg");
             var src2 = Path.Combine(tempDir, "b.jpg");
-            File.WriteAllText(src1, "a");
-            File.WriteAllText(src2, "b");
+            await File.WriteAllTextAsync(src1, "a");
+            await File.WriteAllTextAsync(src2, "b");
             var items = new List<PhotoListItem> { CreateFileItem(src1), CreateFileItem(src2) };
             using var cts = new CancellationTokenSource();
-            cts.Cancel();
+            await cts.CancelAsync();
 
             var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Skip), cancellationToken: cts.Token);
 
