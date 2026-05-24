@@ -863,4 +863,10 @@
   <data name="CancelMoveButton.Content" xml:space="preserve">
     <value>Cancel</value>
   </data>
+  <data name="DragCaption.Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="DragCaption.Move" xml:space="preserve">
+    <value>Move</value>
+  </data>
 </root>
