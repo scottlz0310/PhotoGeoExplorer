@@ -1045,6 +1045,7 @@ public class FileBrowserPaneViewModelTests
         public FileOperationResult CreateFolderResult { get; set; } = FileOperationResult.Success("result");
         public FileOperationResult RenameItemResult { get; set; } = FileOperationResult.Success("result");
         public FileOperationSummary MoveItemsResult { get; set; } = new(1, Array.Empty<FileOperationFailure>());
+        public FileOperationSummary CopyItemsResult { get; set; } = new(1, Array.Empty<FileOperationFailure>());
         public FileOperationSummary DeleteItemsResult { get; set; } = new(1, Array.Empty<FileOperationFailure>());
         public string? ParentPath { get; set; } = Path.GetTempPath();
         public bool RenameItemWasCalled { get; private set; }
@@ -1089,6 +1090,7 @@ public class FileBrowserPaneViewModelTests
         }
 
         public FileOperationSummary MoveItems(IReadOnlyList<PhotoListItem> items, string destinationFolder) => MoveItemsResult;
+        public FileOperationSummary CopyItems(IReadOnlyList<PhotoListItem> items, string destinationFolder) => CopyItemsResult;
         public FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items) => DeleteItemsResult;
     }
 

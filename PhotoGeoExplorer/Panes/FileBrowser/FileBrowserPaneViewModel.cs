@@ -177,6 +177,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanNavigateUp));
                 OnPropertyChanged(nameof(CanCreateFolder));
                 OnPropertyChanged(nameof(CanMoveToParentSelection));
+                OnPropertyChanged(nameof(CanOpenInExplorer));
                 UpdateNavigationCommands();
                 RaiseFileOperationCommandCanExecuteChanged();
                 UpdateStatusBar();
@@ -400,6 +401,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanRenameSelection));
                 OnPropertyChanged(nameof(CanMoveToParentSelection));
                 OnPropertyChanged(nameof(CanEditExif));
+                OnPropertyChanged(nameof(CanCopySelection));
+                OnPropertyChanged(nameof(CanOpenInGoogleMaps));
                 RaiseFileOperationCommandCanExecuteChanged();
                 (EditExifCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
@@ -417,6 +420,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             {
                 OnSelectedItemChanged();
                 OnPropertyChanged(nameof(CanEditExif));
+                OnPropertyChanged(nameof(CanOpenInGoogleMaps));
                 (EditExifCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
@@ -528,6 +532,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
            && !string.IsNullOrWhiteSpace(CurrentFolderPath)
            && _fileOperationService.GetParentPath(CurrentFolderPath) is not null;
     public bool CanEditExif => SelectedCount == 1 && IsJpegFile(SelectedItem);
+    public bool CanCopySelection => SelectedCount > 0;
+    public bool CanOpenInExplorer => !string.IsNullOrWhiteSpace(CurrentFolderPath);
+    public bool CanOpenInGoogleMaps => SelectedCount == 1 && SelectedItem?.HasLocation == true;
+
+    internal PhotoMetadata? SelectedMetadata => _selectedMetadata;
 
     public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
     public string TakenAtSortIndicator => GetSortIndicator(FileSortColumn.TakenAt);
@@ -636,6 +645,13 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
 
         return summary;
+    }
+
+    internal Task<FileOperationSummary> ExecuteCopyItemsToFolderAsync(
+        IReadOnlyList<PhotoListItem> items, string destinationFolder)
+    {
+        var summary = _fileOperationService.CopyItems(items, destinationFolder);
+        return Task.FromResult(summary);
     }
 
     internal async Task<FileOperationSummary> ExecuteMoveToParentAsync()
@@ -1216,10 +1232,23 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             ? LocalizationService.GetString("StatusBar.NoFolderSelected")
             : CurrentFolderPath;
         var itemCount = Items.Count;
-        var selectedLabel = SelectedItem is null
-            ? null
-            : LocalizationService.Format("StatusBar.Selected", SelectedItem.FileName);
-        var resolutionLabel = SelectedItem is null || SelectedItem.IsFolder ? null : SelectedItem.ResolutionText;
+        string? selectedLabel;
+        if (SelectedCount == 0)
+        {
+            selectedLabel = null;
+        }
+        else if (SelectedCount == 1 && SelectedItem is not null)
+        {
+            selectedLabel = LocalizationService.Format("StatusBar.Selected", SelectedItem.FileName);
+        }
+        else
+        {
+            selectedLabel = LocalizationService.Format("StatusBar.SelectedMultiple", SelectedCount);
+        }
+
+        var resolutionLabel = SelectedCount == 1 && SelectedItem is not null && !SelectedItem.IsFolder
+            ? SelectedItem.ResolutionText
+            : null;
 
         var itemsLabel = LocalizationService.Format("StatusBar.Items", itemCount);
         var statusText = selectedLabel is null
@@ -1236,7 +1265,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     private void UpdateStatusBarLocation()
     {
-        if (SelectedItem is null || SelectedItem.IsFolder)
+        if (SelectedCount != 1 || SelectedItem is null || SelectedItem.IsFolder)
         {
             StatusBarLocationVisibility = Visibility.Collapsed;
             StatusBarLocationSymbol = Symbol.Map;

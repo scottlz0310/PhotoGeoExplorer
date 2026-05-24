@@ -562,6 +562,15 @@ internal sealed partial class FileBrowserPaneView : UserControl
             if (container is not null
                 && listView.ItemFromContainer(container) is PhotoListItem item)
             {
+                // 選択済み項目を右クリック → 複数選択状態を維持
+                // 未選択項目を右クリック → その項目のみ選択（Explorer 風）
+                if (!listView.SelectedItems.Contains(item))
+                {
+                    listView.SelectedItems.Clear();
+                    listView.SelectedItems.Add(item);
+                    ViewModel.UpdateSelection(new[] { item });
+                }
+
                 ViewModel.SelectedItem = item;
             }
             else
@@ -770,6 +779,116 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
     }
 
+    private void OnOpenInExplorerClicked(object sender, RoutedEventArgs e)
+    {
+        var item = ViewModel?.SelectedItem;
+        if (item is null)
+        {
+            return;
+        }
+
+        using var _ = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            Arguments = $"/select,\"{item.FilePath}\"",
+            UseShellExecute = true
+        });
+    }
+
+    private async void OnOpenFolderInExplorerClicked(object sender, RoutedEventArgs e)
+    {
+        var folderPath = ViewModel?.CurrentFolderPath;
+        if (string.IsNullOrWhiteSpace(folderPath))
+        {
+            return;
+        }
+
+        await Launcher.LaunchFolderPathAsync(folderPath);
+    }
+
+    private void OnCopyPathClicked(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null || ViewModel.SelectedItems.Count == 0)
+        {
+            return;
+        }
+
+        var paths = string.Join(Environment.NewLine, ViewModel.SelectedItems.Select(item => item.FilePath));
+        var dataPackage = new DataPackage();
+        dataPackage.SetText(paths);
+        Clipboard.SetContent(dataPackage);
+    }
+
+    private async void OnOpenInGoogleMapsClicked(object sender, RoutedEventArgs e)
+    {
+        var metadata = ViewModel?.SelectedMetadata;
+        if (metadata?.HasValidLocation != true)
+        {
+            return;
+        }
+
+        var url = $"https://www.google.com/maps?q={metadata.Latitude!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},{metadata.Longitude!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return;
+        }
+
+        try
+        {
+            await Launcher.LaunchUriAsync(uri);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException
+            or System.Runtime.InteropServices.COMException
+            or ArgumentException)
+        {
+            AppLog.Error("Failed to launch Google Maps URL.", ex);
+        }
+    }
+
+    private async void OnCopyClicked(object sender, RoutedEventArgs e)
+    {
+        await CopySelectionAsyncCore().ConfigureAwait(true);
+    }
+
+    private async Task CopySelectionAsyncCore()
+    {
+        if (ViewModel is null || ViewModel.SelectedItems.Count == 0)
+        {
+            return;
+        }
+
+        var destination = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
+        if (destination is null)
+        {
+            return;
+        }
+
+        var summary = await ViewModel.ExecuteCopyItemsToFolderAsync(ViewModel.SelectedItems, destination.Path)
+            .ConfigureAwait(true);
+        if (summary.HasFailures)
+        {
+            await ShowCopyOperationErrorDialogAsync(summary).ConfigureAwait(true);
+        }
+    }
+
+    private Task ShowCopyOperationErrorDialogAsync(FileOperationSummary summary)
+    {
+        var firstError = summary.Failures[0].Error;
+        var (title, message) = firstError switch
+        {
+            FileOperationError.AlreadyExists => (
+                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
+                LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")),
+            FileOperationError.Unauthorized => (
+                LocalizationService.GetString("Dialog.CopyFailed.Title"),
+                LocalizationService.GetString("Dialog.SeeLogDetail")),
+            _ => (
+                LocalizationService.GetString("Dialog.CopyFailed.Title"),
+                LocalizationService.GetString("Dialog.SeeLogDetail")),
+        };
+        return ShowMessageDialogAsync(title, message);
+    }
+
     private void OnDetailsSortClicked(object sender, RoutedEventArgs e)
     {
         if (ViewModel is null || sender is not Button button || button.Tag is not string tag)
@@ -904,6 +1023,38 @@ internal sealed partial class FileBrowserPaneView : UserControl
         };
         createFolder.Click += OnCreateFolderClicked;
 
+        var openInExplorerItem = new MenuFlyoutItem
+        {
+            Text = LocalizationService.GetString("Menu.OpenInExplorer"),
+            Icon = new SymbolIcon(Symbol.Document),
+            IsEnabled = viewModel.CanModifySelection
+        };
+        openInExplorerItem.Click += OnOpenInExplorerClicked;
+
+        var openFolderInExplorerItem = new MenuFlyoutItem
+        {
+            Text = LocalizationService.GetString("Menu.OpenFolderInExplorer"),
+            Icon = new SymbolIcon(Symbol.OpenWith),
+            IsEnabled = viewModel.CanOpenInExplorer
+        };
+        openFolderInExplorerItem.Click += OnOpenFolderInExplorerClicked;
+
+        var copyPathItem = new MenuFlyoutItem
+        {
+            Text = LocalizationService.GetString("Menu.CopyPath"),
+            Icon = new SymbolIcon(Symbol.Copy),
+            IsEnabled = viewModel.CanModifySelection
+        };
+        copyPathItem.Click += OnCopyPathClicked;
+
+        var openInGoogleMapsItem = new MenuFlyoutItem
+        {
+            Text = LocalizationService.GetString("Menu.OpenInGoogleMaps"),
+            Icon = new SymbolIcon(Symbol.Map),
+            IsEnabled = viewModel.CanOpenInGoogleMaps
+        };
+        openInGoogleMapsItem.Click += OnOpenInGoogleMapsClicked;
+
         var renameItem = new MenuFlyoutItem
         {
             Text = LocalizationService.GetString("Menu.Rename"),
@@ -928,6 +1079,14 @@ internal sealed partial class FileBrowserPaneView : UserControl
         };
         moveParentItem.Click += OnMoveToParentClicked;
 
+        var copyItem = new MenuFlyoutItem
+        {
+            Text = LocalizationService.GetString("Menu.Copy"),
+            Icon = new SymbolIcon(Symbol.Copy),
+            IsEnabled = viewModel.CanCopySelection
+        };
+        copyItem.Click += OnCopyClicked;
+
         var deleteItem = new MenuFlyoutItem
         {
             Text = LocalizationService.GetString("Menu.Delete"),
@@ -947,11 +1106,18 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
         flyout.Items.Add(createFolder);
         flyout.Items.Add(new MenuFlyoutSeparator());
+        flyout.Items.Add(openInExplorerItem);
+        flyout.Items.Add(openFolderInExplorerItem);
+        flyout.Items.Add(copyPathItem);
+        flyout.Items.Add(openInGoogleMapsItem);
+        flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(renameItem);
         flyout.Items.Add(moveItem);
         flyout.Items.Add(moveParentItem);
+        flyout.Items.Add(copyItem);
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(editExifItem);
+        flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(deleteItem);
 
         return flyout;

@@ -459,6 +459,115 @@ public sealed class FileOperationServiceTests
     }
 
     // =========================================================
+    // CopyItems
+    // =========================================================
+
+    [Fact]
+    public void CopyItems_SingleFile_ReturnsSuccessCount1AndSourceRemains()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            File.WriteAllText(srcPath, "content");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            var summary = _service.CopyItems(items, destDir);
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.True(summary.IsAllSuccess);
+            Assert.True(File.Exists(Path.Combine(destDir, "photo.jpg")));
+            Assert.True(File.Exists(srcPath), "コピー元は残っている");
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public void CopyItems_TargetAlreadyExists_ReturnsAlreadyExistsError()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            var conflictPath = Path.Combine(destDir, "photo.jpg");
+            File.WriteAllText(srcPath, "original");
+            File.WriteAllText(conflictPath, "conflict");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            var summary = _service.CopyItems(items, destDir);
+
+            Assert.False(summary.IsAllSuccess);
+            Assert.Equal(1, summary.FailureCount);
+            Assert.Equal(FileOperationError.AlreadyExists, summary.Failures[0].Error);
+            Assert.Equal("conflict", File.ReadAllText(conflictPath));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public void CopyItems_FolderIntoDescendant_ReturnsDescendantPathError()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var subDir = Path.Combine(tempDir, "sub");
+            Directory.CreateDirectory(subDir);
+            var items = new List<PhotoListItem> { CreateFolderItem(tempDir) };
+
+            var summary = _service.CopyItems(items, subDir);
+
+            Assert.False(summary.IsAllSuccess);
+            Assert.Equal(1, summary.FailureCount);
+            Assert.Equal(FileOperationError.DescendantPath, summary.Failures[0].Error);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public void CopyItems_MultipleFiles_ReturnsSuccessCountForAll()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var src1 = Path.Combine(tempDir, "a.jpg");
+            var src2 = Path.Combine(tempDir, "b.jpg");
+            File.WriteAllText(src1, "a");
+            File.WriteAllText(src2, "b");
+            var items = new List<PhotoListItem>
+            {
+                CreateFileItem(src1),
+                CreateFileItem(src2)
+            };
+
+            var summary = _service.CopyItems(items, destDir);
+
+            Assert.Equal(2, summary.SuccessCount);
+            Assert.True(summary.IsAllSuccess);
+            Assert.True(File.Exists(Path.Combine(destDir, "a.jpg")));
+            Assert.True(File.Exists(Path.Combine(destDir, "b.jpg")));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    // =========================================================
     // DeleteItems
     // =========================================================
 

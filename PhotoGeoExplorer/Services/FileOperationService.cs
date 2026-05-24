@@ -135,6 +135,72 @@ internal sealed class FileOperationService : IFileOperationService
         }
     }
 
+    public FileOperationSummary CopyItems(IReadOnlyList<PhotoListItem> items, string destinationFolder)
+    {
+        var successCount = 0;
+        var failures = new List<FileOperationFailure>();
+
+        foreach (var item in items)
+        {
+            var sourcePath = item.FilePath;
+            var targetPath = Path.Combine(destinationFolder, item.FileName);
+
+            if (item.IsFolder && IsDescendantPath(sourcePath, destinationFolder))
+            {
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.DescendantPath));
+                break;
+            }
+
+            if (ItemExistsAtPath(targetPath))
+            {
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.AlreadyExists));
+                break;
+            }
+
+            try
+            {
+                if (item.IsFolder)
+                {
+                    CopyDirectory(sourcePath, targetPath);
+                }
+                else
+                {
+                    File.Copy(sourcePath, targetPath, overwrite: false);
+                }
+
+                successCount++;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException)
+            {
+                AppLog.Error($"Failed to copy item: {sourcePath}", ex);
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.Unauthorized));
+                break;
+            }
+            catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException or PathTooLongException)
+            {
+                AppLog.Error($"Failed to copy item: {sourcePath}", ex);
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.IoError));
+                break;
+            }
+        }
+
+        return new FileOperationSummary(successCount, failures);
+    }
+
+    private static void CopyDirectory(string sourcePath, string targetPath)
+    {
+        Directory.CreateDirectory(targetPath);
+        foreach (var file in Directory.GetFiles(sourcePath))
+        {
+            File.Copy(file, Path.Combine(targetPath, Path.GetFileName(file)), overwrite: false);
+        }
+
+        foreach (var dir in Directory.GetDirectories(sourcePath))
+        {
+            CopyDirectory(dir, Path.Combine(targetPath, Path.GetFileName(dir)));
+        }
+    }
+
     public FileOperationSummary MoveItems(IReadOnlyList<PhotoListItem> items, string destinationFolder)
     {
         var successCount = 0;

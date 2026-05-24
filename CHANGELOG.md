@@ -4,7 +4,18 @@
 
 ## [Unreleased]
 
+### 追加
+- Explorer 風の複数選択と右クリック操作（#87）
+  - 右クリック選択挙動を Explorer 風に変更（選択済み項目→複数選択を維持 / 未選択項目→その項目のみ選択）。
+  - ステータスバーに複数選択時の件数表示（「N 件を選択中」）を追加。複数選択中はステータスバーの GPS アイコンを非表示に統一。
+  - 右クリックメニューに「ファイルの場所を開く」「Explorer で開く」「パスをコピー」「Google Maps で開く」「コピー」を追加。
+  - `FileOperationService.CopyItems` を追加し、選択ファイルを指定フォルダへコピーする基本機能を実装（上書き確認・進捗は #69 対応）。
+  - `FileOperationServiceTests` に `CopyItems` の単体テスト 3 件を追加。
+
 ### 修正
+- E2E ワークフローの Windows App SDK runtime 1.8 インストール手順を安定化（#101）。
+  - `windowsappruntimeinstall-x64.exe` を優先インストール方法として採用（winget の `0x80070002` エラー対策）。
+  - winget → msix 直接インストールの順でフォールバックする3段構成に変更。
 - E2E テスト `ExifEditorSaveAndReopenKeepsCoordinates` のフレーキー修正（#95）。
   - `OpenExifMenuForItemName` の catch 節に `NoClickablePointException` を追加。`listItem.RightClick()` が `NoClickablePointException` を投げると catch されずにテスト失敗していた問題を解消。
   - `TryScrollIntoView` / `WaitForElementClickable` ヘルパーを追加し、右クリック前にリスト項目を可視領域にスクロールして描画完了を待機するよう改善。
