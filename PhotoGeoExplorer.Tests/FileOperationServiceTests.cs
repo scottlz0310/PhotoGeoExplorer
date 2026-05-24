@@ -801,6 +801,119 @@ public sealed class FileOperationServiceTests
     }
 
     // =========================================================
+    // CopyItemsAsync
+    // =========================================================
+
+    [Fact]
+    public async Task CopyItemsAsync_SamePath_SkipsWithoutDeletingSource()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            await File.WriteAllTextAsync(srcPath, "content");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            // 同一フォルダへのコピーは同一パスになる
+            var summary = await _service.CopyItemsAsync(
+                items, tempDir, (_, _) => Task.FromResult(ConflictResolution.Overwrite));
+
+            Assert.Equal(0, summary.SuccessCount);
+            Assert.Equal(1, summary.SkipCount);
+            Assert.True(File.Exists(srcPath), "ソースファイルが削除されていないこと");
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task CopyItemsAsync_ConflictOverwrite_OverwritesExisting()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            var conflictPath = Path.Combine(destDir, "photo.jpg");
+            await File.WriteAllTextAsync(srcPath, "new");
+            await File.WriteAllTextAsync(conflictPath, "old");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            var summary = await _service.CopyItemsAsync(
+                items, destDir, (_, _) => Task.FromResult(ConflictResolution.Overwrite));
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.Equal("new", await File.ReadAllTextAsync(conflictPath));
+            Assert.True(File.Exists(srcPath), "コピー元は残っていること");
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public async Task CopyItemsAsync_ConflictSkip_LeavesExistingAndCounts()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            var conflictPath = Path.Combine(destDir, "photo.jpg");
+            await File.WriteAllTextAsync(srcPath, "new");
+            await File.WriteAllTextAsync(conflictPath, "old");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            var summary = await _service.CopyItemsAsync(
+                items, destDir, (_, _) => Task.FromResult(ConflictResolution.Skip));
+
+            Assert.Equal(0, summary.SuccessCount);
+            Assert.Equal(1, summary.SkipCount);
+            Assert.Equal("old", await File.ReadAllTextAsync(conflictPath));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public async Task CopyItemsAsync_Cancelled_StopsProcessing()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var src1 = Path.Combine(tempDir, "a.jpg");
+            var src2 = Path.Combine(tempDir, "b.jpg");
+            await File.WriteAllTextAsync(src1, "a");
+            await File.WriteAllTextAsync(src2, "b");
+            var items = new List<PhotoListItem> { CreateFileItem(src1), CreateFileItem(src2) };
+
+            using var cts = new CancellationTokenSource();
+            await cts.CancelAsync();
+
+            var summary = await _service.CopyItemsAsync(
+                items, destDir, (_, _) => Task.FromResult(ConflictResolution.Skip),
+                cancellationToken: cts.Token);
+
+            Assert.Equal(0, summary.SuccessCount);
+            Assert.True(summary.HasFailures);
+            Assert.Equal(FileOperationError.Cancelled, summary.Failures[0].Error);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    // =========================================================
     // DeleteItemsAsync
     // =========================================================
 

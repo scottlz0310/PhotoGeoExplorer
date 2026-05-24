@@ -510,9 +510,10 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 FileOperationSummary summary;
                 if (e.AcceptedOperation == DataPackageOperation.Copy)
                 {
-                    summary = await ViewModel.ExecuteCopyItemsToFolderAsync(selectedItems, targetFolder.FilePath)
+                    summary = await ViewModel.ExecuteCopyItemsToFolderAsync(
+                        selectedItems, targetFolder.FilePath, ShowCopyConflictDialogAsync)
                         .ConfigureAwait(true);
-                    if (summary.HasFailures)
+                    if (summary.HasFailures && summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
                     {
                         await ShowCopyOperationErrorDialogAsync(summary).ConfigureAwait(true);
                     }
@@ -790,8 +791,9 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
         var isCut = ViewModel.IsCutClipboard;
         var summary = await ViewModel.ExecutePasteAsync(
-            isCut ? ShowMoveConflictDialogAsync : null).ConfigureAwait(true);
-        if (summary.HasFailures)
+            resolveMoveConflictAsync: isCut ? ShowMoveConflictDialogAsync : null,
+            resolveCopyConflictAsync: isCut ? null : ShowCopyConflictDialogAsync).ConfigureAwait(true);
+        if (summary.HasFailures && summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
         {
             if (isCut)
             {
@@ -926,6 +928,69 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var skipAllButton = new Button
         {
             Content = LocalizationService.GetString("Dialog.MoveConflict.SkipAll"),
+        };
+
+        ConflictResolution? extraChoice = null;
+        overwriteAllButton.Click += (_, _) =>
+        {
+            extraChoice = ConflictResolution.OverwriteAll;
+            dialog.Hide();
+        };
+        skipAllButton.Click += (_, _) =>
+        {
+            extraChoice = ConflictResolution.SkipAll;
+            dialog.Hide();
+        };
+
+        dialog.Content = new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                new TextBlock { Text = detail, TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap },
+                new StackPanel
+                {
+                    Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal,
+                    Children = { overwriteAllButton, skipAllButton },
+                },
+            },
+        };
+
+        var result = await dialog.ShowAsync();
+        if (extraChoice.HasValue)
+        {
+            return extraChoice.Value;
+        }
+
+        return result switch
+        {
+            ContentDialogResult.Primary => ConflictResolution.Overwrite,
+            ContentDialogResult.Secondary => ConflictResolution.Skip,
+            _ => ConflictResolution.Cancel,
+        };
+    }
+
+    private async Task<ConflictResolution> ShowCopyConflictDialogAsync(string fileName, bool isFolder)
+    {
+        var detail = LocalizationService.Format("Dialog.CopyConflict.Detail", fileName);
+        var dialog = new ContentDialog
+        {
+            Title = LocalizationService.GetString("Dialog.CopyConflict.Title"),
+            Content = detail,
+            PrimaryButtonText = LocalizationService.GetString("Dialog.CopyConflict.Overwrite"),
+            SecondaryButtonText = LocalizationService.GetString("Dialog.CopyConflict.Skip"),
+            CloseButtonText = LocalizationService.GetString("Dialog.CopyConflict.Cancel"),
+            XamlRoot = XamlRoot,
+        };
+
+        var overwriteAllButton = new Button
+        {
+            Content = LocalizationService.GetString("Dialog.CopyConflict.OverwriteAll"),
+            Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 8, 0),
+        };
+        var skipAllButton = new Button
+        {
+            Content = LocalizationService.GetString("Dialog.CopyConflict.SkipAll"),
         };
 
         ConflictResolution? extraChoice = null;

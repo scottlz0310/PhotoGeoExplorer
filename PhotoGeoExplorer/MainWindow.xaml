@@ -191,6 +191,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <SymbolIcon
@@ -209,6 +210,13 @@
                         x:Uid="CancelMoveButton"
                         Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CancelMoveCommand}"
                         Visibility="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CancelMoveVisibility}"
+                        Padding="8,2"
+                        VerticalAlignment="Center" />
+                    <Button
+                        Grid.Column="2"
+                        x:Uid="CancelCopyButton"
+                        Command="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CancelCopyCommand}"
+                        Visibility="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CancelCopyVisibility}"
                         Padding="8,2"
                         VerticalAlignment="Center" />
                 </Grid>
