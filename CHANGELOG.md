@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-05-24
+
 ### 修正
 - Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+A がファイルリストで動作しない問題を修正（#110）
   - WinUI 3 の `ListView` が `Ctrl+C` 等を内部でハンドルするため、XAML `KeyDown` では届かなかった。
