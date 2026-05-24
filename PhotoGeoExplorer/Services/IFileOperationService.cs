@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.ViewModels;
 
@@ -22,6 +25,12 @@ internal interface IFileOperationService
 
     // ファイル操作（複数件）
     FileOperationSummary MoveItems(IReadOnlyList<PhotoListItem> items, string destinationFolder);
+    Task<FileOperationSummary> MoveItemsAsync(
+        IReadOnlyList<PhotoListItem> items,
+        string destinationFolder,
+        Func<string, bool, Task<ConflictResolution>> resolveConflictAsync,
+        IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default);
     FileOperationSummary CopyItems(IReadOnlyList<PhotoListItem> items, string destinationFolder);
     FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items);
 }

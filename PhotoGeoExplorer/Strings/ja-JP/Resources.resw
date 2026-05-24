@@ -830,4 +830,37 @@
   <data name="ToolTip.FullPath" xml:space="preserve">
     <value>パス</value>
   </data>
+  <data name="Dialog.MoveConflict.Title" xml:space="preserve">
+    <value>移動先に同名の項目があります</value>
+  </data>
+  <data name="Dialog.MoveConflict.Detail" xml:space="preserve">
+    <value>移動先に「{0}」が既に存在します。上書きしますか？</value>
+  </data>
+  <data name="Dialog.MoveConflict.Overwrite" xml:space="preserve">
+    <value>上書き</value>
+  </data>
+  <data name="Dialog.MoveConflict.OverwriteAll" xml:space="preserve">
+    <value>すべて上書き</value>
+  </data>
+  <data name="Dialog.MoveConflict.Skip" xml:space="preserve">
+    <value>スキップ</value>
+  </data>
+  <data name="Dialog.MoveConflict.SkipAll" xml:space="preserve">
+    <value>すべてスキップ</value>
+  </data>
+  <data name="Dialog.MoveConflict.Cancel" xml:space="preserve">
+    <value>中止</value>
+  </data>
+  <data name="Message.MoveProgress" xml:space="preserve">
+    <value>移動中… {0}/{1} 件</value>
+  </data>
+  <data name="Message.MoveDone" xml:space="preserve">
+    <value>移動完了: 成功 {0} 件、スキップ {1} 件、失敗 {2} 件</value>
+  </data>
+  <data name="Button.CancelMove" xml:space="preserve">
+    <value>中止</value>
+  </data>
+  <data name="CancelMoveButton.Content" xml:space="preserve">
+    <value>中止</value>
+  </data>
 </root>

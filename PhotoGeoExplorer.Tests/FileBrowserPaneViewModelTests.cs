@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using PhotoGeoExplorer.Models;
@@ -883,7 +884,7 @@ public class FileBrowserPaneViewModelTests
     {
         var failure = new FileOperationFailure("path", "photo.jpg", FileOperationError.AlreadyExists);
         using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
-        stubOp.MoveItemsResult = new FileOperationSummary(0, new[] { failure });
+        stubOp.MoveItemsResult = new FileOperationSummary(0, 0, new[] { failure });
 
         var summary = await vm.ExecuteMoveItemsToFolderAsync(new List<PhotoListItem>(), Path.GetTempPath());
 
@@ -900,7 +901,7 @@ public class FileBrowserPaneViewModelTests
         {
             var failure = new FileOperationFailure("path2", "file2.jpg", FileOperationError.AlreadyExists);
             using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
-            stubOp.MoveItemsResult = new FileOperationSummary(1, new[] { failure });
+            stubOp.MoveItemsResult = new FileOperationSummary(1, 0, new[] { failure });
             await vm.LoadFolderAsync(tempDir).ConfigureAwait(true);
             var before = fakePaneService.LoadFolderCallCount;
 
@@ -924,7 +925,7 @@ public class FileBrowserPaneViewModelTests
     {
         var failure = new FileOperationFailure("path", "locked.jpg", FileOperationError.IoError);
         using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
-        stubOp.DeleteItemsResult = new FileOperationSummary(0, new[] { failure });
+        stubOp.DeleteItemsResult = new FileOperationSummary(0, 0, new[] { failure });
 
         var summary = await vm.ExecuteDeleteItemsAsync(new List<PhotoListItem>());
 
@@ -940,7 +941,7 @@ public class FileBrowserPaneViewModelTests
         try
         {
             using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
-            stubOp.DeleteItemsResult = new FileOperationSummary(1, Array.Empty<FileOperationFailure>());
+            stubOp.DeleteItemsResult = new FileOperationSummary(1, 0, Array.Empty<FileOperationFailure>());
             await vm.LoadFolderAsync(tempDir).ConfigureAwait(true);
             var before = fakePaneService.LoadFolderCallCount;
 
@@ -1044,9 +1045,9 @@ public class FileBrowserPaneViewModelTests
     {
         public FileOperationResult CreateFolderResult { get; set; } = FileOperationResult.Success("result");
         public FileOperationResult RenameItemResult { get; set; } = FileOperationResult.Success("result");
-        public FileOperationSummary MoveItemsResult { get; set; } = new(1, Array.Empty<FileOperationFailure>());
-        public FileOperationSummary CopyItemsResult { get; set; } = new(1, Array.Empty<FileOperationFailure>());
-        public FileOperationSummary DeleteItemsResult { get; set; } = new(1, Array.Empty<FileOperationFailure>());
+        public FileOperationSummary MoveItemsResult { get; set; } = new(1, 0, Array.Empty<FileOperationFailure>());
+        public FileOperationSummary CopyItemsResult { get; set; } = new(1, 0, Array.Empty<FileOperationFailure>());
+        public FileOperationSummary DeleteItemsResult { get; set; } = new(1, 0, Array.Empty<FileOperationFailure>());
         public string? ParentPath { get; set; } = Path.GetTempPath();
         public bool RenameItemWasCalled { get; private set; }
 
@@ -1090,6 +1091,12 @@ public class FileBrowserPaneViewModelTests
         }
 
         public FileOperationSummary MoveItems(IReadOnlyList<PhotoListItem> items, string destinationFolder) => MoveItemsResult;
+        public Task<FileOperationSummary> MoveItemsAsync(
+            IReadOnlyList<PhotoListItem> items,
+            string destinationFolder,
+            Func<string, bool, Task<ConflictResolution>> resolveConflictAsync,
+            IProgress<int>? progress = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(MoveItemsResult);
         public FileOperationSummary CopyItems(IReadOnlyList<PhotoListItem> items, string destinationFolder) => CopyItemsResult;
         public FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items) => DeleteItemsResult;
     }

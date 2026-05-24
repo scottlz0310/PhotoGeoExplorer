@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
@@ -450,6 +452,140 @@ public sealed class FileOperationServiceTests
             Assert.True(summary.HasFailures);
             Assert.Equal(1, summary.FailureCount);
             Assert.Equal(FileOperationError.IoError, summary.Failures[0].Error);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    // =========================================================
+    // MoveItemsAsync
+    // =========================================================
+
+    [Fact]
+    public async Task MoveItemsAsync_SingleFile_ReturnsSuccessCount1()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            File.WriteAllText(srcPath, "content");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Skip));
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.Equal(0, summary.SkipCount);
+            Assert.True(summary.IsAllSuccess);
+            Assert.True(File.Exists(Path.Combine(destDir, "photo.jpg")));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public async Task MoveItemsAsync_Conflict_Skip_ReturnsSkipCount1()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            var conflictPath = Path.Combine(destDir, "photo.jpg");
+            File.WriteAllText(srcPath, "original");
+            File.WriteAllText(conflictPath, "conflict");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Skip));
+
+            Assert.Equal(0, summary.SuccessCount);
+            Assert.Equal(1, summary.SkipCount);
+            Assert.Equal("conflict", File.ReadAllText(conflictPath));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public async Task MoveItemsAsync_Conflict_Overwrite_ReplacesFile()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            var conflictPath = Path.Combine(destDir, "photo.jpg");
+            File.WriteAllText(srcPath, "original");
+            File.WriteAllText(conflictPath, "conflict");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Overwrite));
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.Equal(0, summary.SkipCount);
+            Assert.Equal("original", File.ReadAllText(conflictPath));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public async Task MoveItemsAsync_Conflict_Cancel_StopsAndReturnsCancelledError()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var srcPath = Path.Combine(tempDir, "photo.jpg");
+            var conflictPath = Path.Combine(destDir, "photo.jpg");
+            File.WriteAllText(srcPath, "original");
+            File.WriteAllText(conflictPath, "conflict");
+            var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
+
+            var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Cancel));
+
+            Assert.Equal(0, summary.SuccessCount);
+            Assert.Equal(1, summary.FailureCount);
+            Assert.Equal(FileOperationError.Cancelled, summary.Failures[0].Error);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public async Task MoveItemsAsync_CancellationToken_StopsEarly()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var src1 = Path.Combine(tempDir, "a.jpg");
+            var src2 = Path.Combine(tempDir, "b.jpg");
+            File.WriteAllText(src1, "a");
+            File.WriteAllText(src2, "b");
+            var items = new List<PhotoListItem> { CreateFileItem(src1), CreateFileItem(src2) };
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            var summary = await _service.MoveItemsAsync(items, destDir, (_, _) => Task.FromResult(ConflictResolution.Skip), cancellationToken: cts.Token);
+
+            Assert.Equal(1, summary.FailureCount);
+            Assert.Equal(FileOperationError.Cancelled, summary.Failures[0].Error);
         }
         finally
         {

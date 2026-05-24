@@ -82,6 +82,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private Func<Task>? _moveSelectionAction;
     private Func<Task>? _moveSelectionToParentAction;
     private Func<Task>? _deleteSelectionAction;
+    private CancellationTokenSource? _moveCts;
+    private int _moveTotal;
+    private int _moveCompleted;
+    private bool _isMoveInProgress;
+    private DispatcherQueueTimer? _moveProgressTimer;
 
     public FileBrowserPaneViewModel()
         : this(new FileBrowserPaneService(), new WorkspaceState())
@@ -162,6 +167,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         DeleteSelectionCommand = new RelayCommand(
             async () => await ExecuteUiActionAsync(_deleteSelectionAction).ConfigureAwait(false),
             () => _deleteSelectionAction is not null && CanModifySelection);
+        CancelMoveCommand = new RelayCommand(() => _moveCts?.Cancel(), () => IsMoveInProgress);
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -486,6 +492,22 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         private set => SetProperty(ref _statusBarText, value);
     }
 
+    public bool IsMoveInProgress
+    {
+        get => _isMoveInProgress;
+        private set
+        {
+            if (SetProperty(ref _isMoveInProgress, value))
+            {
+                OnPropertyChanged(nameof(CancelMoveVisibility));
+            }
+        }
+    }
+
+    public Visibility CancelMoveVisibility => _isMoveInProgress ? Visibility.Visible : Visibility.Collapsed;
+
+    public ICommand CancelMoveCommand { get; private set; }
+
     public Symbol StatusBarLocationSymbol
     {
         get => _statusBarLocationSymbol;
@@ -636,15 +658,83 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     }
 
     internal async Task<FileOperationSummary> ExecuteMoveItemsToFolderAsync(
-        IReadOnlyList<PhotoListItem> items, string destinationFolder)
+        IReadOnlyList<PhotoListItem> items,
+        string destinationFolder,
+        Func<string, bool, Task<ConflictResolution>>? resolveConflictAsync = null)
     {
-        var summary = _fileOperationService.MoveItems(items, destinationFolder);
-        if (summary.SuccessCount > 0)
+        if (resolveConflictAsync is null)
+        {
+            var summary = _fileOperationService.MoveItems(items, destinationFolder);
+            if (summary.SuccessCount > 0)
+            {
+                await RefreshAsync().ConfigureAwait(false);
+            }
+
+            return summary;
+        }
+
+        _moveCts = new CancellationTokenSource();
+        _moveTotal = items.Count;
+        _moveCompleted = 0;
+        IsMoveInProgress = true;
+        ((RelayCommand)CancelMoveCommand).NotifyCanExecuteChanged();
+
+        StartMoveProgressTimer();
+
+        FileOperationSummary result;
+        try
+        {
+            var progress = new Progress<int>(completed =>
+            {
+                Interlocked.Exchange(ref _moveCompleted, completed);
+            });
+
+            result = await _fileOperationService.MoveItemsAsync(
+                items, destinationFolder, resolveConflictAsync, progress, _moveCts.Token)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            StopMoveProgressTimer();
+            IsMoveInProgress = false;
+            ((RelayCommand)CancelMoveCommand).NotifyCanExecuteChanged();
+            _moveCts.Dispose();
+            _moveCts = null;
+        }
+
+        if (result.SuccessCount > 0)
         {
             await RefreshAsync().ConfigureAwait(false);
         }
 
-        return summary;
+        var doneText = LocalizationService.Format(
+            "Message.MoveDone", result.SuccessCount, result.SkipCount, result.FailureCount);
+        await RunOnUIThreadAsync(() => StatusBarText = doneText).ConfigureAwait(false);
+
+        return result;
+    }
+
+    private void StartMoveProgressTimer()
+    {
+        if (_dispatcherQueue is null) return;
+
+        _moveProgressTimer = _dispatcherQueue.CreateTimer();
+        _moveProgressTimer.Interval = TimeSpan.FromMilliseconds(300);
+        _moveProgressTimer.Tick += OnMoveProgressTick;
+        _moveProgressTimer.Start();
+    }
+
+    private void StopMoveProgressTimer()
+    {
+        _moveProgressTimer?.Stop();
+        _moveProgressTimer = null;
+    }
+
+    private void OnMoveProgressTick(DispatcherQueueTimer sender, object args)
+    {
+        var completed = Volatile.Read(ref _moveCompleted);
+        StatusBarText = LocalizationService.Format(
+            "Message.MoveProgress", completed, _moveTotal);
     }
 
     internal Task<FileOperationSummary> ExecuteCopyItemsToFolderAsync(
@@ -658,13 +748,13 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         if (string.IsNullOrWhiteSpace(CurrentFolderPath) || SelectedItems.Count == 0)
         {
-            return new FileOperationSummary(0, Array.Empty<FileOperationFailure>());
+            return new FileOperationSummary(0, 0, Array.Empty<FileOperationFailure>());
         }
 
         var parentPath = _fileOperationService.GetParentPath(CurrentFolderPath);
         if (parentPath is null)
         {
-            return new FileOperationSummary(0, Array.Empty<FileOperationFailure>());
+            return new FileOperationSummary(0, 0, Array.Empty<FileOperationFailure>());
         }
 
         return await ExecuteMoveItemsToFolderAsync(SelectedItems, parentPath).ConfigureAwait(false);
@@ -1044,6 +1134,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         CancelThumbnailGeneration();
         CancelMetadataLoad();
         CancelFolderLoad();
+        StopMoveProgressTimer();
+        _moveCts?.Cancel();
+        _moveCts?.Dispose();
         _thumbnailGenerationSemaphore.Dispose();
     }
 

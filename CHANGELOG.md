@@ -5,6 +5,16 @@
 ## [Unreleased]
 
 ### 追加
+- ファイル移動操作の強化（#69）
+  - 移動先に同名の項目がある場合に、上書き / スキップ / すべて上書き / すべてスキップ / 中止 の 5 択ダイアログを表示。
+  - 移動中はステータスバーに「移動中… N/M 件」をリアルタイム表示（300ms 間隔ポーリング）。
+  - 移動完了後に「移動完了: 成功 N 件、スキップ M 件、失敗 K 件」をステータスバーに表示。
+  - ステータスバー右端に「中止」ボタンを追加。移動中のみ表示し、クリックで `CancellationToken` をキャンセル。
+  - `IFileOperationService.MoveItemsAsync` を新規追加（非同期競合コールバック・`IProgress<int>`・`CancellationToken` 対応）。
+  - `ConflictResolution` enum を追加（`Overwrite`, `Skip`, `Cancel`, `OverwriteAll`, `SkipAll`）。
+  - `FileOperationError.Cancelled` を追加。
+  - `FileOperationSummary` に `SkipCount` を追加。
+  - `MoveItemsAsync` の単体テスト 5 件を追加。
 - Explorer 風の複数選択と右クリック操作（#87）
   - 右クリック選択挙動を Explorer 風に変更（選択済み項目→複数選択を維持 / 未選択項目→その項目のみ選択）。
   - ステータスバーに複数選択時の件数表示（「N 件を選択中」）を追加。複数選択中はステータスバーの GPS アイコンを非表示に統一。
