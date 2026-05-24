@@ -1099,6 +1099,53 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
+    public async Task ExecuteCopyItemsToFolderAsync_WithConflictCallback_ReturnsAsyncSummary()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.CopyItemsResult = new FileOperationSummary(2, 0, Array.Empty<FileOperationFailure>());
+            await vm.LoadFolderAsync(tempDir);
+            var before = fakePaneService.LoadFolderCallCount;
+            var items = new List<PhotoListItem> { CreatePhotoListItem("a.jpg"), CreatePhotoListItem("b.jpg") };
+
+            var summary = await vm.ExecuteCopyItemsToFolderAsync(
+                items, tempDir, (_, _) => Task.FromResult(ConflictResolution.Skip));
+
+            Assert.Equal(2, summary.SuccessCount);
+            Assert.Equal(before + 1, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ExecutePasteAsync_CopyOperation_WithConflictCallback_ReturnsSuccess()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out _, out var stubOp);
+            stubOp.CopyItemsResult = new FileOperationSummary(1, 0, Array.Empty<FileOperationFailure>());
+            await vm.LoadFolderAsync(tempDir);
+            vm.SetClipboard(new List<PhotoListItem> { CreatePhotoListItem("photo.jpg") }, ClipboardOperation.Copy);
+
+            var summary = await vm.ExecutePasteAsync(
+                resolveMoveConflictAsync: null,
+                resolveCopyConflictAsync: (_, _) => Task.FromResult(ConflictResolution.Skip));
+
+            Assert.Equal(1, summary.SuccessCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
     public async Task ExecutePasteAsync_CutOperation_CallsMoveItemsAndClearsClipboard()
     {
         var tempDir = CreateTempTestDirectory();
@@ -1315,6 +1362,12 @@ public class FileBrowserPaneViewModelTests
             IProgress<int>? progress = null,
             CancellationToken cancellationToken = default) => Task.FromResult(MoveItemsResult);
         public FileOperationSummary CopyItems(IReadOnlyList<PhotoListItem> items, string destinationFolder) => CopyItemsResult;
+        public Task<FileOperationSummary> CopyItemsAsync(
+            IReadOnlyList<PhotoListItem> items,
+            string destinationFolder,
+            Func<string, bool, Task<ConflictResolution>> resolveConflictAsync,
+            IProgress<int>? progress = null,
+            CancellationToken cancellationToken = default) => Task.FromResult(CopyItemsResult);
         public Task<FileOperationSummary> DeleteItemsAsync(IReadOnlyList<PhotoListItem> items) => Task.FromResult(DeleteItemsResult);
     }
 

@@ -237,6 +237,14 @@ internal sealed class FileOperationService : IFileOperationService
                 continue;
             }
 
+            // 同一パスへのコピーは上書きするとソースを失うため無条件スキップ
+            if (IsSamePath(sourcePath, targetPath))
+            {
+                skipCount++;
+                progress?.Report(i + 1);
+                continue;
+            }
+
             if (ItemExistsAtPath(targetPath))
             {
                 ConflictResolution resolution;
