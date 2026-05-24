@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.ViewModels;
 
@@ -184,7 +186,7 @@ internal sealed class FileOperationService : IFileOperationService
             }
         }
 
-        return new FileOperationSummary(successCount, failures);
+        return new FileOperationSummary(successCount, 0, failures);
     }
 
     private static void CopyDirectory(string sourcePath, string targetPath)
@@ -262,7 +264,149 @@ internal sealed class FileOperationService : IFileOperationService
             }
         }
 
-        return new FileOperationSummary(successCount, failures);
+        return new FileOperationSummary(successCount, 0, failures);
+    }
+
+    public async Task<FileOperationSummary> MoveItemsAsync(
+        IReadOnlyList<PhotoListItem> items,
+        string destinationFolder,
+        Func<string, bool, Task<ConflictResolution>> resolveConflictAsync,
+        IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var successCount = 0;
+        var skipCount = 0;
+        var failures = new List<FileOperationFailure>();
+        var overwriteAll = false;
+        var skipAll = false;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                failures.Add(new FileOperationFailure(items[i].FilePath, items[i].FileName, FileOperationError.Cancelled));
+                break;
+            }
+
+            var item = items[i];
+            var sourcePath = item.FilePath;
+            var parent = Path.GetDirectoryName(sourcePath);
+            if (string.IsNullOrWhiteSpace(parent))
+            {
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.NoParent));
+                continue;
+            }
+
+            if (IsSamePath(parent, destinationFolder))
+            {
+                progress?.Report(i + 1);
+                continue;
+            }
+
+            if (item.IsFolder && IsDescendantPath(sourcePath, destinationFolder))
+            {
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.DescendantPath));
+                continue;
+            }
+
+            var targetPath = Path.Combine(destinationFolder, item.FileName);
+            if (ItemExistsAtPath(targetPath))
+            {
+                ConflictResolution resolution;
+                if (overwriteAll)
+                {
+                    resolution = ConflictResolution.Overwrite;
+                }
+                else if (skipAll)
+                {
+                    resolution = ConflictResolution.Skip;
+                }
+                else
+                {
+                    resolution = await resolveConflictAsync(item.FileName, item.IsFolder).ConfigureAwait(false);
+                    if (resolution == ConflictResolution.OverwriteAll)
+                    {
+                        overwriteAll = true;
+                        resolution = ConflictResolution.Overwrite;
+                    }
+                    else if (resolution == ConflictResolution.SkipAll)
+                    {
+                        skipAll = true;
+                        resolution = ConflictResolution.Skip;
+                    }
+                }
+
+                if (resolution == ConflictResolution.Cancel)
+                {
+                    failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.Cancelled));
+                    break;
+                }
+
+                if (resolution == ConflictResolution.Skip)
+                {
+                    skipCount++;
+                    progress?.Report(i + 1);
+                    continue;
+                }
+
+                // Overwrite: 上書き移動
+                try
+                {
+                    if (item.IsFolder)
+                    {
+                        // フォルダ上書き: 既存を削除してから移動
+                        Directory.Delete(targetPath, recursive: true);
+                    }
+                    else
+                    {
+                        File.Delete(targetPath);
+                    }
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException)
+                {
+                    AppLog.Error($"Failed to delete existing item for overwrite: {targetPath}", ex);
+                    failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.Unauthorized));
+                    progress?.Report(i + 1);
+                    continue;
+                }
+                catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException or PathTooLongException)
+                {
+                    AppLog.Error($"Failed to delete existing item for overwrite: {targetPath}", ex);
+                    failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.IoError));
+                    progress?.Report(i + 1);
+                    continue;
+                }
+            }
+
+            try
+            {
+                if (item.IsFolder)
+                {
+                    Directory.Move(sourcePath, targetPath);
+                }
+                else
+                {
+                    File.Move(sourcePath, targetPath);
+                }
+
+                successCount++;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException)
+            {
+                AppLog.Error($"Failed to move item: {sourcePath}", ex);
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.Unauthorized));
+            }
+            catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException or PathTooLongException)
+            {
+                AppLog.Error($"Failed to move item: {sourcePath}", ex);
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.IoError));
+            }
+
+            progress?.Report(i + 1);
+        }
+
+        AppLog.Info($"MoveItemsAsync: success={successCount}, skip={skipCount}, failure={failures.Count}");
+        return new FileOperationSummary(successCount, skipCount, failures);
     }
 
     public FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items)
@@ -305,6 +449,6 @@ internal sealed class FileOperationService : IFileOperationService
             }
         }
 
-        return new FileOperationSummary(successCount, failures);
+        return new FileOperationSummary(successCount, 0, failures);
     }
 }

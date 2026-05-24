@@ -9,4 +9,5 @@ internal enum FileOperationError
     NoParent,
     IoError,
     Unauthorized,
+    Cancelled,
 }

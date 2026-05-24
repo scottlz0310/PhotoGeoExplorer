@@ -720,12 +720,77 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(ViewModel.SelectedItems, destination.Path)
+        var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(
+            ViewModel.SelectedItems, destination.Path, ShowMoveConflictDialogAsync)
             .ConfigureAwait(true);
-        if (summary.HasFailures)
+        if (summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
         {
             await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
         }
+    }
+
+    private async Task<ConflictResolution> ShowMoveConflictDialogAsync(string fileName, bool isFolder)
+    {
+        var detail = LocalizationService.Format("Dialog.MoveConflict.Detail", fileName);
+        var dialog = new ContentDialog
+        {
+            Title = LocalizationService.GetString("Dialog.MoveConflict.Title"),
+            Content = detail,
+            PrimaryButtonText = LocalizationService.GetString("Dialog.MoveConflict.Overwrite"),
+            SecondaryButtonText = LocalizationService.GetString("Dialog.MoveConflict.Skip"),
+            CloseButtonText = LocalizationService.GetString("Dialog.MoveConflict.Cancel"),
+            XamlRoot = XamlRoot,
+        };
+
+        // StackPanel で「すべて上書き」「すべてスキップ」ボタンを追加
+        var overwriteAllButton = new Button
+        {
+            Content = LocalizationService.GetString("Dialog.MoveConflict.OverwriteAll"),
+            Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 8, 0),
+        };
+        var skipAllButton = new Button
+        {
+            Content = LocalizationService.GetString("Dialog.MoveConflict.SkipAll"),
+        };
+
+        ConflictResolution? extraChoice = null;
+        overwriteAllButton.Click += (_, _) =>
+        {
+            extraChoice = ConflictResolution.OverwriteAll;
+            dialog.Hide();
+        };
+        skipAllButton.Click += (_, _) =>
+        {
+            extraChoice = ConflictResolution.SkipAll;
+            dialog.Hide();
+        };
+
+        dialog.Content = new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                new TextBlock { Text = detail, TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap },
+                new StackPanel
+                {
+                    Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal,
+                    Children = { overwriteAllButton, skipAllButton },
+                },
+            },
+        };
+
+        var result = await dialog.ShowAsync();
+        if (extraChoice.HasValue)
+        {
+            return extraChoice.Value;
+        }
+
+        return result switch
+        {
+            ContentDialogResult.Primary => ConflictResolution.Overwrite,
+            ContentDialogResult.Secondary => ConflictResolution.Skip,
+            _ => ConflictResolution.Cancel,
+        };
     }
 
     private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
