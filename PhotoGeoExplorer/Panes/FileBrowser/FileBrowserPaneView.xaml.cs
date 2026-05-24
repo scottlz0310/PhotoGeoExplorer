@@ -696,7 +696,8 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         var isCut = ViewModel.IsCutClipboard;
-        var summary = await ViewModel.ExecutePasteAsync().ConfigureAwait(true);
+        var summary = await ViewModel.ExecutePasteAsync(
+            isCut ? ShowMoveConflictDialogAsync : null).ConfigureAwait(true);
         if (summary.HasFailures)
         {
             if (isCut)

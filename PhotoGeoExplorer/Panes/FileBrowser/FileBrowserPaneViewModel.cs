@@ -763,7 +763,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsCutClipboard));
     }
 
-    internal async Task<FileOperationSummary> ExecutePasteAsync()
+    internal async Task<FileOperationSummary> ExecutePasteAsync(
+        Func<string, bool, Task<ConflictResolution>>? resolveConflictAsync = null)
     {
         if (_clipboardItems.Count == 0 || string.IsNullOrWhiteSpace(CurrentFolderPath))
         {
@@ -772,14 +773,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         var items = _clipboardItems.ToList();
         var operation = _clipboardOperation;
-
-        if (operation == ClipboardOperation.Cut)
-        {
-            _clipboardItems = Array.Empty<PhotoListItem>();
-            _clipboardOperation = ClipboardOperation.None;
-            OnPropertyChanged(nameof(CanPasteSelection));
-            OnPropertyChanged(nameof(IsCutClipboard));
-        }
 
         if (operation == ClipboardOperation.Copy)
         {
@@ -792,7 +785,16 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             return summary;
         }
 
-        return await ExecuteMoveItemsToFolderAsync(items, CurrentFolderPath!).ConfigureAwait(false);
+        var moveResult = await ExecuteMoveItemsToFolderAsync(items, CurrentFolderPath!, resolveConflictAsync).ConfigureAwait(false);
+        if (moveResult.FailureCount == 0 && moveResult.SkipCount == 0)
+        {
+            _clipboardItems = Array.Empty<PhotoListItem>();
+            _clipboardOperation = ClipboardOperation.None;
+            OnPropertyChanged(nameof(CanPasteSelection));
+            OnPropertyChanged(nameof(IsCutClipboard));
+        }
+
+        return moveResult;
     }
 
     internal async Task<FileOperationSummary> ExecuteMoveToParentAsync()
