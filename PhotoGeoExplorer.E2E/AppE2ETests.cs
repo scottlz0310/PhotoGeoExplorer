@@ -216,21 +216,24 @@ public sealed class AppE2ETests
             timeout: TimeSpan.FromSeconds(20),
             interval: TimeSpan.FromMilliseconds(200));
 
-        // アイテムが画面に描画されるまで安定化を待つ（CI ランナーの描画遅延対策）
+        // 先頭アイテムだけでなく minimumCount 件すべての描画完了を待つ（CI ランナーの描画遅延対策）
         Retry.WhileTrue(
             () =>
             {
-                var firstItem = list.Items.FirstOrDefault();
-                if (firstItem is null)
+                var items = list.Items;
+                if (items.Length < minimumCount)
                 {
                     return true;
                 }
 
-                var width = SafeGet(() => firstItem.BoundingRectangle.Width, 0d);
-                var height = SafeGet(() => firstItem.BoundingRectangle.Height, 0d);
-                return width <= 1 || height <= 1;
+                return items.Take(minimumCount).Any(item =>
+                {
+                    var width = SafeGet(() => item.BoundingRectangle.Width, 0d);
+                    var height = SafeGet(() => item.BoundingRectangle.Height, 0d);
+                    return width <= 1 || height <= 1;
+                });
             },
-            timeout: TimeSpan.FromSeconds(5),
+            timeout: TimeSpan.FromSeconds(8),
             interval: TimeSpan.FromMilliseconds(100),
             throwOnTimeout: false);
     }
@@ -320,7 +323,7 @@ public sealed class AppE2ETests
                 ClickElementCenter(listItem);
 
                 Keyboard.Type(VirtualKeyShort.APPS);
-                var byAppsKey = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(3));
+                var byAppsKey = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(5));
                 if (byAppsKey is not null)
                 {
                     return byAppsKey;
@@ -329,28 +332,28 @@ public sealed class AppE2ETests
                 // listItem.RightClick() は NoClickablePointException を投げる可能性があるため
                 // 安全な RightClickElementCenter を使用する
                 RightClickElementCenter(listItem);
-                var byRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(3));
+                var byRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(5));
                 if (byRightClick is not null)
                 {
                     return byRightClick;
                 }
 
                 RightClickElementCenter(listItem);
-                var byMouseRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(3));
+                var byMouseRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(5));
                 if (byMouseRightClick is not null)
                 {
                     return byMouseRightClick;
                 }
 
                 list.RightClick();
-                var byListRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(2));
+                var byListRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(4));
                 if (byListRightClick is not null)
                 {
                     return byListRightClick;
                 }
 
                 Keyboard.TypeSimultaneously(VirtualKeyShort.SHIFT, VirtualKeyShort.F10);
-                var byShiftF10 = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(2));
+                var byShiftF10 = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(4));
                 if (byShiftF10 is not null)
                 {
                     return byShiftF10;
@@ -416,7 +419,7 @@ public sealed class AppE2ETests
                 var height = SafeGet(() => element.BoundingRectangle.Height, 0d);
                 return width <= 1 || height <= 1;
             },
-            timeout: TimeSpan.FromSeconds(3),
+            timeout: TimeSpan.FromSeconds(8),
             interval: TimeSpan.FromMilliseconds(100),
             throwOnTimeout: false);
     }
