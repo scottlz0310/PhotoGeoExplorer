@@ -167,7 +167,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         DeleteSelectionCommand = new RelayCommand(
             async () => await ExecuteUiActionAsync(_deleteSelectionAction).ConfigureAwait(false),
             () => _deleteSelectionAction is not null && CanModifySelection);
-        CancelMoveCommand = new RelayCommand(() => _moveCts?.Cancel(), () => IsMoveInProgress);
+        CancelMoveCommand = new RelayCommand(async () => { _moveCts?.Cancel(); await Task.CompletedTask.ConfigureAwait(false); }, () => IsMoveInProgress);
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -677,7 +677,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _moveTotal = items.Count;
         _moveCompleted = 0;
         IsMoveInProgress = true;
-        ((RelayCommand)CancelMoveCommand).NotifyCanExecuteChanged();
+        ((RelayCommand)CancelMoveCommand).RaiseCanExecuteChanged();
 
         StartMoveProgressTimer();
 
@@ -696,14 +696,13 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
             result = await Task.Run(() => _fileOperationService.MoveItemsAsync(
                 items, destinationFolder, marshalledCallback, progress, _moveCts.Token))
-                .Unwrap()
                 .ConfigureAwait(false);
         }
         finally
         {
             StopMoveProgressTimer();
             IsMoveInProgress = false;
-            ((RelayCommand)CancelMoveCommand).NotifyCanExecuteChanged();
+            ((RelayCommand)CancelMoveCommand).RaiseCanExecuteChanged();
             _moveCts.Dispose();
             _moveCts = null;
         }
