@@ -32,5 +32,5 @@ internal interface IFileOperationService
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default);
     FileOperationSummary CopyItems(IReadOnlyList<PhotoListItem> items, string destinationFolder);
-    FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items);
+    Task<FileOperationSummary> DeleteItemsAsync(IReadOnlyList<PhotoListItem> items);
 }

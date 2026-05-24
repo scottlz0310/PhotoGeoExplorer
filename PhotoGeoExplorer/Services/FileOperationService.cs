@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.ViewModels;
+using Windows.Storage;
 
 namespace PhotoGeoExplorer.Services;
 
@@ -409,7 +411,7 @@ internal sealed class FileOperationService : IFileOperationService
         return new FileOperationSummary(successCount, skipCount, failures);
     }
 
-    public FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items)
+    public async Task<FileOperationSummary> DeleteItemsAsync(IReadOnlyList<PhotoListItem> items)
     {
         var successCount = 0;
         var failures = new List<FileOperationFailure>();
@@ -426,11 +428,13 @@ internal sealed class FileOperationService : IFileOperationService
             {
                 if (item.IsFolder)
                 {
-                    Directory.Delete(item.FilePath, recursive: true);
+                    var folder = await StorageFolder.GetFolderFromPathAsync(item.FilePath);
+                    await folder.DeleteAsync(StorageDeleteOption.Default);
                 }
                 else
                 {
-                    File.Delete(item.FilePath);
+                    var file = await StorageFile.GetFileFromPathAsync(item.FilePath);
+                    await file.DeleteAsync(StorageDeleteOption.Default);
                 }
 
                 successCount++;
@@ -439,6 +443,12 @@ internal sealed class FileOperationService : IFileOperationService
             {
                 AppLog.Error($"Failed to delete item: {item.FilePath}", ex);
                 failures.Add(new FileOperationFailure(item.FilePath, item.FileName, FileOperationError.Unauthorized));
+                break;
+            }
+            catch (Exception ex) when (ex is COMException or FileNotFoundException)
+            {
+                AppLog.Error($"Failed to delete item: {item.FilePath}", ex);
+                failures.Add(new FileOperationFailure(item.FilePath, item.FileName, FileOperationError.IoError));
                 break;
             }
             catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException or PathTooLongException)

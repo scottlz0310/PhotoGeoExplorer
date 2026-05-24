@@ -816,7 +816,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     internal async Task<FileOperationSummary> ExecuteDeleteItemsAsync(
         IReadOnlyList<PhotoListItem> items)
     {
-        var summary = _fileOperationService.DeleteItems(items);
+        var summary = await _fileOperationService.DeleteItemsAsync(items).ConfigureAwait(false);
         if (summary.SuccessCount > 0)
         {
             await RefreshAsync().ConfigureAwait(false);

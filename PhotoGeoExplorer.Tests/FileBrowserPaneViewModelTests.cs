@@ -1315,7 +1315,7 @@ public class FileBrowserPaneViewModelTests
             IProgress<int>? progress = null,
             CancellationToken cancellationToken = default) => Task.FromResult(MoveItemsResult);
         public FileOperationSummary CopyItems(IReadOnlyList<PhotoListItem> items, string destinationFolder) => CopyItemsResult;
-        public FileOperationSummary DeleteItems(IReadOnlyList<PhotoListItem> items) => DeleteItemsResult;
+        public Task<FileOperationSummary> DeleteItemsAsync(IReadOnlyList<PhotoListItem> items) => Task.FromResult(DeleteItemsResult);
     }
 
     private static PhotoListItem CreatePhotoListItem(string fileName)
