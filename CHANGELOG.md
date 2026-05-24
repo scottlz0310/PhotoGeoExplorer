@@ -13,6 +13,10 @@
   - `FileOperationServiceTests` に `CopyItems` の単体テスト 3 件を追加。
 
 ### 修正
+- E2E テスト コンテキストメニュー取得のフレーキーを追加修正（#95 継続）。
+  - `WaitForListItems` を先頭アイテムだけでなく指定件数すべての BoundingRectangle が有効になるまで待機するよう強化（タイムアウト 5s → 8s）。
+  - `WaitForElementClickable` のタイムアウトを 3s → 8s に延長し、CI ランナー描画遅延への耐性を向上。
+  - `TryWaitForEditExifMenuItem` の各試行タイムアウトを 3s/2s → 5s/4s に延長。
 - E2E ワークフローの Windows App SDK runtime 1.8 インストール手順を安定化（#101）。
   - `windowsappruntimeinstall-x64.exe` を優先インストール方法として採用（winget の `0x80070002` エラー対策）。
   - winget → msix 直接インストールの順でフォールバックする3段構成に変更。
