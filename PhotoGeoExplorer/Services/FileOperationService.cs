@@ -145,6 +145,12 @@ internal sealed class FileOperationService : IFileOperationService
             var sourcePath = item.FilePath;
             var targetPath = Path.Combine(destinationFolder, item.FileName);
 
+            if (item.IsFolder && IsDescendantPath(sourcePath, destinationFolder))
+            {
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.DescendantPath));
+                break;
+            }
+
             if (ItemExistsAtPath(targetPath))
             {
                 failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.AlreadyExists));
