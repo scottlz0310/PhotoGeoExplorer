@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Input;
@@ -602,7 +604,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
                             : await StorageFile.GetFileFromPathAsync(item.FilePath);
                         storageItems.Add(storageItem);
                     }
-                    catch (Exception) { }
+                    catch (Exception ex) when (ex is FileNotFoundException or UnauthorizedAccessException or IOException or COMException) { }
                 }
 
                 request.SetData(storageItems);
