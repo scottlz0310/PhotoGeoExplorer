@@ -30,6 +30,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
     private const string DetailsColumnTakenAtTag = "TakenAt";
     private const string DetailsColumnLocationTag = "Location";
     private List<PhotoListItem>? _dragItems;
+    private bool _wasInternalDrop;
     private bool _suppressBreadcrumbNavigation;
     private bool _isWaitingForXamlRoot;
     private FileBrowserPaneViewModel? _previousViewModel;
@@ -402,9 +403,16 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        e.AcceptedOperation = TryGetBreadcrumbTarget(breadcrumbBar, e, out _)
+        var accepted = TryGetBreadcrumbTarget(breadcrumbBar, e, out _)
             ? DataPackageOperation.Move
             : DataPackageOperation.None;
+
+        e.AcceptedOperation = accepted;
+        if (accepted != DataPackageOperation.None)
+        {
+            e.DragUIOverride.Caption = "移動";
+            e.DragUIOverride.IsCaptionVisible = true;
+        }
 
         e.Handled = true;
     }
@@ -426,6 +434,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
+        _wasInternalDrop = true;
         var items = _dragItems ?? ViewModel.SelectedItems;
         var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(items, target.FullPath).ConfigureAwait(true);
         if (summary.HasFailures)
@@ -444,18 +453,34 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 return;
             }
 
-            e.AcceptedOperation = sender is ListViewBase listView
-                && TryGetDropTargetFolder(listView, RootGrid, e, out _)
-                ? DataPackageOperation.Move
-                : DataPackageOperation.None;
+            if (sender is ListViewBase listView && TryGetDropTargetFolder(listView, RootGrid, e, out _))
+            {
+                var ctrlState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
+                var isCopy = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
+                e.AcceptedOperation = isCopy ? DataPackageOperation.Copy : DataPackageOperation.Move;
+                e.DragUIOverride.Caption = isCopy ? "コピー" : "移動";
+                e.DragUIOverride.IsCaptionVisible = true;
+            }
+            else
+            {
+                e.AcceptedOperation = DataPackageOperation.None;
+            }
 
             e.Handled = true;
             return;
         }
 
-        e.AcceptedOperation = e.DataView.Contains(StandardDataFormats.StorageItems)
-            ? DataPackageOperation.Copy
-            : DataPackageOperation.None;
+        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.Caption = "コピー";
+            e.DragUIOverride.IsCaptionVisible = true;
+        }
+        else
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+        }
+
         e.Handled = true;
     }
 
@@ -476,12 +501,26 @@ internal sealed partial class FileBrowserPaneView : UserControl
             if (sender is ListViewBase listView
                 && TryGetDropTargetFolder(listView, RootGrid, e, out var targetFolder))
             {
+                _wasInternalDrop = true;
                 var selectedItems = _dragItems ?? ViewModel.SelectedItems;
-                var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(selectedItems, targetFolder.FilePath)
-                    .ConfigureAwait(true);
-                if (summary.HasFailures)
+                FileOperationSummary summary;
+                if (e.AcceptedOperation == DataPackageOperation.Copy)
                 {
-                    await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+                    summary = await ViewModel.ExecuteCopyItemsToFolderAsync(selectedItems, targetFolder.FilePath)
+                        .ConfigureAwait(true);
+                    if (summary.HasFailures)
+                    {
+                        await ShowCopyOperationErrorDialogAsync(summary).ConfigureAwait(true);
+                    }
+                }
+                else
+                {
+                    summary = await ViewModel.ExecuteMoveItemsToFolderAsync(selectedItems, targetFolder.FilePath)
+                        .ConfigureAwait(true);
+                    if (summary.HasFailures)
+                    {
+                        await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+                    }
                 }
             }
 
@@ -541,13 +580,55 @@ internal sealed partial class FileBrowserPaneView : UserControl
         {
             _dragItems = ViewModel.SelectedItems.ToList();
         }
-        e.Data.RequestedOperation = DataPackageOperation.Move;
+
+        // Copy と Move の両方を提供することで、外部アプリがドライブ情報に基づき操作を決定できる
+        e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
         e.Data.Properties[InternalDragKey] = true;
+
+        // ドラッグアウト: StorageItems を遅延提供して Explorer や他アプリが受け取れるようにする
+        var capturedItems = _dragItems.ToList();
+        e.Data.SetDataProvider(StandardDataFormats.StorageItems, async request =>
+        {
+            var deferral = request.GetDeferral();
+            try
+            {
+                var storageItems = new List<IStorageItem>();
+                foreach (var item in capturedItems)
+                {
+                    try
+                    {
+                        IStorageItem storageItem = item.IsFolder
+                            ? await StorageFolder.GetFolderFromPathAsync(item.FilePath)
+                            : await StorageFile.GetFileFromPathAsync(item.FilePath);
+                        storageItems.Add(storageItem);
+                    }
+                    catch (Exception) { }
+                }
+
+                request.SetData(storageItems);
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        });
     }
 
-    private void OnFileItemsDragCompleted(object sender, DragItemsCompletedEventArgs e)
+    private async void OnFileItemsDragCompleted(object sender, DragItemsCompletedEventArgs e)
     {
+        var items = _dragItems;
+        var wasInternal = _wasInternalDrop;
         _dragItems = null;
+        _wasInternalDrop = false;
+
+        // 外部アプリへの Move 完了後にリストを更新して移動済みアイテムを除去する
+        if (ViewModel is not null
+            && items is { Count: > 0 }
+            && e.DropResult == DataPackageOperation.Move
+            && !wasInternal)
+        {
+            await ViewModel.RefreshAsync().ConfigureAwait(false);
+        }
     }
 
     private void OnFileListRightTapped(object sender, RightTappedRoutedEventArgs e)

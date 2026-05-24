@@ -12,6 +12,12 @@
   - UI 文言を「削除」から「ゴミ箱へ移動」に統一（メニュー・確認ダイアログ・エラーダイアログ）。
 
 ### 追加
+- Explorer 風のドラッグアウト対応（#89）
+  - `DragItemsStarting` で `SetDataProvider(StorageItems)` を追加し、Explorer や他アプリへのドラッグアウトを実現。
+  - `RequestedOperation = Copy | Move` に変更して、同一/別ドライブの挙動を Explorer 側に委ねる。
+  - `Ctrl+ドラッグ` でコピー、通常ドラッグで移動として扱われるよう内部ドラッグに Ctrl 判定を追加。
+  - ドラッグ中にキャプション「コピー」/「移動」を表示して操作フィードバックを明示。
+  - 外部アプリへの Move 完了後（`DragItemsCompleted.DropResult == Move`）にリストを自動更新。
 - Explorer 風のキーボードショートカット対応（#88）
   - `Ctrl+A`: ファイル一覧を全選択。
   - `Ctrl+C` / `Ctrl+X`: 選択ファイルをコピー / 切り取り対象として記録。
