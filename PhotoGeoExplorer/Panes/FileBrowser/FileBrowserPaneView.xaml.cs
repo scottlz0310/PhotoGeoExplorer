@@ -412,7 +412,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         e.AcceptedOperation = accepted;
         if (accepted != DataPackageOperation.None)
         {
-            e.DragUIOverride.Caption = "移動";
+            e.DragUIOverride.Caption = LocalizationService.GetString("DragCaption.Move");
             e.DragUIOverride.IsCaptionVisible = true;
         }
 
@@ -460,7 +460,9 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 var ctrlState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
                 var isCopy = (ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
                 e.AcceptedOperation = isCopy ? DataPackageOperation.Copy : DataPackageOperation.Move;
-                e.DragUIOverride.Caption = isCopy ? "コピー" : "移動";
+                e.DragUIOverride.Caption = isCopy
+                    ? LocalizationService.GetString("DragCaption.Copy")
+                    : LocalizationService.GetString("DragCaption.Move");
                 e.DragUIOverride.IsCaptionVisible = true;
             }
             else
@@ -475,7 +477,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
-            e.DragUIOverride.Caption = "コピー";
+            e.DragUIOverride.Caption = LocalizationService.GetString("DragCaption.Copy");
             e.DragUIOverride.IsCaptionVisible = true;
         }
         else
@@ -604,7 +606,15 @@ internal sealed partial class FileBrowserPaneView : UserControl
                             : await StorageFile.GetFileFromPathAsync(item.FilePath);
                         storageItems.Add(storageItem);
                     }
-                    catch (Exception ex) when (ex is FileNotFoundException or UnauthorizedAccessException or IOException or COMException) { }
+                    catch (Exception ex) when (ex is FileNotFoundException
+                        or UnauthorizedAccessException
+                        or ArgumentException
+                        or NotSupportedException
+                        or PathTooLongException
+                        or COMException)
+                    {
+                        AppLog.Error($"Failed to provide drag storage item: {item.FilePath}", ex);
+                    }
                 }
 
                 request.SetData(storageItems);
