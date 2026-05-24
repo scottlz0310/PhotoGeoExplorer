@@ -681,6 +681,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         StartMoveProgressTimer();
 
+        // ファイル操作はバックグラウンドスレッドで実行し UI スレッドをブロックしない。
+        // 競合ダイアログは UI スレッドへ marshal してから表示する。
+        Func<string, bool, Task<ConflictResolution>> marshalledCallback = async (name, isFolder) =>
+            await EnqueueOnUIThreadAsync(() => resolveConflictAsync(name, isFolder)).ConfigureAwait(false);
+
         FileOperationSummary result;
         try
         {
@@ -689,8 +694,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 Interlocked.Exchange(ref _moveCompleted, completed);
             });
 
-            result = await _fileOperationService.MoveItemsAsync(
-                items, destinationFolder, resolveConflictAsync, progress, _moveCts.Token)
+            result = await Task.Run(() => _fileOperationService.MoveItemsAsync(
+                items, destinationFolder, marshalledCallback, progress, _moveCts.Token))
+                .Unwrap()
                 .ConfigureAwait(false);
         }
         finally
@@ -1804,6 +1810,34 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         {
             var ex = new InvalidOperationException("DispatcherQueue へのエンキューに失敗しました。");
             AppLog.Error("RunOnUIThreadAsync: DispatcherQueue.TryEnqueue が false を返しました。", ex);
+            tcs.SetException(ex);
+        }
+        return tcs.Task;
+    }
+
+    private Task<T> EnqueueOnUIThreadAsync<T>(Func<Task<T>> asyncFunc)
+    {
+        if (_dispatcherQueue is null)
+        {
+            return asyncFunc();
+        }
+
+        var tcs = new TaskCompletionSource<T>();
+        if (!_dispatcherQueue.TryEnqueue(async () =>
+            {
+                try
+                {
+                    var result = await asyncFunc().ConfigureAwait(false);
+                    tcs.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            }))
+        {
+            var ex = new InvalidOperationException("DispatcherQueue へのエンキューに失敗しました。");
+            AppLog.Error("EnqueueOnUIThreadAsync: DispatcherQueue.TryEnqueue が false を返しました。", ex);
             tcs.SetException(ex);
         }
         return tcs.Task;

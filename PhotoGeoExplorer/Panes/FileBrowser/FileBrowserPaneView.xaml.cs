@@ -723,7 +723,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(
             ViewModel.SelectedItems, destination.Path, ShowMoveConflictDialogAsync)
             .ConfigureAwait(true);
-        if (summary.HasFailures && summary.Failures.All(f => f.Error != FileOperationError.Cancelled))
+        if (summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
         {
             await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
         }
