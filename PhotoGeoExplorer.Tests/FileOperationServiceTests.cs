@@ -594,6 +594,103 @@ public sealed class FileOperationServiceTests
         }
     }
 
+    [Fact]
+    public async Task MoveItemsAsync_Conflict_OverwriteAll_OverwritesAllSubsequentItems()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var src1 = Path.Combine(tempDir, "a.jpg");
+            var src2 = Path.Combine(tempDir, "b.jpg");
+            var dest1 = Path.Combine(destDir, "a.jpg");
+            var dest2 = Path.Combine(destDir, "b.jpg");
+            await File.WriteAllTextAsync(src1, "src-a");
+            await File.WriteAllTextAsync(src2, "src-b");
+            await File.WriteAllTextAsync(dest1, "old-a");
+            await File.WriteAllTextAsync(dest2, "old-b");
+            var items = new List<PhotoListItem> { CreateFileItem(src1), CreateFileItem(src2) };
+            var callCount = 0;
+
+            var summary = await _service.MoveItemsAsync(items, destDir, (_, _) =>
+            {
+                callCount++;
+                return Task.FromResult(ConflictResolution.OverwriteAll);
+            });
+
+            Assert.Equal(2, summary.SuccessCount);
+            Assert.Equal(0, summary.SkipCount);
+            Assert.Equal(1, callCount); // OverwriteAll → 2件目はコールバック不要
+            Assert.Equal("src-a", await File.ReadAllTextAsync(dest1));
+            Assert.Equal("src-b", await File.ReadAllTextAsync(dest2));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public async Task MoveItemsAsync_Conflict_SkipAll_SkipsAllSubsequentItems()
+    {
+        var tempDir = CreateTempTestDirectory();
+        var destDir = CreateTempTestDirectory();
+        try
+        {
+            var src1 = Path.Combine(tempDir, "a.jpg");
+            var src2 = Path.Combine(tempDir, "b.jpg");
+            var dest1 = Path.Combine(destDir, "a.jpg");
+            var dest2 = Path.Combine(destDir, "b.jpg");
+            await File.WriteAllTextAsync(src1, "src-a");
+            await File.WriteAllTextAsync(src2, "src-b");
+            await File.WriteAllTextAsync(dest1, "old-a");
+            await File.WriteAllTextAsync(dest2, "old-b");
+            var items = new List<PhotoListItem> { CreateFileItem(src1), CreateFileItem(src2) };
+            var callCount = 0;
+
+            var summary = await _service.MoveItemsAsync(items, destDir, (_, _) =>
+            {
+                callCount++;
+                return Task.FromResult(ConflictResolution.SkipAll);
+            });
+
+            Assert.Equal(0, summary.SuccessCount);
+            Assert.Equal(2, summary.SkipCount);
+            Assert.Equal(1, callCount); // SkipAll → 2件目はコールバック不要
+            Assert.Equal("old-a", await File.ReadAllTextAsync(dest1));
+            Assert.Equal("old-b", await File.ReadAllTextAsync(dest2));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+            CleanupTempDirectory(destDir);
+        }
+    }
+
+    [Fact]
+    public async Task MoveItemsAsync_FolderIntoDescendant_ReturnsDescendantPathError()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var srcFolder = Path.Combine(tempDir, "Parent");
+            var destFolder = Path.Combine(srcFolder, "Child");
+            Directory.CreateDirectory(srcFolder);
+            Directory.CreateDirectory(destFolder);
+            var items = new List<PhotoListItem> { CreateFolderItem(srcFolder) };
+
+            var summary = await _service.MoveItemsAsync(items, destFolder, (_, _) => Task.FromResult(ConflictResolution.Skip));
+
+            Assert.Equal(0, summary.SuccessCount);
+            Assert.Equal(FileOperationError.DescendantPath, summary.Failures[0].Error);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
     // =========================================================
     // CopyItems
     // =========================================================

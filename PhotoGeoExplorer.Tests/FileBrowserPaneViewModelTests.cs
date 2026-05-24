@@ -916,6 +916,32 @@ public class FileBrowserPaneViewModelTests
         }
     }
 
+    [Fact]
+    public async Task ExecuteMoveItemsToFolderAsync_WithConflictCallback_UsesAsyncPath()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.MoveItemsResult = new FileOperationSummary(1, 0, Array.Empty<FileOperationFailure>());
+            await vm.LoadFolderAsync(tempDir).ConfigureAwait(true);
+            var before = fakePaneService.LoadFolderCallCount;
+            var callbackCalled = false;
+
+            var summary = await vm.ExecuteMoveItemsToFolderAsync(
+                new List<PhotoListItem>(),
+                Path.GetTempPath(),
+                (_, _) => { callbackCalled = true; return Task.FromResult(ConflictResolution.Skip); });
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.Equal(before + 1, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
     // =========================================================
     // ExecuteDeleteItemsAsync
     // =========================================================
