@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### 修正
+- Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+A がファイルリストで動作しない問題を修正（#110）
+  - WinUI 3 の `ListView` が `Ctrl+C` 等を内部でハンドルするため、XAML `KeyDown` では届かなかった。
+  - `Loaded` で `AddHandler(KeyDownEvent, handledEventsToo: true)` に変更。
+- SHIFT+クリック複数選択後に右クリックで単数になる問題を修正（#110）
+  - `PointerPressed` に `AddHandler(handledEventsToo: true)` を追加し、右ボタン押下時に ListView の内部選択リセットを止める。
+- ファイルリストの余白クリックで選択解除・フォーカスが当たらない問題を修正（#110）
+  - `Tapped` ハンドラを追加し、アイテム以外の余白タップ時に `SelectedItems.Clear()` + `Focus()` を実行。
+
 ### 変更
 - ファイル削除をゴミ箱移動に変更（#90）
   - `DeleteItems`（直接削除）を `DeleteItemsAsync`（非同期ゴミ箱移動）に置き換え。

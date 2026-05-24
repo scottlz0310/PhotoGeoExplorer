@@ -71,6 +71,20 @@ internal sealed partial class FileBrowserPaneView : UserControl
         {
             ViewModel.SetDispatcherQueue(DispatcherQueue);
         }
+
+        // WinUI 3 の ListView/GridView は Ctrl+C 等を内部でハンドルして e.Handled=true にするため
+        // XAML の KeyDown では届かない。handledEventsToo: true で先取りして処理する。
+        var keyHandler = new KeyEventHandler(OnFileListKeyDown);
+        FileListList.AddHandler(UIElement.KeyDownEvent, keyHandler, handledEventsToo: true);
+        FileListIcon.AddHandler(UIElement.KeyDownEvent, keyHandler, handledEventsToo: true);
+        FileListDetails.AddHandler(UIElement.KeyDownEvent, keyHandler, handledEventsToo: true);
+
+        // 右クリック時に WinUI 3 の ListView が PointerPressed で SHIFT 選択をリセットするのを防ぐ。
+        // handledEventsToo: true で先取りし、右ボタン押下は e.Handled=true にして内部処理を止める。
+        var pointerHandler = new PointerEventHandler(OnFileListPointerPressed);
+        FileListList.AddHandler(UIElement.PointerPressedEvent, pointerHandler, handledEventsToo: true);
+        FileListIcon.AddHandler(UIElement.PointerPressedEvent, pointerHandler, handledEventsToo: true);
+        FileListDetails.AddHandler(UIElement.PointerPressedEvent, pointerHandler, handledEventsToo: true);
     }
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
@@ -725,9 +739,43 @@ internal sealed partial class FileBrowserPaneView : UserControl
         ViewModel.UpdateSelection(selected);
     }
 
-    private async void OnFileListKeyDown(object sender, KeyRoutedEventArgs e)
+    private void OnFileListPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
+        {
+            // 右ボタン押下では ListView の内部選択リセット処理を止める。
+            // RightTapped ハンドラで選択ロジックを管理する。
+            e.Handled = true;
+        }
+    }
+
+    private void OnFileListTapped(object sender, TappedRoutedEventArgs e)
     {
         if (ViewModel is null || sender is not ListViewBase listView)
+        {
+            return;
+        }
+
+        // アイテム以外の余白をタップした場合は選択解除してフォーカスを当てる。
+        var container = FindAncestor<SelectorItem>(e.OriginalSource as DependencyObject);
+        if (container is null)
+        {
+            listView.SelectedItems.Clear();
+            ViewModel.SelectedItem = null;
+            ViewModel.UpdateSelection(Array.Empty<PhotoListItem>());
+            listView.Focus(FocusState.Pointer);
+        }
+    }
+
+    private async void OnFileListKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        var listView = sender as ListViewBase ?? GetFileListView();
+        if (listView is null)
         {
             return;
         }
