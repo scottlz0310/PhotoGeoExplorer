@@ -87,6 +87,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private int _moveCompleted;
     private bool _isMoveInProgress;
     private DispatcherQueueTimer? _moveProgressTimer;
+    private IReadOnlyList<PhotoListItem> _clipboardItems = Array.Empty<PhotoListItem>();
+    private ClipboardOperation _clipboardOperation = ClipboardOperation.None;
 
     public FileBrowserPaneViewModel()
         : this(new FileBrowserPaneService(), new WorkspaceState())
@@ -184,6 +186,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 OnPropertyChanged(nameof(CanCreateFolder));
                 OnPropertyChanged(nameof(CanMoveToParentSelection));
                 OnPropertyChanged(nameof(CanOpenInExplorer));
+                OnPropertyChanged(nameof(CanPasteSelection));
                 UpdateNavigationCommands();
                 RaiseFileOperationCommandCanExecuteChanged();
                 UpdateStatusBar();
@@ -506,6 +509,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     public Visibility CancelMoveVisibility => _isMoveInProgress ? Visibility.Visible : Visibility.Collapsed;
 
+    public bool CanPasteSelection => _clipboardItems.Count > 0 && !string.IsNullOrWhiteSpace(CurrentFolderPath);
+    public bool IsCutClipboard => _clipboardOperation == ClipboardOperation.Cut;
+
     public ICommand CancelMoveCommand { get; private set; }
 
     public Symbol StatusBarLocationSymbol
@@ -747,6 +753,46 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         var summary = _fileOperationService.CopyItems(items, destinationFolder);
         return Task.FromResult(summary);
+    }
+
+    internal void SetClipboard(IReadOnlyList<PhotoListItem> items, ClipboardOperation operation)
+    {
+        _clipboardItems = items.ToList();
+        _clipboardOperation = operation;
+        OnPropertyChanged(nameof(CanPasteSelection));
+        OnPropertyChanged(nameof(IsCutClipboard));
+    }
+
+    internal async Task<FileOperationSummary> ExecutePasteAsync()
+    {
+        if (_clipboardItems.Count == 0 || string.IsNullOrWhiteSpace(CurrentFolderPath))
+        {
+            return new FileOperationSummary(0, 0, Array.Empty<FileOperationFailure>());
+        }
+
+        var items = _clipboardItems.ToList();
+        var operation = _clipboardOperation;
+
+        if (operation == ClipboardOperation.Cut)
+        {
+            _clipboardItems = Array.Empty<PhotoListItem>();
+            _clipboardOperation = ClipboardOperation.None;
+            OnPropertyChanged(nameof(CanPasteSelection));
+            OnPropertyChanged(nameof(IsCutClipboard));
+        }
+
+        if (operation == ClipboardOperation.Copy)
+        {
+            var summary = await ExecuteCopyItemsToFolderAsync(items, CurrentFolderPath!).ConfigureAwait(false);
+            if (summary.SuccessCount > 0)
+            {
+                await RefreshAsync().ConfigureAwait(false);
+            }
+
+            return summary;
+        }
+
+        return await ExecuteMoveItemsToFolderAsync(items, CurrentFolderPath!).ConfigureAwait(false);
     }
 
     internal async Task<FileOperationSummary> ExecuteMoveToParentAsync()
