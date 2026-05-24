@@ -445,7 +445,14 @@ internal sealed class FileOperationService : IFileOperationService
                 failures.Add(new FileOperationFailure(item.FilePath, item.FileName, FileOperationError.Unauthorized));
                 break;
             }
-            catch (Exception ex) when (ex is COMException or FileNotFoundException)
+            catch (FileNotFoundException)
+            {
+                // 別操作や同期ツールで既に消えている場合は次のアイテムへ継続
+                AppLog.Info($"Delete skipped: item already missing: {item.FilePath}");
+                failures.Add(new FileOperationFailure(item.FilePath, item.FileName, FileOperationError.IoError));
+                continue;
+            }
+            catch (Exception ex) when (ex is COMException)
             {
                 AppLog.Error($"Failed to delete item: {item.FilePath}", ex);
                 failures.Add(new FileOperationFailure(item.FilePath, item.FileName, FileOperationError.IoError));

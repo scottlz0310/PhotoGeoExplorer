@@ -801,20 +801,20 @@ public sealed class FileOperationServiceTests
     }
 
     // =========================================================
-    // DeleteItems
+    // DeleteItemsAsync
     // =========================================================
 
     [Fact]
-    public void DeleteItems_SingleFile_ReturnsSuccessCount1()
+    public async Task DeleteItemsAsync_SingleFile_ReturnsSuccessCount1()
     {
         var tempDir = CreateTempTestDirectory();
         try
         {
             var srcPath = Path.Combine(tempDir, "photo.jpg");
-            File.WriteAllText(srcPath, "content");
+            await File.WriteAllTextAsync(srcPath, "content");
             var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
 
-            var summary = _service.DeleteItems(items);
+            var summary = await _service.DeleteItemsAsync(items);
 
             Assert.Equal(1, summary.SuccessCount);
             Assert.True(summary.IsAllSuccess);
@@ -827,17 +827,17 @@ public sealed class FileOperationServiceTests
     }
 
     [Fact]
-    public void DeleteItems_Directory_ReturnsSuccessCount1()
+    public async Task DeleteItemsAsync_Directory_ReturnsSuccessCount1()
     {
         var tempDir = CreateTempTestDirectory();
         try
         {
             var srcDir = Path.Combine(tempDir, "SubFolder");
             Directory.CreateDirectory(srcDir);
-            File.WriteAllText(Path.Combine(srcDir, "file.txt"), "content");
+            await File.WriteAllTextAsync(Path.Combine(srcDir, "file.txt"), "content");
             var items = new List<PhotoListItem> { CreateFolderItem(srcDir) };
 
-            var summary = _service.DeleteItems(items);
+            var summary = await _service.DeleteItemsAsync(items);
 
             Assert.Equal(1, summary.SuccessCount);
             Assert.True(summary.IsAllSuccess);
@@ -850,23 +850,49 @@ public sealed class FileOperationServiceTests
     }
 
     [Fact]
-    public void DeleteItems_FileLockedByAnotherProcess_ReturnsIoError()
+    public async Task DeleteItemsAsync_FileLockedByAnotherProcess_ReturnsIoError()
     {
         var tempDir = CreateTempTestDirectory();
         try
         {
             var srcPath = Path.Combine(tempDir, "locked.txt");
-            File.WriteAllText(srcPath, "content");
+            await File.WriteAllTextAsync(srcPath, "content");
 
             using var fs = File.Open(srcPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             var items = new List<PhotoListItem> { CreateFileItem(srcPath) };
 
-            var summary = _service.DeleteItems(items);
+            var summary = await _service.DeleteItemsAsync(items);
 
             Assert.False(summary.IsAllSuccess);
             Assert.True(summary.HasFailures);
             Assert.Equal(1, summary.FailureCount);
             Assert.Equal(FileOperationError.IoError, summary.Failures[0].Error);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteItemsAsync_OneMissingFile_ContinuesAndDeletesRemainder()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var missingPath = Path.Combine(tempDir, "missing.txt");
+            var existingPath = Path.Combine(tempDir, "existing.txt");
+            await File.WriteAllTextAsync(existingPath, "data");
+
+            var missingItem = CreateFileItem(missingPath);
+            var existingItem = CreateFileItem(existingPath);
+            var items = new List<PhotoListItem> { missingItem, existingItem };
+
+            var summary = await _service.DeleteItemsAsync(items);
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.Equal(1, summary.FailureCount);
+            Assert.False(File.Exists(existingPath));
         }
         finally
         {
