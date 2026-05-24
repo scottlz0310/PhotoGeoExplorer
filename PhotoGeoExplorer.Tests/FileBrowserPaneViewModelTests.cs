@@ -1030,6 +1030,199 @@ public class FileBrowserPaneViewModelTests
     }
 
     // =========================================================
+    // SetClipboard / ExecutePasteAsync
+    // =========================================================
+
+    [Fact]
+    public void SetClipboard_WithNoCurrentFolder_CanPasteSelectionIsFalse()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        var item = CreatePhotoListItem("photo.jpg");
+
+        vm.SetClipboard(new List<PhotoListItem> { item }, ClipboardOperation.Copy);
+
+        Assert.False(vm.CanPasteSelection);
+    }
+
+    [Fact]
+    public async Task SetClipboard_WithCurrentFolder_CanPasteSelectionIsTrue()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out _, out _);
+            await vm.LoadFolderAsync(tempDir);
+            var item = CreatePhotoListItem("photo.jpg");
+
+            vm.SetClipboard(new List<PhotoListItem> { item }, ClipboardOperation.Copy);
+
+            Assert.True(vm.CanPasteSelection);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public void SetClipboard_CutOperation_IsCutClipboardIsTrue()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        var item = CreatePhotoListItem("photo.jpg");
+
+        vm.SetClipboard(new List<PhotoListItem> { item }, ClipboardOperation.Cut);
+
+        Assert.True(vm.IsCutClipboard);
+    }
+
+    [Fact]
+    public async Task ExecutePasteAsync_CopyOperation_CallsCopyItemsAndRefreshes()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out var fakePaneService, out var stubOp);
+            stubOp.CopyItemsResult = new FileOperationSummary(1, 0, Array.Empty<FileOperationFailure>());
+            await vm.LoadFolderAsync(tempDir);
+            var before = fakePaneService.LoadFolderCallCount;
+            vm.SetClipboard(new List<PhotoListItem> { CreatePhotoListItem("photo.jpg") }, ClipboardOperation.Copy);
+
+            var summary = await vm.ExecutePasteAsync();
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.Equal(before + 1, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ExecutePasteAsync_CutOperation_CallsMoveItemsAndClearsClipboard()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out _, out var stubOp);
+            stubOp.MoveItemsResult = new FileOperationSummary(1, 0, Array.Empty<FileOperationFailure>());
+            await vm.LoadFolderAsync(tempDir);
+            vm.SetClipboard(new List<PhotoListItem> { CreatePhotoListItem("photo.jpg") }, ClipboardOperation.Cut);
+
+            var summary = await vm.ExecutePasteAsync();
+
+            Assert.Equal(1, summary.SuccessCount);
+            Assert.False(vm.CanPasteSelection);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ExecutePasteAsync_NoCurrentFolder_ReturnsEmptySummary()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        vm.SetClipboard(new List<PhotoListItem> { CreatePhotoListItem("photo.jpg") }, ClipboardOperation.Copy);
+
+        var summary = await vm.ExecutePasteAsync();
+
+        Assert.Equal(0, summary.SuccessCount);
+        Assert.False(summary.HasFailures);
+    }
+
+    [Fact]
+    public async Task ExecutePasteAsync_CutOperation_AllSuccess_ClearsClipboard()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out _, out var stubOp);
+            stubOp.MoveItemsResult = new FileOperationSummary(1, 0, Array.Empty<FileOperationFailure>());
+            await vm.LoadFolderAsync(tempDir);
+            vm.SetClipboard(new List<PhotoListItem> { CreatePhotoListItem("photo.jpg") }, ClipboardOperation.Cut);
+
+            await vm.ExecutePasteAsync();
+
+            Assert.False(vm.IsCutClipboard);
+            Assert.False(vm.CanPasteSelection);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ExecutePasteAsync_CutOperation_Failure_KeepsClipboard()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var failure = new FileOperationFailure("path", "photo.jpg", FileOperationError.AlreadyExists);
+            using var vm = CreateViewModelWithFakes(out _, out var stubOp);
+            stubOp.MoveItemsResult = new FileOperationSummary(0, 0, new[] { failure });
+            await vm.LoadFolderAsync(tempDir);
+            vm.SetClipboard(new List<PhotoListItem> { CreatePhotoListItem("photo.jpg") }, ClipboardOperation.Cut);
+
+            await vm.ExecutePasteAsync();
+
+            Assert.True(vm.IsCutClipboard);
+            Assert.True(vm.CanPasteSelection);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ExecutePasteAsync_CutOperation_PartialSuccess_KeepsClipboard()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var failure = new FileOperationFailure("path", "other.jpg", FileOperationError.AlreadyExists);
+            using var vm = CreateViewModelWithFakes(out _, out var stubOp);
+            stubOp.MoveItemsResult = new FileOperationSummary(1, 0, new[] { failure });
+            await vm.LoadFolderAsync(tempDir);
+            vm.SetClipboard(new List<PhotoListItem> { CreatePhotoListItem("photo.jpg") }, ClipboardOperation.Cut);
+
+            await vm.ExecutePasteAsync();
+
+            Assert.True(vm.IsCutClipboard);
+            Assert.True(vm.CanPasteSelection);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ExecutePasteAsync_CutOperation_WithSkip_KeepsClipboard()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out _, out var stubOp);
+            stubOp.MoveItemsResult = new FileOperationSummary(1, 1, Array.Empty<FileOperationFailure>());
+            await vm.LoadFolderAsync(tempDir);
+            vm.SetClipboard(new List<PhotoListItem> { CreatePhotoListItem("photo.jpg") }, ClipboardOperation.Cut);
+
+            await vm.ExecutePasteAsync();
+
+            Assert.True(vm.IsCutClipboard);
+            Assert.True(vm.CanPasteSelection);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    // =========================================================
     // Execute* 系テスト用ヘルパー
     // =========================================================
 

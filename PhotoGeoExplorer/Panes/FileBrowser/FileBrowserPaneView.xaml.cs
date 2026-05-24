@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Windows.UI.Core;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
@@ -627,6 +629,86 @@ internal sealed partial class FileBrowserPaneView : UserControl
             .OfType<PhotoListItem>()
             .ToList();
         ViewModel.UpdateSelection(selected);
+    }
+
+    private async void OnFileListKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (ViewModel is null || sender is not ListViewBase listView)
+        {
+            return;
+        }
+
+        var ctrl = (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & CoreVirtualKeyStates.Down) != 0;
+
+        switch (e.Key)
+        {
+            case VirtualKey.A when ctrl:
+                e.Handled = true;
+                listView.SelectAll();
+                break;
+            case VirtualKey.C when ctrl:
+                e.Handled = true;
+                if (ViewModel.SelectedItems.Count > 0)
+                {
+                    ViewModel.SetClipboard(ViewModel.SelectedItems, ClipboardOperation.Copy);
+                }
+                break;
+            case VirtualKey.X when ctrl:
+                e.Handled = true;
+                if (ViewModel.SelectedItems.Count > 0)
+                {
+                    ViewModel.SetClipboard(ViewModel.SelectedItems, ClipboardOperation.Cut);
+                }
+                break;
+            case VirtualKey.V when ctrl:
+                e.Handled = true;
+                await PasteSelectionAsyncCore().ConfigureAwait(true);
+                break;
+            case VirtualKey.Delete:
+                if (!ViewModel.CanModifySelection)
+                {
+                    break;
+                }
+                e.Handled = true;
+                await DeleteSelectionAsyncCore().ConfigureAwait(true);
+                break;
+            case VirtualKey.F2:
+                if (!ViewModel.CanRenameSelection)
+                {
+                    break;
+                }
+                e.Handled = true;
+                await RenameSelectionAsyncCore().ConfigureAwait(true);
+                break;
+            case VirtualKey.Escape:
+                e.Handled = true;
+                listView.SelectedItems.Clear();
+                ViewModel.SelectedItem = null;
+                break;
+        }
+    }
+
+    private async Task PasteSelectionAsyncCore()
+    {
+        if (ViewModel is null || !ViewModel.CanPasteSelection)
+        {
+            return;
+        }
+
+        var isCut = ViewModel.IsCutClipboard;
+        var summary = await ViewModel.ExecutePasteAsync(
+            isCut ? ShowMoveConflictDialogAsync : null).ConfigureAwait(true);
+        if (summary.HasFailures)
+        {
+            if (isCut)
+            {
+                await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+            }
+            else
+            {
+                await ShowCopyOperationErrorDialogAsync(summary).ConfigureAwait(true);
+            }
+        }
     }
 
     private async void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
