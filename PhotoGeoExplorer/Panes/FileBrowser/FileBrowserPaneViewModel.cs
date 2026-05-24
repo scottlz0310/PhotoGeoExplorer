@@ -167,7 +167,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         DeleteSelectionCommand = new RelayCommand(
             async () => await ExecuteUiActionAsync(_deleteSelectionAction).ConfigureAwait(false),
             () => _deleteSelectionAction is not null && CanModifySelection);
-        CancelMoveCommand = new RelayCommand(async () => { _moveCts?.Cancel(); await Task.CompletedTask.ConfigureAwait(false); }, () => IsMoveInProgress);
+        CancelMoveCommand = new RelayCommand(async () => await (_moveCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false), () => IsMoveInProgress);
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -1832,6 +1832,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 catch (Exception ex)
                 {
                     tcs.SetException(ex);
+                    throw;
                 }
             }))
         {

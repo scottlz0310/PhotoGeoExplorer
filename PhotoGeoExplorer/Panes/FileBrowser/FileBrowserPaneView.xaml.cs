@@ -753,7 +753,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             Content = LocalizationService.GetString("Dialog.MoveConflict.SkipAll"),
         };
 
-        ConflictResolution extraChoice = ConflictResolution.Cancel;
+        ConflictResolution? extraChoice = null;
         overwriteAllButton.Click += (_, _) =>
         {
             extraChoice = ConflictResolution.OverwriteAll;
@@ -780,9 +780,9 @@ internal sealed partial class FileBrowserPaneView : UserControl
         };
 
         var result = await dialog.ShowAsync();
-        if (extraChoice != ConflictResolution.Cancel)
+        if (extraChoice.HasValue)
         {
-            return extraChoice;
+            return extraChoice.Value;
         }
 
         return result switch
