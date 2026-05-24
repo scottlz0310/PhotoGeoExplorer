@@ -13,6 +13,9 @@
   - `FileOperationServiceTests` に `CopyItems` の単体テスト 3 件を追加。
 
 ### 修正
+- E2E ワークフローの Windows App SDK runtime 1.8 インストール手順を安定化（#101）。
+  - `windowsappruntimeinstall-x64.exe` を優先インストール方法として採用（winget の `0x80070002` エラー対策）。
+  - winget → msix 直接インストールの順でフォールバックする3段構成に変更。
 - E2E テスト `ExifEditorSaveAndReopenKeepsCoordinates` のフレーキー修正（#95）。
   - `OpenExifMenuForItemName` の catch 節に `NoClickablePointException` を追加。`listItem.RightClick()` が `NoClickablePointException` を投げると catch されずにテスト失敗していた問題を解消。
   - `TryScrollIntoView` / `WaitForElementClickable` ヘルパーを追加し、右クリック前にリスト項目を可視領域にスクロールして描画完了を待機するよう改善。
