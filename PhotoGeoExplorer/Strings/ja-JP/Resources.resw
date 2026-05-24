@@ -672,19 +672,19 @@
     <value>名前変更に失敗しました</value>
   </data>
   <data name="Dialog.DeleteConfirm.Multiple" xml:space="preserve">
-    <value>{0} 件を削除しますか？</value>
+    <value>{0} 件をゴミ箱へ移動しますか？</value>
   </data>
   <data name="Dialog.DeleteConfirm.Title" xml:space="preserve">
-    <value>削除</value>
+    <value>ゴミ箱へ移動</value>
   </data>
   <data name="Dialog.DeleteConfirm.Folder" xml:space="preserve">
-    <value>フォルダー「{0}」を削除しますか？</value>
+    <value>フォルダー「{0}」をゴミ箱へ移動しますか？</value>
   </data>
   <data name="Dialog.DeleteConfirm.File" xml:space="preserve">
-    <value>ファイル「{0}」を削除しますか？</value>
+    <value>ファイル「{0}」をゴミ箱へ移動しますか？</value>
   </data>
   <data name="Common.Delete" xml:space="preserve">
-    <value>削除</value>
+    <value>ゴミ箱へ移動</value>
   </data>
   <data name="Common.Cancel" xml:space="preserve">
     <value>キャンセル</value>
@@ -723,7 +723,7 @@
     <value>Google Maps で開く</value>
   </data>
   <data name="Menu.Delete" xml:space="preserve">
-    <value>削除</value>
+    <value>ゴミ箱へ移動</value>
   </data>
   <data name="Dialog.CopyFailed.Title" xml:space="preserve">
     <value>コピーに失敗しました</value>
@@ -738,13 +738,13 @@
     <value>移動先に同名の項目が既に存在します。</value>
   </data>
   <data name="Dialog.DeleteNotAvailable.Title" xml:space="preserve">
-    <value>削除できません</value>
+    <value>ゴミ箱へ移動できません</value>
   </data>
   <data name="Dialog.DeleteNotAvailable.Detail" xml:space="preserve">
-    <value>この項目は削除できません。</value>
+    <value>この項目はゴミ箱へ移動できません。</value>
   </data>
   <data name="Dialog.DeleteFailed.Title" xml:space="preserve">
-    <value>削除に失敗しました</value>
+    <value>ゴミ箱への移動に失敗しました</value>
   </data>
   <data name="Flyout.TakenAtLabel.Text" xml:space="preserve">
     <value>撮影日時</value>

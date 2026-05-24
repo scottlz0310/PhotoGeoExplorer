@@ -9,6 +9,7 @@
   - `DeleteItems`（直接削除）を `DeleteItemsAsync`（非同期ゴミ箱移動）に置き換え。
   - `Windows.Storage.StorageFile/StorageFolder.DeleteAsync(StorageDeleteOption.Default)` を使用。
   - ドライブ種別によってゴミ箱を経由しない場合（ネットワーク・リムーバブルドライブ等）は OS の既定挙動に従う。
+  - UI 文言を「削除」から「ゴミ箱へ移動」に統一（メニュー・確認ダイアログ・エラーダイアログ）。
 
 ### 追加
 - Explorer 風のキーボードショートカット対応（#88）

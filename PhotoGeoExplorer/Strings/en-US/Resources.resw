@@ -672,19 +672,19 @@
     <value>Rename failed</value>
   </data>
   <data name="Dialog.DeleteConfirm.Multiple" xml:space="preserve">
-    <value>Delete {0} items?</value>
+    <value>Move {0} items to Recycle Bin?</value>
   </data>
   <data name="Dialog.DeleteConfirm.Title" xml:space="preserve">
-    <value>Delete</value>
+    <value>Move to Recycle Bin</value>
   </data>
   <data name="Dialog.DeleteConfirm.Folder" xml:space="preserve">
-    <value>Delete folder "{0}"?</value>
+    <value>Move folder "{0}" to Recycle Bin?</value>
   </data>
   <data name="Dialog.DeleteConfirm.File" xml:space="preserve">
-    <value>Delete file "{0}"?</value>
+    <value>Move file "{0}" to Recycle Bin?</value>
   </data>
   <data name="Common.Delete" xml:space="preserve">
-    <value>Delete</value>
+    <value>Move to Recycle Bin</value>
   </data>
   <data name="Common.Cancel" xml:space="preserve">
     <value>Cancel</value>
@@ -723,7 +723,7 @@
     <value>Open in Google Maps</value>
   </data>
   <data name="Menu.Delete" xml:space="preserve">
-    <value>Delete</value>
+    <value>Move to Recycle Bin</value>
   </data>
   <data name="Dialog.CopyFailed.Title" xml:space="preserve">
     <value>Copy failed</value>
@@ -738,13 +738,13 @@
     <value>An item with the same name already exists in the destination.</value>
   </data>
   <data name="Dialog.DeleteNotAvailable.Title" xml:space="preserve">
-    <value>Delete not available</value>
+    <value>Move to Recycle Bin not available</value>
   </data>
   <data name="Dialog.DeleteNotAvailable.Detail" xml:space="preserve">
-    <value>This item cannot be deleted.</value>
+    <value>This item cannot be moved to the Recycle Bin.</value>
   </data>
   <data name="Dialog.DeleteFailed.Title" xml:space="preserve">
-    <value>Delete failed</value>
+    <value>Move to Recycle Bin failed</value>
   </data>
   <data name="Flyout.TakenAtLabel.Text" xml:space="preserve">
     <value>Taken At</value>
