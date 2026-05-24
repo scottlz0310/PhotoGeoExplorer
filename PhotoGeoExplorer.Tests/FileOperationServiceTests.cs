@@ -515,6 +515,28 @@ public sealed class FileOperationServiceTests
     }
 
     [Fact]
+    public void CopyItems_FolderIntoDescendant_ReturnsDescendantPathError()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var subDir = Path.Combine(tempDir, "sub");
+            Directory.CreateDirectory(subDir);
+            var items = new List<PhotoListItem> { CreateFolderItem(tempDir) };
+
+            var summary = _service.CopyItems(items, subDir);
+
+            Assert.False(summary.IsAllSuccess);
+            Assert.Equal(1, summary.FailureCount);
+            Assert.Equal(FileOperationError.DescendantPath, summary.Failures[0].Error);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
     public void CopyItems_MultipleFiles_ReturnsSuccessCountForAll()
     {
         var tempDir = CreateTempTestDirectory();
