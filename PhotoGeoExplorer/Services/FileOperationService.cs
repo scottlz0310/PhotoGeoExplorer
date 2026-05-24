@@ -205,6 +205,136 @@ internal sealed class FileOperationService : IFileOperationService
         }
     }
 
+    public async Task<FileOperationSummary> CopyItemsAsync(
+        IReadOnlyList<PhotoListItem> items,
+        string destinationFolder,
+        Func<string, bool, Task<ConflictResolution>> resolveConflictAsync,
+        IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var successCount = 0;
+        var skipCount = 0;
+        var failures = new List<FileOperationFailure>();
+        var overwriteAll = false;
+        var skipAll = false;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                failures.Add(new FileOperationFailure(items[i].FilePath, items[i].FileName, FileOperationError.Cancelled));
+                break;
+            }
+
+            var item = items[i];
+            var sourcePath = item.FilePath;
+            var targetPath = Path.Combine(destinationFolder, item.FileName);
+
+            if (item.IsFolder && IsDescendantPath(sourcePath, destinationFolder))
+            {
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.DescendantPath));
+                progress?.Report(i + 1);
+                continue;
+            }
+
+            if (ItemExistsAtPath(targetPath))
+            {
+                ConflictResolution resolution;
+                if (overwriteAll)
+                {
+                    resolution = ConflictResolution.Overwrite;
+                }
+                else if (skipAll)
+                {
+                    resolution = ConflictResolution.Skip;
+                }
+                else
+                {
+                    resolution = await resolveConflictAsync(item.FileName, item.IsFolder).ConfigureAwait(false);
+                    if (resolution == ConflictResolution.OverwriteAll)
+                    {
+                        overwriteAll = true;
+                        resolution = ConflictResolution.Overwrite;
+                    }
+                    else if (resolution == ConflictResolution.SkipAll)
+                    {
+                        skipAll = true;
+                        resolution = ConflictResolution.Skip;
+                    }
+                }
+
+                if (resolution == ConflictResolution.Cancel)
+                {
+                    failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.Cancelled));
+                    break;
+                }
+
+                if (resolution == ConflictResolution.Skip)
+                {
+                    skipCount++;
+                    progress?.Report(i + 1);
+                    continue;
+                }
+
+                // Overwrite: 既存を削除してからコピー
+                try
+                {
+                    if (item.IsFolder)
+                    {
+                        Directory.Delete(targetPath, recursive: true);
+                    }
+                    else
+                    {
+                        File.Delete(targetPath);
+                    }
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException)
+                {
+                    AppLog.Error($"Failed to delete existing item for overwrite: {targetPath}", ex);
+                    failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.Unauthorized));
+                    progress?.Report(i + 1);
+                    continue;
+                }
+                catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException or PathTooLongException)
+                {
+                    AppLog.Error($"Failed to delete existing item for overwrite: {targetPath}", ex);
+                    failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.IoError));
+                    progress?.Report(i + 1);
+                    continue;
+                }
+            }
+
+            try
+            {
+                if (item.IsFolder)
+                {
+                    CopyDirectory(sourcePath, targetPath);
+                }
+                else
+                {
+                    File.Copy(sourcePath, targetPath, overwrite: false);
+                }
+
+                successCount++;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException)
+            {
+                AppLog.Error($"Failed to copy item: {sourcePath}", ex);
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.Unauthorized));
+            }
+            catch (Exception ex) when (ex is IOException or NotSupportedException or ArgumentException or PathTooLongException)
+            {
+                AppLog.Error($"Failed to copy item: {sourcePath}", ex);
+                failures.Add(new FileOperationFailure(sourcePath, item.FileName, FileOperationError.IoError));
+            }
+
+            progress?.Report(i + 1);
+        }
+
+        AppLog.Info($"CopyItemsAsync: success={successCount}, skip={skipCount}, failure={failures.Count}");
+        return new FileOperationSummary(successCount, skipCount, failures);
+    }
+
     public FileOperationSummary MoveItems(IReadOnlyList<PhotoListItem> items, string destinationFolder)
     {
         var successCount = 0;

@@ -87,6 +87,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private int _moveCompleted;
     private bool _isMoveInProgress;
     private DispatcherQueueTimer? _moveProgressTimer;
+    private CancellationTokenSource? _copyCts;
+    private int _copyTotal;
+    private int _copyCompleted;
+    private bool _isCopyInProgress;
+    private DispatcherQueueTimer? _copyProgressTimer;
     private IReadOnlyList<PhotoListItem> _clipboardItems = Array.Empty<PhotoListItem>();
     private ClipboardOperation _clipboardOperation = ClipboardOperation.None;
 
@@ -170,6 +175,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             async () => await ExecuteUiActionAsync(_deleteSelectionAction).ConfigureAwait(false),
             () => _deleteSelectionAction is not null && CanModifySelection);
         CancelMoveCommand = new RelayCommand(async () => await (_moveCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false), () => IsMoveInProgress);
+        CancelCopyCommand = new RelayCommand(async () => await (_copyCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false), () => IsCopyInProgress);
     }
 
     public ObservableCollection<PhotoListItem> Items { get; }
@@ -509,10 +515,25 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     public Visibility CancelMoveVisibility => _isMoveInProgress ? Visibility.Visible : Visibility.Collapsed;
 
+    public bool IsCopyInProgress
+    {
+        get => _isCopyInProgress;
+        private set
+        {
+            if (SetProperty(ref _isCopyInProgress, value))
+            {
+                OnPropertyChanged(nameof(CancelCopyVisibility));
+            }
+        }
+    }
+
+    public Visibility CancelCopyVisibility => _isCopyInProgress ? Visibility.Visible : Visibility.Collapsed;
+
     public bool CanPasteSelection => _clipboardItems.Count > 0 && !string.IsNullOrWhiteSpace(CurrentFolderPath);
     public bool IsCutClipboard => _clipboardOperation == ClipboardOperation.Cut;
 
     public ICommand CancelMoveCommand { get; private set; }
+    public ICommand CancelCopyCommand { get; private set; }
 
     public Symbol StatusBarLocationSymbol
     {
@@ -748,11 +769,87 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             "Message.MoveProgress", completed, _moveTotal);
     }
 
-    internal Task<FileOperationSummary> ExecuteCopyItemsToFolderAsync(
-        IReadOnlyList<PhotoListItem> items, string destinationFolder)
+    internal async Task<FileOperationSummary> ExecuteCopyItemsToFolderAsync(
+        IReadOnlyList<PhotoListItem> items,
+        string destinationFolder,
+        Func<string, bool, Task<ConflictResolution>>? resolveConflictAsync = null)
     {
-        var summary = _fileOperationService.CopyItems(items, destinationFolder);
-        return Task.FromResult(summary);
+        if (resolveConflictAsync is null)
+        {
+            var summary = _fileOperationService.CopyItems(items, destinationFolder);
+            if (summary.SuccessCount > 0)
+            {
+                await RefreshAsync().ConfigureAwait(false);
+            }
+
+            return summary;
+        }
+
+        _copyCts = new CancellationTokenSource();
+        _copyTotal = items.Count;
+        _copyCompleted = 0;
+        IsCopyInProgress = true;
+        ((RelayCommand)CancelCopyCommand).RaiseCanExecuteChanged();
+
+        StartCopyProgressTimer();
+
+        Func<string, bool, Task<ConflictResolution>> marshalledCallback = async (name, isFolder) =>
+            await EnqueueOnUIThreadAsync(() => resolveConflictAsync(name, isFolder)).ConfigureAwait(false);
+
+        FileOperationSummary result;
+        try
+        {
+            var progress = new Progress<int>(completed =>
+            {
+                Interlocked.Exchange(ref _copyCompleted, completed);
+            });
+
+            result = await Task.Run(() => _fileOperationService.CopyItemsAsync(
+                items, destinationFolder, marshalledCallback, progress, _copyCts.Token))
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            StopCopyProgressTimer();
+            IsCopyInProgress = false;
+            ((RelayCommand)CancelCopyCommand).RaiseCanExecuteChanged();
+            _copyCts.Dispose();
+            _copyCts = null;
+        }
+
+        if (result.SuccessCount > 0)
+        {
+            await RefreshAsync().ConfigureAwait(false);
+        }
+
+        var doneText = LocalizationService.Format(
+            "Message.CopyDone", result.SuccessCount, result.SkipCount, result.FailureCount);
+        await RunOnUIThreadAsync(() => StatusBarText = doneText).ConfigureAwait(false);
+
+        return result;
+    }
+
+    private void StartCopyProgressTimer()
+    {
+        if (_dispatcherQueue is null) return;
+
+        _copyProgressTimer = _dispatcherQueue.CreateTimer();
+        _copyProgressTimer.Interval = TimeSpan.FromMilliseconds(300);
+        _copyProgressTimer.Tick += OnCopyProgressTick;
+        _copyProgressTimer.Start();
+    }
+
+    private void StopCopyProgressTimer()
+    {
+        _copyProgressTimer?.Stop();
+        _copyProgressTimer = null;
+    }
+
+    private void OnCopyProgressTick(DispatcherQueueTimer sender, object args)
+    {
+        var completed = Volatile.Read(ref _copyCompleted);
+        StatusBarText = LocalizationService.Format(
+            "Message.CopyProgress", completed, _copyTotal);
     }
 
     internal void SetClipboard(IReadOnlyList<PhotoListItem> items, ClipboardOperation operation)
@@ -764,7 +861,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     }
 
     internal async Task<FileOperationSummary> ExecutePasteAsync(
-        Func<string, bool, Task<ConflictResolution>>? resolveConflictAsync = null)
+        Func<string, bool, Task<ConflictResolution>>? resolveMoveConflictAsync = null,
+        Func<string, bool, Task<ConflictResolution>>? resolveCopyConflictAsync = null)
     {
         if (_clipboardItems.Count == 0 || string.IsNullOrWhiteSpace(CurrentFolderPath))
         {
@@ -776,16 +874,10 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         if (operation == ClipboardOperation.Copy)
         {
-            var summary = await ExecuteCopyItemsToFolderAsync(items, CurrentFolderPath!).ConfigureAwait(false);
-            if (summary.SuccessCount > 0)
-            {
-                await RefreshAsync().ConfigureAwait(false);
-            }
-
-            return summary;
+            return await ExecuteCopyItemsToFolderAsync(items, CurrentFolderPath!, resolveCopyConflictAsync).ConfigureAwait(false);
         }
 
-        var moveResult = await ExecuteMoveItemsToFolderAsync(items, CurrentFolderPath!, resolveConflictAsync).ConfigureAwait(false);
+        var moveResult = await ExecuteMoveItemsToFolderAsync(items, CurrentFolderPath!, resolveMoveConflictAsync).ConfigureAwait(false);
         if (moveResult.FailureCount == 0 && moveResult.SkipCount == 0)
         {
             _clipboardItems = Array.Empty<PhotoListItem>();
@@ -1190,6 +1282,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         StopMoveProgressTimer();
         _moveCts?.Cancel();
         _moveCts?.Dispose();
+        StopCopyProgressTimer();
+        _copyCts?.Cancel();
+        _copyCts?.Dispose();
         _thumbnailGenerationSemaphore.Dispose();
     }
 

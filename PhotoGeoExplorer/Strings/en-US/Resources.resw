@@ -869,4 +869,34 @@
   <data name="DragCaption.Move" xml:space="preserve">
     <value>Move</value>
   </data>
+  <data name="Dialog.CopyConflict.Title" xml:space="preserve">
+    <value>Item already exists at destination</value>
+  </data>
+  <data name="Dialog.CopyConflict.Detail" xml:space="preserve">
+    <value>"{0}" already exists at the destination. Do you want to overwrite it?</value>
+  </data>
+  <data name="Dialog.CopyConflict.Overwrite" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="Dialog.CopyConflict.OverwriteAll" xml:space="preserve">
+    <value>Overwrite All</value>
+  </data>
+  <data name="Dialog.CopyConflict.Skip" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="Dialog.CopyConflict.SkipAll" xml:space="preserve">
+    <value>Skip All</value>
+  </data>
+  <data name="Dialog.CopyConflict.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Message.CopyProgress" xml:space="preserve">
+    <value>Copying… {0}/{1} items</value>
+  </data>
+  <data name="Message.CopyDone" xml:space="preserve">
+    <value>Copy complete: {0} succeeded, {1} skipped, {2} failed</value>
+  </data>
+  <data name="CancelCopyButton.Content" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
 </root>

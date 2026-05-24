@@ -12,6 +12,15 @@
   - UI 文言を「削除」から「ゴミ箱へ移動」に統一（メニュー・確認ダイアログ・エラーダイアログ）。
 
 ### 追加
+- Ctrl+ドラッグ（内部コピー）に競合確認・進捗・キャンセル対応を追加（#108）
+  - `IFileOperationService.CopyItemsAsync` を追加。競合ダイアログコールバック・`IProgress<int>`・`CancellationToken` に対応。
+  - `FileOperationService.CopyItemsAsync` を実装（`MoveItemsAsync` と同パターン: 上書き/スキップ/中止 選択可能）。
+  - `FileBrowserPaneViewModel` にコピー進捗フィールド・`IsCopyInProgress`・`CancelCopyCommand`・`CancelCopyVisibility` を追加。
+  - `ExecuteCopyItemsToFolderAsync` を `resolveConflictAsync` 対応の非同期版に更新。
+  - `ExecutePasteAsync` をコピー貼り付け時も競合ダイアログを表示するよう更新。
+  - `ShowCopyConflictDialogAsync` をView 層に追加（上書き/すべて上書き/スキップ/すべてスキップ/中止）。
+  - ステータスバーにコピー中止ボタン `CancelCopyButton` を追加。
+  - リソースファイルに `Dialog.CopyConflict.*`、`Message.CopyProgress`、`Message.CopyDone`、`CancelCopyButton.Content` を追加。
 - Explorer 風のドラッグアウト対応（#89）
   - `DragItemsStarting` で `SetDataProvider(StorageItems)` を追加し、Explorer や他アプリへのドラッグアウトを実現。
   - `RequestedOperation = Copy | Move` に変更して、同一/別ドライブの挙動を Explorer 側に委ねる。
