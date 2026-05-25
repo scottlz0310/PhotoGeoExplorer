@@ -6,13 +6,12 @@
 
 ### 修正
 - フォルダ遷移の繰り返しでクラッシュする問題を修正
-  - `App.OnUnhandledException` で `e.Handled = true` を設定してクラッシュを抑制。
   - WinRT マーシャリングで `StackTrace` が null になる問題を回避するため `Exception.ToString()` でログ記録。
-  - `LoadFolderAsync` に汎用キャッチを追加し、予期せぬ例外でもログに記録して継続。
+  - `LoadFolderAsync` に汎用キャッチを追加し、予期せぬ例外時に一覧クリアとエラー表示で UI 状態を整合。
 - 右クリックで複数選択が単数になる問題を修正
-  - `SelectedItems.Clear()` → TwoWay バインディング → `OnSelectedItemChanged()` が `_selectedItems` を消去する副作用を特定。
+  - `ViewModel.SelectedItem = item` のセットが TwoWay バインディング経由で `listView.SelectedItems` を単数に上書きしていた原因を特定。
+  - `item` を `listView.SelectedItems.Add()` の先頭に追加することで TwoWay による SelectedItem の再セットを no-op にし上書きを防止。
   - ViewModel に `BeginBatchSelectionUpdate()` / `EndBatchSelectionUpdate()` を追加し、一括操作中の `OnSelectedItemChanged` 副作用を抑制。
-  - 右クリック直前の選択スナップショット（`_selectionBeforeChange`）と `_suppressSelectionChangedForRightTap` フラグを組み合わせて複数選択を確実に復元。
 
 ## [1.8.0] - 2026-05-24
 
