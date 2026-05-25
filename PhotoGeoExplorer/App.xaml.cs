@@ -98,6 +98,13 @@ public partial class App : Application
         // ToString() で完全な情報（スタックトレース含む）を記録する。
         var detail = e.Exception?.ToString() ?? "null";
         AppLog.Error($"UI thread unhandled exception. {detail}");
+
+        // フォルダ遷移の繰り返しで WinRT マーシャリングが COMException を投げることがある。
+        // この例外は回復可能であるため継続する。それ以外の未知の例外はクラッシュさせる。
+        if (e.Exception is System.Runtime.InteropServices.COMException)
+        {
+            e.Handled = true;
+        }
     }
 
     private void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
