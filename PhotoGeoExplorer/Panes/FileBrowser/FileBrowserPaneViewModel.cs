@@ -55,6 +55,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private bool _hasActiveFilters;
     private PhotoListItem? _selectedItem;
     private readonly List<PhotoListItem> _selectedItems = new();
+    private bool _batchSelectionUpdate;
     private int _selectedCount;
     private PhotoMetadata? _selectedMetadata;
     private CancellationTokenSource? _metadataCts;
@@ -1037,6 +1038,17 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
         }
+#pragma warning disable CA1031
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            AppLog.Error($"LoadFolderAsync: Unexpected exception for '{folderPath}'", ex);
+            await RunOnUIThreadAsync(() =>
+            {
+                Items.Clear();
+                SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+            }).ConfigureAwait(false);
+        }
     }
 
     public async Task OpenHomeAsync()
@@ -1200,6 +1212,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         SearchText = null;
         ShowImagesOnly = true;
     }
+
+    // View が listView.SelectedItems を一括操作する間、TwoWay バインディング経由の
+    // SelectedItem 変化による UpdateSelection の副作用を抑制するために使う。
+    internal void BeginBatchSelectionUpdate() => _batchSelectionUpdate = true;
+    internal void EndBatchSelectionUpdate() => _batchSelectionUpdate = false;
 
     public void UpdateSelection(IReadOnlyList<PhotoListItem> items)
     {
@@ -1451,6 +1468,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     private void OnSelectedItemChanged()
     {
+        if (_batchSelectionUpdate)
+        {
+            return;
+        }
+
         if (SelectedItem is null)
         {
             if (_selectedItems.Count > 0)

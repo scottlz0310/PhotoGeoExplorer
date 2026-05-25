@@ -36,6 +36,8 @@ internal sealed partial class FileBrowserPaneView : UserControl
     private bool _suppressBreadcrumbNavigation;
     private bool _isWaitingForXamlRoot;
     private bool _fileListInputHandlersRegistered;
+    private bool _suppressSelectionChangedForRightTap;
+    private IReadOnlyList<PhotoListItem> _selectionBeforeChange = Array.Empty<PhotoListItem>();
     private FileBrowserPaneViewModel? _previousViewModel;
     private MenuFlyout? _detailsColumnsFlyout;
     private ToggleMenuFlyoutItem? _detailsModifiedColumnMenuItem;
@@ -671,6 +673,8 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
+        var priorSelection = _selectionBeforeChange;
+
         var source = e.OriginalSource as DependencyObject;
         if (source is not null)
         {
@@ -678,22 +682,65 @@ internal sealed partial class FileBrowserPaneView : UserControl
             if (container is not null
                 && listView.ItemFromContainer(container) is PhotoListItem item)
             {
-                // 選択済み項目を右クリック → 複数選択状態を維持
-                // 未選択項目を右クリック → その項目のみ選択（Explorer 風）
-                if (!listView.SelectedItems.Contains(item))
+                var currentSelection = ViewModel.SelectedItems.ToList();
+
+                // 複数選択を維持すべきかを判定する:
+                // ① ViewModel が複数のまま（SelectionChanged なし）→ currentSelection を使用
+                // ② ViewModel が単数に変化（SelectionChanged あり）→ priorSelection を使用
+                IReadOnlyList<PhotoListItem> selectionToRestore;
+                if (currentSelection.Count > 1 && currentSelection.Contains(item))
                 {
-                    listView.SelectedItems.Clear();
-                    listView.SelectedItems.Add(item);
-                    ViewModel.UpdateSelection(new[] { item });
+                    selectionToRestore = currentSelection;
+                }
+                else if (priorSelection.Count > 1 && priorSelection.Contains(item))
+                {
+                    selectionToRestore = priorSelection;
+                }
+                else
+                {
+                    selectionToRestore = Array.Empty<PhotoListItem>();
                 }
 
-                ViewModel.SelectedItem = item;
+                ViewModel.BeginBatchSelectionUpdate();
+                _suppressSelectionChangedForRightTap = true;
+                try
+                {
+                    listView.SelectedItems.Clear();
+
+                    // item を先頭に追加することで TwoWay バインディングが SelectedItem=item をセットする。
+                    // 後続の ViewModel.SelectedItem=item は SetProperty が false を返すため
+                    // TwoWay が再発火せず SelectedItems が単数に上書きされない。
+                    listView.SelectedItems.Add(item);
+                    var toRestore = selectionToRestore.Count > 0 ? selectionToRestore : (IReadOnlyList<PhotoListItem>)new[] { item };
+                    foreach (var savedItem in toRestore)
+                    {
+                        if (!object.ReferenceEquals(savedItem, item))
+                        {
+                            listView.SelectedItems.Add(savedItem);
+                        }
+                    }
+                    ViewModel.UpdateSelection(toRestore.ToList());
+                    ViewModel.SelectedItem = item;
+                }
+                finally
+                {
+                    _suppressSelectionChangedForRightTap = false;
+                    ViewModel.EndBatchSelectionUpdate();
+                }
             }
             else
             {
-                listView.SelectedItems.Clear();
-                ViewModel.SelectedItem = null;
-                ViewModel.UpdateSelection(Array.Empty<PhotoListItem>());
+                _suppressSelectionChangedForRightTap = true;
+                try
+                {
+                    listView.SelectedItems.Clear();
+                    ViewModel.SelectedItem = null;
+                    ViewModel.UpdateSelection(Array.Empty<PhotoListItem>());
+                }
+                finally
+                {
+                    _suppressSelectionChangedForRightTap = false;
+                }
             }
         }
 
@@ -732,27 +779,35 @@ internal sealed partial class FileBrowserPaneView : UserControl
         e.Handled = true;
     }
 
+    private void OnFileListPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
+        {
+            e.Handled = true;
+        }
+    }
+
     private async void OnFileSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        // RightTapped ハンドラ内で listView.SelectedItems を操作中は再帰的な更新を防ぐ。
+        if (_suppressSelectionChangedForRightTap)
+        {
+            return;
+        }
+
         if (ViewModel is null || sender is not ListViewBase listView)
         {
             return;
         }
 
+        // 右クリック直前の選択状態をスナップショットとして保持する。
+        // WinUI3 が右クリックで選択を変更した場合、RightTapped ハンドラで復元に使う。
+        _selectionBeforeChange = ViewModel.SelectedItems.ToList();
+
         var selected = listView.SelectedItems
             .OfType<PhotoListItem>()
             .ToList();
         ViewModel.UpdateSelection(selected);
-    }
-
-    private void OnFileListPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        if (e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
-        {
-            // 右ボタン押下では ListView の内部選択リセット処理を止める。
-            // RightTapped ハンドラで選択ロジックを管理する。
-            e.Handled = true;
-        }
     }
 
     private void OnFileListTapped(object sender, TappedRoutedEventArgs e)

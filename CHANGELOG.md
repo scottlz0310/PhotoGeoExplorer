@@ -2,7 +2,17 @@
 
 このプロジェクトの主な変更点をここに記録します。
 
-## [Unreleased]
+## [1.8.1] - 2026-05-25
+
+### 修正
+- フォルダ遷移の繰り返しでクラッシュする問題を修正
+  - WinRT マーシャリングで `StackTrace` が null になる問題を回避するため `Exception.ToString()` でログ記録。
+  - `OnUnhandledException` で `StackTrace` が null の例外（WinRT マーシャリング由来）のみ継続し、C# 側の例外はクラッシュさせて診断可能性を維持。
+  - `LoadFolderAsync` に汎用キャッチを追加し、予期せぬ例外時に一覧クリアとエラー表示で UI 状態を整合。
+- 右クリックで複数選択が単数になる問題を修正
+  - `ViewModel.SelectedItem = item` のセットが TwoWay バインディング経由で `listView.SelectedItems` を単数に上書きしていた原因を特定。
+  - `item` を `listView.SelectedItems.Add()` の先頭に追加することで TwoWay による SelectedItem の再セットを no-op にし上書きを防止。
+  - ViewModel に `BeginBatchSelectionUpdate()` / `EndBatchSelectionUpdate()` を追加し、一括操作中の `OnSelectedItemChanged` 副作用を抑制。
 
 ## [1.8.0] - 2026-05-24
 
