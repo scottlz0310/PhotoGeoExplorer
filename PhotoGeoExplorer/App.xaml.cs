@@ -94,8 +94,14 @@ public partial class App : Application
 
     private void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
     {
-        var exceptionInfo = $"Type: {e.Exception?.GetType().FullName ?? "Unknown"}, Message: {e.Exception?.Message ?? "Unknown"}";
-        AppLog.Error($"UI thread unhandled exception. {exceptionInfo}", e.Exception);
+        // WinRT マーシャリングにより e.Exception.StackTrace が null になることがあるため
+        // ToString() で完全な情報（スタックトレース含む）を記録する。
+        var detail = e.Exception?.ToString() ?? "null";
+        AppLog.Error($"UI thread unhandled exception. {detail}");
+
+        // e.Handled = true にしてクラッシュを防ぐ。
+        // 根本原因はログに記録済みなので、引き続き動作させて調査を可能にする。
+        e.Handled = true;
     }
 
     private void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)

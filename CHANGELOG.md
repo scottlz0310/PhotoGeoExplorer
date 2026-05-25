@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### 修正
+- フォルダ遷移の繰り返しでクラッシュする問題を修正
+  - `App.OnUnhandledException` で `e.Handled = true` を設定してクラッシュを抑制。
+  - WinRT マーシャリングで `StackTrace` が null になる問題を回避するため `Exception.ToString()` でログ記録。
+  - `LoadFolderAsync` に汎用キャッチを追加し、予期せぬ例外でもログに記録して継続。
+- 右クリックで複数選択が単数になる問題の修正作業中（WIP）
+  - `SelectedItems.Clear()` がTwoWayバインディング経由で `_selectedItems` を消去するバグを特定。
+  - `currentSelection = ViewModel.SelectedItems.ToList()` としてスナップショットを取る修正を適用。
+
 ## [1.8.0] - 2026-05-24
 
 ### 修正

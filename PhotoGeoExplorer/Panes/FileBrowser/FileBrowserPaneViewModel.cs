@@ -1037,6 +1037,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
         }
+#pragma warning disable CA1031
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            AppLog.Error($"LoadFolderAsync: Unexpected exception for '{folderPath}'", ex);
+        }
     }
 
     public async Task OpenHomeAsync()
