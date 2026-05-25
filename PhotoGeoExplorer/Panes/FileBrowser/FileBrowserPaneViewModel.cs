@@ -1210,8 +1210,17 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     // View が listView.SelectedItems を一括操作する間、TwoWay バインディング経由の
     // SelectedItem 変化による UpdateSelection の副作用を抑制するために使う。
-    internal void BeginBatchSelectionUpdate() => _batchSelectionUpdate = true;
-    internal void EndBatchSelectionUpdate() => _batchSelectionUpdate = false;
+    internal void BeginBatchSelectionUpdate()
+    {
+        AppLog.Info($"[SEL-DBG] BeginBatchSelectionUpdate: _selectedItems.Count={_selectedItems.Count}");
+        _batchSelectionUpdate = true;
+    }
+
+    internal void EndBatchSelectionUpdate()
+    {
+        _batchSelectionUpdate = false;
+        AppLog.Info($"[SEL-DBG] EndBatchSelectionUpdate: _selectedItems.Count={_selectedItems.Count}");
+    }
 
     public void UpdateSelection(IReadOnlyList<PhotoListItem> items)
     {
@@ -1463,6 +1472,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     private void OnSelectedItemChanged()
     {
+        AppLog.Info($"[SEL-DBG] OnSelectedItemChanged: batch={_batchSelectionUpdate}, SelectedItem={SelectedItem?.FileName ?? "null"}, _selectedItems.Count={_selectedItems.Count}");
         if (_batchSelectionUpdate)
         {
             return;
@@ -1472,11 +1482,13 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         {
             if (_selectedItems.Count > 0)
             {
+                AppLog.Info($"[SEL-DBG] OnSelectedItemChanged: clearing _selectedItems (was {_selectedItems.Count})");
                 UpdateSelection(Array.Empty<PhotoListItem>());
             }
         }
         else if (_selectedItems.Count == 0 || !_selectedItems.Contains(SelectedItem))
         {
+            AppLog.Info($"[SEL-DBG] OnSelectedItemChanged: resetting to single item");
             UpdateSelection(new List<PhotoListItem> { SelectedItem });
         }
 

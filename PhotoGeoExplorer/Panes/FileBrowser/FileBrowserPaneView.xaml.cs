@@ -674,6 +674,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         var priorSelection = _selectionBeforeChange;
+        AppLog.Info($"[SEL-DBG] RightTapped: VM.Count={ViewModel!.SelectedItems.Count}, prior.Count={priorSelection.Count}");
 
         var source = e.OriginalSource as DependencyObject;
         if (source is not null)
@@ -691,14 +692,17 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 if (currentSelection.Count > 1 && currentSelection.Contains(item))
                 {
                     selectionToRestore = currentSelection;
+                    AppLog.Info($"[SEL-DBG] RightTapped: selectionToRestore=current({currentSelection.Count})");
                 }
                 else if (priorSelection.Count > 1 && priorSelection.Contains(item))
                 {
                     selectionToRestore = priorSelection;
+                    AppLog.Info($"[SEL-DBG] RightTapped: selectionToRestore=prior({priorSelection.Count}), current={currentSelection.Count}");
                 }
                 else
                 {
                     selectionToRestore = Array.Empty<PhotoListItem>();
+                    AppLog.Info($"[SEL-DBG] RightTapped: selectionToRestore=empty, current={currentSelection.Count}, prior={priorSelection.Count}");
                 }
 
                 ViewModel.BeginBatchSelectionUpdate();
@@ -706,13 +710,16 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 try
                 {
                     listView.SelectedItems.Clear();
+                    AppLog.Info($"[SEL-DBG] RightTapped: after Clear -> VM.Count={ViewModel.SelectedItems.Count}, lv.Count={listView.SelectedItems.Count}");
                     if (selectionToRestore.Count > 0)
                     {
                         foreach (var savedItem in selectionToRestore)
                         {
                             listView.SelectedItems.Add(savedItem);
                         }
+                        AppLog.Info($"[SEL-DBG] RightTapped: after Add*{selectionToRestore.Count} -> lv.Count={listView.SelectedItems.Count}");
                         ViewModel.UpdateSelection(selectionToRestore.ToList());
+                        AppLog.Info($"[SEL-DBG] RightTapped: after UpdateSelection -> VM.Count={ViewModel.SelectedItems.Count}");
                     }
                     else
                     {
@@ -723,8 +730,10 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 }
                 finally
                 {
+                    AppLog.Info($"[SEL-DBG] RightTapped: finally -> VM.Count={ViewModel.SelectedItems.Count}, lv.Count={listView.SelectedItems.Count}");
                     _suppressSelectionChangedForRightTap = false;
                     ViewModel.EndBatchSelectionUpdate();
+                    AppLog.Info($"[SEL-DBG] RightTapped: after EndBatch -> VM.Count={ViewModel.SelectedItems.Count}");
                 }
             }
             else
@@ -782,12 +791,15 @@ internal sealed partial class FileBrowserPaneView : UserControl
     {
         if (e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
         {
+            AppLog.Info($"[SEL-DBG] PointerPressed(Right): VM.Count={ViewModel?.SelectedItems.Count}, _selectionBefore.Count={_selectionBeforeChange.Count}");
             e.Handled = true;
         }
     }
 
     private async void OnFileSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        AppLog.Info($"[SEL-DBG] SelectionChanged: suppress={_suppressSelectionChangedForRightTap}, Added={e.AddedItems.Count}, Removed={e.RemovedItems.Count}, VM.Count={ViewModel?.SelectedItems.Count}");
+
         // RightTapped ハンドラ内で listView.SelectedItems を操作中は再帰的な更新を防ぐ。
         if (_suppressSelectionChangedForRightTap)
         {
@@ -802,6 +814,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         // 右クリック直前の選択状態をスナップショットとして保持する。
         // WinUI3 が右クリックで選択を変更した場合、RightTapped ハンドラで復元に使う。
         _selectionBeforeChange = ViewModel.SelectedItems.ToList();
+        AppLog.Info($"[SEL-DBG] SelectionChanged: _selectionBefore updated to {_selectionBeforeChange.Count} items, listView.SelectedItems now={listView.SelectedItems.Count}");
 
         var selected = listView.SelectedItems
             .OfType<PhotoListItem>()
