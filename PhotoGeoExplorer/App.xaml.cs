@@ -99,9 +99,10 @@ public partial class App : Application
         var detail = e.Exception?.ToString() ?? "null";
         AppLog.Error($"UI thread unhandled exception. {detail}");
 
-        // フォルダ遷移の繰り返しで WinRT マーシャリングが COMException を投げることがある。
-        // この例外は回復可能であるため継続する。それ以外の未知の例外はクラッシュさせる。
-        if (e.Exception is System.Runtime.InteropServices.COMException)
+        // WinRT マーシャリング由来の例外は StackTrace が null になる。
+        // これらはフォルダ遷移等で発生する回復可能な例外であるため継続する。
+        // StackTrace がある例外（C# 側の本物のバグ）はクラッシュさせて診断可能性を維持する。
+        if (e.Exception?.StackTrace is null)
         {
             e.Handled = true;
         }
