@@ -7,6 +7,7 @@
 ### 修正
 - フォルダ遷移の繰り返しでクラッシュする問題を修正
   - WinRT マーシャリングで `StackTrace` が null になる問題を回避するため `Exception.ToString()` でログ記録。
+  - `OnUnhandledException` で `StackTrace` が null の例外（WinRT マーシャリング由来）のみ継続し、C# 側の例外はクラッシュさせて診断可能性を維持。
   - `LoadFolderAsync` に汎用キャッチを追加し、予期せぬ例外時に一覧クリアとエラー表示で UI 状態を整合。
 - 右クリックで複数選択が単数になる問題を修正
   - `ViewModel.SelectedItem = item` のセットが TwoWay バインディング経由で `listView.SelectedItems` を単数に上書きしていた原因を特定。
