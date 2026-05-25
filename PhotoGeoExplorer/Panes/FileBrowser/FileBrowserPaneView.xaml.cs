@@ -84,8 +84,9 @@ internal sealed partial class FileBrowserPaneView : UserControl
             FileListIcon.AddHandler(UIElement.KeyDownEvent, keyHandler, handledEventsToo: true);
             FileListDetails.AddHandler(UIElement.KeyDownEvent, keyHandler, handledEventsToo: true);
 
-            // イベント順序デバッグ用
-            var pointerHandler = new PointerEventHandler(OnFileListPointerPressedDebug);
+            // 右クリック時に WinUI 3 の ListView が PointerPressed で SHIFT 選択をリセットするのを防ぐ。
+            // handledEventsToo: true で先取りし、右ボタン押下は e.Handled=true にして内部処理を止める。
+            var pointerHandler = new PointerEventHandler(OnFileListPointerPressed);
             FileListList.AddHandler(UIElement.PointerPressedEvent, pointerHandler, handledEventsToo: true);
             FileListIcon.AddHandler(UIElement.PointerPressedEvent, pointerHandler, handledEventsToo: true);
             FileListDetails.AddHandler(UIElement.PointerPressedEvent, pointerHandler, handledEventsToo: true);
@@ -672,13 +673,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        // SelectionChanged で右クリックによる単数化が起きた場合:
-        //   ViewModel.SelectedItems = [item]（単数）
-        //   _selectionBeforeChange  = [A, B, C]（右クリック直前の複数選択）
-        // 単数化が起きなかった場合（Ctrl+A 全選択等）:
-        //   ViewModel.SelectedItems = [複数]（変化なし）
-        //   _selectionBeforeChange  = 以前のある時点の選択（無関係）
-        AppLog.Info($"[DBG] RightTapped: ViewModel.Count={ViewModel!.SelectedItems.Count}, before.Count={_selectionBeforeChange.Count}");
         var priorSelection = _selectionBeforeChange;
 
         var source = e.OriginalSource as DependencyObject;
@@ -707,6 +701,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
                     selectionToRestore = Array.Empty<PhotoListItem>();
                 }
 
+                ViewModel.BeginBatchSelectionUpdate();
                 _suppressSelectionChangedForRightTap = true;
                 try
                 {
@@ -729,6 +724,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 finally
                 {
                     _suppressSelectionChangedForRightTap = false;
+                    ViewModel.EndBatchSelectionUpdate();
                 }
             }
             else
@@ -782,18 +778,16 @@ internal sealed partial class FileBrowserPaneView : UserControl
         e.Handled = true;
     }
 
-    private void OnFileListPointerPressedDebug(object sender, PointerRoutedEventArgs e)
+    private void OnFileListPointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
         {
-            AppLog.Info($"[DBG] PointerPressed(Right): ViewModel.SelectedItems.Count={ViewModel?.SelectedItems.Count}, _selectionBeforeChange.Count={_selectionBeforeChange.Count}");
+            e.Handled = true;
         }
     }
 
     private async void OnFileSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        AppLog.Info($"[DBG] SelectionChanged: suppress={_suppressSelectionChangedForRightTap}, Added={e.AddedItems.Count}, Removed={e.RemovedItems.Count}, VM.Count={ViewModel?.SelectedItems.Count}");
-
         // RightTapped ハンドラ内で listView.SelectedItems を操作中は再帰的な更新を防ぐ。
         if (_suppressSelectionChangedForRightTap)
         {
@@ -805,8 +799,8 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        // 変更前の選択状態を記録する。SelectionChanged が右クリックによるものの場合、
-        // 発火直前の状態（= 右クリック前の複数選択）が _selectionBeforeChange に入る。
+        // 右クリック直前の選択状態をスナップショットとして保持する。
+        // WinUI3 が右クリックで選択を変更した場合、RightTapped ハンドラで復元に使う。
         _selectionBeforeChange = ViewModel.SelectedItems.ToList();
 
         var selected = listView.SelectedItems

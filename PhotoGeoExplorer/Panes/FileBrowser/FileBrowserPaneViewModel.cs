@@ -55,6 +55,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private bool _hasActiveFilters;
     private PhotoListItem? _selectedItem;
     private readonly List<PhotoListItem> _selectedItems = new();
+    private bool _batchSelectionUpdate;
     private int _selectedCount;
     private PhotoMetadata? _selectedMetadata;
     private CancellationTokenSource? _metadataCts;
@@ -1207,6 +1208,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         ShowImagesOnly = true;
     }
 
+    // View が listView.SelectedItems を一括操作する間、TwoWay バインディング経由の
+    // SelectedItem 変化による UpdateSelection の副作用を抑制するために使う。
+    internal void BeginBatchSelectionUpdate() => _batchSelectionUpdate = true;
+    internal void EndBatchSelectionUpdate() => _batchSelectionUpdate = false;
+
     public void UpdateSelection(IReadOnlyList<PhotoListItem> items)
     {
         _selectedItems.Clear();
@@ -1457,6 +1463,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     private void OnSelectedItemChanged()
     {
+        if (_batchSelectionUpdate)
+        {
+            return;
+        }
+
         if (SelectedItem is null)
         {
             if (_selectedItems.Count > 0)

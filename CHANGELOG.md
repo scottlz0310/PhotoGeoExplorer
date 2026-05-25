@@ -9,9 +9,10 @@
   - `App.OnUnhandledException` で `e.Handled = true` を設定してクラッシュを抑制。
   - WinRT マーシャリングで `StackTrace` が null になる問題を回避するため `Exception.ToString()` でログ記録。
   - `LoadFolderAsync` に汎用キャッチを追加し、予期せぬ例外でもログに記録して継続。
-- 右クリックで複数選択が単数になる問題の修正作業中（WIP）
-  - `SelectedItems.Clear()` がTwoWayバインディング経由で `_selectedItems` を消去するバグを特定。
-  - `currentSelection = ViewModel.SelectedItems.ToList()` としてスナップショットを取る修正を適用。
+- 右クリックで複数選択が単数になる問題を修正
+  - `SelectedItems.Clear()` → TwoWay バインディング → `OnSelectedItemChanged()` が `_selectedItems` を消去する副作用を特定。
+  - ViewModel に `BeginBatchSelectionUpdate()` / `EndBatchSelectionUpdate()` を追加し、一括操作中の `OnSelectedItemChanged` 副作用を抑制。
+  - 右クリック直前の選択スナップショット（`_selectionBeforeChange`）と `_suppressSelectionChangedForRightTap` フラグを組み合わせて複数選択を確実に復元。
 
 ## [1.8.0] - 2026-05-24
 
