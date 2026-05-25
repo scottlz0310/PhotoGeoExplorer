@@ -711,22 +711,23 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 {
                     listView.SelectedItems.Clear();
                     AppLog.Info($"[SEL-DBG] RightTapped: after Clear -> VM.Count={ViewModel.SelectedItems.Count}, lv.Count={listView.SelectedItems.Count}");
-                    if (selectionToRestore.Count > 0)
+
+                    // item を先頭に追加することで TwoWay バインディングが SelectedItem=item を設定する。
+                    // その後の ViewModel.SelectedItem=item は SetProperty が false を返すため
+                    // TwoWay が発火せず SelectedItems が上書きされない。
+                    listView.SelectedItems.Add(item);
+                    var toRestore = selectionToRestore.Count > 0 ? selectionToRestore : (IReadOnlyList<PhotoListItem>)new[] { item };
+                    foreach (var savedItem in toRestore)
                     {
-                        foreach (var savedItem in selectionToRestore)
+                        if (!object.ReferenceEquals(savedItem, item))
                         {
                             listView.SelectedItems.Add(savedItem);
                         }
-                        AppLog.Info($"[SEL-DBG] RightTapped: after Add*{selectionToRestore.Count} -> lv.Count={listView.SelectedItems.Count}");
-                        ViewModel.UpdateSelection(selectionToRestore.ToList());
-                        AppLog.Info($"[SEL-DBG] RightTapped: after UpdateSelection -> VM.Count={ViewModel.SelectedItems.Count}");
                     }
-                    else
-                    {
-                        listView.SelectedItems.Add(item);
-                        ViewModel.UpdateSelection(new[] { item });
-                    }
-                    ViewModel.SelectedItem = item;
+                    AppLog.Info($"[SEL-DBG] RightTapped: after Add*{listView.SelectedItems.Count} -> lv.Count={listView.SelectedItems.Count}");
+                    ViewModel.UpdateSelection(toRestore.ToList());
+                    AppLog.Info($"[SEL-DBG] RightTapped: after UpdateSelection -> VM.Count={ViewModel.SelectedItems.Count}");
+                    ViewModel.SelectedItem = item;  // item は先頭 Add 済みのため SetProperty=false → TwoWay 発火なし
                 }
                 finally
                 {
