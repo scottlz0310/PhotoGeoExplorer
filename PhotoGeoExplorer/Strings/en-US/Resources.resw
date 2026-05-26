@@ -899,4 +899,10 @@
   <data name="CancelCopyButton.Content" xml:space="preserve">
     <value>Cancel</value>
   </data>
+  <data name="CrashReportBanner.Message" xml:space="preserve">
+    <value>PhotoGeoExplorer did not shut down properly last time. Diagnostic logs have been saved. Attaching logs when reporting an issue helps with investigation.</value>
+  </data>
+  <data name="CrashReportBanner.OpenFolderButton.Content" xml:space="preserve">
+    <value>Open Crash Log Folder</value>
+  </data>
 </root>

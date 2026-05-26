@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### 追加
+- クラッシュレポート基盤を実装（#118）
+  - `CrashReportService` を新規追加: `running.lock` による異常終了検出・`CrashReports/crash_<timestamp>.log` へのクラッシュログ保存・パス/UNCパスのマスク処理。
+  - 未処理例外（UI スレッド例外・AppDomain 例外）発生時にクラッシュログを自動保存。
+  - 次回起動時に前回異常終了を検出した場合、InfoBar バナーで通知し「クラッシュログフォルダーを開く」ボタンを表示。
+  - 自動送信なし・ローカル収集のみ。
+
 ### 修正
 - EXIF編集ボタン連打による `ContentDialog` 二重表示クラッシュを修正（#116）
   - `RelayCommand` / `RelayCommand<T>` に `_isExecuting` フラグを追加し、非同期実行中は `CanExecute = false` を返すよう変更。
