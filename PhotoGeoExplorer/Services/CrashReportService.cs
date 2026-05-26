@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -8,37 +9,51 @@ namespace PhotoGeoExplorer.Services;
 
 internal sealed class CrashReportService : ICrashReportService
 {
-    private static readonly string AppDataDirectory = Path.Combine(
+    private const int MaxCrashLogCount = 20;
+
+    private static readonly string DefaultAppDataDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PhotoGeoExplorer");
 
-    private static readonly string LockFilePath = Path.Combine(AppDataDirectory, "running.lock");
+    private readonly string _appDataDirectory;
+    private readonly string _lockFilePath;
+    private readonly string _crashReportsDir;
 
-    private static readonly string CrashReportsDir = Path.Combine(AppDataDirectory, "CrashReports");
+    public CrashReportService()
+        : this(DefaultAppDataDirectory)
+    {
+    }
+
+    internal CrashReportService(string appDataDirectory)
+    {
+        _appDataDirectory = appDataDirectory ?? throw new ArgumentNullException(nameof(appDataDirectory));
+        _lockFilePath = Path.Combine(_appDataDirectory, "running.lock");
+        _crashReportsDir = Path.Combine(_appDataDirectory, "CrashReports");
+    }
 
     public bool PreviouslyTerminatedAbnormally { get; private set; }
 
-    public string CrashReportsDirectoryPath => CrashReportsDir;
+    public string CrashReportsDirectoryPath => _crashReportsDir;
 
     public void RecordStartup()
     {
-        PreviouslyTerminatedAbnormally = File.Exists(LockFilePath);
+        PreviouslyTerminatedAbnormally = File.Exists(_lockFilePath);
         TryCreateLockFile();
     }
 
     public void RecordNormalExit()
     {
-        TryDeleteFile(LockFilePath);
+        TryDeleteFile(_lockFilePath);
     }
 
     public void WriteCrashLog(Exception? exception)
     {
         try
         {
-            Directory.CreateDirectory(CrashReportsDir);
+            Directory.CreateDirectory(_crashReportsDir);
             var timestamp = DateTimeOffset.Now;
             var fileName = $"crash_{timestamp:yyyyMMddHHmmss}.log";
-            var filePath = Path.Combine(CrashReportsDir, fileName);
+            var filePath = Path.Combine(_crashReportsDir, fileName);
 
             var version = typeof(CrashReportService).Assembly.GetName().Version?.ToString() ?? "unknown";
             var osVersion = Environment.OSVersion.ToString();
@@ -54,6 +69,7 @@ internal sealed class CrashReportService : ICrashReportService
             builder.Append(MaskSensitiveData(exception?.ToString() ?? "No stack trace"));
 
             File.WriteAllText(filePath, builder.ToString(), Encoding.UTF8);
+            PruneOldCrashLogs();
         }
         catch (UnauthorizedAccessException) { }
         catch (IOException) { }
@@ -88,12 +104,32 @@ internal sealed class CrashReportService : ICrashReportService
         return text;
     }
 
-    private static void TryCreateLockFile()
+    private void PruneOldCrashLogs()
     {
         try
         {
-            Directory.CreateDirectory(AppDataDirectory);
-            File.WriteAllText(LockFilePath, DateTimeOffset.Now.ToString("O"));
+            var files = Directory.GetFiles(_crashReportsDir, "crash_*.log")
+                .OrderByDescending(f => f)
+                .Skip(MaxCrashLogCount)
+                .ToList();
+
+            foreach (var file in files)
+            {
+                File.Delete(file);
+            }
+        }
+        catch (UnauthorizedAccessException) { }
+        catch (IOException) { }
+        catch (ArgumentException) { }
+        catch (NotSupportedException) { }
+    }
+
+    private void TryCreateLockFile()
+    {
+        try
+        {
+            Directory.CreateDirectory(_appDataDirectory);
+            File.WriteAllText(_lockFilePath, DateTimeOffset.Now.ToString("O"));
         }
         catch (UnauthorizedAccessException) { }
         catch (IOException) { }

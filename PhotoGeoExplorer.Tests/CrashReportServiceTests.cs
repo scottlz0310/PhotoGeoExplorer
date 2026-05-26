@@ -5,8 +5,26 @@ using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
 
-public class CrashReportServiceTests
+public sealed class CrashReportServiceTests : IDisposable
 {
+    private readonly string _tempDir;
+
+    public CrashReportServiceTests()
+    {
+        _tempDir = Path.Combine(Path.GetTempPath(), $"PhotoGeoExplorerTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_tempDir);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            Directory.Delete(_tempDir, recursive: true);
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
     [Theory]
     [InlineData(@"C:\Users\testuser\Pictures\photo.jpg", "<path:masked>")]
     [InlineData(@"C:\Users\testuser\AppData\Local\app", "<path:masked>")]
@@ -53,21 +71,31 @@ public class CrashReportServiceTests
     [Fact]
     public void RecordStartup_SetsAbnormalTerminationFalse_WhenNoLockFile()
     {
-        var service = new CrashReportService();
-        EnsureNoLockFile();
+        var service = new CrashReportService(_tempDir);
 
         service.RecordStartup();
 
         Assert.False(service.PreviouslyTerminatedAbnormally);
-        CleanupLockFile();
+    }
+
+    [Fact]
+    public void RecordStartup_SetsAbnormalTerminationTrue_WhenLockFileExists()
+    {
+        var service = new CrashReportService(_tempDir);
+        var lockPath = Path.Combine(_tempDir, "running.lock");
+        File.WriteAllText(lockPath, "stale");
+
+        service.RecordStartup();
+
+        Assert.True(service.PreviouslyTerminatedAbnormally);
     }
 
     [Fact]
     public void RecordNormalExit_DeletesLockFile()
     {
-        var service = new CrashReportService();
+        var service = new CrashReportService(_tempDir);
         service.RecordStartup();
-        var lockPath = GetLockFilePath();
+        var lockPath = Path.Combine(_tempDir, "running.lock");
         Assert.True(File.Exists(lockPath));
 
         service.RecordNormalExit();
@@ -78,23 +106,20 @@ public class CrashReportServiceTests
     [Fact]
     public void WriteCrashLog_CreatesFileInCrashReportsDirectory()
     {
-        var service = new CrashReportService();
+        var service = new CrashReportService(_tempDir);
         var dir = service.CrashReportsDirectoryPath;
-        CleanupCrashReports(dir);
 
         service.WriteCrashLog(new InvalidOperationException("test crash"));
 
         var files = Directory.GetFiles(dir, "crash_*.log");
         Assert.Single(files);
-        CleanupCrashReports(dir);
     }
 
     [Fact]
     public void WriteCrashLog_MasksSensitiveDataInLog()
     {
-        var service = new CrashReportService();
+        var service = new CrashReportService(_tempDir);
         var dir = service.CrashReportsDirectoryPath;
-        CleanupCrashReports(dir);
 
         service.WriteCrashLog(new FileNotFoundException(@"File not found: C:\Users\testuser\photo.jpg"));
 
@@ -103,55 +128,34 @@ public class CrashReportServiceTests
         var content = File.ReadAllText(files[0]);
         Assert.DoesNotContain(@"C:\Users\testuser\photo.jpg", content, StringComparison.Ordinal);
         Assert.Contains("<path:masked>", content, StringComparison.Ordinal);
-        CleanupCrashReports(dir);
     }
 
     [Fact]
     public void WriteCrashLog_DoesNotThrow_WhenExceptionIsNull()
     {
-        var service = new CrashReportService();
+        var service = new CrashReportService(_tempDir);
 
         var ex = Record.Exception(() => service.WriteCrashLog(null));
 
         Assert.Null(ex);
     }
 
-    private static string GetLockFilePath()
+    [Fact]
+    public void WriteCrashLog_PrunesOldLogs_WhenExceedingMaxCount()
     {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "PhotoGeoExplorer",
-            "running.lock");
-    }
+        var service = new CrashReportService(_tempDir);
+        var dir = service.CrashReportsDirectoryPath;
+        Directory.CreateDirectory(dir);
 
-    private static void EnsureNoLockFile()
-    {
-        var path = GetLockFilePath();
-        if (File.Exists(path))
+        for (var i = 0; i < 22; i++)
         {
-            File.Delete(path);
-        }
-    }
-
-    private static void CleanupLockFile()
-    {
-        var path = GetLockFilePath();
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-    }
-
-    private static void CleanupCrashReports(string dir)
-    {
-        if (!Directory.Exists(dir))
-        {
-            return;
+            var fileName = $"crash_20240101{i:D6}.log";
+            File.WriteAllText(Path.Combine(dir, fileName), "dummy");
         }
 
-        foreach (var file in Directory.GetFiles(dir, "crash_*.log"))
-        {
-            File.Delete(file);
-        }
+        service.WriteCrashLog(new InvalidOperationException("trigger prune"));
+
+        var files = Directory.GetFiles(dir, "crash_*.log");
+        Assert.True(files.Length <= 20, $"Expected <=20 files, got {files.Length}");
     }
 }
