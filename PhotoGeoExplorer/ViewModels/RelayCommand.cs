@@ -11,6 +11,7 @@ internal sealed class RelayCommand : ICommand
 {
     private readonly Func<Task> _execute;
     private readonly Func<bool>? _canExecute;
+    private bool _isExecuting;
 
     public RelayCommand(Func<Task> execute, Func<bool>? canExecute = null)
     {
@@ -22,11 +23,18 @@ internal sealed class RelayCommand : ICommand
 
     public bool CanExecute(object? parameter)
     {
-        return _canExecute?.Invoke() ?? true;
+        return !_isExecuting && (_canExecute?.Invoke() ?? true);
     }
 
     public async void Execute(object? parameter)
     {
+        if (_isExecuting)
+        {
+            return;
+        }
+
+        _isExecuting = true;
+        RaiseCanExecuteChanged();
         try
         {
             await _execute().ConfigureAwait(false);
@@ -39,6 +47,11 @@ internal sealed class RelayCommand : ICommand
         {
             AppLog.Error("RelayCommand execution failed.", ex);
             throw;
+        }
+        finally
+        {
+            _isExecuting = false;
+            RaiseCanExecuteChanged();
         }
     }
 
@@ -55,6 +68,7 @@ internal sealed class RelayCommand<T> : ICommand
 {
     private readonly Func<T?, Task> _execute;
     private readonly Func<T?, bool>? _canExecute;
+    private bool _isExecuting;
 
     public RelayCommand(Func<T?, Task> execute, Func<T?, bool>? canExecute = null)
     {
@@ -66,11 +80,18 @@ internal sealed class RelayCommand<T> : ICommand
 
     public bool CanExecute(object? parameter)
     {
-        return _canExecute?.Invoke((T?)parameter) ?? true;
+        return !_isExecuting && (_canExecute?.Invoke((T?)parameter) ?? true);
     }
 
     public async void Execute(object? parameter)
     {
+        if (_isExecuting)
+        {
+            return;
+        }
+
+        _isExecuting = true;
+        RaiseCanExecuteChanged();
         try
         {
             await _execute((T?)parameter).ConfigureAwait(false);
@@ -83,6 +104,11 @@ internal sealed class RelayCommand<T> : ICommand
         {
             AppLog.Error("RelayCommand<T> execution failed.", ex);
             throw;
+        }
+        finally
+        {
+            _isExecuting = false;
+            RaiseCanExecuteChanged();
         }
     }
 
