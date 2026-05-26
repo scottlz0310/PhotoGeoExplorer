@@ -20,9 +20,12 @@ public partial class App : Application
     private string? _startupFilePath;
     private DateTimeOffset _splashShownAt;
     private bool _splashCloseRequested;
+    private bool _crashDetected;
+    private static readonly Services.CrashReportService CrashReporter = new();
 
     public App()
     {
+        CrashReporter.RecordStartup();
         InitializeComponent();
         UnhandledException += OnUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
@@ -42,6 +45,7 @@ public partial class App : Application
         _splashShownAt = DateTimeOffset.UtcNow;
 
         var mainWindow = new MainWindow();
+        mainWindow.SetCrashReportService(CrashReporter);
         _window = mainWindow;
         if (!string.IsNullOrWhiteSpace(_startupFilePath))
         {
@@ -106,13 +110,20 @@ public partial class App : Application
         {
             e.Handled = true;
         }
+        else
+        {
+            _crashDetected = true;
+            CrashReporter.WriteCrashLog(e.Exception);
+        }
     }
 
     private void OnDomainUnhandledException(object sender, System.UnhandledExceptionEventArgs e)
     {
+        _crashDetected = true;
         var exception = e.ExceptionObject as Exception;
         var exceptionInfo = $"IsTerminating: {e.IsTerminating}, Type: {exception?.GetType().FullName ?? "Unknown"}, Message: {exception?.Message ?? "Unknown"}";
         AppLog.Error($"AppDomain unhandled exception. {exceptionInfo}", exception);
+        CrashReporter.WriteCrashLog(exception);
     }
 
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
@@ -123,6 +134,12 @@ public partial class App : Application
 
     private void OnProcessExit(object? sender, EventArgs e)
     {
+        // クラッシュ検出済みの場合は running.lock を残して次回起動時に異常終了を通知する
+        if (!_crashDetected)
+        {
+            CrashReporter.RecordNormalExit();
+        }
+
         AppLog.Info("ProcessExit event received.");
     }
 

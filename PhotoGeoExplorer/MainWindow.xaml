@@ -166,9 +166,22 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <controls:InfoBar
                 Grid.Row="0"
+                x:Uid="CrashReportBanner"
+                IsOpen="{Binding IsCrashReportBannerOpen, Mode=TwoWay}"
+                Severity="Warning"
+                IsClosable="True">
+                <controls:InfoBar.ActionButton>
+                    <Button
+                        x:Uid="CrashReportBanner.OpenFolderButton"
+                        Click="OnOpenCrashReportFolderClicked" />
+                </controls:InfoBar.ActionButton>
+            </controls:InfoBar>
+            <controls:InfoBar
+                Grid.Row="1"
                 IsOpen="{Binding IsNotificationOpen, Mode=TwoWay}"
                 Message="{Binding NotificationMessage}"
                 Severity="{Binding NotificationSeverity}"
@@ -182,7 +195,7 @@
                 </controls:InfoBar.ActionButton>
             </controls:InfoBar>
             <Border
-                Grid.Row="1"
+                Grid.Row="2"
                 Margin="0,6,0,0"
                 Padding="8,4"
                 Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"

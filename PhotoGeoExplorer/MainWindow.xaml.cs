@@ -30,6 +30,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
+    private Services.ICrashReportService? _crashReportService;
     private bool _mapInitialized;
     private bool _disposed;
     private bool _windowSized;
@@ -37,6 +38,11 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly HelpService _helpService;
     private readonly MainWindowLayoutCoordinator _layoutCoordinator;
     internal FileBrowserPaneViewModel FileBrowserPaneViewModel => _fileBrowserPaneViewModel;
+
+    internal void SetCrashReportService(Services.ICrashReportService crashReportService)
+    {
+        _crashReportService = crashReportService ?? throw new ArgumentNullException(nameof(crashReportService));
+    }
 
     public MainWindow()
     {
@@ -167,9 +173,13 @@ public sealed partial class MainWindow : Window, IDisposable
         // XamlRoot が確定するまでワンテンポ遅らせてからダイアログを表示
         DispatcherQueue.TryEnqueue(async () =>
         {
+            if (_crashReportService?.PreviouslyTerminatedAbnormally == true)
+            {
+                _viewModel.ShowCrashReportBanner(_crashReportService.CrashReportsDirectoryPath);
+            }
+
             await _helpService.ShowQuickStartIfNeededAsync().ConfigureAwait(true);
         });
-
     }
 
     private void EnsureWindowSize()
@@ -431,6 +441,41 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             AppLog.Info("MainWindow dispose completed.");
             GC.SuppressFinalize(this);
+        }
+    }
+
+    private async void OnOpenCrashReportFolderClicked(object sender, RoutedEventArgs e)
+    {
+        var path = _viewModel.CrashReportsDirectoryPath;
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
+
+            _ = await Windows.System.Launcher.LaunchFolderPathAsync(path);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (IOException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (ArgumentException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            HandleOpenLogFolderFailure(ex);
         }
     }
 

@@ -22,6 +22,8 @@ internal sealed class MainViewModel : BindableBase
     private MapTileSourceType _currentMapTileSource = MapTileSourceType.OpenStreetMap;
     private IHelpService? _helpService;
     private ISettingsCoordinator? _settingsCoordinator;
+    private bool _isCrashReportBannerOpen;
+    private string? _crashReportsDirectoryPath;
 
     public MainViewModel()
         : this(new State.WorkspaceState())
@@ -137,6 +139,14 @@ internal sealed class MainViewModel : BindableBase
         private set => SetProperty(ref _notificationActionVisibility, value);
     }
 
+    public bool IsCrashReportBannerOpen
+    {
+        get => _isCrashReportBannerOpen;
+        set => SetProperty(ref _isCrashReportBannerOpen, value);
+    }
+
+    public string? CrashReportsDirectoryPath => _crashReportsDirectoryPath;
+
     public ICommand ShowGettingStartedCommand { get; }
     public ICommand ShowBasicOperationsCommand { get; }
     public ICommand ShowDetailedHelpCommand { get; }
@@ -202,6 +212,12 @@ internal sealed class MainViewModel : BindableBase
         NotificationActionLabel = actionLabel;
         NotificationActionUrl = actionUrl;
         NotificationActionVisibility = Visibility.Visible;
+    }
+
+    public void ShowCrashReportBanner(string crashReportsDirectoryPath)
+    {
+        _crashReportsDirectoryPath = crashReportsDirectoryPath;
+        IsCrashReportBannerOpen = true;
     }
 
     public void ConfigureHelpService(IHelpService helpService)
