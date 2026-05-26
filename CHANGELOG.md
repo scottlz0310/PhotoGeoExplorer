@@ -2,6 +2,14 @@
 
 このプロジェクトの主な変更点をここに記録します。
 
+## [Unreleased]
+
+### 修正
+- EXIF編集ボタン連打による `ContentDialog` 二重表示クラッシュを修正（#116）
+  - `RelayCommand` / `RelayCommand<T>` に `_isExecuting` フラグを追加し、非同期実行中は `CanExecute = false` を返すよう変更。
+  - `finally` での `RaiseCanExecuteChanged()` を `DispatcherQueue.TryEnqueue` 経由で UI スレッドから通知するよう修正。
+  - WinUI 3 の「同時に ContentDialog は1つのみ」制約への対処であり、EXIF編集以外の全非同期コマンドにも適用される。
+
 ## [1.8.1] - 2026-05-25
 
 ### 修正
