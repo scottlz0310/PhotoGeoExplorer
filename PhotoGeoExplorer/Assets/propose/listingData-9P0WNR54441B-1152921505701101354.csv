@@ -4,13 +4,11 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.8.2)
-- Fixed: App crashed on startup due to x:Uid naming conflict in crash report banner (introduced in v1.8.2)
-- Added: Crash report detection — on startup after an abnormal exit, a warning banner with a link to the crash log folder is shown
-- Fixed: Buttons using async commands are now protected against double-execution","リリースノート（v1.8.2）
-- 修正: クラッシュレポートバナーの x:Uid 命名衝突により起動時にクラッシュする問題
-- 追加: 異常終了検知 — 前回クラッシュ時の次回起動時に警告バナーとクラッシュログフォルダーへのリンクを表示
-- 修正: 非同期コマンドボタンの二重実行を防止"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.8.3)
+- Added: Crash report submit dialog — tap ""Report"" on the crash banner to open a dialog; choose ""Report on GitHub"" to open a pre-filled Issue, or ""Report by Email"" to copy the log to clipboard and open the default mail app
+- Added: CI-integrated Partner Center submission — MSIX is now automatically submitted to the Store on tag push","リリースノート（v1.8.3）
+- 追加: クラッシュレポート送信ダイアログ — クラッシュバナーの「報告する」からダイアログを表示。「GitHub で報告する」でログ埋め込み済み Issue 作成ページを開く。「メールで報告する」でログをクリップボードにコピーし標準メールアプリを起動。
+- 追加: CI からの Partner Center 自動提出 — タグプッシュ時に MSIX を Store へ自動提出"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
