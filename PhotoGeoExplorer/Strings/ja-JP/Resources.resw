@@ -905,4 +905,40 @@
   <data name="CrashReportOpenFolderButton.Content" xml:space="preserve">
     <value>クラッシュログフォルダーを開く</value>
   </data>
+  <data name="CrashReportReportButton.Content" xml:space="preserve">
+    <value>報告する</value>
+  </data>
+  <data name="CrashReportDialog.Title" xml:space="preserve">
+    <value>クラッシュレポートの送信</value>
+  </data>
+  <data name="CrashReportDialog.GitHubButton" xml:space="preserve">
+    <value>GitHub で報告する</value>
+  </data>
+  <data name="CrashReportDialog.CopyButton" xml:space="preserve">
+    <value>ログをコピー</value>
+  </data>
+  <data name="CrashReportDialog.CloseButton" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="CrashReportDialog.LabelVersion" xml:space="preserve">
+    <value>バージョン:</value>
+  </data>
+  <data name="CrashReportDialog.LabelTimestamp" xml:space="preserve">
+    <value>発生日時:</value>
+  </data>
+  <data name="CrashReportDialog.LabelException" xml:space="preserve">
+    <value>例外種別:</value>
+  </data>
+  <data name="CrashReportDialog.SupportNote" xml:space="preserve">
+    <value>GitHubアカウントをお持ちでない場合はログをコピーして photogeoexplorer@outlook.com にお送りください。</value>
+  </data>
+  <data name="CrashReportDialog.OpenFolderLink" xml:space="preserve">
+    <value>ログフォルダーを開く</value>
+  </data>
+  <data name="CrashReportDialog.NoLog" xml:space="preserve">
+    <value>(ログが見つかりませんでした)</value>
+  </data>
+  <data name="CrashReportDialog.CopiedNotification" xml:space="preserve">
+    <value>ログをクリップボードにコピーしました。photogeoexplorer@outlook.com にお送りください。</value>
+  </data>
 </root>
