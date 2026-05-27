@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 修正
+- Partner Center 自動提出スクリプトが `Set-StrictMode -Version Latest` 環境でプロパティ不在エラーになる問題を修正
+  - `pendingApplicationSubmission` / `minimumDirectXVersion` / `minimumSystemRam` の存在確認を `PSObject.Properties` 経由に変更
+
 ## [1.8.3] - 2026-05-27
 
 ### 追加
