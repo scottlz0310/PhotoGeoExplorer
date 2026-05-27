@@ -242,10 +242,13 @@ function Update-Packages {
         Write-Info "  PendingDelete: $($pkg.fileName)"
     }
 
-    # 新規パッケージ追加
+    # 新規パッケージ追加（必須フィールドを既存パッケージから引き継ぐ）
+    $refPkg = $existing | Select-Object -First 1
     $newPkg = [PSCustomObject]@{
-        fileName   = $fileName
-        fileStatus = 'PendingUpload'
+        fileName              = $fileName
+        fileStatus            = 'PendingUpload'
+        minimumDirectXVersion = if ($refPkg -and $refPkg.minimumDirectXVersion) { $refPkg.minimumDirectXVersion } else { 'None' }
+        minimumSystemRam      = if ($refPkg -and $refPkg.minimumSystemRam)      { $refPkg.minimumSystemRam }      else { 'None' }
     }
     $Submission.applicationPackages = $existing + $newPkg
     Write-Ok "PendingUpload : $fileName"
@@ -396,14 +399,24 @@ Resolve-PendingSubmission -App $app -AppId $appId -ShouldDelete $DeletePending.I
 $submission    = New-StoreSubmission -AppId $appId
 $fileUploadUrl = $submission.fileUploadUrl
 
-$submission = Update-ListingsFromCsv -Submission $submission -CsvPath $ListingDataCsv
-$submission = Update-Packages        -Submission $submission -MsixUploadPath $MsixUpload
+try {
+    $submission = Update-ListingsFromCsv -Submission $submission -CsvPath $ListingDataCsv
+    $submission = Update-Packages        -Submission $submission -MsixUploadPath $MsixUpload
 
-Set-StoreSubmission -AppId $appId -SubmissionId $submission.id -Submission $submission
+    Set-StoreSubmission -AppId $appId -SubmissionId $submission.id -Submission $submission
 
-Upload-Package -MsixUploadPath $MsixUpload -FileUploadUrl $fileUploadUrl
+    Upload-Package -MsixUploadPath $MsixUpload -FileUploadUrl $fileUploadUrl
 
-Submit-Commit -AppId $appId -SubmissionId $submission.id
+    Submit-Commit -AppId $appId -SubmissionId $submission.id
+}
+catch {
+    Write-Error ("申請処理が失敗しました。Partner Center に pending submission (id: $($submission.id)) が残っています。`n" +
+        "  復旧手順:`n" +
+        "    1. Partner Center (https://partner.microsoft.com/dashboard) で pending submission を確認・削除してください。`n" +
+        "    2. 問題を修正後、スクリプトを再実行してください。`n" +
+        "    3. 意図して pending submission を削除して再実行する場合は -DeletePending フラグを使用してください。")
+    throw
+}
 
 Write-Host ''
 Write-Host '━━━  完了  ━━━' -ForegroundColor Green
