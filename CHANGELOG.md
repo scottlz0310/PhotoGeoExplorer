@@ -4,11 +4,13 @@
 
 ## [Unreleased]
 
+## [1.8.3] - 2026-05-27
+
 ### 追加
-- クラッシュレポート送信ダイアログを追加
+- クラッシュレポート送信ダイアログを追加（#123）
   - バナーの「フォルダを開く」を「報告する」ボタンに変更。クリックでダイアログを表示。
   - 「GitHub で報告する」: クラッシュログを埋め込んだ Issue 作成ページをブラウザで開く。
-  - 「ログをコピー」: ログ全文をクリップボードにコピーし、サポートメールアドレス（photogeoexplorer@outlook.com）を案内するトースト通知を表示。
+  - 「メールで報告する」: ログ全文をクリップボードにコピーし、標準メールアプリを `mailto:photogeoexplorer@outlook.com` で起動（件名・本文案内付き）。
   - ダイアログ内に「ログフォルダーを開く」リンクを設置。
 - Partner Center へのストア提出を CI から自動化（#121）
   - `scripts/Submit-ToPartnerCenter.ps1`: MSIX/appxupload API（`manage.devcenter.microsoft.com/v1.0/my/`）を使いリリースビルドを自動提出。
