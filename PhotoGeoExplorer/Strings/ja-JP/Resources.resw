@@ -915,7 +915,7 @@
     <value>GitHub で報告する</value>
   </data>
   <data name="CrashReportDialog.CopyButton" xml:space="preserve">
-    <value>ログをコピー</value>
+    <value>メールで報告する</value>
   </data>
   <data name="CrashReportDialog.CloseButton" xml:space="preserve">
     <value>閉じる</value>
@@ -930,7 +930,7 @@
     <value>例外種別:</value>
   </data>
   <data name="CrashReportDialog.SupportNote" xml:space="preserve">
-    <value>GitHubアカウントをお持ちでない場合はログをコピーして photogeoexplorer@outlook.com にお送りください。</value>
+    <value>GitHubアカウントをお持ちでない場合は「メールで報告する」からメールアプリで送信できます。</value>
   </data>
   <data name="CrashReportDialog.OpenFolderLink" xml:space="preserve">
     <value>ログフォルダーを開く</value>
@@ -938,7 +938,7 @@
   <data name="CrashReportDialog.NoLog" xml:space="preserve">
     <value>(ログが見つかりませんでした)</value>
   </data>
-  <data name="CrashReportDialog.CopiedNotification" xml:space="preserve">
-    <value>ログをクリップボードにコピーしました。photogeoexplorer@outlook.com にお送りください。</value>
+  <data name="CrashReportDialog.MailBody" xml:space="preserve">
+    <value>クラッシュログをクリップボードにコピーしました。このメールに貼り付けてお送りください（Ctrl+V）。</value>
   </data>
 </root>

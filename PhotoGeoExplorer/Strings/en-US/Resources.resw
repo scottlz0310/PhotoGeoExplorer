@@ -915,7 +915,7 @@
     <value>Report on GitHub</value>
   </data>
   <data name="CrashReportDialog.CopyButton" xml:space="preserve">
-    <value>Copy Log</value>
+    <value>Report by Email</value>
   </data>
   <data name="CrashReportDialog.CloseButton" xml:space="preserve">
     <value>Close</value>
@@ -930,7 +930,7 @@
     <value>Exception:</value>
   </data>
   <data name="CrashReportDialog.SupportNote" xml:space="preserve">
-    <value>If you don't have a GitHub account, copy the log and send it to photogeoexplorer@outlook.com.</value>
+    <value>If you don't have a GitHub account, use "Report by Email" to open your mail app.</value>
   </data>
   <data name="CrashReportDialog.OpenFolderLink" xml:space="preserve">
     <value>Open log folder</value>
@@ -938,7 +938,7 @@
   <data name="CrashReportDialog.NoLog" xml:space="preserve">
     <value>(No log found)</value>
   </data>
-  <data name="CrashReportDialog.CopiedNotification" xml:space="preserve">
-    <value>Log copied to clipboard. Please send it to photogeoexplorer@outlook.com.</value>
+  <data name="CrashReportDialog.MailBody" xml:space="preserve">
+    <value>The crash log has been copied to your clipboard. Please paste it into this email (Ctrl+V) and send.</value>
   </data>
 </root>

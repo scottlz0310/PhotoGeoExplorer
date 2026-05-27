@@ -468,7 +468,7 @@ public sealed partial class MainWindow : Window, IDisposable
         }
         else if (result == ContentDialogResult.Secondary)
         {
-            CopyCrashLogToClipboard(logContent);
+            await CopyLogAndOpenMailAsync(logContent).ConfigureAwait(true);
         }
     }
 
@@ -544,15 +544,19 @@ public sealed partial class MainWindow : Window, IDisposable
         _ = await Windows.System.Launcher.LaunchUriAsync(new Uri(url)).AsTask().ConfigureAwait(true);
     }
 
-    private void CopyCrashLogToClipboard(string? logContent)
+    private static async Task CopyLogAndOpenMailAsync(string? logContent)
     {
         var text = logContent ?? LocalizationService.GetString("CrashReportDialog.NoLog");
         var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
         dataPackage.SetText(text);
         Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
-        _viewModel.ShowNotificationMessage(
-            LocalizationService.GetString("CrashReportDialog.CopiedNotification"),
-            InfoBarSeverity.Success);
+
+        var version = ParseCrashLogField(logContent, "App Version:") ?? string.Empty;
+        var exType = ParseCrashLogField(logContent, "Exception Type:") ?? "Unknown";
+        var subject = Uri.EscapeDataString($"[Crash Report] v{version} {exType}");
+        var body = Uri.EscapeDataString(LocalizationService.GetString("CrashReportDialog.MailBody"));
+        var mailto = new Uri($"mailto:photogeoexplorer@outlook.com?subject={subject}&body={body}");
+        _ = await Windows.System.Launcher.LaunchUriAsync(mailto).AsTask().ConfigureAwait(true);
     }
 
     private async void OnOpenCrashReportFolderClicked(object sender, RoutedEventArgs e)
