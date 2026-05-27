@@ -136,7 +136,7 @@ function Get-Application([string]$AppId) {
 # ── 3. pending 申請の確認・処理 ──────────────────────────────────────────────
 function Resolve-PendingSubmission {
     param([object]$App, [string]$AppId, [bool]$ShouldDelete)
-    $pending = $App.pendingApplicationSubmission
+    $pending = if ($App.PSObject.Properties['pendingApplicationSubmission']) { $App.pendingApplicationSubmission } else { $null }
     if (-not $pending) {
         Write-Ok 'pending submission なし'
         return
@@ -247,8 +247,8 @@ function Update-Packages {
     $newPkg = [PSCustomObject]@{
         fileName              = $fileName
         fileStatus            = 'PendingUpload'
-        minimumDirectXVersion = if ($refPkg -and $refPkg.minimumDirectXVersion) { $refPkg.minimumDirectXVersion } else { 'None' }
-        minimumSystemRam      = if ($refPkg -and $refPkg.minimumSystemRam)      { $refPkg.minimumSystemRam }      else { 'None' }
+        minimumDirectXVersion = if ($refPkg -and $refPkg.PSObject.Properties['minimumDirectXVersion']) { $refPkg.minimumDirectXVersion } else { 'None' }
+        minimumSystemRam      = if ($refPkg -and $refPkg.PSObject.Properties['minimumSystemRam'])      { $refPkg.minimumSystemRam }      else { 'None' }
     }
     $Submission.applicationPackages = $existing + $newPkg
     Write-Ok "PendingUpload : $fileName"
