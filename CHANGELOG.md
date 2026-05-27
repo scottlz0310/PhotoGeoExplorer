@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-05-27
+
 ### 追加
 - クラッシュレポート基盤を実装（#118）
   - `CrashReportService` を新規追加: `running.lock` による異常終了検出・`CrashReports/crash_<timestamp>.log` へのクラッシュログ保存・パス/UNCパスのマスク処理。
@@ -12,6 +14,9 @@
   - 自動送信なし・ローカル収集のみ。
 
 ### 修正
+- クラッシュレポートバナーの `x:Uid` 命名衝突による起動クラッシュを修正（#120）
+  - `InfoBar` の `x:Uid="CrashReportBanner"` と子 `Button` の `x:Uid="CrashReportBanner.OpenFolderButton"` が WinUI 3 のプレフィックス走査で衝突し `XamlParseException` が発生していた問題を解消。
+  - `Button` の `x:Uid` を `CrashReportOpenFolderButton` に変更し、両リソースファイルのキーも合わせて更新。
 - EXIF編集ボタン連打による `ContentDialog` 二重表示クラッシュを修正（#116）
   - `RelayCommand` / `RelayCommand<T>` に `_isExecuting` フラグを追加し、非同期実行中は `CanExecute = false` を返すよう変更。
   - `finally` での `RaiseCanExecuteChanged()` を `DispatcherQueue.TryEnqueue` 経由で UI スレッドから通知するよう修正。
