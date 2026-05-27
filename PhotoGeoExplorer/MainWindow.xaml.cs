@@ -444,6 +444,121 @@ public sealed partial class MainWindow : Window, IDisposable
         }
     }
 
+    private async void OnReportCrashClicked(object sender, RoutedEventArgs e)
+    {
+        var logContent = _crashReportService?.GetLatestCrashLogContent();
+
+        var summaryPanel = BuildCrashReportSummaryPanel(logContent);
+
+        var dialog = new ContentDialog
+        {
+            Title = LocalizationService.GetString("CrashReportDialog.Title"),
+            Content = summaryPanel,
+            PrimaryButtonText = LocalizationService.GetString("CrashReportDialog.GitHubButton"),
+            SecondaryButtonText = LocalizationService.GetString("CrashReportDialog.CopyButton"),
+            CloseButtonText = LocalizationService.GetString("CrashReportDialog.CloseButton"),
+            XamlRoot = Content.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary)
+        {
+            await OpenCrashReportGitHubIssueAsync(logContent).ConfigureAwait(true);
+        }
+        else if (result == ContentDialogResult.Secondary)
+        {
+            await CopyLogAndOpenMailAsync(logContent).ConfigureAwait(true);
+        }
+    }
+
+    private StackPanel BuildCrashReportSummaryPanel(string? logContent)
+    {
+        var panel = new StackPanel { Spacing = 8, MaxWidth = 480 };
+
+        var version = ParseCrashLogField(logContent, "App Version:");
+        var timestamp = ParseCrashLogField(logContent, "Timestamp:");
+        var exType = ParseCrashLogField(logContent, "Exception Type:");
+
+        if (!string.IsNullOrEmpty(version) || !string.IsNullOrEmpty(timestamp) || !string.IsNullOrEmpty(exType))
+        {
+            var infoLines = new StackPanel { Spacing = 2 };
+            if (!string.IsNullOrEmpty(version))
+                infoLines.Children.Add(new TextBlock { Text = $"{LocalizationService.GetString("CrashReportDialog.LabelVersion")} {version}" });
+            if (!string.IsNullOrEmpty(timestamp))
+                infoLines.Children.Add(new TextBlock { Text = $"{LocalizationService.GetString("CrashReportDialog.LabelTimestamp")} {timestamp}" });
+            if (!string.IsNullOrEmpty(exType))
+                infoLines.Children.Add(new TextBlock { Text = $"{LocalizationService.GetString("CrashReportDialog.LabelException")} {exType}", TextWrapping = TextWrapping.Wrap });
+            panel.Children.Add(infoLines);
+        }
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = LocalizationService.GetString("CrashReportDialog.SupportNote"),
+            TextWrapping = TextWrapping.Wrap,
+            Opacity = 0.7,
+            FontSize = 12
+        });
+
+        var folderLink = new HyperlinkButton
+        {
+            Content = LocalizationService.GetString("CrashReportDialog.OpenFolderLink"),
+            Padding = new Microsoft.UI.Xaml.Thickness(0)
+        };
+        folderLink.Click += OnOpenCrashReportFolderClicked;
+        panel.Children.Add(folderLink);
+
+        return panel;
+    }
+
+    private static string? ParseCrashLogField(string? logContent, string fieldName)
+    {
+        if (string.IsNullOrEmpty(logContent)) return null;
+        foreach (var line in logContent.Split('\n'))
+        {
+            if (line.StartsWith(fieldName, StringComparison.Ordinal))
+                return line[fieldName.Length..].Trim();
+        }
+        return null;
+    }
+
+    private static async Task OpenCrashReportGitHubIssueAsync(string? logContent)
+    {
+        const string baseUrl = "https://github.com/scottlz0310/PhotoGeoExplorer/issues/new";
+        var exType = ParseCrashLogField(logContent, "Exception Type:") ?? "Unknown";
+        var title = Uri.EscapeDataString($"[Crash] {exType}");
+
+        var truncated = logContent is { Length: > 2000 }
+            ? logContent[..2000] + "\n...(truncated)"
+            : logContent ?? "(no log)";
+
+        var body = Uri.EscapeDataString(
+            "## クラッシュレポート\n\n" +
+            "PhotoGeoExplorer が予期せず終了しました。\n\n" +
+            "<details>\n<summary>クラッシュログ</summary>\n\n```\n" +
+            truncated +
+            "\n```\n\n</details>\n\n" +
+            "---\n*PhotoGeoExplorer から自動生成されました。*");
+
+        var url = $"{baseUrl}?title={title}&labels=bug&body={body}";
+        _ = await Windows.System.Launcher.LaunchUriAsync(new Uri(url)).AsTask().ConfigureAwait(true);
+    }
+
+    private static async Task CopyLogAndOpenMailAsync(string? logContent)
+    {
+        var text = logContent ?? LocalizationService.GetString("CrashReportDialog.NoLog");
+        var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        dataPackage.SetText(text);
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+
+        var version = ParseCrashLogField(logContent, "App Version:") ?? string.Empty;
+        var exType = ParseCrashLogField(logContent, "Exception Type:") ?? "Unknown";
+        var subject = Uri.EscapeDataString($"[Crash Report] v{version} {exType}");
+        var body = Uri.EscapeDataString(LocalizationService.GetString("CrashReportDialog.MailBody"));
+        var mailto = new Uri($"mailto:photogeoexplorer@outlook.com?subject={subject}&body={body}");
+        _ = await Windows.System.Launcher.LaunchUriAsync(mailto).AsTask().ConfigureAwait(true);
+    }
+
     private async void OnOpenCrashReportFolderClicked(object sender, RoutedEventArgs e)
     {
         var path = _viewModel.CrashReportsDirectoryPath;

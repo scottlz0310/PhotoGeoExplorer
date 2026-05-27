@@ -78,6 +78,25 @@ internal sealed class CrashReportService : ICrashReportService
         catch (System.Security.SecurityException) { }
     }
 
+    public string? GetLatestCrashLogContent()
+    {
+        try
+        {
+            if (!Directory.Exists(_crashReportsDir))
+                return null;
+            var latest = Directory.GetFiles(_crashReportsDir, "crash_*.log")
+                .OrderByDescending(f => f)
+                .FirstOrDefault();
+            if (latest is null)
+                return null;
+            return File.ReadAllText(latest, Encoding.UTF8);
+        }
+        catch (UnauthorizedAccessException) { return null; }
+        catch (IOException) { return null; }
+        catch (ArgumentException) { return null; }
+        catch (NotSupportedException) { return null; }
+    }
+
     internal static string MaskSensitiveData(string text)
     {
         if (string.IsNullOrEmpty(text))

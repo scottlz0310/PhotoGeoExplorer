@@ -13,4 +13,6 @@ internal interface ICrashReportService
     void RecordNormalExit();
 
     void WriteCrashLog(Exception? exception);
+
+    string? GetLatestCrashLogContent();
 }
