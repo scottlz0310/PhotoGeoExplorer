@@ -158,4 +158,56 @@ public sealed class CrashReportServiceTests : IDisposable
         var files = Directory.GetFiles(dir, "crash_*.log");
         Assert.True(files.Length <= 20, $"Expected <=20 files, got {files.Length}");
     }
+
+    [Fact]
+    public void GetLatestCrashLogContent_ReturnsNull_WhenCrashReportsDirDoesNotExist()
+    {
+        var service = new CrashReportService(_tempDir);
+
+        var result = service.GetLatestCrashLogContent();
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void GetLatestCrashLogContent_ReturnsNull_WhenNoLogFilesExist()
+    {
+        var service = new CrashReportService(_tempDir);
+        Directory.CreateDirectory(service.CrashReportsDirectoryPath);
+
+        var result = service.GetLatestCrashLogContent();
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void GetLatestCrashLogContent_ReturnsLatestLog_WhenMultipleFilesExist()
+    {
+        var service = new CrashReportService(_tempDir);
+        var dir = service.CrashReportsDirectoryPath;
+        Directory.CreateDirectory(dir);
+
+        File.WriteAllText(Path.Combine(dir, "crash_20260101000000.log"), "older log");
+        File.WriteAllText(Path.Combine(dir, "crash_20260201000000.log"), "newer log");
+
+        var result = service.GetLatestCrashLogContent();
+
+        Assert.Equal("newer log", result);
+    }
+
+    [Fact]
+    public void GetLatestCrashLogContent_ReturnsNull_WhenFileIsLocked()
+    {
+        var service = new CrashReportService(_tempDir);
+        var dir = service.CrashReportsDirectoryPath;
+        Directory.CreateDirectory(dir);
+        var logPath = Path.Combine(dir, "crash_20260101000000.log");
+        File.WriteAllText(logPath, "locked content");
+
+        using var fs = File.Open(logPath, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var result = service.GetLatestCrashLogContent();
+
+        Assert.Null(result);
+    }
 }
