@@ -902,7 +902,7 @@
   <data name="CrashReportBanner.Message" xml:space="preserve">
     <value>前回 PhotoGeoExplorer は正常に終了しませんでした。診断用ログが保存されています。問題報告時にログを添付すると原因調査に役立ちます。</value>
   </data>
-  <data name="CrashReportBanner.OpenFolderButton.Content" xml:space="preserve">
+  <data name="CrashReportOpenFolderButton.Content" xml:space="preserve">
     <value>クラッシュログフォルダーを開く</value>
   </data>
 </root>

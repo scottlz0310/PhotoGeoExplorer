@@ -176,7 +176,7 @@
                 IsClosable="True">
                 <controls:InfoBar.ActionButton>
                     <Button
-                        x:Uid="CrashReportBanner.OpenFolderButton"
+                        x:Uid="CrashReportOpenFolderButton"
                         Click="OnOpenCrashReportFolderClicked" />
                 </controls:InfoBar.ActionButton>
             </controls:InfoBar>
