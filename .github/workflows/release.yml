@@ -113,11 +113,10 @@ jobs:
           $escaped  = [regex]::Escape($version)
           $pattern  = "(?ms)^## \[$escaped\][^\n]*\n(.*?)(?=^## \[|\z)"
           $m        = [regex]::Match($content, $pattern)
-          $notes    = if ($m.Success) { $m.Groups[1].Value.Trim() } else { '' }
+          $notes    = if ($m.Success) { $m.Groups[1].Value.Trim().Replace("`r`n", "`n").Replace("`r", "`n") } else { '' }
           $delim    = "GHDELIM$(Get-Random)"
-          "NOTES<<$delim"  | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
-          $notes           | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
-          $delim           | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
+          $nl       = "`n"
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "NOTES<<$delim$nl$notes$nl$delim$nl", [System.Text.Encoding]::UTF8)
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

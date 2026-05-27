@@ -10,6 +10,8 @@
 - `Submit-ToPartnerCenter.ps1`: HTTP レスポンスなし（接続失敗等）の例外処理で `?.StatusCode.value__` が StrictMode エラーになる問題を修正（`?.StatusCode?.value__` に変更）
 - `release.yml`: `generate_release_notes: true` が既存リリースへの再実行時にノートを重複付加する問題を修正
   - `CHANGELOG.md` の該当バージョンセクションをリリースノートとして使用するよう変更し、再実行しても重複しない設計に変更
+- `release.yml`: CHANGELOG 抽出ステップで `Add-Content` が Windows 上で CRLF を付加し `GITHUB_OUTPUT` のパースが不安定になる問題を修正
+  - `[IO.File]::AppendAllText` + 明示的 LF に切り替え、`$notes` 内の CRLF を LF へ正規化
 
 ## [1.8.3] - 2026-05-27
 
