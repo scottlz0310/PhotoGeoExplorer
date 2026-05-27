@@ -111,3 +111,16 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           generate_release_notes: true
+
+      - name: Submit to Partner Center
+        shell: pwsh
+        env:
+          MSSTORE_TENANT_ID: ${{ secrets.MSSTORE_TENANT_ID }}
+          MSSTORE_CLIENT_ID: ${{ secrets.MSSTORE_CLIENT_ID }}
+          MSSTORE_CLIENT_SECRET: ${{ secrets.MSSTORE_CLIENT_SECRET }}
+          MSSTORE_PRODUCT_ID: ${{ secrets.MSSTORE_PRODUCT_ID }}
+          MSSTORE_SELLER_ID: ${{ secrets.MSSTORE_SELLER_ID }}
+        run: |
+          $msix = (Get-ChildItem artifacts/*.msixupload | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          $csv  = (Get-ChildItem PhotoGeoExplorer/Assets/propose/listingData-*.csv | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          pwsh ./scripts/Submit-ToPartnerCenter.ps1 -MsixUpload $msix -ListingDataCsv $csv

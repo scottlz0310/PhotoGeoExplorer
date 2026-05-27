@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### 追加
+- Partner Center へのストア提出を CI から自動化（#121）
+  - `scripts/Submit-ToPartnerCenter.ps1`: MSIX/appxupload API（`manage.devcenter.microsoft.com/v1.0/my/`）を使いリリースビルドを自動提出。
+  - `release.yml` に `Submit to Partner Center` ステップを追加し、タグプッシュ後に自動実行。
+  - listing data CSV からリリースノート・説明文をマッピングして更新。パッケージは旧版を `PendingDelete` にしつつ新版を `PendingUpload` として追加。
+  - `-DryRun` フラグで API 呼び出しなしのプレビュー表示に対応。保留中申請が存在する場合は `-DeletePending` 明示なしで失敗終了（安全側設計）。
+
 ## [1.8.2] - 2026-05-27
 
 ### 追加
