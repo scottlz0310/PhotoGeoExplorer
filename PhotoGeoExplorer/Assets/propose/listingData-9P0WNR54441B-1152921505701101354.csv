@@ -5,7 +5,7 @@ It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoEx
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
 ReleaseNotes,3,テキスト,,"Release Notes (v1.8.3)
-- Added: Crash report submit dialog — tap ""Report"" on the crash banner to open a dialog; choose ""Report on GitHub"" to open a pre-filled Issue, or ""Send by Email"" to copy the log to clipboard and open the default mail app
+- Added: Crash report submit dialog — tap ""Report"" on the crash banner to open a dialog; choose ""Report on GitHub"" to open a pre-filled Issue, or ""Report by Email"" to copy the log to clipboard and open the default mail app
 - Added: CI-integrated Partner Center submission — MSIX is now automatically submitted to the Store on tag push","リリースノート（v1.8.3）
 - 追加: クラッシュレポート送信ダイアログ — クラッシュバナーの「報告する」からダイアログを表示。「GitHub で報告する」でログ埋め込み済み Issue 作成ページを開く。「メールで報告する」でログをクリップボードにコピーし標準メールアプリを起動。
 - 追加: CI からの Partner Center 自動提出 — タグプッシュ時に MSIX を Store へ自動提出"
