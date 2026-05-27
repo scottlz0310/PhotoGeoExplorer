@@ -94,7 +94,7 @@ function Invoke-StoreApi {
         return $null
     }
     catch {
-        $sc   = $_.Exception.Response?.StatusCode.value__ ?? '?'
+        $sc   = $_.Exception.Response?.StatusCode?.value__ ?? '?'
         $corr = $_.Exception.Response?.Headers?['MS-CV'] ?? '—'
         $body = $null
         try { $body = $_.Exception.Response.GetResponseStream() | ForEach-Object { [System.IO.StreamReader]::new($_).ReadToEnd() } } catch {}

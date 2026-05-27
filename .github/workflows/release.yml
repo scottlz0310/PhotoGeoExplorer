@@ -104,13 +104,29 @@ jobs:
           name: installer
           path: artifacts/
 
+      - name: Extract release notes from CHANGELOG
+        id: changelog
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $content  = Get-Content -Path "CHANGELOG.md" -Raw
+          $escaped  = [regex]::Escape($version)
+          $pattern  = "(?ms)^## \[$escaped\][^\n]*\n(.*?)(?=^## \[|\z)"
+          $m        = [regex]::Match($content, $pattern)
+          $notes    = if ($m.Success) { $m.Groups[1].Value.Trim() } else { '' }
+          $delim    = "GHDELIM$(Get-Random)"
+          "NOTES<<$delim"  | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
+          $notes           | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
+          $delim           | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           files: artifacts/*
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.NOTES }}
+          append_body: false
 
       - name: Submit to Partner Center
         shell: pwsh

@@ -7,6 +7,9 @@
 ### 修正
 - Partner Center 自動提出スクリプトが `Set-StrictMode -Version Latest` 環境でプロパティ不在エラーになる問題を修正
   - `pendingApplicationSubmission` / `minimumDirectXVersion` / `minimumSystemRam` の存在確認を `PSObject.Properties` 経由に変更
+- `Submit-ToPartnerCenter.ps1`: HTTP レスポンスなし（接続失敗等）の例外処理で `?.StatusCode.value__` が StrictMode エラーになる問題を修正（`?.StatusCode?.value__` に変更）
+- `release.yml`: `generate_release_notes: true` が既存リリースへの再実行時にノートを重複付加する問題を修正
+  - `CHANGELOG.md` の該当バージョンセクションをリリースノートとして使用するよう変更し、再実行しても重複しない設計に変更
 
 ## [1.8.3] - 2026-05-27
 
