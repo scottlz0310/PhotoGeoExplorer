@@ -1971,12 +1971,13 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         AppLog.Error("FileSystemWatcher error, restarting watcher.", e.GetException());
 
-        _dispatcherQueue?.TryEnqueue(() =>
+        _dispatcherQueue?.TryEnqueue(async () =>
         {
             var folderPath = CurrentFolderPath;
             if (!string.IsNullOrWhiteSpace(folderPath))
             {
                 StartFolderWatcher(folderPath);
+                await RefreshAsync().ConfigureAwait(false);
             }
         });
     }
