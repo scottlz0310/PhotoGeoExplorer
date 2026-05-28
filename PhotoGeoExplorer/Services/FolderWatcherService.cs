@@ -9,6 +9,7 @@ internal sealed class FolderWatcherService : IFolderWatcherService
     private readonly TimeSpan _debounceInterval;
     private readonly TimeSpan _pollingInterval;
 
+    private readonly object _timerLock = new();
     private FileSystemWatcher? _watcher;
     private Timer? _debounceTimer;
     private Timer? _pollingTimer;
@@ -79,8 +80,11 @@ internal sealed class FolderWatcherService : IFolderWatcherService
             _watcher = null;
         }
 
-        _debounceTimer?.Dispose();
-        _debounceTimer = null;
+        lock (_timerLock)
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+        }
 
         _pollingTimer?.Dispose();
         _pollingTimer = null;
@@ -104,17 +108,25 @@ internal sealed class FolderWatcherService : IFolderWatcherService
 
     private void ResetDebounceTimer()
     {
-        if (_debounceTimer is null)
+        lock (_timerLock)
         {
-            _debounceTimer = new Timer(
-                _ => RaiseFolderChanged(),
-                null,
-                _debounceInterval,
-                Timeout.InfiniteTimeSpan);
-        }
-        else
-        {
-            _debounceTimer.Change(_debounceInterval, Timeout.InfiniteTimeSpan);
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (_debounceTimer is null)
+            {
+                _debounceTimer = new Timer(
+                    _ => RaiseFolderChanged(),
+                    null,
+                    _debounceInterval,
+                    Timeout.InfiniteTimeSpan);
+            }
+            else
+            {
+                _debounceTimer.Change(_debounceInterval, Timeout.InfiniteTimeSpan);
+            }
         }
     }
 
@@ -132,6 +144,11 @@ internal sealed class FolderWatcherService : IFolderWatcherService
 
     private void RaiseFolderChanged()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         FolderChanged?.Invoke(this, EventArgs.Empty);
     }
 }
