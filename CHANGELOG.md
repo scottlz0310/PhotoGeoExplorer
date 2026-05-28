@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### リファクタリング
+- `FileSystemWatcher` 監視ロジックを `FileBrowserPaneViewModel` から `FolderWatcherService` へ移動 (#132)
+  - `IFolderWatcherService` インターフェースを導入し、ViewModel の `System.IO` 直接依存を排除
+  - デバウンスを `System.Threading.Timer` ベースに変更し WinUI 非依存に
+  - コンストラクタ引数でインターバルを差し替え可能にし、単体テストに対応
+
 ### 追加
 - ファイルブラウザに `FileSystemWatcher` による外部変更検知を追加 (#129)
   - 外部アプリ（エクスプローラー・CLI 等）がフォルダ内のファイルを追加・削除・リネームした場合に自動でリストを更新
