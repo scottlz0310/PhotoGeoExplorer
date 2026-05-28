@@ -693,7 +693,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         if (resolveConflictAsync is null)
         {
             var summary = _fileOperationService.MoveItems(items, destinationFolder);
-            if (summary.SuccessCount > 0)
+            if (summary.SuccessCount > 0 || summary.SkipCount > 0)
             {
                 await RefreshAsync().ConfigureAwait(false);
             }
@@ -735,7 +735,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             _moveCts = null;
         }
 
-        if (result.SuccessCount > 0)
+        if (result.SuccessCount > 0 || result.SkipCount > 0)
         {
             await RefreshAsync().ConfigureAwait(false);
         }
@@ -778,7 +778,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         if (resolveConflictAsync is null)
         {
             var summary = _fileOperationService.CopyItems(items, destinationFolder);
-            if (summary.SuccessCount > 0)
+            if (summary.SuccessCount > 0 || summary.SkipCount > 0)
             {
                 await RefreshAsync().ConfigureAwait(false);
             }
@@ -818,7 +818,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             _copyCts = null;
         }
 
-        if (result.SuccessCount > 0)
+        if (result.SuccessCount > 0 || result.SkipCount > 0)
         {
             await RefreshAsync().ConfigureAwait(false);
         }
