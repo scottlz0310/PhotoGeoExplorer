@@ -132,6 +132,12 @@ internal sealed class FolderWatcherService : IFolderWatcherService
 
     private void OnWatcherError(object sender, ErrorEventArgs e)
     {
+        // フォルダ切り替え中に古い watcher のエラーが遅延発火した場合は無視する
+        if (!ReferenceEquals(sender, _watcher))
+        {
+            return;
+        }
+
         AppLog.Error("FolderWatcherService: FileSystemWatcher error, restarting watcher.", e.GetException());
 
         var folderPath = _currentFolderPath;
