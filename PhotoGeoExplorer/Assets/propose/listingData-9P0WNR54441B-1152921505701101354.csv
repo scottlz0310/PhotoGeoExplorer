@@ -4,7 +4,17 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.8.4)&#x0D;&#x0A;- Refactored: FileSystemWatcher logic moved to FolderWatcherService for better testability and WinUI independence&#x0D;&#x0A;- Added: Auto-refresh file list when external apps add/remove/rename files (500ms debounce; polling fallback for network drives)&#x0D;&#x0A;- Fixed: File list not updating after skipping a move/copy conflict&#x0D;&#x0A;- Fixed: Partner Center submission script errors under Set-StrictMode -Version Latest&#x0D;&#x0A;- Fixed: release.yml generating duplicate release notes on re-runs","リリースノート（v1.8.4）&#x0D;&#x0A;- リファクタリング: FileSystemWatcher 監視ロジックを FolderWatcherService へ移動。テスタビリティ向上と WinUI 非依存化。&#x0D;&#x0A;- 追加: 外部アプリがフォルダ内ファイルを追加・削除・リネームした際に自動でリスト更新（500ms デバウンス、ネットワークドライブはポーリングにフォールバック）&#x0D;&#x0A;- 修正: 移動/コピーの競合でスキップした際にファイル一覧が更新されない問題&#x0D;&#x0A;- 修正: Set-StrictMode -Version Latest 環境での Partner Center 提出スクリプトエラー&#x0D;&#x0A;- 修正: release.yml の再実行時にリリースノートが重複する問題"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.8.4)
+- Refactored: FileSystemWatcher logic moved to FolderWatcherService for better testability and WinUI independence
+- Added: Auto-refresh file list when external apps add/remove/rename files (500ms debounce; polling fallback for network drives)
+- Fixed: File list not updating after skipping a move/copy conflict
+- Fixed: Partner Center submission script errors under Set-StrictMode -Version Latest
+- Fixed: release.yml generating duplicate release notes on re-runs","リリースノート（v1.8.4）
+- リファクタリング: FileSystemWatcher 監視ロジックを FolderWatcherService へ移動。テスタビリティ向上と WinUI 非依存化。
+- 追加: 外部アプリがフォルダ内ファイルを追加・削除・リネームした際に自動でリスト更新（500ms デバウンス、ネットワークドライブはポーリングにフォールバック）
+- 修正: 移動/コピーの競合でスキップした際にファイル一覧が更新されない問題
+- 修正: Set-StrictMode -Version Latest 環境での Partner Center 提出スクリプトエラー
+- 修正: release.yml の再実行時にリリースノートが重複する問題"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
