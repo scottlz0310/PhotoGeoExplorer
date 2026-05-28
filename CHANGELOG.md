@@ -5,6 +5,9 @@
 ## [Unreleased]
 
 ### 修正
+- ファイル移動・コピー操作で競合スキップが発生した際にファイル一覧が自動更新されない問題を修正 (#128)
+  - `ExecuteMoveItemsToFolderAsync` / `ExecuteCopyItemsToFolderAsync` のリフレッシュ条件を `SuccessCount > 0` から `SuccessCount > 0 || SkipCount > 0` に変更
+  - 競合ダイアログで「スキップ」「すべてスキップ」を選んだ後もリストが最新状態に更新されるようになった
 - Partner Center 自動提出スクリプトが `Set-StrictMode -Version Latest` 環境でプロパティ不在エラーになる問題を修正
   - `pendingApplicationSubmission` / `minimumDirectXVersion` / `minimumSystemRam` の存在確認を `PSObject.Properties` 経由に変更
 - `Submit-ToPartnerCenter.ps1`: HTTP レスポンスなし（接続失敗等）の例外処理で `?.StatusCode.value__` が StrictMode エラーになる問題を修正（`?.StatusCode?.value__` に変更）
