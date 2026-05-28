@@ -25,6 +25,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 {
     private const int ThumbnailGenerationConcurrency = 3;
     private const int ThumbnailUpdateBatchIntervalMs = 300;
+    private const int FileSystemWatcherDebounceMs = 500;
+    private const int FolderPollingIntervalMs = 60_000;
 
     private readonly IFileBrowserPaneService _service;
     private readonly IFileOperationService _fileOperationService;
@@ -95,6 +97,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private DispatcherQueueTimer? _copyProgressTimer;
     private IReadOnlyList<PhotoListItem> _clipboardItems = Array.Empty<PhotoListItem>();
     private ClipboardOperation _clipboardOperation = ClipboardOperation.None;
+    private System.IO.FileSystemWatcher? _fileSystemWatcher;
+    private DispatcherQueueTimer? _fileSystemWatcherDebounceTimer;
+    private DispatcherQueueTimer? _folderPollingTimer;
 
     public FileBrowserPaneViewModel()
         : this(new FileBrowserPaneService(), new WorkspaceState())
@@ -1005,6 +1010,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 // 注意: StartBackgroundThumbnailGeneration 内部で DispatcherQueue を使用してタイマーを構成しているため、
                 //       ここでは明示的に UI スレッド上から呼び出している（UI 更新と意図を揃えるため）
                 StartBackgroundThumbnailGeneration();
+                StartFolderWatcher(folderPath);
             }).ConfigureAwait(false);
 
             AppLog.Info($"LoadFolderAsync: Folder '{folderPath}' loaded successfully. Item count: {Items.Count}");
@@ -1293,6 +1299,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         _workspaceState.PhotoFocusRequested -= OnWorkspacePhotoFocusRequested;
         ConfigureUiActionHandlers(null, null, null, null, null, null);
+        StopFolderWatcher();
         CancelThumbnailGeneration();
         CancelMetadataLoad();
         CancelFolderLoad();
@@ -1852,6 +1859,134 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 }
             }
         }
+    }
+
+    private void StartFolderWatcher(string folderPath)
+    {
+        StopFolderWatcher();
+
+        if (_dispatcherQueue is null)
+        {
+            return;
+        }
+
+        var watcherStarted = false;
+        try
+        {
+            var watcher = new System.IO.FileSystemWatcher(folderPath)
+            {
+                NotifyFilter = System.IO.NotifyFilters.FileName
+                    | System.IO.NotifyFilters.DirectoryName
+                    | System.IO.NotifyFilters.LastWrite,
+                IncludeSubdirectories = false,
+            };
+            watcher.Created += OnFileSystemChanged;
+            watcher.Deleted += OnFileSystemChanged;
+            watcher.Renamed += OnFileSystemChanged;
+            watcher.Error += OnFileSystemWatcherError;
+            watcher.EnableRaisingEvents = true;
+            _fileSystemWatcher = watcher;
+            watcherStarted = true;
+            AppLog.Info($"StartFolderWatcher: Watching '{folderPath}'");
+        }
+        catch (Exception ex) when (ex is ArgumentException or System.IO.IOException or UnauthorizedAccessException)
+        {
+            AppLog.Info($"StartFolderWatcher: FileSystemWatcher unavailable for '{folderPath}', falling back to polling. {ex.Message}");
+        }
+
+        if (!watcherStarted)
+        {
+            _folderPollingTimer = _dispatcherQueue.CreateTimer();
+            _folderPollingTimer.Interval = TimeSpan.FromMilliseconds(FolderPollingIntervalMs);
+            _folderPollingTimer.Tick += OnFolderPollingTimerTick;
+            _folderPollingTimer.Start();
+        }
+    }
+
+    private void StopFolderWatcher()
+    {
+        if (_fileSystemWatcher is not null)
+        {
+            _fileSystemWatcher.EnableRaisingEvents = false;
+            _fileSystemWatcher.Created -= OnFileSystemChanged;
+            _fileSystemWatcher.Deleted -= OnFileSystemChanged;
+            _fileSystemWatcher.Renamed -= OnFileSystemChanged;
+            _fileSystemWatcher.Error -= OnFileSystemWatcherError;
+            _fileSystemWatcher.Dispose();
+            _fileSystemWatcher = null;
+        }
+
+        if (_fileSystemWatcherDebounceTimer is not null)
+        {
+            _fileSystemWatcherDebounceTimer.Stop();
+            _fileSystemWatcherDebounceTimer.Tick -= OnFileSystemWatcherDebounceTimerTick;
+            _fileSystemWatcherDebounceTimer = null;
+        }
+
+        if (_folderPollingTimer is not null)
+        {
+            _folderPollingTimer.Stop();
+            _folderPollingTimer.Tick -= OnFolderPollingTimerTick;
+            _folderPollingTimer = null;
+        }
+    }
+
+    private void OnFileSystemChanged(object sender, System.IO.FileSystemEventArgs e)
+    {
+        _dispatcherQueue?.TryEnqueue(ResetFileSystemWatcherDebounceTimer);
+    }
+
+    private void ResetFileSystemWatcherDebounceTimer()
+    {
+        if (_dispatcherQueue is null)
+        {
+            return;
+        }
+
+        if (_fileSystemWatcherDebounceTimer is null)
+        {
+            _fileSystemWatcherDebounceTimer = _dispatcherQueue.CreateTimer();
+            _fileSystemWatcherDebounceTimer.Interval = TimeSpan.FromMilliseconds(FileSystemWatcherDebounceMs);
+            _fileSystemWatcherDebounceTimer.IsRepeating = false;
+            _fileSystemWatcherDebounceTimer.Tick += OnFileSystemWatcherDebounceTimerTick;
+        }
+
+        _fileSystemWatcherDebounceTimer.Stop();
+        _fileSystemWatcherDebounceTimer.Start();
+    }
+
+    private async void OnFileSystemWatcherDebounceTimerTick(DispatcherQueueTimer sender, object args)
+    {
+        if (_isMoveInProgress || _isCopyInProgress)
+        {
+            return;
+        }
+
+        await RefreshAsync().ConfigureAwait(false);
+    }
+
+    private void OnFileSystemWatcherError(object sender, System.IO.ErrorEventArgs e)
+    {
+        AppLog.Error("FileSystemWatcher error, restarting watcher.", e.GetException());
+
+        _dispatcherQueue?.TryEnqueue(() =>
+        {
+            var folderPath = CurrentFolderPath;
+            if (!string.IsNullOrWhiteSpace(folderPath))
+            {
+                StartFolderWatcher(folderPath);
+            }
+        });
+    }
+
+    private async void OnFolderPollingTimerTick(DispatcherQueueTimer sender, object args)
+    {
+        if (_isMoveInProgress || _isCopyInProgress)
+        {
+            return;
+        }
+
+        await RefreshAsync().ConfigureAwait(false);
     }
 
     private void CancelThumbnailGeneration()
