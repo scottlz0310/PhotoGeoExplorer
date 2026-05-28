@@ -75,8 +75,8 @@ Partner Center から現在の情報をエクスポートし、修正してイ�
 ### 公開状況
 
 - 公開済み: https://apps.microsoft.com/detail/9P0WNR54441B
-- 公開バージョン: v1.8.0
-- 次回リリース: -
+- 公開バージョン: v1.8.3
+- 次回リリース: v1.8.4
 - Store ID: 9P0WNR54441B
 
 ### Partner Center 設定

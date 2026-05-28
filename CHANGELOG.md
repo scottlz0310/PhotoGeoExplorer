@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.8.4] - 2026-05-28
+
 ### リファクタリング
 - `FileSystemWatcher` 監視ロジックを `FileBrowserPaneViewModel` から `FolderWatcherService` へ移動 (#132)
   - `IFolderWatcherService` インターフェースを導入し、ViewModel の `System.IO` 直接依存を排除
