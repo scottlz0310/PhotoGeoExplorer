@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Threading;
-using PhotoGeoExplorer.Logging;
 
 namespace PhotoGeoExplorer.Services;
 

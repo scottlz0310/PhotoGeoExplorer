@@ -18,7 +18,7 @@ public sealed class FolderWatcherServiceTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, recursive: true); } catch { }
+        try { Directory.Delete(_tempDir, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
     // =========================================================
@@ -174,7 +174,7 @@ public sealed class FolderWatcherServiceTests : IDisposable
         }
         finally
         {
-            try { Directory.Delete(dir2, recursive: true); } catch { }
+            try { Directory.Delete(dir2, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
 }
