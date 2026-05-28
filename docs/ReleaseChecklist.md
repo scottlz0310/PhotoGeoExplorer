@@ -10,12 +10,17 @@
 
 ## リリース実行
 
+> [!IMPORTANT]
+> **WACK はタグ push・Partner Center 提出より前に実施すること。**
+> リリース後に実行しても審査前の品質保証として意味をなさない。
+
+- [ ] `.\scripts\DevInstall.ps1` でローカルビルド＆インストール
+- [ ] `.\scripts\RunWackTests.ps1` で WACK を実行し合格を確認
+- [ ] `docs/WACK-TestResults.md` に結果を追記
 - [ ] `vX.Y.Z` タグを作成して push
 - [ ] GitHub Release が自動作成されていることを確認
 - [ ] MSIX Bundle アーティファクトが添付されていることを確認
 - [ ] リリースノートを手動編集（必要に応じて）
-- [ ] Store アップロード用の `*.msixupload` を生成
-- [ ] WACK を実行して結果を記録
 - [ ] Partner Center に提出し、runFullTrust の用途を審査ノートに記載
 
 ## Microsoft Store リスティング更新
