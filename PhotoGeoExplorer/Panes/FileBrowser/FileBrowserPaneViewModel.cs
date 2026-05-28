@@ -1882,6 +1882,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             };
             watcher.Created += OnFileSystemChanged;
             watcher.Deleted += OnFileSystemChanged;
+            watcher.Changed += OnFileSystemChanged;
             watcher.Renamed += OnFileSystemChanged;
             watcher.Error += OnFileSystemWatcherError;
             watcher.EnableRaisingEvents = true;
@@ -1910,6 +1911,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             _fileSystemWatcher.EnableRaisingEvents = false;
             _fileSystemWatcher.Created -= OnFileSystemChanged;
             _fileSystemWatcher.Deleted -= OnFileSystemChanged;
+            _fileSystemWatcher.Changed -= OnFileSystemChanged;
             _fileSystemWatcher.Renamed -= OnFileSystemChanged;
             _fileSystemWatcher.Error -= OnFileSystemWatcherError;
             _fileSystemWatcher.Dispose();
