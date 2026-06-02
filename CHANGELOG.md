@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 修正
+- ファイル移動・コピー操作完了時に `RPC_E_WRONG_THREAD (0x8001010E)` でクラッシュする問題を修正 (#137)
+  - `ExecuteMoveItemsToFolderAsync` / `ExecuteCopyItemsToFolderAsync` の `finally` ブロックが `ConfigureAwait(false)` によりバックグラウンドスレッドで実行され、`IsMoveInProgress` / `IsCopyInProgress` の `PropertyChanged` が UI スレッド外から発火していた
+  - UI 状態の更新（プロパティ変更・`RaiseCanExecuteChanged`）を `RunOnUIThreadAsync` でラップし、UI スレッドへ marshal するよう修正
+
 ## [1.8.4] - 2026-05-28
 
 ### リファクタリング
