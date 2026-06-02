@@ -733,10 +733,15 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         finally
         {
             StopMoveProgressTimer();
-            IsMoveInProgress = false;
-            ((RelayCommand)CancelMoveCommand).RaiseCanExecuteChanged();
             _moveCts.Dispose();
             _moveCts = null;
+            // ConfigureAwait(false) により finally はバックグラウンドスレッドで実行されるため、
+            // PropertyChanged を発火するプロパティ更新は UI スレッドへ marshal する（#137）。
+            await RunOnUIThreadAsync(() =>
+            {
+                IsMoveInProgress = false;
+                ((RelayCommand)CancelMoveCommand).RaiseCanExecuteChanged();
+            }).ConfigureAwait(false);
         }
 
         if (result.SuccessCount > 0 || result.SkipCount > 0)
@@ -816,10 +821,15 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         finally
         {
             StopCopyProgressTimer();
-            IsCopyInProgress = false;
-            ((RelayCommand)CancelCopyCommand).RaiseCanExecuteChanged();
             _copyCts.Dispose();
             _copyCts = null;
+            // ConfigureAwait(false) により finally はバックグラウンドスレッドで実行されるため、
+            // PropertyChanged を発火するプロパティ更新は UI スレッドへ marshal する（#137 と同様）。
+            await RunOnUIThreadAsync(() =>
+            {
+                IsCopyInProgress = false;
+                ((RelayCommand)CancelCopyCommand).RaiseCanExecuteChanged();
+            }).ConfigureAwait(false);
         }
 
         if (result.SuccessCount > 0 || result.SkipCount > 0)
