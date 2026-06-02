@@ -732,15 +732,16 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
         finally
         {
-            StopMoveProgressTimer();
-            _moveCts.Dispose();
-            _moveCts = null;
-            // ConfigureAwait(false) により finally はバックグラウンドスレッドで実行されるため、
-            // PropertyChanged を発火するプロパティ更新は UI スレッドへ marshal する（#137）。
+            // ConfigureAwait(false) により finally はバックグラウンドスレッドで実行される。
+            // DispatcherQueueTimer.Stop()、PropertyChanged 発火、CTS の Dispose/null 化は
+            // すべて UI スレッドで行い、CancelMoveCommand との race を防ぐ（#137）。
             await RunOnUIThreadAsync(() =>
             {
+                StopMoveProgressTimer();
                 IsMoveInProgress = false;
                 ((RelayCommand)CancelMoveCommand).RaiseCanExecuteChanged();
+                _moveCts?.Dispose();
+                _moveCts = null;
             }).ConfigureAwait(false);
         }
 
@@ -820,15 +821,16 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
         finally
         {
-            StopCopyProgressTimer();
-            _copyCts.Dispose();
-            _copyCts = null;
-            // ConfigureAwait(false) により finally はバックグラウンドスレッドで実行されるため、
-            // PropertyChanged を発火するプロパティ更新は UI スレッドへ marshal する（#137 と同様）。
+            // ConfigureAwait(false) により finally はバックグラウンドスレッドで実行される。
+            // DispatcherQueueTimer.Stop()、PropertyChanged 発火、CTS の Dispose/null 化は
+            // すべて UI スレッドで行い、CancelCopyCommand との race を防ぐ（#137）。
             await RunOnUIThreadAsync(() =>
             {
+                StopCopyProgressTimer();
                 IsCopyInProgress = false;
                 ((RelayCommand)CancelCopyCommand).RaiseCanExecuteChanged();
+                _copyCts?.Dispose();
+                _copyCts = null;
             }).ConfigureAwait(false);
         }
 
