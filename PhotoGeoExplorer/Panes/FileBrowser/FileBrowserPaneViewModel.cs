@@ -76,7 +76,10 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private int _thumbnailGenerationTotal;
     private int _thumbnailGenerationCompleted;
     private CancellationTokenSource? _thumbnailGenerationCts;
-    private Task _thumbnailGenerationTask = Task.CompletedTask;
+    private readonly HashSet<Task> _activeThumbnailTasks = new();
+    private readonly object _activeThumbnailTasksLock = new();
+    // テストからタイムアウト値を差し替え可能にするための internal フィールド
+    internal TimeSpan ThumbnailDisposeTimeout = TimeSpan.FromSeconds(30);
     private DispatcherQueueTimer? _thumbnailUpdateTimer;
     private Func<Task>? _openFolderAction;
     private Func<Task>? _createFolderAction;
@@ -1314,9 +1317,16 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _folderWatcherService.FolderChanged -= OnFolderWatcherChanged;
         _folderWatcherService.Dispose();
         CancelThumbnailGeneration();
-        // CTS をキャンセル済みなのでタスクは速やかに終了する想定だが、
-        // セマフォを破棄する前に完了を待ち ObjectDisposedException を防ぐ
-        try { _thumbnailGenerationTask.Wait(TimeSpan.FromSeconds(5)); }
+        // フォルダ切り替えで生成バッチが複数回作られた場合も含め、全アクティブタスクの
+        // 完了を待ってからセマフォを破棄する。タイムアウト時は後続の Release() が
+        // ObjectDisposedException になりうるが、GenerateThumbnailAsync 内で捕捉される。
+        Task[] pendingTasks;
+        lock (_activeThumbnailTasksLock)
+        {
+            pendingTasks = [.. _activeThumbnailTasks];
+        }
+
+        try { Task.WhenAll(pendingTasks).Wait(ThumbnailDisposeTimeout); }
         catch (AggregateException) { }
         CancelMetadataLoad();
         CancelFolderLoad();
@@ -1706,8 +1716,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         AppLog.Info($"StartBackgroundThumbnailGeneration: Starting generation for {itemsNeedingThumbnails.Count} items");
 
-        // バックグラウンドで並列生成開始（Dispose でセマフォを破棄する前に完了を待てるよう Task を保持）
-        _thumbnailGenerationTask = Task.Run(async () =>
+        // バックグラウンドで並列生成開始
+        // フォルダ切り替えで旧バッチがキャンセルされても ThumbnailService.GenerateThumbnail（同期・非キャンセル）
+        // が実行中の場合は完了まで継続する。Dispose() でセマフォを破棄する前に全タスクの完了を保証するため
+        // _activeThumbnailTasks に登録し、完了時に自己削除する。
+        var task = Task.Run(async () =>
         {
             try
             {
@@ -1720,6 +1733,19 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 // キャンセル済み - 正常終了
             }
         }, token);
+
+        lock (_activeThumbnailTasksLock)
+        {
+            _activeThumbnailTasks.Add(task);
+        }
+
+        _ = task.ContinueWith(_ =>
+        {
+            lock (_activeThumbnailTasksLock)
+            {
+                _activeThumbnailTasks.Remove(task);
+            }
+        }, TaskScheduler.Default);
     }
 
     private async Task GenerateThumbnailAsync(PhotoListItem listItem, CancellationToken cancellationToken)
@@ -1792,12 +1818,18 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             }
             finally
             {
-                _thumbnailGenerationSemaphore.Release();
+                // タイムアウト時に Dispose() がセマフォを先に破棄した場合の安全網
+                try { _thumbnailGenerationSemaphore.Release(); }
+                catch (ObjectDisposedException) { }
             }
         }
         catch (OperationCanceledException)
         {
             // キャンセルは正常
+        }
+        catch (ObjectDisposedException)
+        {
+            // WaitAsync 待機中に Dispose() でセマフォが破棄された場合
         }
         catch (UnauthorizedAccessException ex)
         {
