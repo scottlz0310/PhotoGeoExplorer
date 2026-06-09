@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### 改善
+- メタデータ解析の部分失敗をgraceful degradationで処理し、アプリのクラッシュを防止 (#144)
+  - `ExifService.ReadMetadata` のタグ取得処理全体を `MetadataException` でラップ。将来 `Get*` 系タグが追加された場合も自動的に保護される
+  - `MapPaneService.LoadMetadataForItemAsync` に汎用例外キャッチを追加。想定外の例外が発生しても該当ファイルをスキップしてアプリ動作を継続する
+  - `OnUnobservedTaskException` で `WriteCrashLog` を呼ぶよう修正。観測されない Task 例外も次回起動時のクラッシュ報告フローに乗るようになった
+
 ### 修正
 - `Date/Time Original` タグを持たない写真を読み込むと `MetadataExtractor.MetadataException` でクラッシュする問題を修正 (#142)
   - `ExifSubIfdDirectory` は存在するが撮影日時タグがない JPEG（GPS タグのみ付与された写真等）を開いた際に発生

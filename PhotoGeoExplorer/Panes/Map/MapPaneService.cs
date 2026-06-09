@@ -178,6 +178,14 @@ internal sealed class MapPaneService : IMapPaneService
             AppLog.Error($"Failed to load metadata for {item.Item.FilePath}", ex);
             return (item, null);
         }
+#pragma warning disable CA1031 // Do not catch general exception types
+        catch (Exception ex)
+        {
+            // MetadataExtractor 等、想定外の例外でクラッシュする代わりに当該ファイルをスキップする
+            AppLog.Error($"Unexpected exception loading metadata for {item.Item.FilePath}", ex);
+            return (item, null);
+        }
+#pragma warning restore CA1031
         finally
         {
             if (acquired)

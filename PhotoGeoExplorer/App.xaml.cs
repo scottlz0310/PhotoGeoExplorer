@@ -130,6 +130,7 @@ public partial class App : Application
     {
         var exceptionInfo = $"Type: {e.Exception?.GetType().FullName ?? "Unknown"}, InnerExceptions: {e.Exception?.InnerExceptions.Count ?? 0}";
         AppLog.Error($"Unobserved task exception. {exceptionInfo}", e.Exception);
+        CrashReporter.WriteCrashLog(e.Exception);
     }
 
     private void OnProcessExit(object? sender, EventArgs e)
