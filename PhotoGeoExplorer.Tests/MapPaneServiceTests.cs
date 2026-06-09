@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Services;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -224,6 +225,60 @@ public class MapPaneServiceTests
         Assert.EndsWith("red_pin.png", path, StringComparison.OrdinalIgnoreCase);
     }
 
+    // =========================================================
+    // ICrashReportService DI / ライフサイクル
+    // =========================================================
+
+    [Fact]
+    public void Constructor_WithCrashReportService_DoesNotThrow()
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        try
+        {
+            var fakeCrashReporter = new FakeCrashReportService();
+            var ex = Record.Exception(() => new MapPaneService(cacheRoot, fakeCrashReporter));
+            Assert.Null(ex);
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
+    [Fact]
+    public void Constructor_WithNullCrashReportService_ThrowsArgumentNullException()
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        try
+        {
+            Assert.Throws<ArgumentNullException>(() => new MapPaneService(cacheRoot, null!));
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
+    [Fact]
+    public async Task LoadPhotoMetadataAsync_EmptyItems_DoesNotCallWriteCrashLog()
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        try
+        {
+            var fakeCrashReporter = new FakeCrashReportService();
+            var service = new MapPaneService(cacheRoot, fakeCrashReporter);
+            var items = Array.Empty<PhotoGeoExplorer.ViewModels.PhotoListItem>();
+
+            await service.LoadPhotoMetadataAsync(items, CancellationToken.None).ConfigureAwait(true);
+
+            Assert.Equal(0, fakeCrashReporter.WriteCallCount);
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
     private static string CreateTempCacheRoot()
     {
         var path = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorer.Tests", Guid.NewGuid().ToString("N"));
@@ -237,5 +292,17 @@ public class MapPaneServiceTests
         {
             Directory.Delete(path, recursive: true);
         }
+    }
+
+    private sealed class FakeCrashReportService : ICrashReportService
+    {
+        public bool PreviouslyTerminatedAbnormally => false;
+        public string CrashReportsDirectoryPath => string.Empty;
+        public int WriteCallCount { get; private set; }
+
+        public void RecordStartup() { }
+        public void RecordNormalExit() { }
+        public void WriteCrashLog(Exception? exception) => WriteCallCount++;
+        public string? GetLatestCrashLogContent() => null;
     }
 }
