@@ -39,6 +39,8 @@
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <!-- mspdbcmf.exe パス構築バグ (MSB6011/HarfBuzzSharp) 回避: DebugType=none でシンボルパッケージ不要 -->
+    <AppxSymbolPackageEnabled>false</AppxSymbolPackageEnabled>
   </PropertyGroup>
 
   <ItemGroup>
