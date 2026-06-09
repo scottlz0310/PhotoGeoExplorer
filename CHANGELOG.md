@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 改善
+- 問題検出バナーの文言を修正。graceful degradationで例外をキャッチして正常終了した場合でもバナーが表示されるため、「正常に終了しませんでした」「クラッシュレポート」等の不正確な表現を「前回の実行中に問題が検出されました」「問題レポート」等に変更 (#146)
 - メタデータ解析の部分失敗をgraceful degradationで処理し、アプリのクラッシュを防止 (#144)
   - `ExifService.ReadMetadata` のタグ取得処理全体を `MetadataException` でラップ。将来 `Get*` 系タグが追加された場合も自動的に保護される
   - `MapPaneService.LoadMetadataForItemAsync` に汎用例外キャッチを追加。想定外の例外が発生しても該当ファイルをスキップしてアプリ動作を継続する
