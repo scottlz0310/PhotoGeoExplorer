@@ -526,16 +526,16 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         const string baseUrl = "https://github.com/scottlz0310/PhotoGeoExplorer/issues/new";
         var exType = ParseCrashLogField(logContent, "Exception Type:") ?? "Unknown";
-        var title = Uri.EscapeDataString($"[Crash] {exType}");
+        var title = Uri.EscapeDataString($"[Problem] {exType}");
 
         var truncated = logContent is { Length: > 2000 }
             ? logContent[..2000] + "\n...(truncated)"
             : logContent ?? "(no log)";
 
         var body = Uri.EscapeDataString(
-            "## クラッシュレポート\n\n" +
-            "PhotoGeoExplorer が予期せず終了しました。\n\n" +
-            "<details>\n<summary>クラッシュログ</summary>\n\n```\n" +
+            "## 問題レポート\n\n" +
+            "PhotoGeoExplorer の実行中に問題が検出されました。\n\n" +
+            "<details>\n<summary>診断ログ</summary>\n\n```\n" +
             truncated +
             "\n```\n\n</details>\n\n" +
             "---\n*PhotoGeoExplorer から自動生成されました。*");
@@ -553,7 +553,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
         var version = ParseCrashLogField(logContent, "App Version:") ?? string.Empty;
         var exType = ParseCrashLogField(logContent, "Exception Type:") ?? "Unknown";
-        var subject = Uri.EscapeDataString($"[Crash Report] v{version} {exType}");
+        var subject = Uri.EscapeDataString($"[Problem Report] v{version} {exType}");
         var body = Uri.EscapeDataString(LocalizationService.GetString("CrashReportDialog.MailBody"));
         var mailto = new Uri($"mailto:photogeoexplorer@outlook.com?subject={subject}&body={body}");
         _ = await Windows.System.Launcher.LaunchUriAsync(mailto).AsTask().ConfigureAwait(true);
