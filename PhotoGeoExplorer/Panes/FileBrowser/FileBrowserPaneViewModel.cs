@@ -76,6 +76,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private int _thumbnailGenerationTotal;
     private int _thumbnailGenerationCompleted;
     private CancellationTokenSource? _thumbnailGenerationCts;
+    private Task _thumbnailGenerationTask = Task.CompletedTask;
     private DispatcherQueueTimer? _thumbnailUpdateTimer;
     private Func<Task>? _openFolderAction;
     private Func<Task>? _createFolderAction;
@@ -1313,6 +1314,10 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _folderWatcherService.FolderChanged -= OnFolderWatcherChanged;
         _folderWatcherService.Dispose();
         CancelThumbnailGeneration();
+        // CTS をキャンセル済みなのでタスクは速やかに終了する想定だが、
+        // セマフォを破棄する前に完了を待ち ObjectDisposedException を防ぐ
+        try { _thumbnailGenerationTask.Wait(TimeSpan.FromSeconds(5)); }
+        catch (AggregateException) { }
         CancelMetadataLoad();
         CancelFolderLoad();
         StopMoveProgressTimer();
@@ -1701,8 +1706,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         AppLog.Info($"StartBackgroundThumbnailGeneration: Starting generation for {itemsNeedingThumbnails.Count} items");
 
-        // バックグラウンドで並列生成開始
-        _ = Task.Run(async () =>
+        // バックグラウンドで並列生成開始（Dispose でセマフォを破棄する前に完了を待てるよう Task を保持）
+        _thumbnailGenerationTask = Task.Run(async () =>
         {
             try
             {

@@ -15,6 +15,7 @@
 - サムネイル生成中にフォルダ切り替えやアプリ終了を行うと `System.ObjectDisposedException` → `UnobservedTaskException` でクラッシュする問題を修正
   - `CancellationTokenSource` を `Dispose()` した後、LINQ `Select` の遅延評価で `cts.Token` にアクセスし `ObjectDisposedException` が発生していた
   - `Task.Run` 前にトークンをキャプチャ (`var token = cts.Token`) し、fire-and-forget タスク内に `OperationCanceledException` の catch を追加
+  - バックグラウンドタスクを `_thumbnailGenerationTask` フィールドに保持し、`Dispose()` でセマフォを破棄する前に完了を待つよう修正。`SemaphoreSlim.Release()` / `WaitAsync()` が `ObjectDisposedException` になる経路を閉塞
 - `Date/Time Original` タグを持たない写真を読み込むと `MetadataExtractor.MetadataException` でクラッシュする問題を修正 (#142)
   - `ExifSubIfdDirectory` は存在するが撮影日時タグがない JPEG（GPS タグのみ付与された写真等）を開いた際に発生
   - `GetDateTime`（タグ不在時に例外をスロー）を `TryGetDateTime` に変更し、タグ不在時はファイル更新日時（`FileMetadataDirectory.TagFileModifiedDate`）にフォールバックして正常続行するよう修正

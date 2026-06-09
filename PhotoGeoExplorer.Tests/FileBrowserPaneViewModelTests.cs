@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -522,6 +523,40 @@ public class FileBrowserPaneViewModelTests
         // Act & Assert (Should not throw)
         viewModel.Dispose();
         viewModel.Dispose();
+    }
+
+    /// <summary>
+    /// 回帰テスト: Dispose がセマフォを破棄する前にバックグラウンドタスクの完了を待つことを検証する。
+    /// 以前は _thumbnailGenerationTask を保持せず CTS 破棄後もセマフォが即座に Dispose され、
+    /// 実行中タスクの WaitAsync/Release が ObjectDisposedException でクラッシュしていた。
+    /// </summary>
+    [Fact]
+    public async Task DisposeWhileThumbnailTaskUsingSemaphore_DoesNotThrowObjectDisposedException()
+    {
+        // Arrange
+        var service = new FileBrowserPaneService();
+        var workspaceState = new WorkspaceState();
+        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+
+        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+        var semaphoreField = typeof(FileBrowserPaneViewModel).GetField("_thumbnailGenerationSemaphore", flags)!;
+        var taskField = typeof(FileBrowserPaneViewModel).GetField("_thumbnailGenerationTask", flags)!;
+        var semaphore = (SemaphoreSlim)semaphoreField.GetValue(viewModel)!;
+
+        // セマフォを取得して「サムネイル生成の同期処理が実行中」の状態を模擬
+        await semaphore.WaitAsync().ConfigureAwait(true);
+        var simulatedTask = Task.Run(() =>
+        {
+            Thread.Sleep(30); // サムネイル生成の同期処理を模擬
+            semaphore.Release(); // Dispose が完了を待ってからセマフォを破棄するため ObjectDisposedException は発生しない
+        });
+        taskField.SetValue(viewModel, simulatedTask);
+
+        // Act: 生成タスク実行中に Dispose
+        viewModel.Dispose();
+
+        // ObjectDisposedException が発生した場合はここで例外として伝播し、テストが失敗する
+        await simulatedTask.ConfigureAwait(true);
     }
 
     [Fact]
