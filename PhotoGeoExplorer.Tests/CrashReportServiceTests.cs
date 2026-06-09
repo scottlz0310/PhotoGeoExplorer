@@ -196,6 +196,41 @@ public sealed class CrashReportServiceTests : IDisposable
     }
 
     [Fact]
+    public void RecordNormalExit_AfterWriteCrashLog_PreservesLockForNextStartup()
+    {
+        // MapPaneService 等が WriteCrashLog を呼んだ後に正常終了しても
+        // running.lock が残り、次回起動時のバナーが表示されることを保証する
+        var service = new CrashReportService(_tempDir);
+        service.RecordStartup();
+        var lockPath = Path.Combine(_tempDir, "running.lock");
+        Assert.True(File.Exists(lockPath));
+
+        service.WriteCrashLog(new InvalidOperationException("unexpected error in service layer"));
+        service.RecordNormalExit(); // 正常終了パスが実行されてもロックは残るべき
+
+        Assert.True(File.Exists(lockPath));
+
+        // 次回起動時
+        var nextService = new CrashReportService(_tempDir);
+        nextService.RecordStartup();
+        Assert.True(nextService.PreviouslyTerminatedAbnormally);
+    }
+
+    [Fact]
+    public void RecordNormalExit_WithoutWriteCrashLog_DeletesLock()
+    {
+        // クラッシュログがない場合は従来どおりロックを削除する
+        var service = new CrashReportService(_tempDir);
+        service.RecordStartup();
+        var lockPath = Path.Combine(_tempDir, "running.lock");
+        Assert.True(File.Exists(lockPath));
+
+        service.RecordNormalExit();
+
+        Assert.False(File.Exists(lockPath));
+    }
+
+    [Fact]
     public void GetLatestCrashLogContent_ReturnsNull_WhenFileIsLocked()
     {
         var service = new CrashReportService(_tempDir);

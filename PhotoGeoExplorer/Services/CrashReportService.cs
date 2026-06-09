@@ -18,6 +18,7 @@ internal sealed class CrashReportService : ICrashReportService
     private readonly string _appDataDirectory;
     private readonly string _lockFilePath;
     private readonly string _crashReportsDir;
+    private volatile bool _crashLogWritten;
 
     public CrashReportService()
         : this(DefaultAppDataDirectory)
@@ -43,11 +44,18 @@ internal sealed class CrashReportService : ICrashReportService
 
     public void RecordNormalExit()
     {
+        // WriteCrashLog が呼ばれていた場合は running.lock を残し、次回起動時のバナーを保証する
+        if (_crashLogWritten)
+        {
+            return;
+        }
+
         TryDeleteFile(_lockFilePath);
     }
 
     public void WriteCrashLog(Exception? exception)
     {
+        _crashLogWritten = true;
         try
         {
             Directory.CreateDirectory(_crashReportsDir);
