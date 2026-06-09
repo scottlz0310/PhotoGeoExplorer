@@ -900,16 +900,16 @@
     <value>Cancel</value>
   </data>
   <data name="CrashReportBanner.Message" xml:space="preserve">
-    <value>PhotoGeoExplorer did not shut down properly last time. Diagnostic logs have been saved. Attaching logs when reporting an issue helps with investigation.</value>
+    <value>A problem was detected during the last session. Diagnostic logs have been saved. Attaching logs when reporting an issue helps with investigation.</value>
   </data>
   <data name="CrashReportOpenFolderButton.Content" xml:space="preserve">
-    <value>Open Crash Log Folder</value>
+    <value>Open Log Folder</value>
   </data>
   <data name="CrashReportReportButton.Content" xml:space="preserve">
     <value>Report</value>
   </data>
   <data name="CrashReportDialog.Title" xml:space="preserve">
-    <value>Submit Crash Report</value>
+    <value>Submit Problem Report</value>
   </data>
   <data name="CrashReportDialog.GitHubButton" xml:space="preserve">
     <value>Report on GitHub</value>
@@ -939,6 +939,6 @@
     <value>(No log found)</value>
   </data>
   <data name="CrashReportDialog.MailBody" xml:space="preserve">
-    <value>The crash log has been copied to your clipboard. Please paste it into this email (Ctrl+V) and send.</value>
+    <value>The diagnostic log has been copied to your clipboard. Please paste it into this email (Ctrl+V) and send.</value>
   </data>
 </root>

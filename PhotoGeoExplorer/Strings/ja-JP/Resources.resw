@@ -900,16 +900,16 @@
     <value>中止</value>
   </data>
   <data name="CrashReportBanner.Message" xml:space="preserve">
-    <value>前回 PhotoGeoExplorer は正常に終了しませんでした。診断用ログが保存されています。問題報告時にログを添付すると原因調査に役立ちます。</value>
+    <value>前回の実行中に問題が検出されました。診断ログが保存されています。問題報告時にログを添付すると原因調査に役立ちます。</value>
   </data>
   <data name="CrashReportOpenFolderButton.Content" xml:space="preserve">
-    <value>クラッシュログフォルダーを開く</value>
+    <value>ログフォルダーを開く</value>
   </data>
   <data name="CrashReportReportButton.Content" xml:space="preserve">
     <value>報告する</value>
   </data>
   <data name="CrashReportDialog.Title" xml:space="preserve">
-    <value>クラッシュレポートの送信</value>
+    <value>問題レポートの送信</value>
   </data>
   <data name="CrashReportDialog.GitHubButton" xml:space="preserve">
     <value>GitHub で報告する</value>
@@ -939,6 +939,6 @@
     <value>(ログが見つかりませんでした)</value>
   </data>
   <data name="CrashReportDialog.MailBody" xml:space="preserve">
-    <value>クラッシュログをクリップボードにコピーしました。このメールに貼り付けてお送りください（Ctrl+V）。</value>
+    <value>診断ログをクリップボードにコピーしました。このメールに貼り付けてお送りください（Ctrl+V）。</value>
   </data>
 </root>
