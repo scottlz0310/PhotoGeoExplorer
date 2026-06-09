@@ -1694,17 +1694,27 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         // 新しいキャンセルトークンを作成
         var cts = new CancellationTokenSource();
         _thumbnailGenerationCts = cts;
+        // cts が後で破棄されても Token プロパティへのアクセスで ObjectDisposedException が
+        // 発生しないよう、Task.Run 前にトークン値をキャプチャする（Select は lazy なので
+        // Task.WhenAll 反復時点で cts が破棄済みになりうる）
+        var token = cts.Token;
 
         AppLog.Info($"StartBackgroundThumbnailGeneration: Starting generation for {itemsNeedingThumbnails.Count} items");
 
         // バックグラウンドで並列生成開始
         _ = Task.Run(async () =>
         {
-            var tasks = itemsNeedingThumbnails.Select(listItem => GenerateThumbnailAsync(listItem, cts.Token));
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-
-            AppLog.Info("StartBackgroundThumbnailGeneration: Completed");
-        }, cts.Token);
+            try
+            {
+                var tasks = itemsNeedingThumbnails.Select(listItem => GenerateThumbnailAsync(listItem, token));
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+                AppLog.Info("StartBackgroundThumbnailGeneration: Completed");
+            }
+            catch (OperationCanceledException)
+            {
+                // キャンセル済み - 正常終了
+            }
+        }, token);
     }
 
     private async Task GenerateThumbnailAsync(PhotoListItem listItem, CancellationToken cancellationToken)
