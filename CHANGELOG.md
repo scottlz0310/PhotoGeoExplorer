@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 修正
+- Release ビルドで `HarfBuzzSharp` などのネイティブ依存の PDB を処理しようとして `mspdbcmf.exe` パス構築バグ (MSB6011) が発生し CI が失敗する問題を修正
+  - `AppxSymbolPackageEnabled=false` を Release 構成に追加してシンボルパッケージ生成を無効化
+
 ## [1.8.5] - 2026-06-09
 
 ### 改善
