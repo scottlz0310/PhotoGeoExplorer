@@ -18,7 +18,7 @@ internal sealed class CrashReportService : ICrashReportService
     private readonly string _appDataDirectory;
     private readonly string _lockFilePath;
     private readonly string _crashReportsDir;
-    private volatile bool _crashLogWritten;
+    private readonly string _crashMarkerPath;
 
     public CrashReportService()
         : this(DefaultAppDataDirectory)
@@ -30,6 +30,7 @@ internal sealed class CrashReportService : ICrashReportService
         _appDataDirectory = appDataDirectory ?? throw new ArgumentNullException(nameof(appDataDirectory));
         _lockFilePath = Path.Combine(_appDataDirectory, "running.lock");
         _crashReportsDir = Path.Combine(_appDataDirectory, "CrashReports");
+        _crashMarkerPath = Path.Combine(_appDataDirectory, "crash.marker");
     }
 
     public bool PreviouslyTerminatedAbnormally { get; private set; }
@@ -38,14 +39,17 @@ internal sealed class CrashReportService : ICrashReportService
 
     public void RecordStartup()
     {
-        PreviouslyTerminatedAbnormally = File.Exists(_lockFilePath);
+        PreviouslyTerminatedAbnormally = File.Exists(_lockFilePath) || File.Exists(_crashMarkerPath);
+        TryDeleteFile(_crashMarkerPath);
         TryCreateLockFile();
     }
 
     public void RecordNormalExit()
     {
-        // WriteCrashLog が呼ばれていた場合は running.lock を残し、次回起動時のバナーを保証する
-        if (_crashLogWritten)
+        // crash.marker が存在する場合は running.lock を残し、次回起動時のバナーを保証する。
+        // crash.marker はファイルシステムで永続化されるため、WriteCrashLog を呼んだインスタンスと
+        // RecordNormalExit を呼ぶインスタンスが異なっていても確実に機能する。
+        if (File.Exists(_crashMarkerPath))
         {
             return;
         }
@@ -55,7 +59,7 @@ internal sealed class CrashReportService : ICrashReportService
 
     public void WriteCrashLog(Exception? exception)
     {
-        _crashLogWritten = true;
+        TryWriteMarkerFile();
         try
         {
             Directory.CreateDirectory(_crashReportsDir);
@@ -157,6 +161,19 @@ internal sealed class CrashReportService : ICrashReportService
         {
             Directory.CreateDirectory(_appDataDirectory);
             File.WriteAllText(_lockFilePath, DateTimeOffset.Now.ToString("O"));
+        }
+        catch (UnauthorizedAccessException) { }
+        catch (IOException) { }
+        catch (ArgumentException) { }
+        catch (NotSupportedException) { }
+    }
+
+    private void TryWriteMarkerFile()
+    {
+        try
+        {
+            Directory.CreateDirectory(_appDataDirectory);
+            File.WriteAllText(_crashMarkerPath, DateTimeOffset.Now.ToString("O"));
         }
         catch (UnauthorizedAccessException) { }
         catch (IOException) { }
