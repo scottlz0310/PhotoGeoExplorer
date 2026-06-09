@@ -5,6 +5,9 @@
 ## [Unreleased]
 
 ### 修正
+- `Date/Time Original` タグを持たない写真を読み込むと `MetadataExtractor.MetadataException` でクラッシュする問題を修正 (#142)
+  - `ExifSubIfdDirectory` は存在するが撮影日時タグがない JPEG（GPS タグのみ付与された写真等）を開いた際に発生
+  - `GetDateTime`（タグ不在時に例外をスロー）を `TryGetDateTime` に変更し、タグ不在時はファイル更新日時（`FileMetadataDirectory.TagFileModifiedDate`）にフォールバックして正常続行するよう修正
 - ファイル移動・コピー操作完了時に `RPC_E_WRONG_THREAD (0x8001010E)` でクラッシュする問題を修正 (#137)
   - `ExecuteMoveItemsToFolderAsync` / `ExecuteCopyItemsToFolderAsync` の `finally` ブロックが `ConfigureAwait(false)` によりバックグラウンドスレッドで実行され、`IsMoveInProgress` / `IsCopyInProgress` の `PropertyChanged` が UI スレッド外から発火していた
   - UI 状態の更新（プロパティ変更・`RaiseCanExecuteChanged`）を `RunOnUIThreadAsync` でラップし、UI スレッドへ marshal するよう修正

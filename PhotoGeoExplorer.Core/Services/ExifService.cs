@@ -100,9 +100,21 @@ internal static class ExifService
         var cameraModel = exifIfd0?.GetString(ExifDirectoryBase.TagModel);
 
         var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-        var dateTime = subIfd?.GetDateTime(ExifDirectoryBase.TagDateTimeOriginal)
-            ?? subIfd?.GetDateTime(ExifDirectoryBase.TagDateTimeDigitized)
-            ?? directories.OfType<FileMetadataDirectory>().FirstOrDefault()?.GetDateTime(FileMetadataDirectory.TagFileModifiedDate);
+        DateTime? dateTime = null;
+        if (subIfd is not null)
+        {
+            if (subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out var dt))
+                dateTime = dt;
+            else if (subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeDigitized, out dt))
+                dateTime = dt;
+        }
+
+        if (dateTime is null)
+        {
+            var fileMeta = directories.OfType<FileMetadataDirectory>().FirstOrDefault();
+            if (fileMeta is not null && fileMeta.TryGetDateTime(FileMetadataDirectory.TagFileModifiedDate, out var dt))
+                dateTime = dt;
+        }
 
         DateTimeOffset? takenAt = null;
         if (dateTime.HasValue)
