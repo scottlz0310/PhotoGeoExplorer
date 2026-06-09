@@ -196,6 +196,61 @@ public sealed class CrashReportServiceTests : IDisposable
     }
 
     [Fact]
+    public void RecordNormalExit_AfterWriteCrashLog_SameInstance_PreservesLockForNextStartup()
+    {
+        // 同一インスタンスで WriteCrashLog → RecordNormalExit → 次回起動のライフサイクルを保証する
+        var service = new CrashReportService(_tempDir);
+        service.RecordStartup();
+        var lockPath = Path.Combine(_tempDir, "running.lock");
+        Assert.True(File.Exists(lockPath));
+
+        service.WriteCrashLog(new InvalidOperationException("unexpected error"));
+        service.RecordNormalExit();
+
+        Assert.True(File.Exists(lockPath));
+
+        var nextService = new CrashReportService(_tempDir);
+        nextService.RecordStartup();
+        Assert.True(nextService.PreviouslyTerminatedAbnormally);
+    }
+
+    [Fact]
+    public void RecordNormalExit_WhenSeparateInstanceWroteCrashLog_PreservesLockForNextStartup()
+    {
+        // MapPaneService が生成する別インスタンスで WriteCrashLog を呼び、
+        // App インスタンスの RecordNormalExit で running.lock が残ることを保証する
+        var appInstance = new CrashReportService(_tempDir);
+        appInstance.RecordStartup();
+        var lockPath = Path.Combine(_tempDir, "running.lock");
+        Assert.True(File.Exists(lockPath));
+
+        var serviceLayerInstance = new CrashReportService(_tempDir);
+        serviceLayerInstance.WriteCrashLog(new InvalidOperationException("service layer crash"));
+
+        appInstance.RecordNormalExit();
+
+        Assert.True(File.Exists(lockPath));
+
+        var nextInstance = new CrashReportService(_tempDir);
+        nextInstance.RecordStartup();
+        Assert.True(nextInstance.PreviouslyTerminatedAbnormally);
+    }
+
+    [Fact]
+    public void RecordNormalExit_WithoutWriteCrashLog_DeletesLock()
+    {
+        // クラッシュログがない場合は従来どおりロックを削除する
+        var service = new CrashReportService(_tempDir);
+        service.RecordStartup();
+        var lockPath = Path.Combine(_tempDir, "running.lock");
+        Assert.True(File.Exists(lockPath));
+
+        service.RecordNormalExit();
+
+        Assert.False(File.Exists(lockPath));
+    }
+
+    [Fact]
     public void GetLatestCrashLogContent_ReturnsNull_WhenFileIsLocked()
     {
         var service = new CrashReportService(_tempDir);

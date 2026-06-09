@@ -85,51 +85,59 @@ internal static class ExifService
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var gpsDirectory = directories.OfType<GpsDirectory>().FirstOrDefault();
-        GeoLocation? location = null;
-        if (gpsDirectory is not null && gpsDirectory.TryGetGeoLocation(out var geoLocation))
+        try
         {
-            location = geoLocation;
+            var gpsDirectory = directories.OfType<GpsDirectory>().FirstOrDefault();
+            GeoLocation? location = null;
+            if (gpsDirectory is not null && gpsDirectory.TryGetGeoLocation(out var geoLocation))
+            {
+                location = geoLocation;
+            }
+
+            double? latitude = location?.Latitude;
+            double? longitude = location?.Longitude;
+
+            var exifIfd0 = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
+            var cameraMake = exifIfd0?.GetString(ExifDirectoryBase.TagMake);
+            var cameraModel = exifIfd0?.GetString(ExifDirectoryBase.TagModel);
+
+            var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
+            DateTime? dateTime = null;
+            if (subIfd is not null)
+            {
+                if (subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out var dt))
+                    dateTime = dt;
+                else if (subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeDigitized, out dt))
+                    dateTime = dt;
+            }
+
+            if (dateTime is null)
+            {
+                var fileMeta = directories.OfType<FileMetadataDirectory>().FirstOrDefault();
+                if (fileMeta is not null && fileMeta.TryGetDateTime(FileMetadataDirectory.TagFileModifiedDate, out var dt))
+                    dateTime = dt;
+            }
+
+            DateTimeOffset? takenAt = null;
+            if (dateTime.HasValue)
+            {
+                var localTime = DateTime.SpecifyKind(dateTime.Value, DateTimeKind.Local);
+                takenAt = new DateTimeOffset(localTime);
+            }
+
+            return new PhotoMetadata(
+                takenAt,
+                cameraMake,
+                cameraModel,
+                latitude,
+                longitude,
+                hasGpsData: gpsDirectory is not null);
         }
-
-        double? latitude = location?.Latitude;
-        double? longitude = location?.Longitude;
-
-        var exifIfd0 = directories.OfType<ExifIfd0Directory>().FirstOrDefault();
-        var cameraMake = exifIfd0?.GetString(ExifDirectoryBase.TagMake);
-        var cameraModel = exifIfd0?.GetString(ExifDirectoryBase.TagModel);
-
-        var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
-        DateTime? dateTime = null;
-        if (subIfd is not null)
+        catch (MetadataExtractor.MetadataException ex)
         {
-            if (subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out var dt))
-                dateTime = dt;
-            else if (subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeDigitized, out dt))
-                dateTime = dt;
+            AppLog.Error($"Partial metadata read failure: {filePath}", ex);
+            return null;
         }
-
-        if (dateTime is null)
-        {
-            var fileMeta = directories.OfType<FileMetadataDirectory>().FirstOrDefault();
-            if (fileMeta is not null && fileMeta.TryGetDateTime(FileMetadataDirectory.TagFileModifiedDate, out var dt))
-                dateTime = dt;
-        }
-
-        DateTimeOffset? takenAt = null;
-        if (dateTime.HasValue)
-        {
-            var localTime = DateTime.SpecifyKind(dateTime.Value, DateTimeKind.Local);
-            takenAt = new DateTimeOffset(localTime);
-        }
-
-        return new PhotoMetadata(
-            takenAt,
-            cameraMake,
-            cameraModel,
-            latitude,
-            longitude,
-            hasGpsData: gpsDirectory is not null);
     }
 
     private static bool WriteMetadata(

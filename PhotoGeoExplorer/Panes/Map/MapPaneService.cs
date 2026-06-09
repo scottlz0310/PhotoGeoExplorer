@@ -21,13 +21,19 @@ internal sealed class MapPaneService : IMapPaneService
 {
     private const int MetadataLoadMaxConcurrency = 4;
     private readonly string _tileCacheRootDirectory;
+    private readonly ICrashReportService _crashReportService;
 
     public MapPaneService()
-        : this(GetDefaultTileCacheRootDirectory())
+        : this(GetDefaultTileCacheRootDirectory(), new CrashReportService())
     {
     }
 
     internal MapPaneService(string tileCacheRootDirectory)
+        : this(tileCacheRootDirectory, new CrashReportService())
+    {
+    }
+
+    internal MapPaneService(string tileCacheRootDirectory, ICrashReportService crashReportService)
     {
         if (string.IsNullOrWhiteSpace(tileCacheRootDirectory))
         {
@@ -35,6 +41,7 @@ internal sealed class MapPaneService : IMapPaneService
         }
 
         _tileCacheRootDirectory = tileCacheRootDirectory;
+        _crashReportService = crashReportService ?? throw new ArgumentNullException(nameof(crashReportService));
     }
 
     /// <inheritdoc/>
@@ -150,7 +157,7 @@ internal sealed class MapPaneService : IMapPaneService
         }
     }
 
-    private static async Task<(PhotoListItem Item, PhotoMetadata? Metadata)> LoadMetadataForItemAsync(
+    private async Task<(PhotoListItem Item, PhotoMetadata? Metadata)> LoadMetadataForItemAsync(
         PhotoListItem item,
         SemaphoreSlim semaphore,
         CancellationToken cancellationToken)
@@ -178,6 +185,16 @@ internal sealed class MapPaneService : IMapPaneService
             AppLog.Error($"Failed to load metadata for {item.Item.FilePath}", ex);
             return (item, null);
         }
+#pragma warning disable CA1031 // Do not catch general exception types
+        catch (Exception ex)
+        {
+            // MetadataExtractor 等、想定外の例外でクラッシュする代わりに当該ファイルをスキップする。
+            // WriteCrashLog で running.lock を維持し、次回起動時の報告フローへ情報を引き渡す。
+            AppLog.Error($"Unexpected exception loading metadata for {item.Item.FilePath}", ex);
+            _crashReportService.WriteCrashLog(ex);
+            return (item, null);
+        }
+#pragma warning restore CA1031
         finally
         {
             if (acquired)
