@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.State;
@@ -21,20 +20,13 @@ namespace PhotoGeoExplorer.Panes.FileBrowser;
 /// </summary>
 internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 {
-    private const int ThumbnailGenerationConcurrency = 3;
-    private const int ThumbnailUpdateBatchIntervalMs = 300;
-
     private readonly IFileBrowserPaneService _service;
     private readonly IFileOperationService _fileOperationService;
     private readonly IExifEditorService? _exifEditorService;
     private readonly IDialogService? _dialogService;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly WorkspaceState _workspaceState;
-    private readonly SemaphoreSlim _thumbnailGenerationSemaphore = new(ThumbnailGenerationConcurrency, ThumbnailGenerationConcurrency);
-    private readonly HashSet<string> _thumbnailsInProgress = new();
-    private readonly object _thumbnailsInProgressLock = new();
-    private readonly List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height, DateTimeOffset? TakenAt, bool? HasLocation, bool IsLocationFixFailed)> _pendingThumbnailUpdates = new();
-    private readonly object _pendingThumbnailUpdatesLock = new();
+    private readonly ThumbnailGenerationCoordinator _thumbnailCoordinator;
 
     private string? _currentFolderPath;
     private string? _statusMessage;
@@ -71,14 +63,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private Symbol _statusBarLocationSymbol = Symbol.Map;
     private Visibility _statusBarLocationVisibility = Visibility.Collapsed;
     private string? _statusBarLocationTooltip;
-    private int _thumbnailGenerationTotal;
-    private int _thumbnailGenerationCompleted;
-    private CancellationTokenSource? _thumbnailGenerationCts;
-    private readonly HashSet<Task> _activeThumbnailTasks = new();
-    private readonly object _activeThumbnailTasksLock = new();
-    // テストからタイムアウト値を差し替え可能にするための internal フィールド
-    internal TimeSpan ThumbnailDisposeTimeout = TimeSpan.FromSeconds(30);
-    private IUiDispatcherTimer? _thumbnailUpdateTimer;
     private Func<Task>? _openFolderAction;
     private Func<Task>? _createFolderAction;
     private Func<Task>? _renameSelectionAction;
@@ -124,6 +108,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _folderWatcherService = folderWatcherService ?? new FolderWatcherService();
         _folderWatcherService.FolderChanged += OnFolderWatcherChanged;
         _uiDispatcher = uiDispatcher ?? new UiDispatcher();
+        _thumbnailCoordinator = new ThumbnailGenerationCoordinator(_uiDispatcher, _fileOperationService.IsJpegFile);
 
         // WorkspaceState にナビゲーションコールバックを設定
         _workspaceState.SelectNextAction = SelectNext;
@@ -1023,9 +1008,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 UpdateStatusBar();
 
                 // バックグラウンドでサムネイル生成を開始
-                // 注意: StartBackgroundThumbnailGeneration 内部で UI スレッドタイマーを構成しているため、
+                // 注意: StartGeneration 内部で UI スレッドタイマーを構成しているため、
                 //       ここでは明示的に UI スレッド上から呼び出している（UI 更新と意図を揃えるため）
-                StartBackgroundThumbnailGeneration();
+                _thumbnailCoordinator.StartGeneration(Items);
                 _folderWatcherService.Watch(folderPath);
             }).ConfigureAwait(false);
 
@@ -1317,18 +1302,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         ConfigureUiActionHandlers(null, null, null, null, null, null);
         _folderWatcherService.FolderChanged -= OnFolderWatcherChanged;
         _folderWatcherService.Dispose();
-        CancelThumbnailGeneration();
-        // フォルダ切り替えで生成バッチが複数回作られた場合も含め、全アクティブタスクの
-        // 完了を待ってからセマフォを破棄する。タイムアウト時は後続の Release() が
-        // ObjectDisposedException になりうるが、GenerateThumbnailAsync 内で捕捉される。
-        Task[] pendingTasks;
-        lock (_activeThumbnailTasksLock)
-        {
-            pendingTasks = [.. _activeThumbnailTasks];
-        }
-
-        try { Task.WhenAll(pendingTasks).Wait(ThumbnailDisposeTimeout); }
-        catch (AggregateException) { }
+        _thumbnailCoordinator.Dispose();
         CancelMetadataLoad();
         CancelFolderLoad();
         StopMoveProgressTimer();
@@ -1337,7 +1311,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         StopCopyProgressTimer();
         _copyCts?.Cancel();
         _copyCts?.Dispose();
-        _thumbnailGenerationSemaphore.Dispose();
     }
 
     private void OnWorkspacePhotoFocusRequested(object? sender, WorkspacePhotoFocusRequestedEventArgs e)
@@ -1676,257 +1649,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
     }
 
-    private void StartBackgroundThumbnailGeneration()
-    {
-        // 既存の生成処理をキャンセル
-        CancelThumbnailGeneration();
-
-        // テスト環境またはUIスレッドがない場合はスキップ
-        if (!_uiDispatcher.IsAvailable)
-        {
-            return;
-        }
-
-        // サムネイルが未生成のアイテムを収集
-        var itemsNeedingThumbnails = Items
-            .Where(item => !item.IsFolder && item.Thumbnail is null && item.ThumbnailKey is not null)
-            .ToList();
-
-        if (itemsNeedingThumbnails.Count == 0)
-        {
-            return;
-        }
-
-        // カウンターを初期化
-        _thumbnailGenerationTotal = itemsNeedingThumbnails.Count;
-        _thumbnailGenerationCompleted = 0;
-
-        // 更新タイマーの初期化（IsAvailable 確認済みのため CreateTimer は非 null を返す）
-        var thumbnailUpdateTimer = _uiDispatcher.CreateTimer();
-        if (thumbnailUpdateTimer is null)
-        {
-            return;
-        }
-
-        _thumbnailUpdateTimer = thumbnailUpdateTimer;
-        _thumbnailUpdateTimer.Interval = TimeSpan.FromMilliseconds(ThumbnailUpdateBatchIntervalMs);
-        _thumbnailUpdateTimer.Tick += OnThumbnailUpdateTimerTick;
-        _thumbnailUpdateTimer.Start();
-
-        // 新しいキャンセルトークンを作成
-        var cts = new CancellationTokenSource();
-        _thumbnailGenerationCts = cts;
-        // cts が後で破棄されても Token プロパティへのアクセスで ObjectDisposedException が
-        // 発生しないよう、Task.Run 前にトークン値をキャプチャする（Select は lazy なので
-        // Task.WhenAll 反復時点で cts が破棄済みになりうる）
-        var token = cts.Token;
-
-        AppLog.Info($"StartBackgroundThumbnailGeneration: Starting generation for {itemsNeedingThumbnails.Count} items");
-
-        // バックグラウンドで並列生成開始
-        // フォルダ切り替えで旧バッチがキャンセルされても ThumbnailService.GenerateThumbnail（同期・非キャンセル）
-        // が実行中の場合は完了まで継続する。Dispose() でセマフォを破棄する前に全タスクの完了を保証するため
-        // _activeThumbnailTasks に登録し、完了時に自己削除する。
-        var task = Task.Run(async () =>
-        {
-            try
-            {
-                var tasks = itemsNeedingThumbnails.Select(listItem => GenerateThumbnailAsync(listItem, token));
-                await Task.WhenAll(tasks).ConfigureAwait(false);
-                AppLog.Info("StartBackgroundThumbnailGeneration: Completed");
-            }
-            catch (OperationCanceledException)
-            {
-                // キャンセル済み - 正常終了
-            }
-        }, token);
-
-        lock (_activeThumbnailTasksLock)
-        {
-            _activeThumbnailTasks.Add(task);
-        }
-
-        _ = task.ContinueWith(_ =>
-        {
-            lock (_activeThumbnailTasksLock)
-            {
-                _activeThumbnailTasks.Remove(task);
-            }
-        }, TaskScheduler.Default);
-    }
-
-    private async Task GenerateThumbnailAsync(PhotoListItem listItem, CancellationToken cancellationToken)
-    {
-        if (cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        var key = listItem.ThumbnailKey;
-        if (key is null)
-        {
-            return;
-        }
-
-        // 重複生成を防止
-        lock (_thumbnailsInProgressLock)
-        {
-            if (_thumbnailsInProgress.Contains(key))
-            {
-                return;
-            }
-
-            _thumbnailsInProgress.Add(key);
-        }
-
-        try
-        {
-            // セマフォで並列数を制限
-            await _thumbnailGenerationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                // サムネイル生成（バックグラウンドスレッド）
-                var fileInfo = new FileInfo(listItem.FilePath);
-                if (!fileInfo.Exists)
-                {
-                    return;
-                }
-
-                var result = ThumbnailService.GenerateThumbnail(listItem.FilePath, fileInfo.LastWriteTimeUtc);
-                if (result.ThumbnailPath is null || cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                DateTimeOffset? takenAt = null;
-                bool? hasLocation = null;
-                var isLocationFixFailed = false;
-                if (IsJpegFile(listItem))
-                {
-                    var metadata = await ExifService.GetMetadataAsync(listItem.FilePath, cancellationToken).ConfigureAwait(false);
-                    if (metadata is not null)
-                    {
-                        takenAt = metadata.TakenAt;
-                        hasLocation = metadata.HasValidLocation;
-                        isLocationFixFailed = metadata.IsLikelyLocationFixFailed;
-                    }
-                }
-
-                // UIスレッドで BitmapImage を作成して更新をキューに追加
-                lock (_pendingThumbnailUpdatesLock)
-                {
-                    _pendingThumbnailUpdates.Add((listItem, result.ThumbnailPath, key, listItem.Generation, result.Width, result.Height, takenAt, hasLocation, isLocationFixFailed));
-                }
-            }
-            finally
-            {
-                // タイムアウト時に Dispose() がセマフォを先に破棄した場合の安全網
-                try { _thumbnailGenerationSemaphore.Release(); }
-                catch (ObjectDisposedException) { }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // キャンセルは正常
-        }
-        catch (ObjectDisposedException)
-        {
-            // WaitAsync 待機中に Dispose() でセマフォが破棄された場合
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            AppLog.Error($"GenerateThumbnailAsync: Access denied for {listItem.FileName}", ex);
-        }
-        catch (IOException ex)
-        {
-            AppLog.Error($"GenerateThumbnailAsync: IO error for {listItem.FileName}", ex);
-        }
-        catch (NotSupportedException ex)
-        {
-            AppLog.Error($"GenerateThumbnailAsync: Unsupported operation for {listItem.FileName}", ex);
-        }
-        finally
-        {
-            lock (_thumbnailsInProgressLock)
-            {
-                _thumbnailsInProgress.Remove(key);
-            }
-
-            // 完了カウントをインクリメント
-            Interlocked.Increment(ref _thumbnailGenerationCompleted);
-        }
-    }
-
-    private void OnThumbnailUpdateTimerTick(object? sender, EventArgs e)
-    {
-        ApplyPendingThumbnailUpdates();
-    }
-
-    private void ApplyPendingThumbnailUpdates()
-    {
-        // まず、生成完了チェックを実行（キューの有無に関わらず）
-        var shouldStopTimer = Volatile.Read(ref _thumbnailGenerationCompleted) >= _thumbnailGenerationTotal;
-
-        List<(PhotoListItem Item, string? ThumbnailPath, string? Key, int Generation, int? Width, int? Height, DateTimeOffset? TakenAt, bool? HasLocation, bool IsLocationFixFailed)> updates;
-
-        lock (_pendingThumbnailUpdatesLock)
-        {
-            // キューが空の場合、完了チェックのみ実行
-            if (_pendingThumbnailUpdates.Count == 0)
-            {
-                if (shouldStopTimer && _thumbnailUpdateTimer is not null)
-                {
-                    _thumbnailUpdateTimer.Stop();
-                    AppLog.Info("ApplyPendingThumbnailUpdates: All thumbnail generation tasks finished, stopping timer (queue empty)");
-                }
-                return;
-            }
-
-            updates = new List<(PhotoListItem, string?, string?, int, int?, int?, DateTimeOffset?, bool?, bool)>(_pendingThumbnailUpdates);
-            _pendingThumbnailUpdates.Clear();
-        }
-
-        var successCount = 0;
-        var metadataUpdatedCount = 0;
-        foreach (var (item, thumbnailPath, key, generation, width, height, takenAt, hasLocation, isLocationFixFailed) in updates)
-        {
-            // UIスレッドでBitmapImageを作成
-            var thumbnail = CreateThumbnailImage(thumbnailPath);
-            if (item.UpdateThumbnail(thumbnail, key, generation, width, height))
-            {
-                successCount++;
-            }
-
-            if (item.UpdateMetadata(takenAt, hasLocation, isLocationFixFailed))
-            {
-                metadataUpdatedCount++;
-            }
-        }
-
-        if (successCount > 0 || metadataUpdatedCount > 0)
-        {
-            AppLog.Info($"ApplyPendingThumbnailUpdates: Applied {successCount} thumbnail updates and {metadataUpdatedCount} metadata updates");
-        }
-
-        // 生成完了チェック後、キューも確認してタイマーを停止
-        if (shouldStopTimer)
-        {
-            lock (_pendingThumbnailUpdatesLock)
-            {
-                if (_pendingThumbnailUpdates.Count == 0 && _thumbnailUpdateTimer is not null)
-                {
-                    _thumbnailUpdateTimer.Stop();
-                    AppLog.Info("ApplyPendingThumbnailUpdates: All thumbnail generation tasks finished, stopping timer");
-                }
-            }
-        }
-    }
-
     private void OnFolderWatcherChanged(object? sender, EventArgs e)
     {
         _uiDispatcher.TryEnqueue(async () =>
@@ -1938,73 +1660,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
             await RefreshAsync().ConfigureAwait(false);
         });
-    }
-
-    private void CancelThumbnailGeneration()
-    {
-        // タイマーを停止
-        if (_thumbnailUpdateTimer is not null)
-        {
-            _thumbnailUpdateTimer.Stop();
-            _thumbnailUpdateTimer.Tick -= OnThumbnailUpdateTimerTick;
-            _thumbnailUpdateTimer = null;
-        }
-
-        // 保留中の更新をクリア
-        lock (_pendingThumbnailUpdatesLock)
-        {
-            _pendingThumbnailUpdates.Clear();
-        }
-
-        // 生成中リストをクリア
-        lock (_thumbnailsInProgressLock)
-        {
-            _thumbnailsInProgress.Clear();
-        }
-
-        // キャンセルトークンをキャンセル
-        var previousCts = _thumbnailGenerationCts;
-        _thumbnailGenerationCts = null;
-        if (previousCts is not null)
-        {
-            try
-            {
-                previousCts.Cancel();
-                previousCts.Dispose();
-            }
-            catch (ObjectDisposedException)
-            {
-                // 既に破棄済み
-            }
-        }
-    }
-
-    private static BitmapImage? CreateThumbnailImage(string? thumbnailPath)
-    {
-        if (string.IsNullOrWhiteSpace(thumbnailPath))
-        {
-            return null;
-        }
-
-        try
-        {
-            return new BitmapImage(new Uri(thumbnailPath));
-        }
-        catch (ArgumentException ex)
-        {
-            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
-            return null;
-        }
-        catch (IOException ex)
-        {
-            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
-            return null;
-        }
-        catch (UriFormatException ex)
-        {
-            AppLog.Error($"Failed to load thumbnail image. Path: '{thumbnailPath}'", ex);
-            return null;
-        }
     }
 
 }

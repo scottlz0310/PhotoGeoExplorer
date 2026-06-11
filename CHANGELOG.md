@@ -5,6 +5,10 @@
 ## [Unreleased]
 
 ### リファクタリング
+- サムネイル生成処理を `FileBrowserPaneViewModel` から `ThumbnailGenerationCoordinator` へ分離 (#153)
+  - SemaphoreSlim による並列数制限・UI スレッドタイマーによるバッチ更新・CancellationTokenSource 管理を `Panes/FileBrowser/ThumbnailGenerationCoordinator.cs`（internal sealed, IDisposable）へ移動。ViewModel は `StartGeneration` / `Dispose` を呼ぶだけになった
+  - #147 / #137 で入れた並行処理対策（Task.Run 前のトークンキャプチャ、Dispose 時の全タスク完了待ち、ObjectDisposedException の安全網）は移動先でも維持
+  - #147 の回帰テスト 2 件をリフレクションによる private フィールドアクセスから Coordinator の公開 API（コンストラクタ注入・internal メンバー）経由のテストへ書き換え、`ThumbnailGenerationCoordinatorTests` に移設。生成対象フィルタ・並列数制限・バッチ更新・キャンセルの単体テストも追加
 - UI スレッドディスパッチ処理を `FileBrowserPaneViewModel` から共通サービス `UiDispatcher` へ抽出 (#152)
   - `IUiDispatcher` / `IUiDispatcherTimer` インターフェースを `Services/` に新設し、`RunAsync` / `EnqueueAsync<T>` / `TryEnqueue` / `CreateTimer` を提供
   - `DispatcherQueue` が取得できないテスト環境では従来どおり同期実行にフォールバック
