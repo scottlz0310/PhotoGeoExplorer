@@ -1682,8 +1682,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         CancelThumbnailGeneration();
 
         // テスト環境またはUIスレッドがない場合はスキップ
-        var thumbnailUpdateTimer = _uiDispatcher.CreateTimer();
-        if (thumbnailUpdateTimer is null)
+        if (!_uiDispatcher.IsAvailable)
         {
             return;
         }
@@ -1702,7 +1701,13 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _thumbnailGenerationTotal = itemsNeedingThumbnails.Count;
         _thumbnailGenerationCompleted = 0;
 
-        // 更新タイマーの初期化
+        // 更新タイマーの初期化（IsAvailable 確認済みのため CreateTimer は非 null を返す）
+        var thumbnailUpdateTimer = _uiDispatcher.CreateTimer();
+        if (thumbnailUpdateTimer is null)
+        {
+            return;
+        }
+
         _thumbnailUpdateTimer = thumbnailUpdateTimer;
         _thumbnailUpdateTimer.Interval = TimeSpan.FromMilliseconds(ThumbnailUpdateBatchIntervalMs);
         _thumbnailUpdateTimer.Tick += OnThumbnailUpdateTimerTick;
