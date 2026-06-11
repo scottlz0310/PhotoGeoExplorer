@@ -69,12 +69,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        // DispatcherQueue は Loaded 時に確実に利用可能なため、ここで設定
-        if (ViewModel is not null && DispatcherQueue is not null)
-        {
-            ViewModel.SetDispatcherQueue(DispatcherQueue);
-        }
-
         if (!_fileListInputHandlersRegistered)
         {
             // WinUI 3 の ListView/GridView は Ctrl+C 等を内部でハンドルして e.Handled=true にするため
@@ -97,13 +91,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
     {
-        // DataContext 変更時にも設定を試みる（ViewModel が後から設定される場合に備える）
-        // SetDispatcherQueue 内で null チェックがあるため、DispatcherQueue が null でも安全
-        if (ViewModel is not null && DispatcherQueue is not null)
-        {
-            ViewModel.SetDispatcherQueue(DispatcherQueue);
-        }
-
         // 旧 ViewModel の購読を解除（メモリリーク防止）
         if (_previousViewModel is not null)
         {
