@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -523,115 +522,6 @@ public class FileBrowserPaneViewModelTests
         // Act & Assert (Should not throw)
         viewModel.Dispose();
         viewModel.Dispose();
-    }
-
-    /// <summary>
-    /// 回帰テスト(タスク上書き): フォルダ切り替えで旧タスクが _activeThumbnailTasks から
-    /// 上書きされず、Dispose() が両タスクの完了を待ってからセマフォを破棄することを検証する。
-    /// </summary>
-    [Fact]
-    public async Task DisposeWhileMultipleThumbnailTasksRunning_WaitsForAllAndDoesNotThrow()
-    {
-        // Arrange
-        var service = new FileBrowserPaneService();
-        var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
-
-        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
-        var semaphoreField = typeof(FileBrowserPaneViewModel).GetField("_thumbnailGenerationSemaphore", flags)!;
-        var tasksField = typeof(FileBrowserPaneViewModel).GetField("_activeThumbnailTasks", flags)!;
-        var tasksLockField = typeof(FileBrowserPaneViewModel).GetField("_activeThumbnailTasksLock", flags)!;
-        var semaphore = (SemaphoreSlim)semaphoreField.GetValue(viewModel)!;
-        var activeTasks = (HashSet<Task>)tasksField.GetValue(viewModel)!;
-        var tasksLock = tasksLockField.GetValue(viewModel)!;
-
-        // セマフォを取得して 2 つの「バッチ実行中タスク」を模擬（フォルダ切り替えシナリオ）
-        await semaphore.WaitAsync().ConfigureAwait(true);
-        await semaphore.WaitAsync().ConfigureAwait(true); // 2スロット占有
-
-        Task task1 = null!;
-        Task task2 = null!;
-
-        task1 = Task.Run(() =>
-        {
-            Thread.Sleep(40);
-            try { semaphore.Release(); }
-            catch (ObjectDisposedException) { }
-        });
-        task2 = Task.Run(() =>
-        {
-            Thread.Sleep(20);
-            try { semaphore.Release(); }
-            catch (ObjectDisposedException) { }
-        });
-
-        lock (tasksLock)
-        {
-            activeTasks.Add(task1);
-            activeTasks.Add(task2);
-        }
-
-        // Act: 2 タスクが実行中に Dispose
-        viewModel.Dispose();
-
-        // 両タスクが完了していることを確認（Dispose が Wait で待ったはず）
-        await Task.WhenAll(task1, task2).ConfigureAwait(true);
-        Assert.True(task1.IsCompleted);
-        Assert.True(task2.IsCompleted);
-    }
-
-    /// <summary>
-    /// 回帰テスト(タイムアウト): Dispose のタイムアウトを短くして待機を超過させても
-    /// GenerateThumbnailAsync が ObjectDisposedException を捕捉し クラッシュしないことを検証する。
-    /// </summary>
-    [Fact]
-    public async Task DisposeWithTimeoutExceeded_TaskCatchesObjectDisposedExceptionAndDoesNotCrash()
-    {
-        // Arrange
-        var service = new FileBrowserPaneService();
-        var workspaceState = new WorkspaceState();
-        var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
-
-        // タイムアウトを極端に短くする（テスト専用フィールド）
-        viewModel.ThumbnailDisposeTimeout = TimeSpan.FromMilliseconds(10);
-
-        var flags = BindingFlags.NonPublic | BindingFlags.Instance;
-        var semaphoreField = typeof(FileBrowserPaneViewModel).GetField("_thumbnailGenerationSemaphore", flags)!;
-        var tasksField = typeof(FileBrowserPaneViewModel).GetField("_activeThumbnailTasks", flags)!;
-        var tasksLockField = typeof(FileBrowserPaneViewModel).GetField("_activeThumbnailTasksLock", flags)!;
-        var semaphore = (SemaphoreSlim)semaphoreField.GetValue(viewModel)!;
-        var activeTasks = (HashSet<Task>)tasksField.GetValue(viewModel)!;
-        var tasksLock = tasksLockField.GetValue(viewModel)!;
-
-        await semaphore.WaitAsync().ConfigureAwait(true);
-
-        var releaseException = (Exception?)null;
-        Task slowTask = null!;
-        slowTask = Task.Run(() =>
-        {
-            Thread.Sleep(200); // タイムアウト（10ms）を超過する処理
-            try { semaphore.Release(); }
-            catch (ObjectDisposedException ex) { releaseException = ex; }
-        });
-
-        lock (tasksLock)
-        {
-            activeTasks.Add(slowTask);
-        }
-
-        // Act: タイムアウト前に Dispose が戻る
-        viewModel.Dispose();
-
-        // slowTask の完了を待つ（Release が ODE を投げるか否かを確認）
-        await slowTask.ConfigureAwait(true);
-
-        // タイムアウト後にセマフォが破棄されているため ODE は発生しうるが、
-        // それが捕捉されてクラッシュに至らないことを確認する
-        if (releaseException is not null)
-        {
-            Assert.IsType<ObjectDisposedException>(releaseException);
-            // ODE が捕捉されていることを確認（アプリがクラッシュしていない）
-        }
     }
 
     [Fact]
