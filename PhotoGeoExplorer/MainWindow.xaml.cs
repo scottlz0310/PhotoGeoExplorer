@@ -54,11 +54,14 @@ public sealed partial class MainWindow : Window, IDisposable
             new ExifMetadataService(),
             MapPaneControl,
             (message, severity) => _viewModel.ShowNotificationMessage(message, severity));
+        // MainWindow のコンストラクタは UI スレッドで実行されるため、
+        // ここで生成した UiDispatcher が UI スレッドの DispatcherQueue を捕捉する
         _fileBrowserPaneViewModel = new FileBrowserPaneViewModel(
             new FileBrowserPaneService(),
             _viewModel.WorkspaceState,
             exifEditorService,
-            dialogService);
+            dialogService,
+            uiDispatcher: new UiDispatcher());
         _startupCoordinator = new StartupCoordinator(_fileBrowserPaneViewModel);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         _mapPaneViewModel = new MapPaneViewModel(new MapPaneService(), _viewModel.WorkspaceState);

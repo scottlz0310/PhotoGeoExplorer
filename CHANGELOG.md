@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### リファクタリング
+- UI スレッドディスパッチ処理を `FileBrowserPaneViewModel` から共通サービス `UiDispatcher` へ抽出 (#152)
+  - `IUiDispatcher` / `IUiDispatcherTimer` インターフェースを `Services/` に新設し、`RunAsync` / `EnqueueAsync<T>` / `TryEnqueue` / `CreateTimer` を提供
+  - `DispatcherQueue` が取得できないテスト環境では従来どおり同期実行にフォールバック
+  - ViewModel はコンストラクタ DI で `IUiDispatcher` を受け取り、`DispatcherQueue` への直接依存を排除
+  - `SetDispatcherQueue` 経路を廃止。ViewModel は `MainWindow` の DI 構築（UI スレッド上）で生成されるため、View の `OnLoaded` / `OnDataContextChanged` からの再設定は不要と確認
+
 ### 修正
 - Release ビルドで `HarfBuzzSharp` などのネイティブ依存の PDB を処理しようとして `mspdbcmf.exe` パス構築バグ (MSB6011) が発生し CI が失敗する問題を修正
   - `AppxSymbolPackageEnabled=false` を Release 構成に追加してシンボルパッケージ生成を無効化

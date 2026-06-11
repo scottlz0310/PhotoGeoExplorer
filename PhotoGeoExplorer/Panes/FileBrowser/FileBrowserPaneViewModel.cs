@@ -2,11 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -30,7 +28,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private readonly IFileOperationService _fileOperationService;
     private readonly IExifEditorService? _exifEditorService;
     private readonly IDialogService? _dialogService;
-    private DispatcherQueue? _dispatcherQueue;
+    private readonly IUiDispatcher _uiDispatcher;
     private readonly WorkspaceState _workspaceState;
     private readonly SemaphoreSlim _thumbnailGenerationSemaphore = new(ThumbnailGenerationConcurrency, ThumbnailGenerationConcurrency);
     private readonly HashSet<string> _thumbnailsInProgress = new();
@@ -80,7 +78,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private readonly object _activeThumbnailTasksLock = new();
     // テストからタイムアウト値を差し替え可能にするための internal フィールド
     internal TimeSpan ThumbnailDisposeTimeout = TimeSpan.FromSeconds(30);
-    private DispatcherQueueTimer? _thumbnailUpdateTimer;
+    private IUiDispatcherTimer? _thumbnailUpdateTimer;
     private Func<Task>? _openFolderAction;
     private Func<Task>? _createFolderAction;
     private Func<Task>? _renameSelectionAction;
@@ -91,12 +89,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private int _moveTotal;
     private int _moveCompleted;
     private bool _isMoveInProgress;
-    private DispatcherQueueTimer? _moveProgressTimer;
+    private IUiDispatcherTimer? _moveProgressTimer;
     private CancellationTokenSource? _copyCts;
     private int _copyTotal;
     private int _copyCompleted;
     private bool _isCopyInProgress;
-    private DispatcherQueueTimer? _copyProgressTimer;
+    private IUiDispatcherTimer? _copyProgressTimer;
     private IReadOnlyList<PhotoListItem> _clipboardItems = Array.Empty<PhotoListItem>();
     private ClipboardOperation _clipboardOperation = ClipboardOperation.None;
     private readonly IFolderWatcherService _folderWatcherService;
@@ -112,7 +110,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         IExifEditorService? exifEditorService = null,
         IDialogService? dialogService = null,
         IFileOperationService? fileOperationService = null,
-        IFolderWatcherService? folderWatcherService = null)
+        IFolderWatcherService? folderWatcherService = null,
+        IUiDispatcher? uiDispatcher = null)
     {
         ArgumentNullException.ThrowIfNull(service);
         ArgumentNullException.ThrowIfNull(workspaceState);
@@ -124,7 +123,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _dialogService = dialogService;
         _folderWatcherService = folderWatcherService ?? new FolderWatcherService();
         _folderWatcherService.FolderChanged += OnFolderWatcherChanged;
-        _dispatcherQueue = TryGetDispatcherQueue();
+        _uiDispatcher = uiDispatcher ?? new UiDispatcher();
 
         // WorkspaceState にナビゲーションコールバックを設定
         _workspaceState.SelectNextAction = SelectNext;
@@ -720,7 +719,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         // ファイル操作はバックグラウンドスレッドで実行し UI スレッドをブロックしない。
         // 競合ダイアログは UI スレッドへ marshal してから表示する。
         Func<string, bool, Task<ConflictResolution>> marshalledCallback = async (name, isFolder) =>
-            await EnqueueOnUIThreadAsync(() => resolveConflictAsync(name, isFolder)).ConfigureAwait(false);
+            await _uiDispatcher.EnqueueAsync(() => resolveConflictAsync(name, isFolder)).ConfigureAwait(false);
 
         FileOperationSummary result;
         try
@@ -737,9 +736,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         finally
         {
             // ConfigureAwait(false) により finally はバックグラウンドスレッドで実行される。
-            // DispatcherQueueTimer.Stop()、PropertyChanged 発火、CTS の Dispose/null 化は
+            // 進捗タイマーの Stop()、PropertyChanged 発火、CTS の Dispose/null 化は
             // すべて UI スレッドで行い、CancelMoveCommand との race を防ぐ（#137）。
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 StopMoveProgressTimer();
                 IsMoveInProgress = false;
@@ -756,16 +755,17 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         var doneText = LocalizationService.Format(
             "Message.MoveDone", result.SuccessCount, result.SkipCount, result.FailureCount);
-        await RunOnUIThreadAsync(() => StatusBarText = doneText).ConfigureAwait(false);
+        await _uiDispatcher.RunAsync(() => StatusBarText = doneText).ConfigureAwait(false);
 
         return result;
     }
 
     private void StartMoveProgressTimer()
     {
-        if (_dispatcherQueue is null) return;
+        var timer = _uiDispatcher.CreateTimer();
+        if (timer is null) return;
 
-        _moveProgressTimer = _dispatcherQueue.CreateTimer();
+        _moveProgressTimer = timer;
         _moveProgressTimer.Interval = TimeSpan.FromMilliseconds(300);
         _moveProgressTimer.Tick += OnMoveProgressTick;
         _moveProgressTimer.Start();
@@ -777,7 +777,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _moveProgressTimer = null;
     }
 
-    private void OnMoveProgressTick(DispatcherQueueTimer sender, object args)
+    private void OnMoveProgressTick(object? sender, EventArgs e)
     {
         var completed = Volatile.Read(ref _moveCompleted);
         StatusBarText = LocalizationService.Format(
@@ -809,7 +809,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         StartCopyProgressTimer();
 
         Func<string, bool, Task<ConflictResolution>> marshalledCallback = async (name, isFolder) =>
-            await EnqueueOnUIThreadAsync(() => resolveConflictAsync(name, isFolder)).ConfigureAwait(false);
+            await _uiDispatcher.EnqueueAsync(() => resolveConflictAsync(name, isFolder)).ConfigureAwait(false);
 
         FileOperationSummary result;
         try
@@ -826,9 +826,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         finally
         {
             // ConfigureAwait(false) により finally はバックグラウンドスレッドで実行される。
-            // DispatcherQueueTimer.Stop()、PropertyChanged 発火、CTS の Dispose/null 化は
+            // 進捗タイマーの Stop()、PropertyChanged 発火、CTS の Dispose/null 化は
             // すべて UI スレッドで行い、CancelCopyCommand との race を防ぐ（#137）。
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 StopCopyProgressTimer();
                 IsCopyInProgress = false;
@@ -845,16 +845,17 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         var doneText = LocalizationService.Format(
             "Message.CopyDone", result.SuccessCount, result.SkipCount, result.FailureCount);
-        await RunOnUIThreadAsync(() => StatusBarText = doneText).ConfigureAwait(false);
+        await _uiDispatcher.RunAsync(() => StatusBarText = doneText).ConfigureAwait(false);
 
         return result;
     }
 
     private void StartCopyProgressTimer()
     {
-        if (_dispatcherQueue is null) return;
+        var timer = _uiDispatcher.CreateTimer();
+        if (timer is null) return;
 
-        _copyProgressTimer = _dispatcherQueue.CreateTimer();
+        _copyProgressTimer = timer;
         _copyProgressTimer.Interval = TimeSpan.FromMilliseconds(300);
         _copyProgressTimer.Tick += OnCopyProgressTick;
         _copyProgressTimer.Start();
@@ -866,7 +867,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _copyProgressTimer = null;
     }
 
-    private void OnCopyProgressTick(DispatcherQueueTimer sender, object args)
+    private void OnCopyProgressTick(object? sender, EventArgs e)
     {
         var completed = Volatile.Read(ref _copyCompleted);
         StatusBarText = LocalizationService.Format(
@@ -954,7 +955,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     {
         if (string.IsNullOrWhiteSpace(folderPath))
         {
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 SetStatus(LocalizationService.GetString("Message.FolderPathEmpty"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
@@ -963,7 +964,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         if (!_fileOperationService.FolderExistsAtPath(folderPath))
         {
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 SetStatus(LocalizationService.GetString("Message.FolderNotFound"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
@@ -984,7 +985,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         try
         {
             var previousPath = CurrentFolderPath;
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 CurrentFolderPath = folderPath;
                 UpdateBreadcrumbs(folderPath);
@@ -1000,7 +1001,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
             var sorted = _service.ApplySort(items, SortColumn, SortDirection);
 
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 Items.Clear();
                 foreach (var item in sorted)
@@ -1022,7 +1023,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 UpdateStatusBar();
 
                 // バックグラウンドでサムネイル生成を開始
-                // 注意: StartBackgroundThumbnailGeneration 内部で DispatcherQueue を使用してタイマーを構成しているため、
+                // 注意: StartBackgroundThumbnailGeneration 内部で UI スレッドタイマーを構成しているため、
                 //       ここでは明示的に UI スレッド上から呼び出している（UI 更新と意図を揃えるため）
                 StartBackgroundThumbnailGeneration();
                 _folderWatcherService.Watch(folderPath);
@@ -1038,7 +1039,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         catch (UnauthorizedAccessException ex)
         {
             AppLog.Error($"Failed to access folder: {folderPath}", ex);
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 SetStatus(LocalizationService.GetString("Message.AccessDeniedSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
@@ -1046,7 +1047,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         catch (DirectoryNotFoundException ex)
         {
             AppLog.Error($"Folder not found: {folderPath}", ex);
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 SetStatus(LocalizationService.GetString("Message.FolderNotFoundSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
@@ -1054,7 +1055,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         catch (IOException ex)
         {
             AppLog.Error($"Failed to read folder: {folderPath}", ex);
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
@@ -1064,7 +1065,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 #pragma warning restore CA1031
         {
             AppLog.Error($"LoadFolderAsync: Unexpected exception for '{folderPath}'", ex);
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 Items.Clear();
                 SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
@@ -1077,7 +1078,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         var homePath = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
         if (string.IsNullOrWhiteSpace(homePath) || !_fileOperationService.FolderExistsAtPath(homePath))
         {
-            await RunOnUIThreadAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 SetStatus(LocalizationService.GetString("Message.PicturesFolderNotFound"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
@@ -1098,7 +1099,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         if (previousPath is not null)
         {
             await LoadFolderAsync(previousPath, updateHistory: false).ConfigureAwait(false);
-            await RunOnUIThreadAsync(UpdateNavigationCommands).ConfigureAwait(false);
+            await _uiDispatcher.RunAsync(UpdateNavigationCommands).ConfigureAwait(false);
         }
     }
 
@@ -1113,7 +1114,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         if (nextPath is not null)
         {
             await LoadFolderAsync(nextPath, updateHistory: false).ConfigureAwait(false);
-            await RunOnUIThreadAsync(UpdateNavigationCommands).ConfigureAwait(false);
+            await _uiDispatcher.RunAsync(UpdateNavigationCommands).ConfigureAwait(false);
         }
     }
 
@@ -1609,12 +1610,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         if (item is null || item.IsFolder)
         {
             _selectedMetadata = null;
-            await RunOnUIThreadAsync(UpdateStatusBarLocation).ConfigureAwait(false);
+            await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
             return;
         }
 
         _selectedMetadata = null;
-        await RunOnUIThreadAsync(UpdateStatusBarLocation).ConfigureAwait(false);
+        await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
 
         var cts = new CancellationTokenSource();
         _metadataCts = cts;
@@ -1628,7 +1629,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             }
 
             _selectedMetadata = metadata;
-            await RunOnUIThreadAsync(UpdateStatusBarLocation).ConfigureAwait(false);
+            await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -1681,7 +1682,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         CancelThumbnailGeneration();
 
         // テスト環境またはUIスレッドがない場合はスキップ
-        if (_dispatcherQueue is null)
+        if (!_uiDispatcher.IsAvailable)
         {
             return;
         }
@@ -1700,8 +1701,14 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _thumbnailGenerationTotal = itemsNeedingThumbnails.Count;
         _thumbnailGenerationCompleted = 0;
 
-        // 更新タイマーの初期化
-        _thumbnailUpdateTimer = _dispatcherQueue.CreateTimer();
+        // 更新タイマーの初期化（IsAvailable 確認済みのため CreateTimer は非 null を返す）
+        var thumbnailUpdateTimer = _uiDispatcher.CreateTimer();
+        if (thumbnailUpdateTimer is null)
+        {
+            return;
+        }
+
+        _thumbnailUpdateTimer = thumbnailUpdateTimer;
         _thumbnailUpdateTimer.Interval = TimeSpan.FromMilliseconds(ThumbnailUpdateBatchIntervalMs);
         _thumbnailUpdateTimer.Tick += OnThumbnailUpdateTimerTick;
         _thumbnailUpdateTimer.Start();
@@ -1855,7 +1862,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
     }
 
-    private void OnThumbnailUpdateTimerTick(DispatcherQueueTimer sender, object args)
+    private void OnThumbnailUpdateTimerTick(object? sender, EventArgs e)
     {
         ApplyPendingThumbnailUpdates();
     }
@@ -1922,7 +1929,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     private void OnFolderWatcherChanged(object? sender, EventArgs e)
     {
-        _dispatcherQueue?.TryEnqueue(async () =>
+        _uiDispatcher.TryEnqueue(async () =>
         {
             if (_isMoveInProgress || _isCopyInProgress)
             {
@@ -2000,90 +2007,4 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
     }
 
-    private static DispatcherQueue? TryGetDispatcherQueue()
-    {
-        try
-        {
-            return DispatcherQueue.GetForCurrentThread();
-        }
-        catch (COMException ex)
-        {
-            AppLog.Info($"DispatcherQueue is unavailable in this environment: {ex.Message}");
-            return null;
-        }
-        catch (TypeInitializationException ex)
-        {
-            AppLog.Info($"DispatcherQueue initialization failed: {ex.Message}");
-            return null;
-        }
-    }
-
-    internal void SetDispatcherQueue(DispatcherQueue? dispatcherQueue)
-    {
-        if (dispatcherQueue is null)
-        {
-            return;
-        }
-
-        _dispatcherQueue = dispatcherQueue;
-    }
-
-    private Task RunOnUIThreadAsync(Action action)
-    {
-        if (_dispatcherQueue is null)
-        {
-            action();
-            return Task.CompletedTask;
-        }
-
-        var tcs = new TaskCompletionSource<bool>();
-        if (!_dispatcherQueue.TryEnqueue(() =>
-            {
-                try
-                {
-                    action();
-                    tcs.SetResult(true);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                    throw;
-                }
-            }))
-        {
-            var ex = new InvalidOperationException("DispatcherQueue へのエンキューに失敗しました。");
-            AppLog.Error("RunOnUIThreadAsync: DispatcherQueue.TryEnqueue が false を返しました。", ex);
-            tcs.SetException(ex);
-        }
-        return tcs.Task;
-    }
-
-    private Task<T> EnqueueOnUIThreadAsync<T>(Func<Task<T>> asyncFunc)
-    {
-        if (_dispatcherQueue is null)
-        {
-            return asyncFunc();
-        }
-
-        var tcs = new TaskCompletionSource<T>();
-        if (!_dispatcherQueue.TryEnqueue(async () =>
-            {
-                try
-                {
-                    var result = await asyncFunc().ConfigureAwait(false);
-                    tcs.SetResult(result);
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                    throw;
-                }
-            }))
-        {
-            var ex = new InvalidOperationException("DispatcherQueue へのエンキューに失敗しました。");
-            AppLog.Error("EnqueueOnUIThreadAsync: DispatcherQueue.TryEnqueue が false を返しました。", ex);
-            tcs.SetException(ex);
-        }
-        return tcs.Task;
-    }
 }
