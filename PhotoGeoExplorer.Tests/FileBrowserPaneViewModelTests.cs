@@ -445,6 +445,42 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
+    public async Task ResetFiltersWithBothFiltersActiveReloadsFolderExactlyOnce()
+    {
+        // 2 つのフィルタが同時に変化しても再読み込みは 1 回に合流すること（#164 と同根の二重発火対策）
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var viewModel = CreateViewModelWithFakes(out var fakePaneService, out _);
+            await viewModel.LoadFolderAsync(tempDir).ConfigureAwait(true);
+            viewModel.SearchText = "test";
+            viewModel.ShowImagesOnly = false;
+            Assert.Equal(3, fakePaneService.LoadFolderCallCount);
+
+            viewModel.ResetFilters();
+
+            Assert.Null(viewModel.SearchText);
+            Assert.True(viewModel.ShowImagesOnly);
+            Assert.Equal(4, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public void ResetFiltersWithDefaultFiltersDoesNotReloadFolder()
+    {
+        // フィルタが既定値のままなら再読み込みを起動しないこと
+        using var viewModel = CreateViewModelWithFakes(out var fakePaneService, out _);
+
+        viewModel.ResetFilters();
+
+        Assert.Equal(0, fakePaneService.LoadFolderCallCount);
+    }
+
+    [Fact]
     public void CanCreateFolderDefaultsToFalse()
     {
         // Arrange

@@ -913,8 +913,20 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     public void ResetFilters()
     {
-        SearchText = null;
-        ShowImagesOnly = true;
+        // setter 経由で 2 つのフィルタを更新すると UpdateFilterState が二重発火し、
+        // LoadFolderAsync が並行実行される（#164 と同じパターン）ため、
+        // フィールドを直接更新して再読み込みを 1 回に合流させる
+        var searchTextChanged = SetProperty(ref _searchText, null, nameof(SearchText));
+        var showImagesOnlyChanged = SetProperty(ref _showImagesOnly, true, nameof(ShowImagesOnly));
+        if (showImagesOnlyChanged)
+        {
+            OnPropertyChanged(nameof(ToggleImagesOnlyMenuText));
+        }
+
+        if (searchTextChanged || showImagesOnlyChanged)
+        {
+            UpdateFilterState();
+        }
     }
 
     // View が listView.SelectedItems を一括操作する間、TwoWay バインディング経由の

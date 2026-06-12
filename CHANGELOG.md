@@ -31,6 +31,7 @@
   - `CancellationToken` を CTS 生成直後にローカルへ保持し、並行呼び出しが CTS を `Cancel` + `Dispose` した後も破棄済み CTS に触れないよう変更。並行実行を決定的に再現する回帰テストを `FileBrowserPaneViewModelTests` に追加
   - 競合の引き金だった「画像のみ表示」トグルの二重発火を解消。チェックボックスの `Checked`/`Unchecked` ハンドラと `ToggleImagesOnlyCommand` 内の `RefreshAsync` を削除し、再読み込みは `ShowImagesOnly` setter（`UpdateFilterState`）の 1 経路に統一
   - `FileBrowserStatusViewModel.LoadMetadataAsync` の同系統 race（`_metadataCts` の差し替えが最初の await 後に行われるため、連続選択時に先行ロードのキャンセル漏れ→古いメタデータで GPS アイコン・`SelectedMetadata` が上書きされる）も修正。差し替えを最初の await より前の同期実行に移動し、回帰テストを追加
+  - `ResetFilters` で 2 つのフィルタを setter 経由で更新すると `UpdateFilterState` が二重発火し `LoadFolderAsync` が並行実行される残存パターンを解消（レビュー指摘対応）。フィールドを直接更新して再読み込みを 1 回に合流させ、回帰テストを追加
 - メタデータロード中にキャンセル（CTS 破棄）が走った後、ローダーがキャンセルを観測せず正常リターンすると破棄済み CTS の `Token` getter で `ObjectDisposedException` が発生する潜在競合を修正 (#163)
   - `CancellationToken` を await 前にローカルへ保持し、破棄済み CTS に触れないよう変更。競合を決定的に再現する回帰テストを `FileBrowserStatusViewModelTests` に追加
 - Release ビルドで `HarfBuzzSharp` などのネイティブ依存の PDB を処理しようとして `mspdbcmf.exe` パス構築バグ (MSB6011) が発生し CI が失敗する問題を修正
