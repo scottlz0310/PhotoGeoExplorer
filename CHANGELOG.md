@@ -5,6 +5,11 @@
 ## [Unreleased]
 
 ### リファクタリング
+- ステータス表示とメタデータロードを `FileBrowserPaneViewModel` から子 ViewModel `FileBrowserStatusViewModel` へ分離 (#155)
+  - ステータスオーバーレイ（空フォルダ・エラー時の案内とアクション）、ステータスバー（フォルダ/件数/選択/GPS アイコン）、選択アイテムの EXIF メタデータ非同期ロード（先行ロードをキャンセルする CTS 管理を含む）を `Panes/FileBrowser/FileBrowserStatusViewModel.cs`（internal sealed, BindableBase, IDisposable）へ移動
+  - 親 ViewModel は `Status` プロパティとして子 VM を公開し、選択変更・フォルダ読み込み・フィルタ変更のタイミングでメソッド呼び出しで状態を渡す（イベント購読ではなく明示的な呼び出し）。XAML バインディングは `Status.StatusBarText` 等のパスに更新（`FileBrowserPaneView.xaml` のオーバーレイ、`MainWindow.xaml` のステータスバー）
+  - メタデータ取得は `Func` 注入のテスト用シーム（既定は `ExifService.GetMetadataAsync`）とし、UI 更新は `IUiDispatcher`（#152）経由を維持。Move/Copy の進捗・完了メッセージは `FileOperationCoordinator`（#154）から `Status.SetStatusBarText` への通知経路で維持
+  - オーバーレイ表示・ステータスバー組み立て・GPS アイコン状態（有効/測位失敗/GPS なし）・メタデータロードのキャンセルを検証する `FileBrowserStatusViewModelTests`（15 件、GPS 状態はパラメータ化テスト）を新設
 - ファイル操作・進捗・クリップボード管理を `FileBrowserPaneViewModel` から `FileOperationCoordinator` へ分離 (#154)
   - Move/Copy でほぼ同一だった進捗管理（CTS・進捗タイマー・カウンタ・キャンセルコマンド連携）を、操作種別（進捗メッセージのリソースキー・進捗状態通知）をパラメータ化した共通実装 `ExecuteTransferAsync` に統一
   - クリップボード状態（項目・Cut/Copy 種別・Cut 全件成功時のクリア判定）を Coordinator へ移動。`IsMoveInProgress` / `IsCopyInProgress` / `CanPasteSelection` 等の XAML バインディングは ViewModel のプロパティとして維持し、コンストラクタ注入のコールバックで変更通知を中継
@@ -22,6 +27,8 @@
   - `SetDispatcherQueue` 経路を廃止。ViewModel は `MainWindow` の DI 構築（UI スレッド上）で生成されるため、View の `OnLoaded` / `OnDataContextChanged` からの再設定は不要と確認
 
 ### 修正
+- メタデータロード中にキャンセル（CTS 破棄）が走った後、ローダーがキャンセルを観測せず正常リターンすると破棄済み CTS の `Token` getter で `ObjectDisposedException` が発生する潜在競合を修正 (#163)
+  - `CancellationToken` を await 前にローカルへ保持し、破棄済み CTS に触れないよう変更。競合を決定的に再現する回帰テストを `FileBrowserStatusViewModelTests` に追加
 - Release ビルドで `HarfBuzzSharp` などのネイティブ依存の PDB を処理しようとして `mspdbcmf.exe` パス構築バグ (MSB6011) が発生し CI が失敗する問題を修正
   - `AppxSymbolPackageEnabled=false` を Release 構成に追加してシンボルパッケージ生成を無効化
 

@@ -287,7 +287,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        await PerformStatusActionAsync(ViewModel.StatusPrimaryAction).ConfigureAwait(true);
+        await PerformStatusActionAsync(ViewModel.Status.StatusPrimaryAction).ConfigureAwait(true);
     }
 
     private async void OnStatusSecondaryActionClicked(object sender, RoutedEventArgs e)
@@ -297,7 +297,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        await PerformStatusActionAsync(ViewModel.StatusSecondaryAction).ConfigureAwait(true);
+        await PerformStatusActionAsync(ViewModel.Status.StatusSecondaryAction).ConfigureAwait(true);
     }
 
     private async Task PerformStatusActionAsync(StatusAction action)
@@ -1222,7 +1222,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private async void OnOpenInGoogleMapsClicked(object sender, RoutedEventArgs e)
     {
-        var metadata = ViewModel?.SelectedMetadata;
+        var metadata = ViewModel?.Status.SelectedMetadata;
         if (metadata?.HasValidLocation != true)
         {
             return;

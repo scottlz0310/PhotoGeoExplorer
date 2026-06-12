@@ -208,13 +208,13 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <SymbolIcon
-                            Symbol="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.StatusBarLocationSymbol}"
-                            Visibility="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.StatusBarLocationVisibility}"
+                            Symbol="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.Status.StatusBarLocationSymbol}"
+                            Visibility="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.Status.StatusBarLocationVisibility}"
                             Width="16"
                             Height="16"
-                            ToolTipService.ToolTip="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.StatusBarLocationTooltip}" />
+                            ToolTipService.ToolTip="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.Status.StatusBarLocationTooltip}" />
                         <TextBlock
-                            Text="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.StatusBarText}"
+                            Text="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.Status.StatusBarText}"
                             TextTrimming="CharacterEllipsis"
                             VerticalAlignment="Center" />
                     </StackPanel>

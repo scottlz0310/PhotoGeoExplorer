@@ -29,9 +29,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private readonly ThumbnailGenerationCoordinator _thumbnailCoordinator;
 
     private string? _currentFolderPath;
-    private string? _statusMessage;
-    private Visibility _statusVisibility = Visibility.Collapsed;
-    private InfoBarSeverity _statusSeverity = InfoBarSeverity.Informational;
     private bool _showImagesOnly = true;
     private bool _showDetailsModifiedColumn = true;
     private bool _showDetailsResolutionColumn = true;
@@ -47,22 +44,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private readonly List<PhotoListItem> _selectedItems = new();
     private bool _batchSelectionUpdate;
     private int _selectedCount;
-    private PhotoMetadata? _selectedMetadata;
-    private CancellationTokenSource? _metadataCts;
     private CancellationTokenSource? _loadFolderCts;
-    private string? _statusTitle;
-    private string? _statusDetail;
-    private Symbol _statusSymbol = Symbol.Help;
-    private StatusAction _statusPrimaryAction;
-    private StatusAction _statusSecondaryAction;
-    private string? _statusPrimaryActionLabel;
-    private string? _statusSecondaryActionLabel;
-    private Visibility _statusPrimaryActionVisibility = Visibility.Collapsed;
-    private Visibility _statusSecondaryActionVisibility = Visibility.Collapsed;
-    private string? _statusBarText;
-    private Symbol _statusBarLocationSymbol = Symbol.Map;
-    private Visibility _statusBarLocationVisibility = Visibility.Collapsed;
-    private string? _statusBarLocationTooltip;
     private Func<Task>? _openFolderAction;
     private Func<Task>? _createFolderAction;
     private Func<Task>? _renameSelectionAction;
@@ -97,13 +79,14 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _folderWatcherService = folderWatcherService ?? new FolderWatcherService();
         _folderWatcherService.FolderChanged += OnFolderWatcherChanged;
         _uiDispatcher = uiDispatcher ?? new UiDispatcher();
+        Status = new FileBrowserStatusViewModel(_uiDispatcher);
         _thumbnailCoordinator = new ThumbnailGenerationCoordinator(_uiDispatcher, _fileOperationService.IsJpegFile);
         _operationCoordinator = new FileOperationCoordinator(
             _fileOperationService,
             _uiDispatcher,
             onMoveInProgressChanged: _ => OnMoveInProgressChanged(),
             onCopyInProgressChanged: _ => OnCopyInProgressChanged(),
-            onStatusBarTextChanged: text => StatusBarText = text,
+            onStatusBarTextChanged: Status.SetStatusBarText,
             onClipboardChanged: OnClipboardChanged);
 
         // WorkspaceState にナビゲーションコールバックを設定
@@ -192,23 +175,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
     }
 
-    public string? StatusMessage
-    {
-        get => _statusMessage;
-        private set => SetProperty(ref _statusMessage, value);
-    }
-
-    public Visibility StatusVisibility
-    {
-        get => _statusVisibility;
-        private set => SetProperty(ref _statusVisibility, value);
-    }
-
-    public InfoBarSeverity StatusSeverity
-    {
-        get => _statusSeverity;
-        private set => SetProperty(ref _statusSeverity, value);
-    }
+    /// <summary>ステータスオーバーレイ・ステータスバー・メタデータロードを担う子 ViewModel。</summary>
+    public FileBrowserStatusViewModel Status { get; }
 
     public bool ShowImagesOnly
     {
@@ -430,66 +398,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
     }
 
-    public string? StatusTitle
-    {
-        get => _statusTitle;
-        private set => SetProperty(ref _statusTitle, value);
-    }
-
-    public string? StatusDetail
-    {
-        get => _statusDetail;
-        private set => SetProperty(ref _statusDetail, value);
-    }
-
-    public Symbol StatusSymbol
-    {
-        get => _statusSymbol;
-        private set => SetProperty(ref _statusSymbol, value);
-    }
-
-    public StatusAction StatusPrimaryAction
-    {
-        get => _statusPrimaryAction;
-        private set => SetProperty(ref _statusPrimaryAction, value);
-    }
-
-    public StatusAction StatusSecondaryAction
-    {
-        get => _statusSecondaryAction;
-        private set => SetProperty(ref _statusSecondaryAction, value);
-    }
-
-    public string? StatusPrimaryActionLabel
-    {
-        get => _statusPrimaryActionLabel;
-        private set => SetProperty(ref _statusPrimaryActionLabel, value);
-    }
-
-    public string? StatusSecondaryActionLabel
-    {
-        get => _statusSecondaryActionLabel;
-        private set => SetProperty(ref _statusSecondaryActionLabel, value);
-    }
-
-    public Visibility StatusPrimaryActionVisibility
-    {
-        get => _statusPrimaryActionVisibility;
-        private set => SetProperty(ref _statusPrimaryActionVisibility, value);
-    }
-
-    public Visibility StatusSecondaryActionVisibility
-    {
-        get => _statusSecondaryActionVisibility;
-        private set => SetProperty(ref _statusSecondaryActionVisibility, value);
-    }
-
-    public string? StatusBarText
-    {
-        get => _statusBarText;
-        private set => SetProperty(ref _statusBarText, value);
-    }
-
     public bool IsMoveInProgress => _operationCoordinator.IsMoveInProgress;
 
     public Visibility CancelMoveVisibility => IsMoveInProgress ? Visibility.Visible : Visibility.Collapsed;
@@ -503,24 +411,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     public ICommand CancelMoveCommand { get; private set; }
     public ICommand CancelCopyCommand { get; private set; }
-
-    public Symbol StatusBarLocationSymbol
-    {
-        get => _statusBarLocationSymbol;
-        private set => SetProperty(ref _statusBarLocationSymbol, value);
-    }
-
-    public Visibility StatusBarLocationVisibility
-    {
-        get => _statusBarLocationVisibility;
-        private set => SetProperty(ref _statusBarLocationVisibility, value);
-    }
-
-    public string? StatusBarLocationTooltip
-    {
-        get => _statusBarLocationTooltip;
-        private set => SetProperty(ref _statusBarLocationTooltip, value);
-    }
 
     public ICommand NavigateBackCommand { get; }
     public ICommand NavigateForwardCommand { get; }
@@ -553,8 +443,6 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public bool CanCopySelection => SelectedCount > 0;
     public bool CanOpenInExplorer => !string.IsNullOrWhiteSpace(CurrentFolderPath);
     public bool CanOpenInGoogleMaps => SelectedCount == 1 && SelectedItem?.HasLocation == true;
-
-    internal PhotoMetadata? SelectedMetadata => _selectedMetadata;
 
     public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
     public string TakenAtSortIndicator => GetSortIndicator(FileSortColumn.TakenAt);
@@ -665,7 +553,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         {
             var doneText = LocalizationService.Format(
                 doneMessageResourceKey, summary.SuccessCount, summary.SkipCount, summary.FailureCount);
-            await _uiDispatcher.RunAsync(() => StatusBarText = doneText).ConfigureAwait(false);
+            await _uiDispatcher.RunAsync(() => Status.SetStatusBarText(doneText)).ConfigureAwait(false);
         }
     }
 
@@ -746,7 +634,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         {
             await _uiDispatcher.RunAsync(() =>
             {
-                SetStatus(LocalizationService.GetString("Message.FolderPathEmpty"), InfoBarSeverity.Error);
+                Status.SetStatus(LocalizationService.GetString("Message.FolderPathEmpty"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
             return;
         }
@@ -755,7 +643,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         {
             await _uiDispatcher.RunAsync(() =>
             {
-                SetStatus(LocalizationService.GetString("Message.FolderNotFound"), InfoBarSeverity.Error);
+                Status.SetStatus(LocalizationService.GetString("Message.FolderNotFound"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
             return;
         }
@@ -778,7 +666,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             {
                 CurrentFolderPath = folderPath;
                 UpdateBreadcrumbs(folderPath);
-                SetStatus(null, InfoBarSeverity.Informational);
+                Status.SetStatus(null, InfoBarSeverity.Informational);
                 SelectedItem = null;
                 UpdateSelection(Array.Empty<PhotoListItem>());
             }).ConfigureAwait(false);
@@ -806,7 +694,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                     UpdateNavigationCommands();
                 }
 
-                SetStatus(
+                Status.SetStatus(
                     Items.Count == 0 ? LocalizationService.GetString("Message.NoFilesFound") : null,
                     InfoBarSeverity.Informational);
                 UpdateStatusBar();
@@ -830,7 +718,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             AppLog.Error($"Failed to access folder: {folderPath}", ex);
             await _uiDispatcher.RunAsync(() =>
             {
-                SetStatus(LocalizationService.GetString("Message.AccessDeniedSeeLog"), InfoBarSeverity.Error);
+                Status.SetStatus(LocalizationService.GetString("Message.AccessDeniedSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
         }
         catch (DirectoryNotFoundException ex)
@@ -838,7 +726,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             AppLog.Error($"Folder not found: {folderPath}", ex);
             await _uiDispatcher.RunAsync(() =>
             {
-                SetStatus(LocalizationService.GetString("Message.FolderNotFoundSeeLog"), InfoBarSeverity.Error);
+                Status.SetStatus(LocalizationService.GetString("Message.FolderNotFoundSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
         }
         catch (IOException ex)
@@ -846,7 +734,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             AppLog.Error($"Failed to read folder: {folderPath}", ex);
             await _uiDispatcher.RunAsync(() =>
             {
-                SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+                Status.SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
         }
 #pragma warning disable CA1031
@@ -857,7 +745,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             await _uiDispatcher.RunAsync(() =>
             {
                 Items.Clear();
-                SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
+                Status.SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
         }
     }
@@ -869,7 +757,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         {
             await _uiDispatcher.RunAsync(() =>
             {
-                SetStatus(LocalizationService.GetString("Message.PicturesFolderNotFound"), InfoBarSeverity.Error);
+                Status.SetStatus(LocalizationService.GetString("Message.PicturesFolderNotFound"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
             return;
         }
@@ -1107,7 +995,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _folderWatcherService.FolderChanged -= OnFolderWatcherChanged;
         _folderWatcherService.Dispose();
         _thumbnailCoordinator.Dispose();
-        CancelMetadataLoad();
+        Status.Dispose();
         CancelFolderLoad();
         _operationCoordinator.Dispose();
     }
@@ -1193,80 +1081,13 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private void UpdateFilterState()
     {
         HasActiveFilters = !string.IsNullOrWhiteSpace(SearchText) || !ShowImagesOnly;
-        UpdateStatusOverlay(StatusMessage, _statusSeverity);
+        Status.NotifyFiltersChanged(HasActiveFilters);
 
         // フィルタ変更時は現在のフォルダを再読み込み（履歴には追加しない）
         if (!string.IsNullOrWhiteSpace(CurrentFolderPath))
         {
             _ = LoadFolderAsync(CurrentFolderPath, updateHistory: false);
         }
-    }
-
-    private void SetStatus(string? message, InfoBarSeverity severity)
-    {
-        _statusSeverity = severity;
-        StatusMessage = message;
-        StatusSeverity = severity;
-        StatusVisibility = string.IsNullOrWhiteSpace(message) ? Visibility.Collapsed : Visibility.Visible;
-        UpdateStatusOverlay(message, severity);
-    }
-
-    private void UpdateStatusOverlay(string? message, InfoBarSeverity severity)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            StatusTitle = null;
-            StatusDetail = null;
-            StatusSymbol = Symbol.Help;
-            SetStatusActions(StatusAction.None, StatusAction.None);
-            return;
-        }
-
-        if (message == LocalizationService.GetString("Message.NoFilesFound"))
-        {
-            StatusTitle = LocalizationService.GetString("Overlay.NoFilesFoundTitle");
-            StatusDetail = HasActiveFilters
-                ? LocalizationService.GetString("Overlay.NoFilesFoundDetailWithFilters")
-                : LocalizationService.GetString("Overlay.NoFilesFoundDetail");
-            StatusSymbol = Symbol.Pictures;
-            SetStatusActions(StatusAction.OpenFolder, HasActiveFilters ? StatusAction.ResetFilters : StatusAction.None);
-            return;
-        }
-
-        if (severity == InfoBarSeverity.Error)
-        {
-            StatusTitle = LocalizationService.GetString("Overlay.LoadFolderErrorTitle");
-            StatusDetail = message;
-            StatusSymbol = Symbol.Folder;
-            SetStatusActions(StatusAction.OpenFolder, StatusAction.GoHome);
-            return;
-        }
-
-        StatusTitle = message;
-        StatusDetail = null;
-        StatusSymbol = Symbol.Help;
-        SetStatusActions(StatusAction.None, StatusAction.None);
-    }
-
-    private void SetStatusActions(StatusAction primary, StatusAction secondary)
-    {
-        StatusPrimaryAction = primary;
-        StatusSecondaryAction = secondary;
-        StatusPrimaryActionLabel = GetActionLabel(primary);
-        StatusSecondaryActionLabel = GetActionLabel(secondary);
-        StatusPrimaryActionVisibility = primary == StatusAction.None ? Visibility.Collapsed : Visibility.Visible;
-        StatusSecondaryActionVisibility = secondary == StatusAction.None ? Visibility.Collapsed : Visibility.Visible;
-    }
-
-    private static string? GetActionLabel(StatusAction action)
-    {
-        return action switch
-        {
-            StatusAction.OpenFolder => LocalizationService.GetString("Action.OpenFolder"),
-            StatusAction.GoHome => LocalizationService.GetString("Action.GoHome"),
-            StatusAction.ResetFilters => LocalizationService.GetString("Action.ResetFilters"),
-            _ => null
-        };
     }
 
     private void UpdateNavigationCommands()
@@ -1313,139 +1134,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
 
         UpdateStatusBar();
-        _ = LoadMetadataAsync(SelectedItem);
+        _ = Status.LoadMetadataAsync(SelectedItem);
     }
 
     private void UpdateStatusBar()
-    {
-        var folderLabel = string.IsNullOrWhiteSpace(CurrentFolderPath)
-            ? LocalizationService.GetString("StatusBar.NoFolderSelected")
-            : CurrentFolderPath;
-        var itemCount = Items.Count;
-        string? selectedLabel;
-        if (SelectedCount == 0)
-        {
-            selectedLabel = null;
-        }
-        else if (SelectedCount == 1 && SelectedItem is not null)
-        {
-            selectedLabel = LocalizationService.Format("StatusBar.Selected", SelectedItem.FileName);
-        }
-        else
-        {
-            selectedLabel = LocalizationService.Format("StatusBar.SelectedMultiple", SelectedCount);
-        }
-
-        var resolutionLabel = SelectedCount == 1 && SelectedItem is not null && !SelectedItem.IsFolder
-            ? SelectedItem.ResolutionText
-            : null;
-
-        var itemsLabel = LocalizationService.Format("StatusBar.Items", itemCount);
-        var statusText = selectedLabel is null
-            ? $"{folderLabel} | {itemsLabel}"
-            : $"{folderLabel} | {itemsLabel} | {selectedLabel}";
-        if (!string.IsNullOrWhiteSpace(resolutionLabel))
-        {
-            statusText = $"{statusText} | {resolutionLabel}";
-        }
-
-        StatusBarText = statusText;
-        UpdateStatusBarLocation();
-    }
-
-    private void UpdateStatusBarLocation()
-    {
-        if (SelectedCount != 1 || SelectedItem is null || SelectedItem.IsFolder)
-        {
-            StatusBarLocationVisibility = Visibility.Collapsed;
-            StatusBarLocationSymbol = Symbol.Map;
-            StatusBarLocationTooltip = null;
-            return;
-        }
-
-        if (_selectedMetadata?.HasValidLocation == true)
-        {
-            StatusBarLocationVisibility = Visibility.Visible;
-            StatusBarLocationSymbol = Symbol.Map;
-            StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsAvailable");
-        }
-        else if (_selectedMetadata is null)
-        {
-            StatusBarLocationVisibility = Visibility.Collapsed;
-            StatusBarLocationSymbol = Symbol.Map;
-            StatusBarLocationTooltip = null;
-        }
-        else if (_selectedMetadata.IsLikelyLocationFixFailed)
-        {
-            StatusBarLocationVisibility = Visibility.Visible;
-            StatusBarLocationSymbol = Symbol.Important;
-            StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsFixFailed");
-        }
-        else
-        {
-            StatusBarLocationVisibility = Visibility.Visible;
-            StatusBarLocationSymbol = Symbol.Cancel;
-            StatusBarLocationTooltip = LocalizationService.GetString("StatusBar.GpsMissing");
-        }
-    }
-
-    private async Task LoadMetadataAsync(PhotoListItem? item)
-    {
-        var previousCts = _metadataCts;
-        _metadataCts = null;
-        if (previousCts is not null)
-        {
-            await previousCts.CancelAsync().ConfigureAwait(false);
-            previousCts.Dispose();
-        }
-
-        if (item is null || item.IsFolder)
-        {
-            _selectedMetadata = null;
-            await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
-            return;
-        }
-
-        _selectedMetadata = null;
-        await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
-
-        var cts = new CancellationTokenSource();
-        _metadataCts = cts;
-
-        try
-        {
-            var metadata = await ExifService.GetMetadataAsync(item.FilePath, cts.Token).ConfigureAwait(false);
-            if (cts.Token.IsCancellationRequested)
-            {
-                return;
-            }
-
-            _selectedMetadata = metadata;
-            await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            // メタデータ読み込み処理がキャンセルされた場合は想定された動作のため、何もしない
-        }
-    }
-
-    private void CancelMetadataLoad()
-    {
-        var previousCts = _metadataCts;
-        _metadataCts = null;
-        if (previousCts is not null)
-        {
-            try
-            {
-                previousCts.Cancel();
-                previousCts.Dispose();
-            }
-            catch (ObjectDisposedException)
-            {
-                // 既に破棄済み
-            }
-        }
-    }
+        => Status.UpdateStatusBar(CurrentFolderPath, Items.Count, SelectedCount, SelectedItem);
 
     private bool IsJpegFile(PhotoListItem? item)
         => item is { IsFolder: false } && _fileOperationService.IsJpegFile(item.FilePath);
