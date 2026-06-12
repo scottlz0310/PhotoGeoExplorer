@@ -5,6 +5,12 @@
 ## [Unreleased]
 
 ### リファクタリング
+- ファイル操作・進捗・クリップボード管理を `FileBrowserPaneViewModel` から `FileOperationCoordinator` へ分離 (#154)
+  - Move/Copy でほぼ同一だった進捗管理（CTS・進捗タイマー・カウンタ・キャンセルコマンド連携）を、操作種別（進捗メッセージのリソースキー・進捗状態通知）をパラメータ化した共通実装 `ExecuteTransferAsync` に統一
+  - クリップボード状態（項目・Cut/Copy 種別・Cut 全件成功時のクリア判定）を Coordinator へ移動。`IsMoveInProgress` / `IsCopyInProgress` / `CanPasteSelection` 等の XAML バインディングは ViewModel のプロパティとして維持し、コンストラクタ注入のコールバックで変更通知を中継
+  - #137 で入れた CancelCommand との race 対策（`finally` 内の UI スレッド集約）は共通実装でも維持。競合解決コールバックの UI スレッド marshal も `IUiDispatcher` 経由のまま
+  - 操作完了後の `RefreshAsync` 呼び出し・選択復元・完了メッセージ表示は ViewModel 側の責務として残し（共通ヘルパー `FinishTransferAsync` に集約）、`ExecuteXxx` 系の internal シグネチャは View からの呼び出し口として維持（既存テストは VM 経由のまま全件パス）
+  - 統一後の共通進捗実装・キャンセル連携・クリップボード管理・バリデーションを直接検証する `FileOperationCoordinatorTests`（28 件、Move/Copy はパラメータ化テストで対称検証）を新設
 - サムネイル生成処理を `FileBrowserPaneViewModel` から `ThumbnailGenerationCoordinator` へ分離 (#153)
   - SemaphoreSlim による並列数制限・UI スレッドタイマーによるバッチ更新・CancellationTokenSource 管理を `Panes/FileBrowser/ThumbnailGenerationCoordinator.cs`（internal sealed, IDisposable）へ移動。ViewModel は `StartGeneration` / `Dispose` を呼ぶだけになった
   - #147 / #137 で入れた並行処理対策（Task.Run 前のトークンキャプチャ、Dispose 時の全タスク完了待ち、ObjectDisposedException の安全網）は移動先でも維持
