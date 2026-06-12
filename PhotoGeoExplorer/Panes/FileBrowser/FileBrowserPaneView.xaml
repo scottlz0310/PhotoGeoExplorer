@@ -453,32 +453,32 @@
                 AllowDrop="True"
                 DragOver="OnFileListDragOver"
                 Drop="OnFileListDrop"
-                Visibility="{Binding StatusVisibility}">
+                Visibility="{Binding Status.StatusVisibility}">
                 <StackPanel Spacing="8" MaxWidth="320" HorizontalAlignment="Center">
                     <SymbolIcon
-                        Symbol="{Binding StatusSymbol}"
+                        Symbol="{Binding Status.StatusSymbol}"
                         Width="28"
                         Height="28"
                         HorizontalAlignment="Center" />
                     <TextBlock
-                        Text="{Binding StatusTitle}"
+                        Text="{Binding Status.StatusTitle}"
                         FontSize="16"
                         FontWeight="SemiBold"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
                     <TextBlock
-                        Text="{Binding StatusDetail}"
+                        Text="{Binding Status.StatusDetail}"
                         Opacity="0.7"
                         TextAlignment="Center"
                         TextWrapping="Wrap" />
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                         <Button
-                            Content="{Binding StatusPrimaryActionLabel}"
-                            Visibility="{Binding StatusPrimaryActionVisibility}"
+                            Content="{Binding Status.StatusPrimaryActionLabel}"
+                            Visibility="{Binding Status.StatusPrimaryActionVisibility}"
                             Click="OnStatusPrimaryActionClicked" />
                         <Button
-                            Content="{Binding StatusSecondaryActionLabel}"
-                            Visibility="{Binding StatusSecondaryActionVisibility}"
+                            Content="{Binding Status.StatusSecondaryActionLabel}"
+                            Visibility="{Binding Status.StatusSecondaryActionVisibility}"
                             Click="OnStatusSecondaryActionClicked" />
                     </StackPanel>
                 </StackPanel>
