@@ -249,12 +249,15 @@ internal sealed class FileBrowserStatusViewModel : BindableBase, IDisposable
         await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
 
         var cts = new CancellationTokenSource();
+        // CancelMetadataLoad が CTS を Dispose した後に Token getter へ触れると
+        // ObjectDisposedException になるため、await 前に CancellationToken を保持する
+        var token = cts.Token;
         _metadataCts = cts;
 
         try
         {
-            var metadata = await _getMetadataAsync(item.FilePath, cts.Token).ConfigureAwait(false);
-            if (cts.Token.IsCancellationRequested)
+            var metadata = await _getMetadataAsync(item.FilePath, token).ConfigureAwait(false);
+            if (token.IsCancellationRequested)
             {
                 return;
             }

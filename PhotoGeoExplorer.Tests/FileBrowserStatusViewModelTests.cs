@@ -283,6 +283,32 @@ public class FileBrowserStatusViewModelTests
     }
 
     [Fact]
+    public async Task LoadMetadataAsyncDiscardsResultWhenCancelledDuringLoad()
+    {
+        var loadStarted = new TaskCompletionSource();
+        var resumeLoad = new TaskCompletionSource();
+        using var viewModel = CreateViewModel(async (_, _) =>
+        {
+            loadStarted.SetResult();
+            await resumeLoad.Task.ConfigureAwait(false);
+            return new PhotoMetadata(null, null, null, latitude: 35.0, longitude: 139.0, hasGpsData: true);
+        });
+        var item = CreateFileItem("photo.jpg");
+        viewModel.UpdateStatusBar("/test", itemCount: 1, selectedCount: 1, selectedItem: item);
+
+        var load = viewModel.LoadMetadataAsync(item);
+        await loadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        viewModel.CancelMetadataLoad();
+        resumeLoad.SetResult();
+
+        await load.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Null(viewModel.SelectedMetadata);
+        Assert.Equal(Visibility.Collapsed, viewModel.StatusBarLocationVisibility);
+    }
+
+    [Fact]
     public async Task CancelMetadataLoadStopsPendingLoad()
     {
         var loadStarted = new TaskCompletionSource();

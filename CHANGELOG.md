@@ -27,6 +27,8 @@
   - `SetDispatcherQueue` 経路を廃止。ViewModel は `MainWindow` の DI 構築（UI スレッド上）で生成されるため、View の `OnLoaded` / `OnDataContextChanged` からの再設定は不要と確認
 
 ### 修正
+- メタデータロード中にキャンセル（CTS 破棄）が走った後、ローダーがキャンセルを観測せず正常リターンすると破棄済み CTS の `Token` getter で `ObjectDisposedException` が発生する潜在競合を修正 (#163)
+  - `CancellationToken` を await 前にローカルへ保持し、破棄済み CTS に触れないよう変更。競合を決定的に再現する回帰テストを `FileBrowserStatusViewModelTests` に追加
 - Release ビルドで `HarfBuzzSharp` などのネイティブ依存の PDB を処理しようとして `mspdbcmf.exe` パス構築バグ (MSB6011) が発生し CI が失敗する問題を修正
   - `AppxSymbolPackageEnabled=false` を Release 構成に追加してシンボルパッケージ生成を無効化
 
