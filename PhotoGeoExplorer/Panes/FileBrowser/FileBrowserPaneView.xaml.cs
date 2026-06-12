@@ -275,11 +275,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
         _detailsColumnsFlyout.ShowAt(anchor);
     }
 
-    private async void OnFiltersChanged(object sender, RoutedEventArgs e)
-    {
-        await RefreshAsync().ConfigureAwait(true);
-    }
-
     private async void OnStatusPrimaryActionClicked(object sender, RoutedEventArgs e)
     {
         if (ViewModel is null)

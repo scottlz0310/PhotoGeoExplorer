@@ -330,6 +330,34 @@ public class FileBrowserStatusViewModelTests
         Assert.Null(viewModel.SelectedMetadata);
     }
 
+    [Fact]
+    public async Task LoadMetadataAsyncCancelsPreviousLoadSuspendedBeforeLoaderStarts()
+    {
+        // 先行呼び出しが最初の dispatcher await で中断している間に後続の呼び出しが走っても、
+        // 先行の CTS が観測されてキャンセルされ、古いメタデータで上書きされないこと（#164 回帰テスト）
+        var firstDispatchGate = new TaskCompletionSource();
+        var metadataFirst = new PhotoMetadata(null, null, null, latitude: 1.0, longitude: 1.0, hasGpsData: true);
+        var metadataSecond = new PhotoMetadata(null, null, null, latitude: 35.0, longitude: 139.0, hasGpsData: true);
+        using var viewModel = new FileBrowserStatusViewModel(
+            new GatedFirstRunUiDispatcher(firstDispatchGate.Task),
+            (path, _) => Task.FromResult<PhotoMetadata?>(
+                path.EndsWith("first.jpg", StringComparison.Ordinal) ? metadataFirst : metadataSecond));
+        var first = CreateFileItem("first.jpg");
+        var second = CreateFileItem("second.jpg");
+        viewModel.UpdateStatusBar("/test", itemCount: 2, selectedCount: 1, selectedItem: first);
+
+        var firstLoad = viewModel.LoadMetadataAsync(first);
+
+        viewModel.UpdateStatusBar("/test", itemCount: 2, selectedCount: 1, selectedItem: second);
+        await viewModel.LoadMetadataAsync(second);
+
+        firstDispatchGate.SetResult();
+        await firstLoad.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Same(metadataSecond, viewModel.SelectedMetadata);
+        Assert.Equal(Visibility.Visible, viewModel.StatusBarLocationVisibility);
+    }
+
     private static FileBrowserStatusViewModel CreateViewModel(
         Func<string, CancellationToken, Task<PhotoMetadata?>>? getMetadataAsync = null)
     {
@@ -366,6 +394,37 @@ public class FileBrowserStatusViewModelTests
         {
             action();
             return Task.CompletedTask;
+        }
+
+        public Task<T> EnqueueAsync<T>(Func<Task<T>> asyncFunc) => asyncFunc();
+
+        public bool TryEnqueue(Action action)
+        {
+            action();
+            return true;
+        }
+
+        public IUiDispatcherTimer? CreateTimer() => null;
+    }
+
+    /// <summary>最初の RunAsync 呼び出しだけ gate を待ってから実行するディスパッチャ。swap race の再現用。</summary>
+    private sealed class GatedFirstRunUiDispatcher : IUiDispatcher
+    {
+        private readonly Task _gate;
+        private int _runAsyncCallCount;
+
+        public GatedFirstRunUiDispatcher(Task gate) => _gate = gate;
+
+        public bool IsAvailable => true;
+
+        public async Task RunAsync(Action action)
+        {
+            if (Interlocked.Increment(ref _runAsyncCallCount) == 1)
+            {
+                await _gate.ConfigureAwait(false);
+            }
+
+            action();
         }
 
         public Task<T> EnqueueAsync<T>(Func<Task<T>> asyncFunc) => asyncFunc();

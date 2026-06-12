@@ -370,6 +370,81 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
+    public async Task LoadFolderAsyncCancelledByConcurrentCallDoesNotShowErrorOverlay()
+    {
+        // 並行する LoadFolderAsync が先行呼び出しの CTS を Cancel + Dispose した後、
+        // 先行側が破棄済み CTS に触れて ObjectDisposedException となり
+        // エラーオーバーレイを誤表示しないこと（#164 回帰テスト）
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            var paneService = new GatedFileBrowserPaneService
+            {
+                SecondLoadResult = [CreatePhotoListItem("photo.jpg")],
+            };
+            using var viewModel = new FileBrowserPaneViewModel(
+                paneService, new WorkspaceState(), null, null, new StubFileOperationService());
+
+            var firstLoad = viewModel.LoadFolderAsync(tempDir);
+            await viewModel.LoadFolderAsync(tempDir, updateHistory: false).ConfigureAwait(true);
+
+            paneService.FirstLoadGate.SetResult();
+            await firstLoad.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
+
+            Assert.Equal(Visibility.Collapsed, viewModel.Status.StatusVisibility);
+            Assert.Null(viewModel.Status.StatusMessage);
+            Assert.Single(viewModel.Items);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ShowImagesOnlyChangeReloadsFolderExactlyOnce()
+    {
+        // setter（UpdateFilterState）由来の再読み込みは 1 回だけであること（#164 二重発火対策）
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var viewModel = CreateViewModelWithFakes(out var fakePaneService, out _);
+            await viewModel.LoadFolderAsync(tempDir).ConfigureAwait(true);
+            Assert.Equal(1, fakePaneService.LoadFolderCallCount);
+
+            viewModel.ShowImagesOnly = false;
+
+            Assert.Equal(2, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task ToggleImagesOnlyCommandReloadsFolderExactlyOnce()
+    {
+        // コマンド経由のトグルでも再読み込みが重複しないこと（#164 二重発火対策）
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var viewModel = CreateViewModelWithFakes(out var fakePaneService, out _);
+            await viewModel.LoadFolderAsync(tempDir).ConfigureAwait(true);
+            Assert.Equal(1, fakePaneService.LoadFolderCallCount);
+
+            viewModel.ToggleImagesOnlyCommand.Execute(null);
+
+            Assert.False(viewModel.ShowImagesOnly);
+            Assert.Equal(2, fakePaneService.LoadFolderCallCount);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
     public void CanCreateFolderDefaultsToFalse()
     {
         // Arrange
@@ -1362,6 +1437,38 @@ public class FileBrowserPaneViewModelTests
         {
             LoadFolderCallCount++;
             return Task.FromResult(new List<PhotoListItem>());
+        }
+
+        public ObservableCollection<BreadcrumbSegment> GetBreadcrumbs(string folderPath) => [];
+        public List<PhotoListItem> ApplySort(IEnumerable<PhotoListItem> items, FileSortColumn column, SortDirection direction) => [.. items];
+        public PhotoListItem? FindItemByFilePath(IEnumerable<PhotoListItem> items, string filePath) => null;
+        public IReadOnlyList<PhotoListItem> ResolveItemsByFilePaths(IEnumerable<PhotoListItem> items, IReadOnlyList<string> filePaths) => Array.Empty<PhotoListItem>();
+        public string? NavigateBack(string currentPath) => null;
+        public string? NavigateForward(string currentPath) => null;
+        public void PushToBackStack(string path) { }
+        public void PushToForwardStack(string path) { }
+        public void ClearForwardStack() { }
+        public bool CanNavigateBack => false;
+        public bool CanNavigateForward => false;
+    }
+
+    /// <summary>最初の LoadFolderAsync 呼び出しだけ gate を待つ pane service。並行実行の競合再現用。</summary>
+    private sealed class GatedFileBrowserPaneService : IFileBrowserPaneService
+    {
+        private int _loadFolderCallCount;
+
+        public TaskCompletionSource FirstLoadGate { get; } = new();
+        public List<PhotoListItem> SecondLoadResult { get; set; } = [];
+
+        public async Task<List<PhotoListItem>> LoadFolderAsync(string folderPath, bool showImagesOnly, string? searchText)
+        {
+            if (Interlocked.Increment(ref _loadFolderCallCount) == 1)
+            {
+                await FirstLoadGate.Task.ConfigureAwait(false);
+                return [];
+            }
+
+            return SecondLoadResult;
         }
 
         public ObservableCollection<BreadcrumbSegment> GetBreadcrumbs(string folderPath) => [];

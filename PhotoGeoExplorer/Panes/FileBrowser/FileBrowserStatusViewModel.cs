@@ -230,29 +230,37 @@ internal sealed class FileBrowserStatusViewModel : BindableBase, IDisposable
     /// </summary>
     public async Task LoadMetadataAsync(PhotoListItem? item)
     {
+        // _metadataCts の差し替え（先行 CTS の取得と新 CTS の公開）は最初の await より前に
+        // 同期的に行う。await 後に公開すると、連続呼び出し時に後続が先行の CTS を観測できず
+        // キャンセル漏れが起き、古い選択のメタデータで表示が上書きされる（#164）
         var previousCts = _metadataCts;
-        _metadataCts = null;
+        CancellationToken token = default;
+        if (item is null || item.IsFolder)
+        {
+            _metadataCts = null;
+        }
+        else
+        {
+            var cts = new CancellationTokenSource();
+            // CancelMetadataLoad が CTS を Dispose した後に Token getter へ触れると
+            // ObjectDisposedException になるため、await 前に CancellationToken を保持する
+            token = cts.Token;
+            _metadataCts = cts;
+        }
+
         if (previousCts is not null)
         {
             await previousCts.CancelAsync().ConfigureAwait(false);
             previousCts.Dispose();
         }
 
-        if (item is null || item.IsFolder)
-        {
-            _selectedMetadata = null;
-            await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
-            return;
-        }
-
         _selectedMetadata = null;
         await _uiDispatcher.RunAsync(UpdateStatusBarLocation).ConfigureAwait(false);
 
-        var cts = new CancellationTokenSource();
-        // CancelMetadataLoad が CTS を Dispose した後に Token getter へ触れると
-        // ObjectDisposedException になるため、await 前に CancellationToken を保持する
-        var token = cts.Token;
-        _metadataCts = cts;
+        if (item is null || item.IsFolder)
+        {
+            return;
+        }
 
         try
         {
