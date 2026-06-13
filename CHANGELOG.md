@@ -5,6 +5,11 @@
 ## [Unreleased]
 
 ### リファクタリング
+- ドラッグ＆ドロップ処理を `FileBrowserPaneView` コードビハインドから `FileBrowserDragDropHandler` へ分離 (#157)
+  - 内部項目の移動/コピー（`OnFileListDragOver` / `OnFileListDrop`）、Explorer 等へのドラッグアウト（`OnFileItemsDragStarting` の StorageItems 遅延提供・`OnFileItemsDragCompleted` の Move 完了後リフレッシュ）、外部ファイル/フォルダの受け入れ、ブレッドクラムへのドロップ（`OnBreadcrumbDragOver` / `OnBreadcrumbDrop`）、ヒットテスト（`IsInternalDrag` / `TryGetDropTargetFolder` / `TryGetBreadcrumbTarget`）、ドラッグ状態（`_dragItems` / `_wasInternalDrop` / `InternalDragKey`）を `Panes/FileBrowser/FileBrowserDragDropHandler.cs`（internal sealed）へ移動
+  - D&D はビジュアルツリー操作・`DataPackage` 操作を伴う純粋な View 責務のため、ViewModel ではなく View 層ヘルパーとして分離（MVVM ガードレール準拠）。ハンドラはコンストラクタでヒットテスト用ルート要素（RootGrid）・ViewModel アクセサ・`FileBrowserDialogs` を受け取る
+  - XAML のイベント結線（`DragOver` / `Drop` / `DragItemsStarting` / `DragItemsCompleted`）は View に薄い委譲ハンドラとして残し、処理本体をハンドラへ移譲（表示・操作挙動は不変）
+  - `FileBrowserPaneView.xaml.cs` を 1,515 行から 1,191 行へ削減（−324 行）。ビジュアルツリー汎用ヘルパー `FindAncestor<T>` は View の他箇所でも使用するため View に残し、D&D 専用の `IsDescendantOf` はハンドラへ移動
 - `FileBrowserDialogs` のエラー → リソースキーのマッピングをテスト可能な純粋関数 `FileBrowserDialogErrorMap` へ分離 (#167)
   - 作成/リネーム・Move・Copy・削除の各操作エラー（`FileOperationError` → タイトル/メッセージのリソースキー）の `switch` を、WinUI 非依存の `internal static` クラス `Panes/FileBrowser/FileBrowserDialogErrorMap.cs` へ抽出。`ContentDialog` 表示・`LocalizationService` 解決から切り離し、対応関係をユニットテストで固定できるようにした
   - `FileBrowserDialogs` の各 `ShowXxxOperationErrorAsync` はマッピング関数の結果（リソースキー）を解決して `ShowMessageAsync` を呼ぶだけに簡素化（表示挙動は不変）
