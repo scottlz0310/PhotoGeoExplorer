@@ -387,24 +387,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             if (container is not null
                 && listView.ItemFromContainer(container) is PhotoListItem item)
             {
-                var currentSelection = ViewModel.SelectedItems.ToList();
-
-                // 複数選択を維持すべきかを判定する:
-                // ① ViewModel が複数のまま（SelectionChanged なし）→ currentSelection を使用
-                // ② ViewModel が単数に変化（SelectionChanged あり）→ priorSelection を使用
-                IReadOnlyList<PhotoListItem> selectionToRestore;
-                if (currentSelection.Count > 1 && currentSelection.Contains(item))
-                {
-                    selectionToRestore = currentSelection;
-                }
-                else if (priorSelection.Count > 1 && priorSelection.Contains(item))
-                {
-                    selectionToRestore = priorSelection;
-                }
-                else
-                {
-                    selectionToRestore = Array.Empty<PhotoListItem>();
-                }
+                var toRestore = ViewModel.ResolveRightTapSelection(item, priorSelection);
 
                 ViewModel.BeginBatchSelectionUpdate();
                 _suppressSelectionChangedForRightTap = true;
@@ -416,7 +399,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
                     // 後続の ViewModel.SelectedItem=item は SetProperty が false を返すため
                     // TwoWay が再発火せず SelectedItems が単数に上書きされない。
                     listView.SelectedItems.Add(item);
-                    var toRestore = selectionToRestore.Count > 0 ? selectionToRestore : (IReadOnlyList<PhotoListItem>)new[] { item };
                     foreach (var savedItem in toRestore)
                     {
                         if (!object.ReferenceEquals(savedItem, item))
@@ -556,17 +538,11 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 break;
             case VirtualKey.C when ctrl:
                 e.Handled = true;
-                if (ViewModel.SelectedItems.Count > 0)
-                {
-                    ViewModel.SetClipboard(ViewModel.SelectedItems, ClipboardOperation.Copy);
-                }
+                ViewModel.CopySelectionToClipboard();
                 break;
             case VirtualKey.X when ctrl:
                 e.Handled = true;
-                if (ViewModel.SelectedItems.Count > 0)
-                {
-                    ViewModel.SetClipboard(ViewModel.SelectedItems, ClipboardOperation.Cut);
-                }
+                ViewModel.CutSelectionToClipboard();
                 break;
             case VirtualKey.V when ctrl:
                 e.Handled = true;
@@ -607,7 +583,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var summary = await ViewModel.ExecutePasteAsync(
             resolveMoveConflictAsync: isCut ? _dialogs.ShowMoveConflictAsync : null,
             resolveCopyConflictAsync: isCut ? null : _dialogs.ShowCopyConflictAsync).ConfigureAwait(true);
-        if (summary.HasFailures && summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
+        if (summary.HasReportableFailures)
         {
             if (isCut)
             {
@@ -699,7 +675,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        if (ViewModel.SelectedItems.Count == 1 && ViewModel.SelectedItems[0].IsFolder)
+        if (ViewModel.IsSingleFolderSelected)
         {
             await ViewModel.LoadFolderAsync(ViewModel.SelectedItems[0].FilePath).ConfigureAwait(true);
             return;
@@ -714,7 +690,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(
             ViewModel.SelectedItems, destination.Path, _dialogs.ShowMoveConflictAsync)
             .ConfigureAwait(true);
-        if (summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
+        if (summary.HasReportableFailures)
         {
             await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
         }
@@ -733,7 +709,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         var summary = await ViewModel.ExecuteMoveToParentAsync().ConfigureAwait(true);
-        if (summary.HasFailures)
+        if (summary.HasReportableFailures)
         {
             await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
         }
@@ -751,12 +727,9 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var message = ViewModel.SelectedItems.Count == 1
-            ? FileBrowserDialogs.BuildDeleteMessage(ViewModel.SelectedItems[0])
-            : LocalizationService.Format("Dialog.DeleteConfirm.Multiple", ViewModel.SelectedItems.Count);
         var confirmed = await _dialogs.ShowConfirmationAsync(
             LocalizationService.GetString("Dialog.DeleteConfirm.Title"),
-            message,
+            ViewModel.BuildDeleteConfirmationMessage(),
             LocalizationService.GetString("Common.Delete")).ConfigureAwait(true);
         if (!confirmed)
         {
@@ -765,7 +738,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
         var itemsToDelete = ViewModel.SelectedItems.ToList();
         var summary = await ViewModel.ExecuteDeleteItemsAsync(itemsToDelete).ConfigureAwait(true);
-        if (summary.HasFailures)
+        if (summary.HasReportableFailures)
         {
             await _dialogs.ShowDeleteOperationErrorAsync(summary).ConfigureAwait(true);
         }
@@ -857,7 +830,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
         var summary = await ViewModel.ExecuteCopyItemsToFolderAsync(ViewModel.SelectedItems, destination.Path)
             .ConfigureAwait(true);
-        if (summary.HasFailures)
+        if (summary.HasReportableFailures)
         {
             await _dialogs.ShowCopyOperationErrorAsync(summary).ConfigureAwait(true);
         }

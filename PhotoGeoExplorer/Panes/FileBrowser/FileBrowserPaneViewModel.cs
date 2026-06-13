@@ -446,6 +446,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     public bool CanOpenInExplorer => !string.IsNullOrWhiteSpace(CurrentFolderPath);
     public bool CanOpenInGoogleMaps => SelectedCount == 1 && SelectedItem?.HasLocation == true;
 
+    /// <summary>
+    /// 選択が単一フォルダか。移動操作の起点（ピッカーで移動先を選ぶ）ではなく
+    /// 当該フォルダを開くべき分岐を View から委譲して判定する。
+    /// </summary>
+    public bool IsSingleFolderSelected => SelectedItems.Count == 1 && SelectedItems[0].IsFolder;
+
     public string NameSortIndicator => GetSortIndicator(FileSortColumn.Name);
     public string TakenAtSortIndicator => GetSortIndicator(FileSortColumn.TakenAt);
     public string ModifiedSortIndicator => GetSortIndicator(FileSortColumn.ModifiedAt);
@@ -562,6 +568,69 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     internal void SetClipboard(IReadOnlyList<PhotoListItem> items, ClipboardOperation operation)
     {
         _operationCoordinator.SetClipboard(items, operation);
+    }
+
+    /// <summary>選択がある場合のみ、現在の選択をコピーとしてクリップボードへ載せる。</summary>
+    internal void CopySelectionToClipboard()
+    {
+        if (SelectedItems.Count > 0)
+        {
+            SetClipboard(SelectedItems, ClipboardOperation.Copy);
+        }
+    }
+
+    /// <summary>選択がある場合のみ、現在の選択を切り取りとしてクリップボードへ載せる。</summary>
+    internal void CutSelectionToClipboard()
+    {
+        if (SelectedItems.Count > 0)
+        {
+            SetClipboard(SelectedItems, ClipboardOperation.Cut);
+        }
+    }
+
+    /// <summary>
+    /// 削除確認ダイアログのメッセージを組み立てる。単数（ファイル/フォルダ）と複数で文面を分岐する。
+    /// View はダイアログ表示のみを担い、文面決定ロジックは VM 側で検証可能にする。
+    /// </summary>
+    internal string BuildDeleteConfirmationMessage()
+    {
+        if (SelectedItems.Count == 1)
+        {
+            var item = SelectedItems[0];
+            return item.IsFolder
+                ? LocalizationService.Format("Dialog.DeleteConfirm.Folder", item.FileName)
+                : LocalizationService.Format("Dialog.DeleteConfirm.File", item.FileName);
+        }
+
+        return LocalizationService.Format("Dialog.DeleteConfirm.Multiple", SelectedItems.Count);
+    }
+
+    /// <summary>
+    /// 右クリック時に復元すべき選択集合を決定する。WinUI3 が右クリックで選択を単数化する場合に
+    /// 複数選択を維持するための判定で、ListView 操作（View 責務）と切り離してテスト可能にする。
+    /// </summary>
+    /// <param name="item">右クリックされた項目。</param>
+    /// <param name="priorSelection">右クリック直前（SelectionChanged 発生前）の選択スナップショット。</param>
+    internal IReadOnlyList<PhotoListItem> ResolveRightTapSelection(
+        PhotoListItem item,
+        IReadOnlyList<PhotoListItem> priorSelection)
+    {
+        var currentSelection = SelectedItems.ToList();
+
+        // ① ViewModel が複数選択のまま（SelectionChanged が発生していない）→ 現在の選択を維持
+        if (currentSelection.Count > 1 && currentSelection.Contains(item))
+        {
+            return currentSelection;
+        }
+
+        // ② ViewModel が単数に変化（右クリックで SelectionChanged 発生）→ 直前の選択を復元
+        if (priorSelection.Count > 1 && priorSelection.Contains(item))
+        {
+            return priorSelection;
+        }
+
+        // ③ それ以外は右クリックした項目のみを選択対象とする
+        return new[] { item };
     }
 
     internal async Task<FileOperationSummary> ExecutePasteAsync(

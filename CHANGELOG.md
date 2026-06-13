@@ -10,6 +10,11 @@
   - 当該 3 ファイルのみを `codecov.yml` の `ignore` に追加。テスト可能な純粋関数（`FileBrowserDialogErrorMap`）・ViewModel・Service はカバレッジ集計対象として維持（ブランケット除外はしない）
 
 ### リファクタリング
+- `FileBrowserPaneView` に残存していた操作判断ロジックを ViewModel / Service へ移し MVVM 境界を是正 (#159)
+  - エラーダイアログ表示要否の判定を `FileOperationSummary.HasReportableFailures`（キャンセルを除く失敗の有無）へ集約し、move/copy/delete/paste/drop で散在していた `HasFailures && Failures.Any(... != Cancelled)` と素の `HasFailures` の不統一を解消（ユーザーキャンセル時はエラーダイアログを表示しない挙動へ統一）
+  - 「単一フォルダ選択なら移動ではなく開く」判断を VM `IsSingleFolderSelected` へ、削除確認メッセージ（単数/複数・ファイル/フォルダ分岐）の組み立てを VM `BuildDeleteConfirmationMessage()` へ、Ctrl+C/X の選択有無判定を VM `CopySelectionToClipboard()` / `CutSelectionToClipboard()` へ、右クリック時の選択復元対象の決定を VM `ResolveRightTapSelection()` へ移動。View はダイアログ/ピッカー表示・ListView 操作・キーイベント解釈のみに限定
+  - VM へ移したロジックと `HasReportableFailures` にパラメータ化単体テストを追加（計 21 ケース）。VM へ移動した削除メッセージ組み立ては `FileBrowserDialogs.BuildDeleteMessage` を削除して一本化
+  - #156/#157/#158 完了後の #150 Phase 1 最終タスク。挙動はキャンセル時のダイアログ抑止統一を除き不変
 - コンテキストメニュー・フライアウト構築を `FileBrowserPaneView` コードビハインドから `FileBrowserMenuBuilder` へ分離 (#158)
   - ファイル一覧のコンテキストメニュー（`BuildFileContextFlyout`）、詳細表示の列トグルメニュー（構築・キャッシュ・表示前同期・トグル反映）、ブレッドクラムの子フォルダ一覧フライアウト（`ShowBreadcrumbChildrenFlyout`）を `Panes/FileBrowser/FileBrowserMenuBuilder.cs`（internal sealed）へ移動
   - メニュー構築は純粋な View 責務のため ViewModel ではなく View 層ヘルパーとして分離（MVVM ガードレール準拠）。ビルダーはコンストラクタで ViewModel アクセサと、コンテキストメニュー各項目のクリックハンドラ群（`FileContextMenuHandlers` レコード）を受け取る。ダイアログ・ピッカー操作を伴うクリック処理は View 責務のため実装は View に残す
