@@ -1453,6 +1453,175 @@ public class FileBrowserPaneViewModelTests
     }
 
     // =========================================================
+    // MVVM 境界是正（#159）: View から VM へ移譲した判定ロジック
+    // =========================================================
+
+    [Theory]
+    [InlineData(1, true, true)]   // 単一フォルダ → true
+    [InlineData(1, false, false)] // 単一ファイル → false
+    [InlineData(2, true, false)]  // 複数フォルダ → false
+    [InlineData(0, true, false)]  // 選択なし → false
+    public void IsSingleFolderSelected_ReturnsExpected(int count, bool isFolder, bool expected)
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        var items = new List<PhotoListItem>();
+        for (var i = 0; i < count; i++)
+        {
+            items.Add(isFolder ? CreateFolderListItem($"folder{i}") : CreatePhotoListItem($"file{i}.jpg"));
+        }
+
+        vm.UpdateSelection(items);
+
+        Assert.Equal(expected, vm.IsSingleFolderSelected);
+    }
+
+    [Fact]
+    public void BuildDeleteConfirmationMessage_SingleFile_UsesFileKey()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        vm.UpdateSelection(new[] { CreatePhotoListItem("photo.jpg") });
+
+        // テストホストではローカライズ未解決のためリソースキーがそのまま返り、分岐選択を検証できる。
+        Assert.Equal("Dialog.DeleteConfirm.File", vm.BuildDeleteConfirmationMessage());
+    }
+
+    [Fact]
+    public void BuildDeleteConfirmationMessage_SingleFolder_UsesFolderKey()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        vm.UpdateSelection(new[] { CreateFolderListItem("folder") });
+
+        Assert.Equal("Dialog.DeleteConfirm.Folder", vm.BuildDeleteConfirmationMessage());
+    }
+
+    [Fact]
+    public void BuildDeleteConfirmationMessage_MultipleItems_UsesMultipleKey()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        vm.UpdateSelection(new[] { CreatePhotoListItem("a.jpg"), CreatePhotoListItem("b.jpg") });
+
+        Assert.Equal("Dialog.DeleteConfirm.Multiple", vm.BuildDeleteConfirmationMessage());
+    }
+
+    [Fact]
+    public async Task CopySelectionToClipboard_WithSelection_SetsCopyClipboard()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out _, out _);
+            await vm.LoadFolderAsync(tempDir);
+            vm.UpdateSelection(new[] { CreatePhotoListItem("photo.jpg") });
+
+            vm.CopySelectionToClipboard();
+
+            Assert.True(vm.CanPasteSelection);
+            Assert.False(vm.IsCutClipboard);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task CutSelectionToClipboard_WithSelection_SetsCutClipboard()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out _, out _);
+            await vm.LoadFolderAsync(tempDir);
+            vm.UpdateSelection(new[] { CreatePhotoListItem("photo.jpg") });
+
+            vm.CutSelectionToClipboard();
+
+            Assert.True(vm.CanPasteSelection);
+            Assert.True(vm.IsCutClipboard);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task CopySelectionToClipboard_WithoutSelection_DoesNotSetClipboard()
+    {
+        var tempDir = CreateTempTestDirectory();
+        try
+        {
+            using var vm = CreateViewModelWithFakes(out _, out _);
+            await vm.LoadFolderAsync(tempDir);
+            vm.UpdateSelection(Array.Empty<PhotoListItem>());
+
+            vm.CopySelectionToClipboard();
+
+            Assert.False(vm.CanPasteSelection);
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public void ResolveRightTapSelection_CurrentMultiSelectionContainsItem_ReturnsCurrent()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        var a = CreatePhotoListItem("a.jpg");
+        var b = CreatePhotoListItem("b.jpg");
+        vm.UpdateSelection(new[] { a, b });
+
+        var result = vm.ResolveRightTapSelection(a, Array.Empty<PhotoListItem>());
+
+        Assert.Equal(new[] { a, b }, result);
+    }
+
+    [Fact]
+    public void ResolveRightTapSelection_CurrentSingle_PriorMultiContainsItem_ReturnsPrior()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        var a = CreatePhotoListItem("a.jpg");
+        var b = CreatePhotoListItem("b.jpg");
+        vm.UpdateSelection(new[] { a });
+        var prior = new[] { a, b };
+
+        var result = vm.ResolveRightTapSelection(a, prior);
+
+        Assert.Equal(prior, result);
+    }
+
+    [Fact]
+    public void ResolveRightTapSelection_CurrentMultiWithoutItem_PriorMultiWithItem_ReturnsPrior()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        var a = CreatePhotoListItem("a.jpg");
+        var b = CreatePhotoListItem("b.jpg");
+        var c = CreatePhotoListItem("c.jpg");
+        vm.UpdateSelection(new[] { b, c });
+        var prior = new[] { a, b };
+
+        var result = vm.ResolveRightTapSelection(a, prior);
+
+        Assert.Equal(prior, result);
+    }
+
+    [Fact]
+    public void ResolveRightTapSelection_NeitherContainsItem_ReturnsItemOnly()
+    {
+        using var vm = CreateViewModelWithFakes(out _, out _);
+        var a = CreatePhotoListItem("a.jpg");
+        var other = CreatePhotoListItem("other.jpg");
+        vm.UpdateSelection(new[] { other });
+
+        var result = vm.ResolveRightTapSelection(a, Array.Empty<PhotoListItem>());
+
+        Assert.Single(result);
+        Assert.Same(a, result[0]);
+    }
+
+    // =========================================================
     // Execute* 系テスト用ヘルパー
     // =========================================================
 

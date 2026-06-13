@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Services;
-using PhotoGeoExplorer.ViewModels;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -49,13 +48,6 @@ internal sealed class FileBrowserDialogs
         => ShowMessageAsync(
             LocalizationService.GetString(keys.TitleKey),
             LocalizationService.GetString(keys.MessageKey));
-
-    public static string BuildDeleteMessage(PhotoListItem item)
-    {
-        return item.IsFolder
-            ? LocalizationService.Format("Dialog.DeleteConfirm.Folder", item.FileName)
-            : LocalizationService.Format("Dialog.DeleteConfirm.File", item.FileName);
-    }
 
     public async Task<StorageFolder?> PickFolderAsync(PickerLocationId startLocation)
     {

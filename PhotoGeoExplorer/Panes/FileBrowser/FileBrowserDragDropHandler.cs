@@ -94,7 +94,7 @@ internal sealed class FileBrowserDragDropHandler
         _wasInternalDrop = true;
         var items = _dragItems ?? ViewModel.SelectedItems;
         var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(items, target.FullPath).ConfigureAwait(true);
-        if (summary.HasFailures)
+        if (summary.HasReportableFailures)
         {
             await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
         }
@@ -169,7 +169,7 @@ internal sealed class FileBrowserDragDropHandler
                     summary = await ViewModel.ExecuteCopyItemsToFolderAsync(
                         selectedItems, targetFolder.FilePath, _dialogs.ShowCopyConflictAsync)
                         .ConfigureAwait(true);
-                    if (summary.HasFailures && summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
+                    if (summary.HasReportableFailures)
                     {
                         await _dialogs.ShowCopyOperationErrorAsync(summary).ConfigureAwait(true);
                     }
@@ -178,7 +178,7 @@ internal sealed class FileBrowserDragDropHandler
                 {
                     summary = await ViewModel.ExecuteMoveItemsToFolderAsync(selectedItems, targetFolder.FilePath)
                         .ConfigureAwait(true);
-                    if (summary.HasFailures)
+                    if (summary.HasReportableFailures)
                     {
                         await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
                     }
