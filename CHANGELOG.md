@@ -9,6 +9,9 @@
   - #156/#157/#158 で `*View.xaml.cs`（既に `codecov.yml` で ignore 済み）から分離した `FileBrowserDialogs` / `FileBrowserDragDropHandler` / `FileBrowserMenuBuilder` は、`MenuFlyout` / `ContentDialog` / `DataPackage` 等の WinRT 型を直接生成する単体テスト不能な View 責務（MVVM ガードレール準拠）。同種コードが ignore 対象外に移ったため patch coverage が常時 0% で fail していた
   - 当該 3 ファイルのみを `codecov.yml` の `ignore` に追加。テスト可能な純粋関数（`FileBrowserDialogErrorMap`）・ViewModel・Service はカバレッジ集計対象として維持（ブランケット除外はしない）
 
+### ドキュメント
+- FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
+
 ### リファクタリング
 - `FileBrowserPaneView` に残存していた操作判断ロジックを ViewModel / Service へ移し MVVM 境界を是正 (#159)
   - エラーダイアログ表示要否の判定を `FileOperationSummary.HasReportableFailures`（キャンセルを除く失敗の有無）へ集約し、move/copy/delete/paste/drop で散在していた `HasFailures && Failures.Any(... != Cancelled)` と素の `HasFailures` の不統一を解消（ユーザーキャンセル時はエラーダイアログを表示しない挙動へ統一）
