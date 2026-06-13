@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
@@ -21,24 +20,13 @@ namespace PhotoGeoExplorer.Panes.FileBrowser;
 
 internal sealed partial class FileBrowserPaneView : UserControl
 {
-    private const string DetailsColumnModifiedTag = "Modified";
-    private const string DetailsColumnResolutionTag = "Resolution";
-    private const string DetailsColumnSizeTag = "Size";
-    private const string DetailsColumnTakenAtTag = "TakenAt";
-    private const string DetailsColumnLocationTag = "Location";
-    private bool _suppressBreadcrumbNavigation;
     private bool _fileListInputHandlersRegistered;
     private bool _suppressSelectionChangedForRightTap;
     private IReadOnlyList<PhotoListItem> _selectionBeforeChange = Array.Empty<PhotoListItem>();
     private FileBrowserPaneViewModel? _previousViewModel;
-    private MenuFlyout? _detailsColumnsFlyout;
-    private ToggleMenuFlyoutItem? _detailsModifiedColumnMenuItem;
-    private ToggleMenuFlyoutItem? _detailsResolutionColumnMenuItem;
-    private ToggleMenuFlyoutItem? _detailsSizeColumnMenuItem;
-    private ToggleMenuFlyoutItem? _detailsTakenAtColumnMenuItem;
-    private ToggleMenuFlyoutItem? _detailsLocationColumnMenuItem;
     private readonly FileBrowserDialogs _dialogs;
     private readonly FileBrowserDragDropHandler _dragDropHandler;
+    private readonly FileBrowserMenuBuilder _menuBuilder;
 
     public FileBrowserPaneView()
     {
@@ -46,6 +34,19 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
         _dialogs = new FileBrowserDialogs(RootGrid, () => HostWindow);
         _dragDropHandler = new FileBrowserDragDropHandler(RootGrid, () => ViewModel, _dialogs);
+        _menuBuilder = new FileBrowserMenuBuilder(
+            () => ViewModel,
+            new FileContextMenuHandlers(
+                OnCreateFolderClicked,
+                OnOpenInExplorerClicked,
+                OnOpenFolderInExplorerClicked,
+                OnCopyPathClicked,
+                OnOpenInGoogleMapsClicked,
+                OnRenameClicked,
+                OnMoveClicked,
+                OnMoveToParentClicked,
+                OnCopyClicked,
+                OnDeleteClicked));
 
         OpenFolderCommand = new RelayCommand(async () => await OpenFolderAsync().ConfigureAwait(false));
         CreateFolderCommand = new RelayCommand(async () => await CreateFolderAsync().ConfigureAwait(false), () => ViewModel?.CanCreateFolder ?? false);
@@ -260,14 +261,10 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private void OnDetailsColumnsClicked(object sender, RoutedEventArgs e)
     {
-        if (ViewModel is null || sender is not FrameworkElement anchor)
+        if (sender is FrameworkElement anchor)
         {
-            return;
+            _menuBuilder.ShowDetailsColumnsFlyout(anchor);
         }
-
-        _detailsColumnsFlyout ??= BuildDetailsColumnsFlyout();
-        SyncDetailsColumnsFlyout();
-        _detailsColumnsFlyout.ShowAt(anchor);
     }
 
     private async void OnStatusPrimaryActionClicked(object sender, RoutedEventArgs e)
@@ -313,7 +310,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
     private async void OnBreadcrumbItemClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
     {
-        if (_suppressBreadcrumbNavigation)
+        if (_menuBuilder.SuppressBreadcrumbNavigation)
         {
             return;
         }
@@ -352,42 +349,8 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        ShowBreadcrumbChildrenFlyout(container, segment);
+        _menuBuilder.ShowBreadcrumbChildrenFlyout(container, segment);
         e.Handled = true;
-    }
-
-    private async void OnBreadcrumbChildClicked(object sender, RoutedEventArgs e)
-    {
-        if (ViewModel is null || sender is not MenuFlyoutItem item || item.Tag is not string folderPath)
-        {
-            return;
-        }
-
-        await ViewModel.LoadFolderAsync(folderPath).ConfigureAwait(true);
-    }
-
-    private void ShowBreadcrumbChildrenFlyout(FrameworkElement anchor, BreadcrumbSegment segment)
-    {
-        if (segment.Children.Count == 0)
-        {
-            return;
-        }
-
-        var flyout = new MenuFlyout();
-        foreach (var child in segment.Children)
-        {
-            var item = new MenuFlyoutItem
-            {
-                Text = child.Name,
-                Tag = child.FullPath
-            };
-            item.Click += OnBreadcrumbChildClicked;
-            flyout.Items.Add(item);
-        }
-
-        _suppressBreadcrumbNavigation = true;
-        flyout.Closed += (_, _) => _suppressBreadcrumbNavigation = false;
-        flyout.ShowAt(anchor);
     }
 
     private void OnBreadcrumbDragOver(object sender, DragEventArgs e)
@@ -486,7 +449,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             }
         }
 
-        var flyout = BuildFileContextFlyout();
+        var flyout = _menuBuilder.BuildFileContextFlyout();
         flyout.ShowAt(listView, e.GetPosition(listView));
         e.Handled = true;
     }
@@ -913,225 +876,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         ViewModel.ToggleSort(column);
-    }
-
-    private MenuFlyout BuildDetailsColumnsFlyout()
-    {
-        var flyout = new MenuFlyout();
-
-        _detailsModifiedColumnMenuItem = CreateDetailsColumnToggleItem(
-            LocalizationService.GetString("DetailsColumnMenu.Modified"),
-            DetailsColumnModifiedTag);
-        _detailsResolutionColumnMenuItem = CreateDetailsColumnToggleItem(
-            LocalizationService.GetString("DetailsColumnMenu.Resolution"),
-            DetailsColumnResolutionTag);
-        _detailsSizeColumnMenuItem = CreateDetailsColumnToggleItem(
-            LocalizationService.GetString("DetailsColumnMenu.Size"),
-            DetailsColumnSizeTag);
-        _detailsTakenAtColumnMenuItem = CreateDetailsColumnToggleItem(
-            LocalizationService.GetString("DetailsColumnMenu.TakenAt"),
-            DetailsColumnTakenAtTag);
-        _detailsLocationColumnMenuItem = CreateDetailsColumnToggleItem(
-            LocalizationService.GetString("DetailsColumnMenu.Location"),
-            DetailsColumnLocationTag);
-
-        flyout.Items.Add(_detailsModifiedColumnMenuItem);
-        flyout.Items.Add(_detailsResolutionColumnMenuItem);
-        flyout.Items.Add(_detailsSizeColumnMenuItem);
-        flyout.Items.Add(_detailsTakenAtColumnMenuItem);
-        flyout.Items.Add(_detailsLocationColumnMenuItem);
-
-        return flyout;
-    }
-
-    private ToggleMenuFlyoutItem CreateDetailsColumnToggleItem(string text, string tag)
-    {
-        var item = new ToggleMenuFlyoutItem
-        {
-            Text = text,
-            Tag = tag
-        };
-        item.Click += OnDetailsColumnMenuItemClicked;
-        return item;
-    }
-
-    private void SyncDetailsColumnsFlyout()
-    {
-        if (ViewModel is null)
-        {
-            return;
-        }
-
-        if (_detailsModifiedColumnMenuItem is not null)
-        {
-            _detailsModifiedColumnMenuItem.IsChecked = ViewModel.ShowDetailsModifiedColumn;
-        }
-
-        if (_detailsResolutionColumnMenuItem is not null)
-        {
-            _detailsResolutionColumnMenuItem.IsChecked = ViewModel.ShowDetailsResolutionColumn;
-        }
-
-        if (_detailsSizeColumnMenuItem is not null)
-        {
-            _detailsSizeColumnMenuItem.IsChecked = ViewModel.ShowDetailsSizeColumn;
-        }
-
-        if (_detailsTakenAtColumnMenuItem is not null)
-        {
-            _detailsTakenAtColumnMenuItem.IsChecked = ViewModel.ShowDetailsTakenAtColumn;
-        }
-
-        if (_detailsLocationColumnMenuItem is not null)
-        {
-            _detailsLocationColumnMenuItem.IsChecked = ViewModel.ShowDetailsLocationColumn;
-        }
-    }
-
-    private void OnDetailsColumnMenuItemClicked(object sender, RoutedEventArgs e)
-    {
-        if (ViewModel is null
-            || sender is not ToggleMenuFlyoutItem item
-            || item.Tag is not string tag)
-        {
-            return;
-        }
-
-        switch (tag)
-        {
-            case DetailsColumnModifiedTag:
-                ViewModel.ShowDetailsModifiedColumn = item.IsChecked;
-                break;
-            case DetailsColumnResolutionTag:
-                ViewModel.ShowDetailsResolutionColumn = item.IsChecked;
-                break;
-            case DetailsColumnSizeTag:
-                ViewModel.ShowDetailsSizeColumn = item.IsChecked;
-                break;
-            case DetailsColumnTakenAtTag:
-                ViewModel.ShowDetailsTakenAtColumn = item.IsChecked;
-                break;
-            case DetailsColumnLocationTag:
-                ViewModel.ShowDetailsLocationColumn = item.IsChecked;
-                break;
-        }
-    }
-
-    private MenuFlyout BuildFileContextFlyout()
-    {
-        var viewModel = ViewModel;
-        var flyout = new MenuFlyout();
-        if (viewModel is null)
-        {
-            return flyout;
-        }
-
-        var createFolder = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.NewFolder"),
-            Icon = new SymbolIcon(Symbol.Folder),
-            IsEnabled = viewModel.CanCreateFolder
-        };
-        createFolder.Click += OnCreateFolderClicked;
-
-        var openInExplorerItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.OpenInExplorer"),
-            Icon = new SymbolIcon(Symbol.Document),
-            IsEnabled = viewModel.CanModifySelection
-        };
-        openInExplorerItem.Click += OnOpenInExplorerClicked;
-
-        var openFolderInExplorerItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.OpenFolderInExplorer"),
-            Icon = new SymbolIcon(Symbol.OpenWith),
-            IsEnabled = viewModel.CanOpenInExplorer
-        };
-        openFolderInExplorerItem.Click += OnOpenFolderInExplorerClicked;
-
-        var copyPathItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.CopyPath"),
-            Icon = new SymbolIcon(Symbol.Copy),
-            IsEnabled = viewModel.CanModifySelection
-        };
-        copyPathItem.Click += OnCopyPathClicked;
-
-        var openInGoogleMapsItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.OpenInGoogleMaps"),
-            Icon = new SymbolIcon(Symbol.Map),
-            IsEnabled = viewModel.CanOpenInGoogleMaps
-        };
-        openInGoogleMapsItem.Click += OnOpenInGoogleMapsClicked;
-
-        var renameItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.Rename"),
-            Icon = new SymbolIcon(Symbol.Edit),
-            IsEnabled = viewModel.CanRenameSelection
-        };
-        renameItem.Click += OnRenameClicked;
-
-        var moveItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.Move"),
-            Icon = new SymbolIcon(Symbol.Forward),
-            IsEnabled = viewModel.CanModifySelection
-        };
-        moveItem.Click += OnMoveClicked;
-
-        var moveParentItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.MoveToParent"),
-            Icon = new SymbolIcon(Symbol.Up),
-            IsEnabled = viewModel.CanMoveToParentSelection
-        };
-        moveParentItem.Click += OnMoveToParentClicked;
-
-        var copyItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.Copy"),
-            Icon = new SymbolIcon(Symbol.Copy),
-            IsEnabled = viewModel.CanCopySelection
-        };
-        copyItem.Click += OnCopyClicked;
-
-        var deleteItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.Delete"),
-            Icon = new SymbolIcon(Symbol.Delete),
-            IsEnabled = viewModel.CanModifySelection
-        };
-        deleteItem.Click += OnDeleteClicked;
-
-        var editExifItem = new MenuFlyoutItem
-        {
-            Text = LocalizationService.GetString("Menu.EditExif"),
-            Icon = new SymbolIcon(Symbol.Edit),
-            Command = viewModel.EditExifCommand,
-            IsEnabled = viewModel.CanEditExif
-        };
-        AutomationProperties.SetAutomationId(editExifItem, "FileBrowser.EditExifMenuItem");
-
-        flyout.Items.Add(createFolder);
-        flyout.Items.Add(new MenuFlyoutSeparator());
-        flyout.Items.Add(openInExplorerItem);
-        flyout.Items.Add(openFolderInExplorerItem);
-        flyout.Items.Add(copyPathItem);
-        flyout.Items.Add(openInGoogleMapsItem);
-        flyout.Items.Add(new MenuFlyoutSeparator());
-        flyout.Items.Add(renameItem);
-        flyout.Items.Add(moveItem);
-        flyout.Items.Add(moveParentItem);
-        flyout.Items.Add(copyItem);
-        flyout.Items.Add(new MenuFlyoutSeparator());
-        flyout.Items.Add(editExifItem);
-        flyout.Items.Add(new MenuFlyoutSeparator());
-        flyout.Items.Add(deleteItem);
-
-        return flyout;
     }
 
     private static T? FindAncestor<T>(DependencyObject? source) where T : DependencyObject

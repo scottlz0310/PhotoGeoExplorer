@@ -5,6 +5,13 @@
 ## [Unreleased]
 
 ### リファクタリング
+- コンテキストメニュー・フライアウト構築を `FileBrowserPaneView` コードビハインドから `FileBrowserMenuBuilder` へ分離 (#158)
+  - ファイル一覧のコンテキストメニュー（`BuildFileContextFlyout`）、詳細表示の列トグルメニュー（構築・キャッシュ・表示前同期・トグル反映）、ブレッドクラムの子フォルダ一覧フライアウト（`ShowBreadcrumbChildrenFlyout`）を `Panes/FileBrowser/FileBrowserMenuBuilder.cs`（internal sealed）へ移動
+  - メニュー構築は純粋な View 責務のため ViewModel ではなく View 層ヘルパーとして分離（MVVM ガードレール準拠）。ビルダーはコンストラクタで ViewModel アクセサと、コンテキストメニュー各項目のクリックハンドラ群（`FileContextMenuHandlers` レコード）を受け取る。ダイアログ・ピッカー操作を伴うクリック処理は View 責務のため実装は View に残す
+  - 列トグルは `Tag` 文字列定数（`DetailsColumnModifiedTag` 等）＋ `switch` による VM プロパティ更新を、`(ToggleMenuFlyoutItem, getter, setter)` の対応表へ整理し、`SyncDetailsColumnsFlyout` の逐次代入と `OnDetailsColumnMenuItemClicked` の分岐を排除
+  - ブレッドクラム子フォルダフライアウト表示中の誤ナビゲーション抑止フラグ（旧 `_suppressBreadcrumbNavigation`）はフライアウト寿命と連動するためビルダーが所有し、`SuppressBreadcrumbNavigation` プロパティで公開。View の `OnBreadcrumbItemClicked` はこれを参照（表示・操作挙動は不変）
+  - XAML のイベント結線（`Drop`/右クリック/列メニュー/ブレッドクラム）は View に薄い委譲ハンドラとして残し、処理本体をビルダーへ移譲。未使用化した `using Microsoft.UI.Xaml.Automation` を削除
+  - `FileBrowserPaneView.xaml.cs` を 1,191 行から 805 行へ削減（−386 行）
 - ドラッグ＆ドロップ処理を `FileBrowserPaneView` コードビハインドから `FileBrowserDragDropHandler` へ分離 (#157)
   - 内部項目の移動/コピー（`OnFileListDragOver` / `OnFileListDrop`）、Explorer 等へのドラッグアウト（`OnFileItemsDragStarting` の StorageItems 遅延提供・`OnFileItemsDragCompleted` の Move 完了後リフレッシュ）、外部ファイル/フォルダの受け入れ、ブレッドクラムへのドロップ（`OnBreadcrumbDragOver` / `OnBreadcrumbDrop`）、ヒットテスト（`IsInternalDrag` / `TryGetDropTargetFolder` / `TryGetBreadcrumbTarget`）、ドラッグ状態（`_dragItems` / `_wasInternalDrop` / `InternalDragKey`）を `Panes/FileBrowser/FileBrowserDragDropHandler.cs`（internal sealed）へ移動
   - D&D はビジュアルツリー操作・`DataPackage` 操作を伴う純粋な View 責務のため、ViewModel ではなく View 層ヘルパーとして分離（MVVM ガードレール準拠）。ハンドラはコンストラクタでヒットテスト用ルート要素（RootGrid）・ViewModel アクセサ・`FileBrowserDialogs` を受け取る
