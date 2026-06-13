@@ -5,6 +5,11 @@
 ## [Unreleased]
 
 ### リファクタリング
+- ダイアログ・ピッカー表示を `FileBrowserPaneView` コードビハインドから `FileBrowserDialogs` ヘルパーへ分離 (#156)
+  - 競合解決（Move/Copy）・テキスト入力・確認・メッセージ・各種操作エラー（作成/リネーム/Move/Copy/削除）ダイアログ、フォルダピッカー（HWND Interop 含む）、`EnsureXamlRootAsync` を `Panes/FileBrowser/FileBrowserDialogs.cs`（internal sealed）へ移動。View は `XamlRoot` 供給元（RootGrid）と `HostWindow` アクセサをコンストラクタで渡し、`_dialogs.ShowXxxAsync(...)` 経由で呼び出す（VM へ渡す競合解決コールバック型は不変）
+  - リソースキー以外ほぼ同一だった `ShowMoveConflictDialogAsync` / `ShowCopyConflictDialogAsync` を、リソースキー接頭辞をパラメータ化した単一実装 `ShowConflictAsync` に統合
+  - 操作エラーダイアログ群（`FileOperationError` → タイトル/メッセージの switch）は分岐表が操作種別ごとに異なるため統合せず移動のみとした（汎用 `DialogService` との統合可否を含め将来のフォローアップは #156 に記録）
+  - `FileBrowserPaneView.xaml.cs` を 1,921 行から 1,515 行へ削減（−406 行）。ダイアログ表示は View の正当な責務のため挙動は不変で、既存テスト 576 件は全件パス
 - ステータス表示とメタデータロードを `FileBrowserPaneViewModel` から子 ViewModel `FileBrowserStatusViewModel` へ分離 (#155)
   - ステータスオーバーレイ（空フォルダ・エラー時の案内とアクション）、ステータスバー（フォルダ/件数/選択/GPS アイコン）、選択アイテムの EXIF メタデータ非同期ロード（先行ロードをキャンセルする CTS 管理を含む）を `Panes/FileBrowser/FileBrowserStatusViewModel.cs`（internal sealed, BindableBase, IDisposable）へ移動
   - 親 ViewModel は `Status` プロパティとして子 VM を公開し、選択変更・フォルダ読み込み・フィルタ変更のタイミングでメソッド呼び出しで状態を渡す（イベント購読ではなく明示的な呼び出し）。XAML バインディングは `Status.StatusBarText` 等のパスに更新（`FileBrowserPaneView.xaml` のオーバーレイ、`MainWindow.xaml` のステータスバー）

@@ -19,7 +19,6 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.System;
-using WinRT.Interop;
 
 namespace PhotoGeoExplorer.Panes.FileBrowser;
 
@@ -34,7 +33,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
     private List<PhotoListItem>? _dragItems;
     private bool _wasInternalDrop;
     private bool _suppressBreadcrumbNavigation;
-    private bool _isWaitingForXamlRoot;
     private bool _fileListInputHandlersRegistered;
     private bool _suppressSelectionChangedForRightTap;
     private IReadOnlyList<PhotoListItem> _selectionBeforeChange = Array.Empty<PhotoListItem>();
@@ -45,10 +43,13 @@ internal sealed partial class FileBrowserPaneView : UserControl
     private ToggleMenuFlyoutItem? _detailsSizeColumnMenuItem;
     private ToggleMenuFlyoutItem? _detailsTakenAtColumnMenuItem;
     private ToggleMenuFlyoutItem? _detailsLocationColumnMenuItem;
+    private readonly FileBrowserDialogs _dialogs;
 
     public FileBrowserPaneView()
     {
         InitializeComponent();
+
+        _dialogs = new FileBrowserDialogs(RootGrid, () => HostWindow);
 
         OpenFolderCommand = new RelayCommand(async () => await OpenFolderAsync().ConfigureAwait(false));
         CreateFolderCommand = new RelayCommand(async () => await CreateFolderAsync().ConfigureAwait(false), () => ViewModel?.CanCreateFolder ?? false);
@@ -443,7 +444,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(items, target.FullPath).ConfigureAwait(true);
         if (summary.HasFailures)
         {
-            await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+            await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
         }
     }
     private void OnFileListDragOver(object sender, DragEventArgs e)
@@ -513,11 +514,11 @@ internal sealed partial class FileBrowserPaneView : UserControl
                 if (e.AcceptedOperation == DataPackageOperation.Copy)
                 {
                     summary = await ViewModel.ExecuteCopyItemsToFolderAsync(
-                        selectedItems, targetFolder.FilePath, ShowCopyConflictDialogAsync)
+                        selectedItems, targetFolder.FilePath, _dialogs.ShowCopyConflictAsync)
                         .ConfigureAwait(true);
                     if (summary.HasFailures && summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
                     {
-                        await ShowCopyOperationErrorDialogAsync(summary).ConfigureAwait(true);
+                        await _dialogs.ShowCopyOperationErrorAsync(summary).ConfigureAwait(true);
                     }
                 }
                 else
@@ -526,7 +527,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
                         .ConfigureAwait(true);
                     if (summary.HasFailures)
                     {
-                        await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+                        await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
                     }
                 }
             }
@@ -880,17 +881,17 @@ internal sealed partial class FileBrowserPaneView : UserControl
 
         var isCut = ViewModel.IsCutClipboard;
         var summary = await ViewModel.ExecutePasteAsync(
-            resolveMoveConflictAsync: isCut ? ShowMoveConflictDialogAsync : null,
-            resolveCopyConflictAsync: isCut ? null : ShowCopyConflictDialogAsync).ConfigureAwait(true);
+            resolveMoveConflictAsync: isCut ? _dialogs.ShowMoveConflictAsync : null,
+            resolveCopyConflictAsync: isCut ? null : _dialogs.ShowCopyConflictAsync).ConfigureAwait(true);
         if (summary.HasFailures && summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
         {
             if (isCut)
             {
-                await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+                await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
             }
             else
             {
-                await ShowCopyOperationErrorDialogAsync(summary).ConfigureAwait(true);
+                await _dialogs.ShowCopyOperationErrorAsync(summary).ConfigureAwait(true);
             }
         }
     }
@@ -916,7 +917,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var folderName = await ShowTextInputDialogAsync(
+        var folderName = await _dialogs.ShowTextInputAsync(
             LocalizationService.GetString("Dialog.NewFolder.Title"),
             LocalizationService.GetString("Dialog.NewFolder.Primary"),
             LocalizationService.GetString("Dialog.NewFolder.DefaultName"),
@@ -929,7 +930,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var result = await ViewModel.ExecuteCreateFolderAsync(folderName).ConfigureAwait(true);
         if (!result.IsSuccess)
         {
-            await ShowFileOperationErrorDialogAsync(result.Error, "Dialog.CreateFolderFailed.Title").ConfigureAwait(true);
+            await _dialogs.ShowFileOperationErrorAsync(result.Error, "Dialog.CreateFolderFailed.Title").ConfigureAwait(true);
         }
     }
 
@@ -945,7 +946,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var newName = await ShowTextInputDialogAsync(
+        var newName = await _dialogs.ShowTextInputAsync(
             LocalizationService.GetString("Dialog.Rename.Title"),
             LocalizationService.GetString("Dialog.Rename.Primary"),
             item.FileName,
@@ -958,7 +959,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var result = await ViewModel.ExecuteRenameAsync(item, newName).ConfigureAwait(true);
         if (!result.IsSuccess)
         {
-            await ShowFileOperationErrorDialogAsync(result.Error, "Dialog.RenameFailed.Title").ConfigureAwait(true);
+            await _dialogs.ShowFileOperationErrorAsync(result.Error, "Dialog.RenameFailed.Title").ConfigureAwait(true);
         }
     }
 
@@ -980,146 +981,19 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var destination = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
+        var destination = await _dialogs.PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
         if (destination is null)
         {
             return;
         }
 
         var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(
-            ViewModel.SelectedItems, destination.Path, ShowMoveConflictDialogAsync)
+            ViewModel.SelectedItems, destination.Path, _dialogs.ShowMoveConflictAsync)
             .ConfigureAwait(true);
         if (summary.Failures.Any(f => f.Error != FileOperationError.Cancelled))
         {
-            await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+            await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
         }
-    }
-
-    private async Task<ConflictResolution> ShowMoveConflictDialogAsync(string fileName, bool isFolder)
-    {
-        var detail = LocalizationService.Format("Dialog.MoveConflict.Detail", fileName);
-        var dialog = new ContentDialog
-        {
-            Title = LocalizationService.GetString("Dialog.MoveConflict.Title"),
-            Content = detail,
-            PrimaryButtonText = LocalizationService.GetString("Dialog.MoveConflict.Overwrite"),
-            SecondaryButtonText = LocalizationService.GetString("Dialog.MoveConflict.Skip"),
-            CloseButtonText = LocalizationService.GetString("Dialog.MoveConflict.Cancel"),
-            XamlRoot = XamlRoot,
-        };
-
-        // StackPanel で「すべて上書き」「すべてスキップ」ボタンを追加
-        var overwriteAllButton = new Button
-        {
-            Content = LocalizationService.GetString("Dialog.MoveConflict.OverwriteAll"),
-            Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 8, 0),
-        };
-        var skipAllButton = new Button
-        {
-            Content = LocalizationService.GetString("Dialog.MoveConflict.SkipAll"),
-        };
-
-        ConflictResolution? extraChoice = null;
-        overwriteAllButton.Click += (_, _) =>
-        {
-            extraChoice = ConflictResolution.OverwriteAll;
-            dialog.Hide();
-        };
-        skipAllButton.Click += (_, _) =>
-        {
-            extraChoice = ConflictResolution.SkipAll;
-            dialog.Hide();
-        };
-
-        dialog.Content = new StackPanel
-        {
-            Spacing = 12,
-            Children =
-            {
-                new TextBlock { Text = detail, TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap },
-                new StackPanel
-                {
-                    Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal,
-                    Children = { overwriteAllButton, skipAllButton },
-                },
-            },
-        };
-
-        var result = await dialog.ShowAsync();
-        if (extraChoice.HasValue)
-        {
-            return extraChoice.Value;
-        }
-
-        return result switch
-        {
-            ContentDialogResult.Primary => ConflictResolution.Overwrite,
-            ContentDialogResult.Secondary => ConflictResolution.Skip,
-            _ => ConflictResolution.Cancel,
-        };
-    }
-
-    private async Task<ConflictResolution> ShowCopyConflictDialogAsync(string fileName, bool isFolder)
-    {
-        var detail = LocalizationService.Format("Dialog.CopyConflict.Detail", fileName);
-        var dialog = new ContentDialog
-        {
-            Title = LocalizationService.GetString("Dialog.CopyConflict.Title"),
-            Content = detail,
-            PrimaryButtonText = LocalizationService.GetString("Dialog.CopyConflict.Overwrite"),
-            SecondaryButtonText = LocalizationService.GetString("Dialog.CopyConflict.Skip"),
-            CloseButtonText = LocalizationService.GetString("Dialog.CopyConflict.Cancel"),
-            XamlRoot = XamlRoot,
-        };
-
-        var overwriteAllButton = new Button
-        {
-            Content = LocalizationService.GetString("Dialog.CopyConflict.OverwriteAll"),
-            Margin = new Microsoft.UI.Xaml.Thickness(0, 0, 8, 0),
-        };
-        var skipAllButton = new Button
-        {
-            Content = LocalizationService.GetString("Dialog.CopyConflict.SkipAll"),
-        };
-
-        ConflictResolution? extraChoice = null;
-        overwriteAllButton.Click += (_, _) =>
-        {
-            extraChoice = ConflictResolution.OverwriteAll;
-            dialog.Hide();
-        };
-        skipAllButton.Click += (_, _) =>
-        {
-            extraChoice = ConflictResolution.SkipAll;
-            dialog.Hide();
-        };
-
-        dialog.Content = new StackPanel
-        {
-            Spacing = 12,
-            Children =
-            {
-                new TextBlock { Text = detail, TextWrapping = Microsoft.UI.Xaml.TextWrapping.Wrap },
-                new StackPanel
-                {
-                    Orientation = Microsoft.UI.Xaml.Controls.Orientation.Horizontal,
-                    Children = { overwriteAllButton, skipAllButton },
-                },
-            },
-        };
-
-        var result = await dialog.ShowAsync();
-        if (extraChoice.HasValue)
-        {
-            return extraChoice.Value;
-        }
-
-        return result switch
-        {
-            ContentDialogResult.Primary => ConflictResolution.Overwrite,
-            ContentDialogResult.Secondary => ConflictResolution.Skip,
-            _ => ConflictResolution.Cancel,
-        };
     }
 
     private async void OnMoveToParentClicked(object sender, RoutedEventArgs e)
@@ -1137,7 +1011,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var summary = await ViewModel.ExecuteMoveToParentAsync().ConfigureAwait(true);
         if (summary.HasFailures)
         {
-            await ShowMoveOperationErrorDialogAsync(summary).ConfigureAwait(true);
+            await _dialogs.ShowMoveOperationErrorAsync(summary).ConfigureAwait(true);
         }
     }
 
@@ -1154,9 +1028,9 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         var message = ViewModel.SelectedItems.Count == 1
-            ? BuildDeleteMessage(ViewModel.SelectedItems[0])
+            ? FileBrowserDialogs.BuildDeleteMessage(ViewModel.SelectedItems[0])
             : LocalizationService.Format("Dialog.DeleteConfirm.Multiple", ViewModel.SelectedItems.Count);
-        var confirmed = await ShowConfirmationDialogAsync(
+        var confirmed = await _dialogs.ShowConfirmationAsync(
             LocalizationService.GetString("Dialog.DeleteConfirm.Title"),
             message,
             LocalizationService.GetString("Common.Delete")).ConfigureAwait(true);
@@ -1169,7 +1043,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         var summary = await ViewModel.ExecuteDeleteItemsAsync(itemsToDelete).ConfigureAwait(true);
         if (summary.HasFailures)
         {
-            await ShowDeleteOperationErrorDialogAsync(summary).ConfigureAwait(true);
+            await _dialogs.ShowDeleteOperationErrorAsync(summary).ConfigureAwait(true);
         }
     }
 
@@ -1251,7 +1125,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var destination = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
+        var destination = await _dialogs.PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
         if (destination is null)
         {
             return;
@@ -1261,26 +1135,8 @@ internal sealed partial class FileBrowserPaneView : UserControl
             .ConfigureAwait(true);
         if (summary.HasFailures)
         {
-            await ShowCopyOperationErrorDialogAsync(summary).ConfigureAwait(true);
+            await _dialogs.ShowCopyOperationErrorAsync(summary).ConfigureAwait(true);
         }
-    }
-
-    private Task ShowCopyOperationErrorDialogAsync(FileOperationSummary summary)
-    {
-        var firstError = summary.Failures[0].Error;
-        var (title, message) = firstError switch
-        {
-            FileOperationError.AlreadyExists => (
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")),
-            FileOperationError.Unauthorized => (
-                LocalizationService.GetString("Dialog.CopyFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-            _ => (
-                LocalizationService.GetString("Dialog.CopyFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-        };
-        return ShowMessageDialogAsync(title, message);
     }
 
     private void OnDetailsSortClicked(object sender, RoutedEventArgs e)
@@ -1618,75 +1474,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
         return false;
     }
 
-    private static string BuildDeleteMessage(PhotoListItem item)
-    {
-        return item.IsFolder
-            ? LocalizationService.Format("Dialog.DeleteConfirm.Folder", item.FileName)
-            : LocalizationService.Format("Dialog.DeleteConfirm.File", item.FileName);
-    }
-
-    private Task ShowFileOperationErrorDialogAsync(FileOperationError error, string defaultTitleKey)
-    {
-        var (title, message) = error switch
-        {
-            FileOperationError.InvalidName => (
-                LocalizationService.GetString("Dialog.InvalidName.Title"),
-                LocalizationService.GetString("Dialog.InvalidName.Detail")),
-            FileOperationError.AlreadyExists => (
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExists.Detail")),
-            FileOperationError.NoParent => (
-                LocalizationService.GetString("Dialog.RenameNotAvailable.Title"),
-                LocalizationService.GetString("Dialog.RenameNotAvailable.Detail")),
-            FileOperationError.Unauthorized => (
-                LocalizationService.GetString(defaultTitleKey),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-            _ => (
-                LocalizationService.GetString(defaultTitleKey),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-        };
-        return ShowMessageDialogAsync(title, message);
-    }
-
-    private Task ShowMoveOperationErrorDialogAsync(FileOperationSummary summary)
-    {
-        var firstError = summary.Failures[0].Error;
-        var (title, message) = firstError switch
-        {
-            FileOperationError.DescendantPath => (
-                LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                LocalizationService.GetString("Dialog.MoveIntoSelf.Detail")),
-            FileOperationError.AlreadyExists => (
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")),
-            FileOperationError.Unauthorized => (
-                LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-            _ => (
-                LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-        };
-        return ShowMessageDialogAsync(title, message);
-    }
-
-    private Task ShowDeleteOperationErrorDialogAsync(FileOperationSummary summary)
-    {
-        var firstError = summary.Failures[0].Error;
-        var (title, message) = firstError switch
-        {
-            FileOperationError.NoParent => (
-                LocalizationService.GetString("Dialog.DeleteNotAvailable.Title"),
-                LocalizationService.GetString("Dialog.DeleteNotAvailable.Detail")),
-            FileOperationError.Unauthorized => (
-                LocalizationService.GetString("Dialog.DeleteFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-            _ => (
-                LocalizationService.GetString("Dialog.DeleteFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-        };
-        return ShowMessageDialogAsync(title, message);
-    }
-
     private async Task OpenFolderPickerAsync()
     {
         if (ViewModel is null)
@@ -1694,7 +1481,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var folder = await PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
+        var folder = await _dialogs.PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
 
         if (folder is null)
         {
@@ -1702,199 +1489,6 @@ internal sealed partial class FileBrowserPaneView : UserControl
         }
 
         await ViewModel.LoadFolderAsync(folder.Path).ConfigureAwait(true);
-    }
-
-    private async Task<StorageFolder?> PickFolderAsync(PickerLocationId startLocation)
-    {
-        var picker = new FolderPicker
-        {
-            SuggestedStartLocation = startLocation
-        };
-        picker.FileTypeFilter.Add("*");
-
-        if (HostWindow is null)
-        {
-            AppLog.Error("HostWindow is not set for FileBrowserPaneView.");
-            return null;
-        }
-
-        var hwnd = WindowNative.GetWindowHandle(HostWindow);
-        InitializeWithWindow.Initialize(picker, hwnd);
-
-        try
-        {
-            return await picker.PickSingleFolderAsync().AsTask().ConfigureAwait(true);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            AppLog.Error("Folder picker failed.", ex);
-        }
-        catch (System.Runtime.InteropServices.COMException ex)
-        {
-            AppLog.Error("Folder picker failed.", ex);
-        }
-
-        return null;
-    }
-
-    private async Task<string?> ShowTextInputDialogAsync(
-        string title,
-        string primaryButtonText,
-        string? defaultText,
-        string placeholderText)
-    {
-        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
-        {
-            return null;
-        }
-
-        var textBox = new TextBox
-        {
-            Text = defaultText ?? string.Empty,
-            PlaceholderText = placeholderText,
-            MinWidth = 260
-        };
-
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = textBox,
-            PrimaryButtonText = primaryButtonText,
-            SecondaryButtonText = LocalizationService.GetString("Common.Cancel"),
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = RootGrid.XamlRoot
-        };
-
-        dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(textBox.Text);
-        textBox.TextChanged += (_, _) =>
-        {
-            dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(textBox.Text);
-        };
-        dialog.Opened += (_, _) =>
-        {
-            textBox.Focus(FocusState.Programmatic);
-            textBox.SelectAll();
-        };
-
-        var result = await dialog.ShowAsync().AsTask().ConfigureAwait(true);
-        if (result != ContentDialogResult.Primary)
-        {
-            return null;
-        }
-
-        var value = textBox.Text.Trim();
-        return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    private async Task<bool> ShowConfirmationDialogAsync(
-        string title,
-        string message,
-        string primaryButtonText)
-    {
-        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
-        {
-            return false;
-        }
-
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = new TextBlock
-            {
-                Text = message,
-                TextWrapping = TextWrapping.Wrap
-            },
-            PrimaryButtonText = primaryButtonText,
-            SecondaryButtonText = LocalizationService.GetString("Common.Cancel"),
-            DefaultButton = ContentDialogButton.Secondary,
-            XamlRoot = RootGrid.XamlRoot
-        };
-
-        var result = await dialog.ShowAsync().AsTask().ConfigureAwait(true);
-        return result == ContentDialogResult.Primary;
-    }
-
-    private async Task ShowMessageDialogAsync(string title, string message)
-    {
-        if (!await EnsureXamlRootAsync().ConfigureAwait(true))
-        {
-            return;
-        }
-
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = new TextBlock
-            {
-                Text = message,
-                TextWrapping = TextWrapping.Wrap
-            },
-            CloseButtonText = LocalizationService.GetString("Common.Ok"),
-            XamlRoot = RootGrid.XamlRoot
-        };
-
-        await dialog.ShowAsync().AsTask().ConfigureAwait(true);
-    }
-
-    private async Task<bool> EnsureXamlRootAsync()
-    {
-        const int maxWaitMs = 3000;
-        const int intervalMs = 50;
-
-        if (RootGrid.XamlRoot is not null)
-        {
-            return true;
-        }
-
-        // 既に別の呼び出しで待機中の場合は、重複してイベントハンドラを登録しない
-        if (_isWaitingForXamlRoot)
-        {
-            // ポーリングのみで待機
-            var pollingElapsed = 0;
-            while (RootGrid.XamlRoot is null && pollingElapsed < maxWaitMs)
-            {
-                await Task.Delay(intervalMs).ConfigureAwait(true);
-                pollingElapsed += intervalMs;
-            }
-            return RootGrid.XamlRoot is not null;
-        }
-
-        _isWaitingForXamlRoot = true;
-
-        AppLog.Info("EnsureXamlRootAsync: XamlRoot is null, waiting for it to become available...");
-
-        var tcs = new TaskCompletionSource<bool>();
-        void OnLoaded(object sender, RoutedEventArgs e)
-        {
-            RootGrid.Loaded -= OnLoaded;
-            tcs.TrySetResult(true);
-        }
-
-        RootGrid.Loaded += OnLoaded;
-
-        var elapsed = 0;
-        while (RootGrid.XamlRoot is null && elapsed < maxWaitMs)
-        {
-            await Task.Delay(intervalMs).ConfigureAwait(true);
-            elapsed += intervalMs;
-
-            if (tcs.Task.IsCompleted)
-            {
-                break;
-            }
-        }
-
-        RootGrid.Loaded -= OnLoaded;
-        _isWaitingForXamlRoot = false;
-
-        if (RootGrid.XamlRoot is not null)
-        {
-            AppLog.Info($"EnsureXamlRootAsync: XamlRoot became available after {elapsed}ms.");
-            return true;
-        }
-
-        AppLog.Info($"EnsureXamlRootAsync: XamlRoot still null after {elapsed}ms, giving up.");
-        return false;
     }
 
     private ListViewBase? GetFileListView()
