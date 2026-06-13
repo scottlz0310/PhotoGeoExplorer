@@ -157,15 +157,13 @@ internal sealed partial class FileBrowserPaneView : UserControl
         return ViewModel?.RefreshAsync() ?? Task.CompletedTask;
     }
 
-    public async Task ResetFiltersAsync()
+    public Task ResetFiltersAsync()
     {
-        if (ViewModel is null)
-        {
-            return;
-        }
-
-        ViewModel.ResetFilters();
-        await ViewModel.RefreshAsync().ConfigureAwait(true);
+        // ResetFilters() が UpdateFilterState 経由でフォルダ再読み込みまで担うため、
+        // ここで RefreshAsync を重ねると LoadFolderAsync が並行実行される（#164 と同根）。
+        // メニュー経路（ResetFiltersCommand）と同じく再読み込みを 1 回に揃える。
+        ViewModel?.ResetFilters();
+        return Task.CompletedTask;
     }
 
     public Task CreateFolderAsync()
