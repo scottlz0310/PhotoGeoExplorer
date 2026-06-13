@@ -34,84 +34,21 @@ internal sealed class FileBrowserDialogs
         => ShowConflictAsync("Dialog.CopyConflict", fileName);
 
     public Task ShowFileOperationErrorAsync(FileOperationError error, string defaultTitleKey)
-    {
-        var (title, message) = error switch
-        {
-            FileOperationError.InvalidName => (
-                LocalizationService.GetString("Dialog.InvalidName.Title"),
-                LocalizationService.GetString("Dialog.InvalidName.Detail")),
-            FileOperationError.AlreadyExists => (
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExists.Detail")),
-            FileOperationError.NoParent => (
-                LocalizationService.GetString("Dialog.RenameNotAvailable.Title"),
-                LocalizationService.GetString("Dialog.RenameNotAvailable.Detail")),
-            FileOperationError.Unauthorized => (
-                LocalizationService.GetString(defaultTitleKey),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-            _ => (
-                LocalizationService.GetString(defaultTitleKey),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-        };
-        return ShowMessageAsync(title, message);
-    }
+        => ShowMappedErrorAsync(FileBrowserDialogErrorMap.MapFileOperationError(error, defaultTitleKey));
 
     public Task ShowMoveOperationErrorAsync(FileOperationSummary summary)
-    {
-        var firstError = summary.Failures[0].Error;
-        var (title, message) = firstError switch
-        {
-            FileOperationError.DescendantPath => (
-                LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                LocalizationService.GetString("Dialog.MoveIntoSelf.Detail")),
-            FileOperationError.AlreadyExists => (
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")),
-            FileOperationError.Unauthorized => (
-                LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-            _ => (
-                LocalizationService.GetString("Dialog.MoveFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-        };
-        return ShowMessageAsync(title, message);
-    }
+        => ShowMappedErrorAsync(FileBrowserDialogErrorMap.MapMoveError(summary.Failures[0].Error));
 
     public Task ShowCopyOperationErrorAsync(FileOperationSummary summary)
-    {
-        var firstError = summary.Failures[0].Error;
-        var (title, message) = firstError switch
-        {
-            FileOperationError.AlreadyExists => (
-                LocalizationService.GetString("Dialog.AlreadyExists.Title"),
-                LocalizationService.GetString("Dialog.AlreadyExistsDestination.Detail")),
-            FileOperationError.Unauthorized => (
-                LocalizationService.GetString("Dialog.CopyFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-            _ => (
-                LocalizationService.GetString("Dialog.CopyFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-        };
-        return ShowMessageAsync(title, message);
-    }
+        => ShowMappedErrorAsync(FileBrowserDialogErrorMap.MapCopyError(summary.Failures[0].Error));
 
     public Task ShowDeleteOperationErrorAsync(FileOperationSummary summary)
-    {
-        var firstError = summary.Failures[0].Error;
-        var (title, message) = firstError switch
-        {
-            FileOperationError.NoParent => (
-                LocalizationService.GetString("Dialog.DeleteNotAvailable.Title"),
-                LocalizationService.GetString("Dialog.DeleteNotAvailable.Detail")),
-            FileOperationError.Unauthorized => (
-                LocalizationService.GetString("Dialog.DeleteFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-            _ => (
-                LocalizationService.GetString("Dialog.DeleteFailed.Title"),
-                LocalizationService.GetString("Dialog.SeeLogDetail")),
-        };
-        return ShowMessageAsync(title, message);
-    }
+        => ShowMappedErrorAsync(FileBrowserDialogErrorMap.MapDeleteError(summary.Failures[0].Error));
+
+    private Task ShowMappedErrorAsync((string TitleKey, string MessageKey) keys)
+        => ShowMessageAsync(
+            LocalizationService.GetString(keys.TitleKey),
+            LocalizationService.GetString(keys.MessageKey));
 
     public static string BuildDeleteMessage(PhotoListItem item)
     {

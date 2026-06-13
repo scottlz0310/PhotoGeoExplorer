@@ -5,6 +5,10 @@
 ## [Unreleased]
 
 ### リファクタリング
+- `FileBrowserDialogs` のエラー → リソースキーのマッピングをテスト可能な純粋関数 `FileBrowserDialogErrorMap` へ分離 (#167)
+  - 作成/リネーム・Move・Copy・削除の各操作エラー（`FileOperationError` → タイトル/メッセージのリソースキー）の `switch` を、WinUI 非依存の `internal static` クラス `Panes/FileBrowser/FileBrowserDialogErrorMap.cs` へ抽出。`ContentDialog` 表示・`LocalizationService` 解決から切り離し、対応関係をユニットテストで固定できるようにした
+  - `FileBrowserDialogs` の各 `ShowXxxOperationErrorAsync` はマッピング関数の結果（リソースキー）を解決して `ShowMessageAsync` を呼ぶだけに簡素化（表示挙動は不変）
+  - 既知の `FileOperationError` 全 8 値を網羅する `FileBrowserDialogErrorMapTests`（32 ケース、パラメータ化テスト）を新設。default フォールバックも併せて固定
 - ダイアログ・ピッカー表示を `FileBrowserPaneView` コードビハインドから `FileBrowserDialogs` ヘルパーへ分離 (#156)
   - 競合解決（Move/Copy）・テキスト入力・確認・メッセージ・各種操作エラー（作成/リネーム/Move/Copy/削除）ダイアログ、フォルダピッカー（HWND Interop 含む）、`EnsureXamlRootAsync` を `Panes/FileBrowser/FileBrowserDialogs.cs`（internal sealed）へ移動。View は `XamlRoot` 供給元（RootGrid）と `HostWindow` アクセサをコンストラクタで渡し、`_dialogs.ShowXxxAsync(...)` 経由で呼び出す（VM へ渡す競合解決コールバック型は不変）
   - リソースキー以外ほぼ同一だった `ShowMoveConflictDialogAsync` / `ShowCopyConflictDialogAsync` を、リソースキー接頭辞をパラメータ化した単一実装 `ShowConflictAsync` に統合
