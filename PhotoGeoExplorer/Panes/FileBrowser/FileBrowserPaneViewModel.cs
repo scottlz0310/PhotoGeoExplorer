@@ -115,8 +115,10 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         });
         ToggleImagesOnlyCommand = new RelayCommand(async () =>
         {
+            // setter の UpdateFilterState がフォルダ再読み込みまで行うため、ここでの Refresh は不要
+            // （重複させると LoadFolderAsync が並行実行され、先行側がキャンセルされる）
             ShowImagesOnly = !ShowImagesOnly;
-            await RefreshAsync().ConfigureAwait(false);
+            await Task.CompletedTask.ConfigureAwait(false);
         });
         EditExifCommand = new RelayCommand(async () => await EditExifAsync().ConfigureAwait(true), () => CanEditExif);
         SetViewModeCommand = new RelayCommand<string>(tag =>
@@ -651,6 +653,9 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         // 既存の読み込み処理をキャンセル
         var previousCts = _loadFolderCts;
         var cts = new CancellationTokenSource();
+        // 後続の呼び出しや CancelFolderLoad が CTS を Dispose した後に Token getter へ触れると
+        // ObjectDisposedException になるため、await 前に CancellationToken を保持する
+        var token = cts.Token;
         _loadFolderCts = cts;
 
         if (previousCts is not null)
@@ -674,7 +679,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             var items = await _service.LoadFolderAsync(folderPath, ShowImagesOnly, SearchText).ConfigureAwait(false);
 
             // キャンセルされた場合は処理を中断
-            cts.Token.ThrowIfCancellationRequested();
+            token.ThrowIfCancellationRequested();
 
             var sorted = _service.ApplySort(items, SortColumn, SortDirection);
 
@@ -908,8 +913,20 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     public void ResetFilters()
     {
-        SearchText = null;
-        ShowImagesOnly = true;
+        // setter 経由で 2 つのフィルタを更新すると UpdateFilterState が二重発火し、
+        // LoadFolderAsync が並行実行される（#164 と同じパターン）ため、
+        // フィールドを直接更新して再読み込みを 1 回に合流させる
+        var searchTextChanged = SetProperty(ref _searchText, null, nameof(SearchText));
+        var showImagesOnlyChanged = SetProperty(ref _showImagesOnly, true, nameof(ShowImagesOnly));
+        if (showImagesOnlyChanged)
+        {
+            OnPropertyChanged(nameof(ToggleImagesOnlyMenuText));
+        }
+
+        if (searchTextChanged || showImagesOnlyChanged)
+        {
+            UpdateFilterState();
+        }
     }
 
     // View が listView.SelectedItems を一括操作する間、TwoWay バインディング経由の

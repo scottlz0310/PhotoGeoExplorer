@@ -255,8 +255,6 @@
             Content="Show images only"
             Margin="0,8,0,0"
             IsChecked="{Binding ShowImagesOnly, Mode=TwoWay}"
-            Checked="OnFiltersChanged"
-            Unchecked="OnFiltersChanged"
             AutomationProperties.AutomationId="ShowImagesOnlyCheckBox"
             x:Uid="ShowImagesOnlyCheckBox" />
         <Grid
