@@ -9,3 +9,13 @@ ignore:
   - "PhotoGeoExplorer.Tests/**"
   - "PhotoGeoExplorer.E2E/**"
   - "PhotoGeoExplorer/Panes/**/*View.xaml.cs"
+  # View-layer UI construction helpers (create WinRT types directly;
+  # not unit-testable; View responsibility per MVVM guardrails).
+  # Split out from *View.xaml.cs, so exclude them too. Testable pure
+  # functions (FileBrowserDialogErrorMap), ViewModels and Services
+  # stay tracked (no blanket exclusion). Details: #171
+  # NOTE: keep this file ASCII-only -- the Codecov CLI fails to decode
+  # non-ASCII bytes on the Windows runner.
+  - "PhotoGeoExplorer/Panes/FileBrowser/FileBrowserDialogs.cs"
+  - "PhotoGeoExplorer/Panes/FileBrowser/FileBrowserDragDropHandler.cs"
+  - "PhotoGeoExplorer/Panes/FileBrowser/FileBrowserMenuBuilder.cs"

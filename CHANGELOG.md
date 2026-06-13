@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### テスト
+- View 層 UI 構築ヘルパーを codecov のカバレッジ集計対象から除外し、`codecov/patch` の構造的 fail を解消 (#171)
+  - #156/#157/#158 で `*View.xaml.cs`（既に `codecov.yml` で ignore 済み）から分離した `FileBrowserDialogs` / `FileBrowserDragDropHandler` / `FileBrowserMenuBuilder` は、`MenuFlyout` / `ContentDialog` / `DataPackage` 等の WinRT 型を直接生成する単体テスト不能な View 責務（MVVM ガードレール準拠）。同種コードが ignore 対象外に移ったため patch coverage が常時 0% で fail していた
+  - 当該 3 ファイルのみを `codecov.yml` の `ignore` に追加。テスト可能な純粋関数（`FileBrowserDialogErrorMap`）・ViewModel・Service はカバレッジ集計対象として維持（ブランケット除外はしない）
+
 ### リファクタリング
 - コンテキストメニュー・フライアウト構築を `FileBrowserPaneView` コードビハインドから `FileBrowserMenuBuilder` へ分離 (#158)
   - ファイル一覧のコンテキストメニュー（`BuildFileContextFlyout`）、詳細表示の列トグルメニュー（構築・キャッシュ・表示前同期・トグル反映）、ブレッドクラムの子フォルダ一覧フライアウト（`ShowBreadcrumbChildrenFlyout`）を `Panes/FileBrowser/FileBrowserMenuBuilder.cs`（internal sealed）へ移動
