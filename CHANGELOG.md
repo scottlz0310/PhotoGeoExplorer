@@ -5,6 +5,12 @@
 ## [Unreleased]
 
 ### テスト
+- E2E に削除確認ダイアログ文面の分岐検証シナリオを追加し、コンテキストメニューヘルパーを ID 指定の汎用版へ一般化 (#181)
+  - `DeleteConfirmationDialogShowsForSingleFile` / `...ForSingleFolder` / `...ForMultipleSelection`: 各選択パターンで削除確認ダイアログが実機表示されキャンセルできること（非破壊）を検証。トリガーは選択を変えない `Delete` キー。文面の分岐内容（File / Folder / Multiple）の正確性は単体テスト（`BuildDeleteConfirmationMessage`）が担保するため、E2E は文面が非空（＝ダイアログ表示）であることをロケール／リソース解決非依存に確認（未パッケージ起動・en ランナーでは未解決のリソースキーが返るため、解決済み文面に依存しない）
+  - **連続ダイアログ開閉の flaky を避けるため 1 テスト 1 ダイアログに分割**（各シナリオをアプリ起動から独立）。確認ダイアログ出現まで対象項目への focus+`Delete` 送出をリトライ、`Focus()` の UIA COMException(0x80040201) を `ignoreException` で吸収、文面が非空になるまで待機。ローカルで 3 テスト × 2 ラウンド = 6/6 pass を確認
+  - `OpenExifMenuForItemName` を automation ID 引数を取る `OpenContextMenuItemForItemName` へ汎用化し、EXIF 専用の名前フォールバック（`FindEditExifMenuItemByName`）を ID 直引きに置換して削除。既存 ExifEditor 2 テストは `FileBrowser.EditExifMenuItem` で呼ぶよう更新
+  - production: 確認ダイアログのメッセージ TextBlock に `FileBrowser.ConfirmationMessage` ID を付与（`FileBrowserDialogs.ShowConfirmationAsync`、UI 挙動不変）
+  - #181 を 3 分割した P5-B-1（基盤＋削除確認）。残り（右クリック選択復元 / clipboard / 移動競合）＋fixture 拡張は後続 PR
 - E2E（`PhotoGeoExplorer.E2E`）の現状フィット棚卸しを実施し、コンテキストメニュー全項目に automation ID を付与して P5-B（操作系シナリオ追加）の前提を整備 (#180)
   - `FileBrowserMenuBuilder.BuildFileContextFlyout()` の項目は従来 `FileBrowser.EditExifMenuItem` のみ ID 付与済みだったため、新規フォルダ / エクスプローラーで開く / フォルダをエクスプローラーで開く / パスをコピー / Google マップで開く / リネーム / 移動 / 親フォルダへ移動 / コピー / 削除の各項目に `FileBrowser.*MenuItem` 形式（既存命名に統一）の ID を付与。名前部分一致に依存しない要素特定を可能にしメニュー起因の flaky 低減にも寄与
   - 既存 3 E2E テストが参照する automation ID（`FileList*` / `FileBrowser.EditExifMenuItem` / `ExifEditor.*` / `MetadataSummaryText` / `PreviewImage` / `MapStatusPanel`）が Phase 1 分割後も全て生存・命名一貫であることを確認（整合点検）
