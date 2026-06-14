@@ -33,7 +33,9 @@
 
 ## 3. 操作系 ID 棚卸しとギャップ対応（本 PR で実施）
 
-`FileBrowserMenuBuilder.BuildFileContextFlyout()` のコンテキストメニュー項目は、従来 `FileBrowser.EditExifMenuItem` の **1 項目のみ** ID 付与済みで、他は未付与だった。P5-B（#181）の操作系シナリオ（削除確認文面／右クリック選択復元／クリップボード／移動競合・キャンセル）は、メニュー項目を名前部分一致ではなく ID で一意特定する必要がある。
+`FileBrowserMenuBuilder.BuildFileContextFlyout()` のコンテキストメニュー項目は、従来 `FileBrowser.EditExifMenuItem` の **1 項目のみ** ID 付与済みで、他は未付与だった。P5-B（#181）の**メニュー起点**シナリオ（削除確認文面／右クリック選択復元／移動競合・キャンセル）は、メニュー項目を名前部分一致ではなく ID で一意特定する必要がある。
+
+> なお #181 の「クリップボード」シナリオはコンテキストメニューではなくキーボード操作（`Ctrl+C` / `Ctrl+X` → `Ctrl+V`）経由で VM を駆動するため、メニュー ID では対象経路を駆動できない。検証方法は §4 で別途整理する。
 
 本 PR で全項目に `FileBrowser.*MenuItem` 形式（既存 `EditExif` に統一）の ID を付与した。
 
@@ -42,12 +44,12 @@
 | 新規フォルダ | `FileBrowser.NewFolderMenuItem` | |
 | エクスプローラーで開く | `FileBrowser.OpenInExplorerMenuItem` | |
 | フォルダをエクスプローラーで開く | `FileBrowser.OpenFolderInExplorerMenuItem` | |
-| パスをコピー | `FileBrowser.CopyPathMenuItem` | クリップボード検証 |
+| パスをコピー | `FileBrowser.CopyPathMenuItem` | パス文字列の OS クリップボード設定（#181 clipboard シナリオとは別経路） |
 | Google マップで開く | `FileBrowser.OpenInGoogleMapsMenuItem` | |
 | リネーム | `FileBrowser.RenameMenuItem` | リネーム |
 | 移動 | `FileBrowser.MoveMenuItem` | 移動競合・キャンセル |
 | 親フォルダへ移動 | `FileBrowser.MoveToParentMenuItem` | 移動 |
-| コピー | `FileBrowser.CopyMenuItem` | クリップボード／コピー |
+| コピー | `FileBrowser.CopyMenuItem` | FolderPicker 経由の直接コピー（#181 clipboard シナリオとは別経路） |
 | 削除 | `FileBrowser.DeleteMenuItem` | 削除確認文面 |
 | EXIF 編集 | `FileBrowser.EditExifMenuItem`（既存） | |
 
@@ -55,11 +57,13 @@
 
 ## 4. テストデータ／ヘルパー現状確認
 
-現状の `E2ETestData` は単一画像＋空フォルダのみで、操作系シナリオには不足。P5-B（#181）で以下の fixture 拡張が必要（本 Issue ではスコープ外、要件のみ整理）:
+現状の `E2ETestData` は単一画像＋空フォルダのみで、操作系シナリオには不足。**本 Issue（#180）のスコープは fixture 拡張要件の整理までで、実 fixture 実装は #181 の責務**とする（#180/#181 双方の受け入れ条件・依存記述に反映済み）。#181 で必要な拡張:
 
 - 複数画像（選択範囲・一括操作・カウント検証用）
 - 同名衝突を起こすための移動/コピー先フォルダ＋同名ファイル
 - 削除確認・キャンセル後の状態検証用の安定したファイル集合
+
+**clipboard シナリオ（#181）の検証方法**: コンテキストメニューではなくキーボード操作 `Ctrl+C` / `Ctrl+X` → `Ctrl+V` で VM の `CopySelectionToClipboard` / `CutSelectionToClipboard` / `PasteSelectionAsyncCore` を駆動し、貼り付け先への項目出現で結果を確認する。`CopyPathMenuItem`（パス文字列の OS クリップボード設定）・`CopyMenuItem`（FolderPicker 経由の直接コピー）はいずれも clipboard シナリオの対象経路ではないため、メニュー ID では駆動できない。
 
 ヘルパー面では、`OpenExifMenuForItemName` がコンテキストメニュー汎用化されておらず EXIF 専用名で固定のため、P5-B では「項目 ID を指定してコンテキストメニューを開くヘルパー」への一般化が望ましい（本 PR の ID 付与がその前提）。
 
@@ -83,6 +87,6 @@
 - [x] automation ID 整合点検（既存参照分はすべて生存・命名一貫）
 - [x] 操作系メニュー項目の ID ギャップを解消（全項目に付与）
 - [x] #174 との関連と E2E 安定化方針を整理
-- [ ] テストデータ／ヘルパー拡張（要件を本書 §4 に整理。実装は #181 スコープ）
+- [x] テストデータ／ヘルパー**拡張要件の整理**（§4）。実 fixture 実装は #181 の責務として #180/#181 の受け入れ条件・依存に反映済み
 
-→ ID・方針の前提が整い、#181（操作系シナリオ追加）に着手可能。
+→ ID・方針・テストデータ要件の前提が整い、#181（操作系シナリオ追加＋fixture 実装）に着手可能。
