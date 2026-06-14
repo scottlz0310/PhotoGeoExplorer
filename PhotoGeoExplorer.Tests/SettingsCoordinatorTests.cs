@@ -304,7 +304,10 @@ public sealed class SettingsCoordinatorTests : IDisposable
         var settingsService = new SettingsService(settingsPath);
         var workspaceState = new WorkspaceState();
         var shellViewModel = new MainViewModel(workspaceState);
-        var fileBrowserPaneViewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), workspaceState);
+        var fileBrowserPaneViewModel = new FileBrowserPaneViewModel(
+            new FileBrowserPaneService(),
+            workspaceState,
+            folderWatcherService: NoOpFolderWatcherService.Shared);
         var mapPaneViewModel = new MapPaneViewModel(new MapPaneService(), workspaceState);
         var dialogService = new FakeDialogService();
         var coordinator = new SettingsCoordinator(

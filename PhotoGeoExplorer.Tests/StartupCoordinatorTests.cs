@@ -48,7 +48,10 @@ public sealed class StartupCoordinatorTests : IDisposable
     {
         var tempDir = CreateTempDirectory();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(
+            new FileBrowserPaneService(),
+            workspaceState,
+            folderWatcherService: NoOpFolderWatcherService.Shared);
         using var coordinator = new StartupCoordinator(
             viewModel,
             commandLineArgsProvider: () => new[] { "PhotoGeoExplorer.exe", "--folder", tempDir },
@@ -67,7 +70,10 @@ public sealed class StartupCoordinatorTests : IDisposable
         await File.WriteAllTextAsync(startupFilePath, "test").ConfigureAwait(true);
 
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(
+            new FileBrowserPaneService(),
+            workspaceState,
+            folderWatcherService: NoOpFolderWatcherService.Shared);
         using var coordinator = new StartupCoordinator(
             viewModel,
             commandLineArgsProvider: () => DefaultCommandLineArgs,

@@ -44,7 +44,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Assert
         Assert.NotNull(viewModel.Items);
@@ -75,7 +75,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Assert
         Assert.True(viewModel.ShowImagesOnly);
@@ -89,7 +89,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Assert
         Assert.Equal(FileViewMode.Details, viewModel.FileViewMode);
@@ -101,7 +101,7 @@ public class FileBrowserPaneViewModelTests
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
 
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         Assert.True(viewModel.ShowDetailsModifiedColumn);
         Assert.True(viewModel.ShowDetailsResolutionColumn);
@@ -118,7 +118,7 @@ public class FileBrowserPaneViewModelTests
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
 
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         viewModel.ShowDetailsModifiedColumn = false;
         viewModel.ShowDetailsTakenAtColumn = true;
@@ -135,7 +135,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Assert
         Assert.Equal(FileSortColumn.Name, viewModel.SortColumn);
@@ -149,7 +149,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Assert
         Assert.Equal(SortDirection.Ascending, viewModel.SortDirection);
@@ -161,7 +161,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Act
         viewModel.ToggleSort(FileSortColumn.Name);
@@ -176,7 +176,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Act
         viewModel.ToggleSort(FileSortColumn.Size);
@@ -191,7 +191,7 @@ public class FileBrowserPaneViewModelTests
     {
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         viewModel.ToggleSort(FileSortColumn.TakenAt);
         Assert.Equal(FileSortColumn.TakenAt, viewModel.SortColumn);
@@ -208,7 +208,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState)
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared)
         {
             SearchText = "test"
         };
@@ -226,7 +226,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState)
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared)
         {
             ShowImagesOnly = false
         };
@@ -244,7 +244,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Act
         viewModel.SearchText = "test";
@@ -259,7 +259,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Act
         viewModel.ShowImagesOnly = false;
@@ -274,7 +274,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var photoListItem = CreatePhotoListItem("test.jpg");
 
         // Act
@@ -292,7 +292,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var folderItem = CreateFolderListItem("TestFolder");
 
         // Act
@@ -308,7 +308,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var first = CreatePhotoListItem("first.jpg");
         var second = CreatePhotoListItem("second.jpg");
         viewModel.Items.Add(first);
@@ -330,7 +330,7 @@ public class FileBrowserPaneViewModelTests
         var tempDir = CreateTempTestDirectory();
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         try
         {
@@ -353,7 +353,7 @@ public class FileBrowserPaneViewModelTests
         var tempDir = CreateTempTestDirectory();
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         try
         {
@@ -383,7 +383,12 @@ public class FileBrowserPaneViewModelTests
                 SecondLoadResult = [CreatePhotoListItem("photo.jpg")],
             };
             using var viewModel = new FileBrowserPaneViewModel(
-                paneService, new WorkspaceState(), null, null, new StubFileOperationService());
+                paneService,
+                new WorkspaceState(),
+                null,
+                null,
+                new StubFileOperationService(),
+                folderWatcherService: NoOpFolderWatcherService.Shared);
 
             var firstLoad = viewModel.LoadFolderAsync(tempDir);
             await viewModel.LoadFolderAsync(tempDir, updateHistory: false).ConfigureAwait(true);
@@ -488,7 +493,7 @@ public class FileBrowserPaneViewModelTests
         var workspaceState = new WorkspaceState();
 
         // Act
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Assert
         Assert.False(viewModel.CanCreateFolder);
@@ -501,7 +506,7 @@ public class FileBrowserPaneViewModelTests
         var tempDir = CreateTempTestDirectory();
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         try
         {
@@ -523,7 +528,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var item = CreatePhotoListItem("test.jpg");
 
         // Act
@@ -539,7 +544,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Act
         viewModel.UpdateSelection(Array.Empty<PhotoListItem>());
@@ -554,7 +559,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var first = CreatePhotoListItem("test1.jpg");
         var second = CreatePhotoListItem("test2.jpg");
 
@@ -571,7 +576,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var item = CreatePhotoListItem("test.jpg");
 
         // Act
@@ -588,7 +593,7 @@ public class FileBrowserPaneViewModelTests
         var tempDir = CreateTempTestDirectory();
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var item = CreatePhotoListItem("test.jpg");
 
         try
@@ -613,7 +618,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Act
         viewModel.UpdateSelection(Array.Empty<PhotoListItem>());
@@ -628,7 +633,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Act & Assert (Should not throw)
         viewModel.Dispose();
@@ -641,7 +646,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var initialValue = viewModel.ShowImagesOnly;
         var expectedTextBeforeToggle = initialValue
             ? LocalizationService.GetString("MenuViewAllFiles.Text")
@@ -666,7 +671,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
 
         // Act
         viewModel.SetViewModeCommand.Execute("Icon");
@@ -681,7 +686,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var original = viewModel.FileViewMode;
 
         // Act
@@ -697,7 +702,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var original = viewModel.FileViewMode;
 
         // Act
@@ -713,7 +718,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var photo = CreatePhotoListItem("match.jpg");
         var folder = CreateFolderListItem("folder");
         viewModel.Items.Add(photo);
@@ -735,7 +740,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         viewModel.Items.Add(CreatePhotoListItem("exists.jpg"));
 
         // Act
@@ -752,7 +757,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         var invokedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         viewModel.ConfigureUiActionHandlers(
             () =>
@@ -781,7 +786,7 @@ public class FileBrowserPaneViewModelTests
         var tempDir = CreateTempTestDirectory();
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         viewModel.ConfigureUiActionHandlers(
             null,
             () => Task.CompletedTask,
@@ -811,7 +816,7 @@ public class FileBrowserPaneViewModelTests
         // Arrange
         var service = new FileBrowserPaneService();
         var workspaceState = new WorkspaceState();
-        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState);
+        using var viewModel = new FileBrowserPaneViewModel(service, workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
         viewModel.ConfigureUiActionHandlers(
             null,
             null,
@@ -1631,7 +1636,13 @@ public class FileBrowserPaneViewModelTests
     {
         fakePaneService = new FakeFileBrowserPaneService();
         stubOp = new StubFileOperationService();
-        return new FileBrowserPaneViewModel(fakePaneService, new WorkspaceState(), null, null, stubOp);
+        return new FileBrowserPaneViewModel(
+            fakePaneService,
+            new WorkspaceState(),
+            null,
+            null,
+            stubOp,
+            folderWatcherService: NoOpFolderWatcherService.Shared);
     }
 
     private sealed class FakeFileBrowserPaneService : IFileBrowserPaneService
