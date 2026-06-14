@@ -5,9 +5,11 @@
 ## [Unreleased]
 
 ### テスト
-- `FileBrowserPaneViewModel` の単体テストが実 `FolderWatcherService`（実 `FileSystemWatcher` ＋ `System.Threading.Timer`）を起動しないよう no-op フェイクを注入し、テストホストの非決定的クラッシュ要因を解消 (#174)
+- 単体テストが `FileBrowserPaneViewModel` 経由で実 `FolderWatcherService`（実 `FileSystemWatcher` ＋ `System.Threading.Timer`）を起動しないよう no-op フェイクを注入し、テストホストの非決定的クラッシュ要因を解消 (#174)
   - `LoadFolderAsync` が temp ディレクトリを実監視し、ディレクトリ削除と debounce タイマー発火が競合してテストホストが途中終了し得る問題（#159/PR #173 で観測）への対処
-  - 全 VM 生成箇所（`CreateViewModelWithFakes` ＋ インライン生成）に `NoOpFolderWatcherService` を注入。「VM 単体テストは実 watcher を一切起動しない」を保証して将来の再発も防止。production コードは変更なし（テストでは `UiDispatcher.TryEnqueue` が no-op のため VM 側ハンドラは元から無害）
+  - `NoOpFolderWatcherService` を `TestUtilities.cs` の共有ヘルパー（`internal sealed` ＋ static `Shared`）へ昇格し、`PhotoGeoExplorer.Tests` アセンブリ内の **全 `FileBrowserPaneViewModel` 生成箇所**に注入。`FileBrowserPaneViewModelTests`（`CreateViewModelWithFakes` ＋ インライン生成）に加え、`StartupCoordinatorTests` / `SettingsCoordinatorTests` / `SettingsPaneViewModelTests` の生成箇所も網羅
+  - 特に `StartupCoordinatorTests` の `ApplyStartupAsync*` 2 テストは `LoadFolderAsync(tempDir)` → 実 watcher 起動直後に `Dispose()` で同 tempDir を再帰削除しており、#174 と同型の latent な非決定的クラッシュを含んでいた。本注入でこれを除去し「単体テストは実 watcher を一切起動しない」をアセンブリ全体で保証
+  - production コードは変更なし（テストでは `UiDispatcher.TryEnqueue` が no-op のため VM 側ハンドラは元から無害）
 - View 層 UI 構築ヘルパーを codecov のカバレッジ集計対象から除外し、`codecov/patch` の構造的 fail を解消 (#171)
   - #156/#157/#158 で `*View.xaml.cs`（既に `codecov.yml` で ignore 済み）から分離した `FileBrowserDialogs` / `FileBrowserDragDropHandler` / `FileBrowserMenuBuilder` は、`MenuFlyout` / `ContentDialog` / `DataPackage` 等の WinRT 型を直接生成する単体テスト不能な View 責務（MVVM ガードレール準拠）。同種コードが ignore 対象外に移ったため patch coverage が常時 0% で fail していた
   - 当該 3 ファイルのみを `codecov.yml` の `ignore` に追加。テスト可能な純粋関数（`FileBrowserDialogErrorMap`）・ViewModel・Service はカバレッジ集計対象として維持（ブランケット除外はしない）

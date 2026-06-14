@@ -19,7 +19,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public SettingsPaneViewModelTests()
     {
         _mainViewModel = new MainViewModel(_workspaceState);
-        _fileBrowserPaneViewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), _workspaceState);
+        _fileBrowserPaneViewModel = new FileBrowserPaneViewModel(
+            new FileBrowserPaneService(),
+            _workspaceState,
+            folderWatcherService: NoOpFolderWatcherService.Shared);
     }
 
     [Fact]
