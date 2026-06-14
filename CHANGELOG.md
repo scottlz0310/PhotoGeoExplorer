@@ -6,8 +6,8 @@
 
 ### テスト
 - E2E に削除確認ダイアログ文面の分岐検証シナリオを追加し、コンテキストメニューヘルパーを ID 指定の汎用版へ一般化 (#181)
-  - `DeleteConfirmationMessageVariesBySelection`: 単一ファイル / 単一フォルダ / 複数選択で `BuildDeleteConfirmationMessage` の文面が分岐することを検証。トリガーは選択を変えない `Delete` キーとし、各回キャンセルして**非破壊**に確認。文面の正確なローカライズは単体テストが担保するため、E2E は **3 文面が互いに異なる（＝分岐している）ことをロケール／リソース解決非依存に検証**（未パッケージ起動・en ランナーでは未解決のリソースキーが返ることがあるため、解決済み文面に依存しない）
-  - 連続ダイアログ開閉の flaky に対処: 確認ダイアログ出現まで focus+`Delete` 送出をリトライ、`list.Focus()` の UIA COMException(0x80040201) を `ignoreException` で吸収、文面が非空になるまで待機
+  - `DeleteConfirmationDialogShowsForSingleFile` / `...ForSingleFolder` / `...ForMultipleSelection`: 各選択パターンで削除確認ダイアログが実機表示されキャンセルできること（非破壊）を検証。トリガーは選択を変えない `Delete` キー。文面の分岐内容（File / Folder / Multiple）の正確性は単体テスト（`BuildDeleteConfirmationMessage`）が担保するため、E2E は文面が非空（＝ダイアログ表示）であることをロケール／リソース解決非依存に確認（未パッケージ起動・en ランナーでは未解決のリソースキーが返るため、解決済み文面に依存しない）
+  - **連続ダイアログ開閉の flaky を避けるため 1 テスト 1 ダイアログに分割**（各シナリオをアプリ起動から独立）。確認ダイアログ出現まで対象項目への focus+`Delete` 送出をリトライ、`Focus()` の UIA COMException(0x80040201) を `ignoreException` で吸収、文面が非空になるまで待機。ローカルで 3 テスト × 2 ラウンド = 6/6 pass を確認
   - `OpenExifMenuForItemName` を automation ID 引数を取る `OpenContextMenuItemForItemName` へ汎用化し、EXIF 専用の名前フォールバック（`FindEditExifMenuItemByName`）を ID 直引きに置換して削除。既存 ExifEditor 2 テストは `FileBrowser.EditExifMenuItem` で呼ぶよう更新
   - production: 確認ダイアログのメッセージ TextBlock に `FileBrowser.ConfirmationMessage` ID を付与（`FileBrowserDialogs.ShowConfirmationAsync`、UI 挙動不変）
   - #181 を 3 分割した P5-B-1（基盤＋削除確認）。残り（右クリック選択復元 / clipboard / 移動競合）＋fixture 拡張は後続 PR

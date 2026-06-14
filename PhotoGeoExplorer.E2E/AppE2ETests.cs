@@ -214,7 +214,23 @@ public sealed class AppE2ETests
     }
 
     [E2EFact]
-    public async Task DeleteConfirmationMessageVariesBySelection()
+    public Task DeleteConfirmationDialogShowsForSingleFile()
+        => RunDeleteConfirmationScenarioAsync(SingleFileSelection);
+
+    [E2EFact]
+    public Task DeleteConfirmationDialogShowsForSingleFolder()
+        => RunDeleteConfirmationScenarioAsync(SingleFolderSelection);
+
+    [E2EFact]
+    public Task DeleteConfirmationDialogShowsForMultipleSelection()
+        => RunDeleteConfirmationScenarioAsync(MultipleSelection);
+
+    // 選択に応じた削除確認ダイアログが実機で表示され、キャンセルできること（非破壊）を検証する。
+    // 各シナリオを独立テストとしてアプリ起動から分離し 1 テスト 1 ダイアログに限定することで、
+    // 連続開閉に起因する flaky を排除する。文面の分岐内容（File / Folder / Multiple）の正確性は
+    // 単体テスト（BuildDeleteConfirmationMessage）が担保するため、E2E は文面が非空であること
+    // （＝確認ダイアログが実機で表示されたこと）を確認する。
+    private async Task RunDeleteConfirmationScenarioAsync(string[] selection)
     {
         E2ETestData? testData = null;
         try
@@ -230,29 +246,11 @@ public sealed class AppE2ETests
                 var list = WaitForList(app, automation, window, _output);
                 WaitForListItems(list, minimumCount: 2);
 
-                // 単一ファイル / 単一フォルダ / 複数選択で確認文面を取得する。
-                // 文面の正確なローカライズは単体テスト（BuildDeleteConfirmationMessage）が担保するため、
-                // E2E は「選択に応じて確認文面が実機で分岐する」ことを検証する。テストランナーの
-                // ロケール／リソース解決状況（未パッケージ起動・en ランナーでは未解決でリソースキーが
-                // 返ることがある）に依存しないよう、3 文面が互いに異なり非空であることを確認する。
-                var fileMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, SingleFileSelection);
-                _output.WriteLine($"[delete-confirm] single-file message='{fileMessage}'");
-                CancelDeleteConfirmation(window, automation, app.ProcessId);
+                var message = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, selection);
+                _output.WriteLine($"[delete-confirm] selection=[{string.Join(",", selection)}] message='{message}'");
+                Assert.NotEmpty(message);
 
-                var folderMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, SingleFolderSelection);
-                _output.WriteLine($"[delete-confirm] single-folder message='{folderMessage}'");
                 CancelDeleteConfirmation(window, automation, app.ProcessId);
-
-                var multipleMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, MultipleSelection);
-                _output.WriteLine($"[delete-confirm] multiple message='{multipleMessage}'");
-                CancelDeleteConfirmation(window, automation, app.ProcessId);
-
-                Assert.NotEmpty(fileMessage);
-                Assert.NotEmpty(folderMessage);
-                Assert.NotEmpty(multipleMessage);
-                Assert.NotEqual(fileMessage, folderMessage);
-                Assert.NotEqual(fileMessage, multipleMessage);
-                Assert.NotEqual(folderMessage, multipleMessage);
             }
             finally
             {
@@ -277,15 +275,15 @@ public sealed class AppE2ETests
         ListBox list,
         string[] itemNames)
     {
-        SelectListItemsByName(list, itemNames);
+        var lastItem = SelectListItemsByName(list, itemNames);
 
-        // ダイアログ連続開閉の直後はリストのフォーカスが不安定で Delete が届かないことがあるため、
-        // 確認ダイアログが現れるまで list へのフォーカスと Delete 送出をリトライする。
+        // ダイアログ連続開閉の直後はリスト／項目のフォーカスが不安定で Delete が届かないことがあるため、
+        // 確認ダイアログが現れるまで対象項目へのフォーカスと Delete 送出をリトライする。
         AutomationElement? message = null;
         Retry.WhileNull(
             () =>
             {
-                list.Focus();
+                TryFocusElement(lastItem);
                 Keyboard.Type(VirtualKeyShort.DELETE);
                 message = TryWaitForElementByAutomationId(
                     window, automation, processId, ConfirmationMessageAutomationId, TimeSpan.FromSeconds(3));
@@ -299,7 +297,7 @@ public sealed class AppE2ETests
         if (message is null)
         {
             throw new TimeoutException(
-                $"Delete confirmation dialog did not appear for [{string.Join(",", itemNames)}].");
+                $"Delete confirmation dialog did not appear for [{string.Join(",", itemNames)}]. List snapshot: {BuildListSnapshot(list)}");
         }
 
         // 要素出現直後は TextBlock のテキストが未反映のことがあるため、文面が非空になるまで待つ。
@@ -322,8 +320,9 @@ public sealed class AppE2ETests
         WaitForElementGone(window, automation, processId, ConfirmationMessageAutomationId);
     }
 
-    private static void SelectListItemsByName(ListBox list, string[] itemNames)
+    private static ListBoxItem SelectListItemsByName(ListBox list, string[] itemNames)
     {
+        var lastItem = WaitForListItemByName(list, itemNames[0]);
         for (var i = 0; i < itemNames.Length; i++)
         {
             var item = WaitForListItemByName(list, itemNames[i]);
@@ -336,7 +335,11 @@ public sealed class AppE2ETests
             {
                 AddToSelection(item);
             }
+
+            lastItem = item;
         }
+
+        return lastItem;
     }
 
     private static void AddToSelection(AutomationElement item)
