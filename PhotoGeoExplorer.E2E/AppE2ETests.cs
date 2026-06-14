@@ -25,6 +25,10 @@ namespace PhotoGeoExplorer.E2E;
 public sealed class AppE2ETests
 {
     private const string EditExifMenuAutomationId = "FileBrowser.EditExifMenuItem";
+    private const string ConfirmationMessageAutomationId = "FileBrowser.ConfirmationMessage";
+    private static readonly string[] SingleFileSelection = { "sample.jpg" };
+    private static readonly string[] SingleFolderSelection = { "folder" };
+    private static readonly string[] MultipleSelection = { "sample.jpg", "folder" };
     private static readonly string[] FileListAutomationIds = { "FileListDetails", "FileListIcon", "FileListList" };
     private static readonly string[] PrimaryDialogButtonNames = { "Save", "保存" };
     private static readonly string[] SecondaryDialogButtonNames = { "Cancel", "キャンセル" };
@@ -98,12 +102,12 @@ public sealed class AppE2ETests
                 var list = WaitForList(app, automation, window, _output);
                 WaitForListItems(list, minimumCount: 2);
 
-                var disabledMenuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "folder");
+                var disabledMenuItem = OpenContextMenuItemForItemName(window, automation, app.ProcessId, list, "folder", EditExifMenuAutomationId);
                 Assert.False(disabledMenuItem.IsEnabled);
                 Keyboard.Type(VirtualKeyShort.ESCAPE);
                 WaitForElementGone(window, automation, app.ProcessId, EditExifMenuAutomationId);
 
-                var enabledMenuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "sample.jpg");
+                var enabledMenuItem = OpenContextMenuItemForItemName(window, automation, app.ProcessId, list, "sample.jpg", EditExifMenuAutomationId);
                 Assert.True(enabledMenuItem.IsEnabled);
                 enabledMenuItem.Click();
 
@@ -158,7 +162,7 @@ public sealed class AppE2ETests
 
                 try
                 {
-                    var warmupMenu = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "folder");
+                    var warmupMenu = OpenContextMenuItemForItemName(window, automation, app.ProcessId, list, "folder", EditExifMenuAutomationId);
                     _output.WriteLine($"Warmup menu state for 'folder': IsEnabled={warmupMenu.IsEnabled}");
                     Keyboard.Type(VirtualKeyShort.ESCAPE);
                     WaitForElementGone(window, automation, app.ProcessId, EditExifMenuAutomationId);
@@ -168,7 +172,7 @@ public sealed class AppE2ETests
                     _output.WriteLine("Warmup for 'folder' was skipped because the menu item was not found.");
                 }
 
-                var menuItem = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "sample.jpg");
+                var menuItem = OpenContextMenuItemForItemName(window, automation, app.ProcessId, list, "sample.jpg", EditExifMenuAutomationId);
                 Assert.True(menuItem.IsEnabled);
                 menuItem.Click();
 
@@ -180,7 +184,7 @@ public sealed class AppE2ETests
                 ClickPrimaryDialogButton(window, automation, app.ProcessId);
                 WaitForElementGone(window, automation, app.ProcessId, "ExifEditor.LatitudeTextBox");
 
-                var reopenMenu = OpenExifMenuForItemName(window, automation, app.ProcessId, list, "sample.jpg");
+                var reopenMenu = OpenContextMenuItemForItemName(window, automation, app.ProcessId, list, "sample.jpg", EditExifMenuAutomationId);
                 Assert.True(reopenMenu.IsEnabled);
                 reopenMenu.Click();
 
@@ -207,6 +211,135 @@ public sealed class AppE2ETests
                 await testData.DisposeAsync().ConfigureAwait(true);
             }
         }
+    }
+
+    [E2EFact]
+    public async Task DeleteConfirmationMessageVariesBySelection()
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window, _output);
+                WaitForListItems(list, minimumCount: 2);
+
+                // 1. 単一ファイル: 文面にファイル名を含む（Dialog.DeleteConfirm.File）
+                var fileMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, SingleFileSelection);
+                Assert.Contains("sample.jpg", fileMessage, StringComparison.Ordinal);
+                CancelDeleteConfirmation(window, automation, app.ProcessId);
+
+                // 2. 単一フォルダ: 文面にフォルダ名を含み、ファイル名は含まない（Dialog.DeleteConfirm.Folder）
+                var folderMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, SingleFolderSelection);
+                Assert.Contains("folder", folderMessage, StringComparison.Ordinal);
+                Assert.DoesNotContain("sample.jpg", folderMessage, StringComparison.Ordinal);
+                CancelDeleteConfirmation(window, automation, app.ProcessId);
+
+                // 3. 複数選択: 文面に件数を含み、個別ファイル名は含まない（Dialog.DeleteConfirm.Multiple）
+                var multipleMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, MultipleSelection);
+                Assert.Contains("2", multipleMessage, StringComparison.Ordinal);
+                Assert.DoesNotContain("sample.jpg", multipleMessage, StringComparison.Ordinal);
+                CancelDeleteConfirmation(window, automation, app.ProcessId);
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    // 指定した項目を選択し、Delete キーで削除確認ダイアログを開いて文面を返す。
+    // Delete キーは選択を変えないため複数選択シナリオでも選択を維持できる。
+    private static string OpenDeleteConfirmationForSelection(
+        Window window,
+        UIA3Automation automation,
+        int processId,
+        ListBox list,
+        string[] itemNames)
+    {
+        SelectListItemsByName(list, itemNames);
+
+        list.Focus();
+        Keyboard.Type(VirtualKeyShort.DELETE);
+
+        var message = WaitForElementByAutomationId(window, automation, processId, ConfirmationMessageAutomationId);
+        return GetElementText(message);
+    }
+
+    private static void CancelDeleteConfirmation(Window window, UIA3Automation automation, int processId)
+    {
+        ClickSecondaryDialogButton(window, automation, processId);
+        WaitForElementGone(window, automation, processId, ConfirmationMessageAutomationId);
+    }
+
+    private static void SelectListItemsByName(ListBox list, string[] itemNames)
+    {
+        for (var i = 0; i < itemNames.Length; i++)
+        {
+            var item = WaitForListItemByName(list, itemNames[i]);
+            TryScrollIntoView(item);
+            if (i == 0)
+            {
+                SelectListItem(item);
+            }
+            else
+            {
+                AddToSelection(item);
+            }
+        }
+    }
+
+    private static void AddToSelection(AutomationElement item)
+    {
+        if (!item.Patterns.SelectionItem.IsSupported)
+        {
+            return;
+        }
+
+        try
+        {
+            item.Patterns.SelectionItem.Pattern.AddToSelection();
+            Retry.WhileTrue(
+                () => !item.Patterns.SelectionItem.Pattern.IsSelected,
+                timeout: TimeSpan.FromSeconds(5),
+                interval: TimeSpan.FromMilliseconds(200),
+                throwOnTimeout: false);
+        }
+        catch (ElementNotAvailableException)
+        {
+        }
+        catch (COMException)
+        {
+        }
+    }
+
+    private static string GetElementText(AutomationElement element)
+    {
+        var text = SafeGet(() => element.Name, string.Empty);
+        if (string.IsNullOrWhiteSpace(text) && element.Patterns.Text.IsSupported)
+        {
+            text = SafeGet(() => element.Patterns.Text.Pattern.DocumentRange.GetText(-1), string.Empty);
+        }
+
+        if (string.IsNullOrWhiteSpace(text) && element.Patterns.Value.IsSupported)
+        {
+            text = SafeGet(() => element.Patterns.Value.Pattern.Value.Value, string.Empty);
+        }
+
+        return text?.Trim() ?? string.Empty;
     }
 
     private static void WaitForListItems(ListBox list, int minimumCount)
@@ -301,12 +434,13 @@ public sealed class AppE2ETests
             || ContainsIgnoreCase(SafeGet(() => text.Properties.Name.ValueOrDefault, string.Empty), expectedName));
     }
 
-    private static AutomationElement OpenExifMenuForItemName(
+    private static AutomationElement OpenContextMenuItemForItemName(
         Window window,
         UIA3Automation automation,
         int processId,
         ListBox list,
-        string itemName)
+        string itemName,
+        string menuItemAutomationId)
     {
         for (var attempt = 0; attempt < 6; attempt++)
         {
@@ -323,7 +457,7 @@ public sealed class AppE2ETests
                 ClickElementCenter(listItem);
 
                 Keyboard.Type(VirtualKeyShort.APPS);
-                var byAppsKey = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(5));
+                var byAppsKey = TryWaitForMenuItemById(window, automation, processId, menuItemAutomationId, TimeSpan.FromSeconds(5));
                 if (byAppsKey is not null)
                 {
                     return byAppsKey;
@@ -332,28 +466,28 @@ public sealed class AppE2ETests
                 // listItem.RightClick() は NoClickablePointException を投げる可能性があるため
                 // 安全な RightClickElementCenter を使用する
                 RightClickElementCenter(listItem);
-                var byRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(5));
+                var byRightClick = TryWaitForMenuItemById(window, automation, processId, menuItemAutomationId, TimeSpan.FromSeconds(5));
                 if (byRightClick is not null)
                 {
                     return byRightClick;
                 }
 
                 RightClickElementCenter(listItem);
-                var byMouseRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(5));
+                var byMouseRightClick = TryWaitForMenuItemById(window, automation, processId, menuItemAutomationId, TimeSpan.FromSeconds(5));
                 if (byMouseRightClick is not null)
                 {
                     return byMouseRightClick;
                 }
 
                 list.RightClick();
-                var byListRightClick = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(4));
+                var byListRightClick = TryWaitForMenuItemById(window, automation, processId, menuItemAutomationId, TimeSpan.FromSeconds(4));
                 if (byListRightClick is not null)
                 {
                     return byListRightClick;
                 }
 
                 Keyboard.TypeSimultaneously(VirtualKeyShort.SHIFT, VirtualKeyShort.F10);
-                var byShiftF10 = TryWaitForEditExifMenuItem(window, automation, processId, timeout: TimeSpan.FromSeconds(4));
+                var byShiftF10 = TryWaitForMenuItemById(window, automation, processId, menuItemAutomationId, TimeSpan.FromSeconds(4));
                 if (byShiftF10 is not null)
                 {
                     return byShiftF10;
@@ -367,24 +501,21 @@ public sealed class AppE2ETests
         }
 
         throw new TimeoutException(
-            $"Context menu item not found for '{itemName}'. List snapshot: {BuildListSnapshot(list)}");
+            $"Context menu item '{menuItemAutomationId}' not found for '{itemName}'. List snapshot: {BuildListSnapshot(list)}");
     }
 
-    private static AutomationElement? TryWaitForEditExifMenuItem(
+    private static AutomationElement? TryWaitForMenuItemById(
         Window window,
         UIA3Automation automation,
         int processId,
+        string menuItemAutomationId,
         TimeSpan timeout)
     {
         return Retry.WhileNull(
-            () => FindByAutomationId(window, EditExifMenuAutomationId, processId)
-                ?? FindByAutomationId(automation.GetDesktop(), EditExifMenuAutomationId, processId)
-                ?? FindEditExifMenuItemByName(window, processId)
-                ?? FindEditExifMenuItemByName(automation.GetDesktop(), processId)
-                ?? window.FindFirstDescendant(cf => cf.ByAutomationId(EditExifMenuAutomationId))
-                ?? automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(EditExifMenuAutomationId))
-                ?? FindEditExifMenuItemByName(window)
-                ?? FindEditExifMenuItemByName(automation.GetDesktop()),
+            () => FindByAutomationId(window, menuItemAutomationId, processId)
+                ?? FindByAutomationId(automation.GetDesktop(), menuItemAutomationId, processId)
+                ?? window.FindFirstDescendant(cf => cf.ByAutomationId(menuItemAutomationId))
+                ?? automation.GetDesktop().FindFirstDescendant(cf => cf.ByAutomationId(menuItemAutomationId)),
             timeout: timeout,
             interval: TimeSpan.FromMilliseconds(150),
             ignoreException: true,
@@ -465,34 +596,6 @@ public sealed class AppE2ETests
         catch (Exception ex) when (ex is COMException or InvalidOperationException or ElementNotAvailableException)
         {
         }
-    }
-
-    private static AutomationElement? FindEditExifMenuItemByName(AutomationElement scope, int? processId = null)
-    {
-        try
-        {
-            var candidates = scope.FindAllDescendants(cf => cf.ByControlType(ControlType.MenuItem));
-            foreach (var candidate in candidates)
-            {
-                if (processId.HasValue
-                    && SafeGet(() => candidate.Properties.ProcessId.ValueOrDefault, -1) != processId.Value)
-                {
-                    continue;
-                }
-
-                var name = SafeGet(() => candidate.Name, string.Empty);
-                var propertyName = SafeGet(() => candidate.Properties.Name.ValueOrDefault, string.Empty);
-                if (ContainsIgnoreCase(name, "EXIF") || ContainsIgnoreCase(propertyName, "EXIF"))
-                {
-                    return candidate;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is COMException or InvalidOperationException or Win32Exception or TimeoutException)
-        {
-        }
-
-        return null;
     }
 
     private static string BuildListSnapshot(ListBox list)

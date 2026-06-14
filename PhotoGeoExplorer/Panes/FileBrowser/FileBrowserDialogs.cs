@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Services;
 using Windows.Storage;
@@ -142,14 +143,18 @@ internal sealed class FileBrowserDialogs
             return false;
         }
 
+        var messageBlock = new TextBlock
+        {
+            Text = message,
+            TextWrapping = TextWrapping.Wrap
+        };
+        // E2E が確認ダイアログの文面（削除確認の単数/複数・ファイル/フォルダ分岐など）を検証できるよう ID を付与する
+        AutomationProperties.SetAutomationId(messageBlock, "FileBrowser.ConfirmationMessage");
+
         var dialog = new ContentDialog
         {
             Title = title,
-            Content = new TextBlock
-            {
-                Text = message,
-                TextWrapping = TextWrapping.Wrap
-            },
+            Content = messageBlock,
             PrimaryButtonText = primaryButtonText,
             SecondaryButtonText = LocalizationService.GetString("Common.Cancel"),
             DefaultButton = ContentDialogButton.Secondary,
