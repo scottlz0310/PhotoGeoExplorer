@@ -55,6 +55,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanCreateFolder
         };
         createFolder.Click += _contextMenuHandlers.CreateFolder;
+        AutomationProperties.SetAutomationId(createFolder, "FileBrowser.NewFolderMenuItem");
 
         var openInExplorerItem = new MenuFlyoutItem
         {
@@ -63,6 +64,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanModifySelection
         };
         openInExplorerItem.Click += _contextMenuHandlers.OpenInExplorer;
+        AutomationProperties.SetAutomationId(openInExplorerItem, "FileBrowser.OpenInExplorerMenuItem");
 
         var openFolderInExplorerItem = new MenuFlyoutItem
         {
@@ -71,6 +73,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanOpenInExplorer
         };
         openFolderInExplorerItem.Click += _contextMenuHandlers.OpenFolderInExplorer;
+        AutomationProperties.SetAutomationId(openFolderInExplorerItem, "FileBrowser.OpenFolderInExplorerMenuItem");
 
         var copyPathItem = new MenuFlyoutItem
         {
@@ -79,6 +82,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanModifySelection
         };
         copyPathItem.Click += _contextMenuHandlers.CopyPath;
+        AutomationProperties.SetAutomationId(copyPathItem, "FileBrowser.CopyPathMenuItem");
 
         var openInGoogleMapsItem = new MenuFlyoutItem
         {
@@ -87,6 +91,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanOpenInGoogleMaps
         };
         openInGoogleMapsItem.Click += _contextMenuHandlers.OpenInGoogleMaps;
+        AutomationProperties.SetAutomationId(openInGoogleMapsItem, "FileBrowser.OpenInGoogleMapsMenuItem");
 
         var renameItem = new MenuFlyoutItem
         {
@@ -95,6 +100,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanRenameSelection
         };
         renameItem.Click += _contextMenuHandlers.Rename;
+        AutomationProperties.SetAutomationId(renameItem, "FileBrowser.RenameMenuItem");
 
         var moveItem = new MenuFlyoutItem
         {
@@ -103,6 +109,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanModifySelection
         };
         moveItem.Click += _contextMenuHandlers.Move;
+        AutomationProperties.SetAutomationId(moveItem, "FileBrowser.MoveMenuItem");
 
         var moveParentItem = new MenuFlyoutItem
         {
@@ -111,6 +118,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanMoveToParentSelection
         };
         moveParentItem.Click += _contextMenuHandlers.MoveToParent;
+        AutomationProperties.SetAutomationId(moveParentItem, "FileBrowser.MoveToParentMenuItem");
 
         var copyItem = new MenuFlyoutItem
         {
@@ -119,6 +127,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanCopySelection
         };
         copyItem.Click += _contextMenuHandlers.Copy;
+        AutomationProperties.SetAutomationId(copyItem, "FileBrowser.CopyMenuItem");
 
         var deleteItem = new MenuFlyoutItem
         {
@@ -127,6 +136,7 @@ internal sealed class FileBrowserMenuBuilder
             IsEnabled = viewModel.CanModifySelection
         };
         deleteItem.Click += _contextMenuHandlers.Delete;
+        AutomationProperties.SetAutomationId(deleteItem, "FileBrowser.DeleteMenuItem");
 
         var editExifItem = new MenuFlyoutItem
         {

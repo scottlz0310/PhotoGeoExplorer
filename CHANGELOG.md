@@ -5,6 +5,10 @@
 ## [Unreleased]
 
 ### テスト
+- E2E（`PhotoGeoExplorer.E2E`）の現状フィット棚卸しを実施し、コンテキストメニュー全項目に automation ID を付与して P5-B（操作系シナリオ追加）の前提を整備 (#180)
+  - `FileBrowserMenuBuilder.BuildFileContextFlyout()` の項目は従来 `FileBrowser.EditExifMenuItem` のみ ID 付与済みだったため、新規フォルダ / エクスプローラーで開く / フォルダをエクスプローラーで開く / パスをコピー / Google マップで開く / リネーム / 移動 / 親フォルダへ移動 / コピー / 削除の各項目に `FileBrowser.*MenuItem` 形式（既存命名に統一）の ID を付与。名前部分一致に依存しない要素特定を可能にしメニュー起因の flaky 低減にも寄与
+  - 既存 3 E2E テストが参照する automation ID（`FileList*` / `FileBrowser.EditExifMenuItem` / `ExifEditor.*` / `MetadataSummaryText` / `PreviewImage` / `MapStatusPanel`）が Phase 1 分割後も全て生存・命名一貫であることを確認（整合点検）
+  - #174（テストホスト内の実 watcher クラッシュ、PR #183 で解消）と E2E flaky は別系統であることを切り分け（E2E は別プロセスのアプリを起動しアプリ終了後に temp 削除するため watcher 競合は波及しない）。production コードの挙動変更なし（ID 付与のみ）
 - 単体テストが `FileBrowserPaneViewModel` 経由で実 `FolderWatcherService`（実 `FileSystemWatcher` ＋ `System.Threading.Timer`）を起動しないよう no-op フェイクを注入し、テストホストの非決定的クラッシュ要因を解消 (#174)
   - `LoadFolderAsync` が temp ディレクトリを実監視し、ディレクトリ削除と debounce タイマー発火が競合してテストホストが途中終了し得る問題（#159/PR #173 で観測）への対処
   - `NoOpFolderWatcherService` を `TestUtilities.cs` の共有ヘルパー（`internal sealed` ＋ static `Shared`）へ昇格し、`PhotoGeoExplorer.Tests` アセンブリ内の **全 `FileBrowserPaneViewModel` 生成箇所**に注入。`FileBrowserPaneViewModelTests`（`CreateViewModelWithFakes` ＋ インライン生成）に加え、`StartupCoordinatorTests` / `SettingsCoordinatorTests` / `SettingsPaneViewModelTests` の生成箇所も網羅
@@ -15,6 +19,7 @@
   - 当該 3 ファイルのみを `codecov.yml` の `ignore` に追加。テスト可能な純粋関数（`FileBrowserDialogErrorMap`）・ViewModel・Service はカバレッジ集計対象として維持（ブランケット除外はしない）
 
 ### ドキュメント
+- E2E 現状フィット棚卸し結果（automation ID 一覧・操作系 ID ギャップと対応・テストデータ拡張要件・#174 との関連・E2E 安定化方針・P5-B 着手前提）を `docs/Architecture/E2E-Phase5-Audit.md` に整理 (#180)
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
