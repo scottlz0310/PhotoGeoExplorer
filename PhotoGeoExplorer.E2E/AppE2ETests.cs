@@ -232,17 +232,20 @@ public sealed class AppE2ETests
 
                 // 1. 単一ファイル: 文面にファイル名を含む（Dialog.DeleteConfirm.File）
                 var fileMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, SingleFileSelection);
+                _output.WriteLine($"[delete-confirm] single-file message='{fileMessage}'");
                 Assert.Contains("sample.jpg", fileMessage, StringComparison.Ordinal);
                 CancelDeleteConfirmation(window, automation, app.ProcessId);
 
                 // 2. 単一フォルダ: 文面にフォルダ名を含み、ファイル名は含まない（Dialog.DeleteConfirm.Folder）
                 var folderMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, SingleFolderSelection);
+                _output.WriteLine($"[delete-confirm] single-folder message='{folderMessage}'");
                 Assert.Contains("folder", folderMessage, StringComparison.Ordinal);
                 Assert.DoesNotContain("sample.jpg", folderMessage, StringComparison.Ordinal);
                 CancelDeleteConfirmation(window, automation, app.ProcessId);
 
                 // 3. 複数選択: 文面に件数を含み、個別ファイル名は含まない（Dialog.DeleteConfirm.Multiple）
                 var multipleMessage = OpenDeleteConfirmationForSelection(window, automation, app.ProcessId, list, MultipleSelection);
+                _output.WriteLine($"[delete-confirm] multiple message='{multipleMessage}'");
                 Assert.Contains("2", multipleMessage, StringComparison.Ordinal);
                 Assert.DoesNotContain("sample.jpg", multipleMessage, StringComparison.Ordinal);
                 CancelDeleteConfirmation(window, automation, app.ProcessId);
@@ -272,11 +275,41 @@ public sealed class AppE2ETests
     {
         SelectListItemsByName(list, itemNames);
 
-        list.Focus();
-        Keyboard.Type(VirtualKeyShort.DELETE);
+        // ダイアログ連続開閉の直後はリストのフォーカスが不安定で Delete が届かないことがあるため、
+        // 確認ダイアログが現れるまで list へのフォーカスと Delete 送出をリトライする。
+        AutomationElement? message = null;
+        Retry.WhileNull(
+            () =>
+            {
+                list.Focus();
+                Keyboard.Type(VirtualKeyShort.DELETE);
+                message = TryWaitForElementByAutomationId(
+                    window, automation, processId, ConfirmationMessageAutomationId, TimeSpan.FromSeconds(3));
+                return message;
+            },
+            timeout: TimeSpan.FromSeconds(20),
+            interval: TimeSpan.FromMilliseconds(200),
+            ignoreException: true,
+            throwOnTimeout: false);
 
-        var message = WaitForElementByAutomationId(window, automation, processId, ConfirmationMessageAutomationId);
-        return GetElementText(message);
+        if (message is null)
+        {
+            throw new TimeoutException(
+                $"Delete confirmation dialog did not appear for [{string.Join(",", itemNames)}].");
+        }
+
+        // 要素出現直後は TextBlock のテキストが未反映のことがあるため、文面が非空になるまで待つ。
+        var text = string.Empty;
+        Retry.WhileTrue(
+            () =>
+            {
+                text = GetElementText(message);
+                return string.IsNullOrWhiteSpace(text);
+            },
+            timeout: TimeSpan.FromSeconds(5),
+            interval: TimeSpan.FromMilliseconds(150),
+            throwOnTimeout: false);
+        return text;
     }
 
     private static void CancelDeleteConfirmation(Window window, UIA3Automation automation, int processId)
