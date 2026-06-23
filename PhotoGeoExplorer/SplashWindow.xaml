@@ -6,6 +6,7 @@
     <Grid x:Name="RootGrid" Background="#1E90FF" Width="620" Height="300">
         <Image
             x:Name="SplashImage"
+            AutomationProperties.AutomationId="SplashWindow"
             Source="ms-appx:///Assets/SplashScreen.png"
             Width="620"
             Height="300"

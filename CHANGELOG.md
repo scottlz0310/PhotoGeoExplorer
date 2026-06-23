@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### テスト
+- E2E `WaitForMainWindow` が起動時の SplashWindow を誤取得する flaky を修正 (#186)
+  - `MainWindow.xaml` の RootGrid に `AutomationProperties.AutomationId="MainWindow"` を付与し、`SplashWindow.xaml` に `"SplashWindow"` を付与。`TryGetMainWindow` を `AutomationId="MainWindow"` マーカーの肯定的識別に変更（SplashWindow 除外ではなく MainWindow を確実に選択する）
+  - SplashWindow が `IsAlwaysOnTop` で先に `Activate` される起動シーケンスで `Process.MainWindowHandle` が SplashWindow を指す問題を解消
+  - `WaitForMainWindowReturnsMainWindowNotSplashWindow` テストを追加：`WaitForMainWindow` が返すウィンドウに `MainWindow` マーカーが存在し `SplashWindow` マーカーが存在しないことを検証
+
 ### バグ修正
 - リネーム・フォルダ作成・外部ファイルドロップ後に `COMException (0x8001010E: RPC_E_WRONG_THREAD)` でクラッシュする問題を修正 (#188)
   - `ExecuteRenameAsync` / `ExecuteCreateFolderAsync` / `HandleExternalFileDropAsync` で `await RefreshAsync().ConfigureAwait(false)` 後に UIスレッド外から `SelectedItem` セッター（WinRT PropertyChanged 通知）を呼んでいたため

@@ -18,7 +18,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <MenuBar>
+        <MenuBar AutomationProperties.AutomationId="MainWindow">
             <MenuBarItem Title="File" x:Uid="MenuFile">
                 <MenuFlyoutItem Text="Open folder..." Command="{x:Bind FileBrowserPaneViewModel.OpenFolderCommand, Mode=OneWay}" x:Uid="MenuFileOpenFolder" />
                 <MenuFlyoutSeparator />
