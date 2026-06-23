@@ -11,14 +11,14 @@
     xmlns:preview="using:PhotoGeoExplorer.Panes.Preview"
     mc:Ignorable="d"
     Title="PhotoGeoExplorer">
-    <Grid x:Name="RootGrid" AutomationProperties.AutomationId="MainWindow" AutomationProperties.AccessibilityView="Control" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <MenuBar>
+        <MenuBar AutomationProperties.AutomationId="MainWindow">
             <MenuBarItem Title="File" x:Uid="MenuFile">
                 <MenuFlyoutItem Text="Open folder..." Command="{x:Bind FileBrowserPaneViewModel.OpenFolderCommand, Mode=OneWay}" x:Uid="MenuFileOpenFolder" />
                 <MenuFlyoutSeparator />
