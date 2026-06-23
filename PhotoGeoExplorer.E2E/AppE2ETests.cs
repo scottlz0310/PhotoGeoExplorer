@@ -928,23 +928,49 @@ public sealed class AppE2ETests
             return null;
         }
 
+        // 第1経路: Process.MainWindowHandle ベースの高速取得。
+        // マーカー確認で MainWindow か SplashWindow かを判定し、
+        // MainWindow ならそのまま返す。
         try
         {
-            // デスクトップから同プロセスのすべてのウィンドウを列挙し、
-            // AutomationId="MainWindow" マーカーを持つウィンドウのみを返す。
-            // SplashWindow が先に Activate されて Process.MainWindowHandle を占有していても
-            // マーカーによる肯定的識別により誤検出を防ぐ。
+            var byMainHandle = app.GetMainWindow(automation);
+            if (byMainHandle is not null)
+            {
+                var marker = SafeGet(
+                    () => byMainHandle.FindFirstDescendant(cf => cf.ByAutomationId(MainWindowMarkerAutomationId)),
+                    null);
+                if (marker is not null)
+                {
+                    return byMainHandle;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is COMException or Win32Exception or TimeoutException)
+        {
+        }
+
+        // 第2経路: GetMainWindow が SplashWindow を指している場合のデスクトップ列挙フォールバック。
+        // 各ウィンドウの探索を個別の try-catch で囲み、破棄中のウィンドウで例外が発生しても
+        // 後続のウィンドウを探索継続できるようにする。
+        try
+        {
             var candidates = automation.GetDesktop()
                 .FindAllChildren(cf => cf.ByControlType(ControlType.Window))
                 .Where(w => SafeGet(() => w.Properties.ProcessId.ValueOrDefault, -1) == processId);
 
             foreach (var candidate in candidates)
             {
-                var marker = candidate.FindFirstDescendant(
-                    cf => cf.ByAutomationId(MainWindowMarkerAutomationId));
-                if (marker is not null)
+                try
                 {
-                    return candidate.AsWindow();
+                    var marker = candidate.FindFirstDescendant(
+                        cf => cf.ByAutomationId(MainWindowMarkerAutomationId));
+                    if (marker is not null)
+                    {
+                        return candidate.AsWindow();
+                    }
+                }
+                catch (Exception ex) when (ex is COMException or Win32Exception or TimeoutException or ElementNotAvailableException)
+                {
                 }
             }
 

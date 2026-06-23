@@ -11,7 +11,7 @@
     xmlns:preview="using:PhotoGeoExplorer.Panes.Preview"
     mc:Ignorable="d"
     Title="PhotoGeoExplorer">
-    <Grid x:Name="RootGrid" AutomationProperties.AutomationId="MainWindow" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid x:Name="RootGrid" AutomationProperties.AutomationId="MainWindow" AutomationProperties.AccessibilityView="Control" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
