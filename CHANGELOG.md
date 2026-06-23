@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### バグ修正
+- リネーム・フォルダ作成・外部ファイルドロップ後に `COMException (0x8001010E: RPC_E_WRONG_THREAD)` でクラッシュする問題を修正 (#188)
+  - `ExecuteRenameAsync` / `ExecuteCreateFolderAsync` / `HandleExternalFileDropAsync` で `await RefreshAsync().ConfigureAwait(false)` 後に UIスレッド外から `SelectedItem` セッター（WinRT PropertyChanged 通知）を呼んでいたため
+  - `SelectItemByPath` の呼び出しを `_uiDispatcher.RunAsync` でラップし、`SelectedItem` への代入を UIスレッド上で実行するよう修正
+
 ### テスト
 - E2E に削除確認ダイアログ文面の分岐検証シナリオを追加し、コンテキストメニューヘルパーを ID 指定の汎用版へ一般化 (#181)
   - `DeleteConfirmationDialogShowsForSingleFile` / `...ForSingleFolder` / `...ForMultipleSelection`: 各選択パターンで削除確認ダイアログが実機表示されキャンセルできること（非破壊）を検証。トリガーは選択を変えない `Delete` キー。文面の分岐内容（File / Folder / Multiple）の正確性は単体テスト（`BuildDeleteConfirmationMessage`）が担保するため、E2E は文面が非空（＝ダイアログ表示）であることをロケール／リソース解決非依存に確認（未パッケージ起動・en ランナーでは未解決のリソースキーが返るため、解決済み文面に依存しない）
