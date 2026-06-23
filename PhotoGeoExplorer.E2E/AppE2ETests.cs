@@ -24,6 +24,8 @@ namespace PhotoGeoExplorer.E2E;
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public sealed class AppE2ETests
 {
+    private const string MainWindowMarkerAutomationId = "MainWindow";
+    private const string SplashWindowMarkerAutomationId = "SplashWindow";
     private const string EditExifMenuAutomationId = "FileBrowser.EditExifMenuItem";
     private const string ConfirmationMessageAutomationId = "FileBrowser.ConfirmationMessage";
     private static readonly string[] SingleFileSelection = { "sample.jpg" };
@@ -224,6 +226,47 @@ public sealed class AppE2ETests
     [E2EFact]
     public Task DeleteConfirmationDialogShowsForMultipleSelection()
         => RunDeleteConfirmationScenarioAsync(MultipleSelection);
+
+    // WaitForMainWindow が SplashWindow ではなく MainWindow を返すことを検証する。
+    // SplashWindow が先に Activate される起動シーケンスにおいて、MainWindowMarkerAutomationId
+    // によるウィンドウ識別が正しく機能することを確認する。
+    [E2EFact]
+    public async Task WaitForMainWindowReturnsMainWindowNotSplashWindow()
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                // MainWindow マーカー（AutomationId="MainWindow"）が存在する = MainWindow を掴んでいる
+                var mainMarker = window.FindFirstDescendant(
+                    cf => cf.ByAutomationId(MainWindowMarkerAutomationId));
+                Assert.NotNull(mainMarker);
+
+                // SplashWindow マーカーは存在しない
+                var splashMarker = window.FindFirstDescendant(
+                    cf => cf.ByAutomationId(SplashWindowMarkerAutomationId));
+                Assert.Null(splashMarker);
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
 
     // 選択に応じた削除確認ダイアログが実機で表示され、キャンセルできること（非破壊）を検証する。
     // 各シナリオを独立テストとしてアプリ起動から分離し 1 テスト 1 ダイアログに限定することで、
@@ -879,18 +922,6 @@ public sealed class AppE2ETests
 
     private static Window? TryGetMainWindow(Application app, UIA3Automation automation)
     {
-        try
-        {
-            var byMainHandle = app.GetMainWindow(automation);
-            if (byMainHandle is not null)
-            {
-                return byMainHandle;
-            }
-        }
-        catch (Exception ex) when (ex is COMException or Win32Exception or TimeoutException)
-        {
-        }
-
         var processId = SafeGet(() => app.ProcessId, -1);
         if (processId <= 0)
         {
@@ -899,11 +930,25 @@ public sealed class AppE2ETests
 
         try
         {
-            var desktopWindow = automation.GetDesktop()
+            // デスクトップから同プロセスのすべてのウィンドウを列挙し、
+            // AutomationId="MainWindow" マーカーを持つウィンドウのみを返す。
+            // SplashWindow が先に Activate されて Process.MainWindowHandle を占有していても
+            // マーカーによる肯定的識別により誤検出を防ぐ。
+            var candidates = automation.GetDesktop()
                 .FindAllChildren(cf => cf.ByControlType(ControlType.Window))
-                .FirstOrDefault(window =>
-                    SafeGet(() => window.Properties.ProcessId.ValueOrDefault, -1) == processId);
-            return desktopWindow?.AsWindow();
+                .Where(w => SafeGet(() => w.Properties.ProcessId.ValueOrDefault, -1) == processId);
+
+            foreach (var candidate in candidates)
+            {
+                var marker = candidate.FindFirstDescendant(
+                    cf => cf.ByAutomationId(MainWindowMarkerAutomationId));
+                if (marker is not null)
+                {
+                    return candidate.AsWindow();
+                }
+            }
+
+            return null;
         }
         catch (Exception ex) when (ex is COMException or Win32Exception or TimeoutException)
         {
