@@ -505,7 +505,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             await RefreshAsync().ConfigureAwait(false);
             if (result.ResultPath is not null)
             {
-                SelectItemByPath(result.ResultPath);
+                await _uiDispatcher.RunAsync(() => SelectItemByPath(result.ResultPath)).ConfigureAwait(false);
             }
         }
 
@@ -520,7 +520,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         if (result.IsSuccess && result.ResultPath is not null)
         {
             await RefreshAsync().ConfigureAwait(false);
-            SelectItemByPath(result.ResultPath);
+            await _uiDispatcher.RunAsync(() => SelectItemByPath(result.ResultPath)).ConfigureAwait(false);
         }
 
         return result;
@@ -696,7 +696,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         }
 
         await LoadFolderAsync(directory).ConfigureAwait(false);
-        SelectItemByPath(filePath);
+        await _uiDispatcher.RunAsync(() => SelectItemByPath(filePath)).ConfigureAwait(false);
     }
 
     public async Task LoadFolderAsync(string folderPath, bool updateHistory = true)
