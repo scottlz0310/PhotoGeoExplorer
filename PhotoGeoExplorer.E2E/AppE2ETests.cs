@@ -291,11 +291,20 @@ public sealed class AppE2ETests
         }
     }
 
-    // 同名衝突での移動（Ctrl+X → Ctrl+V）で競合ダイアログが表示され、キャンセルした場合に
-    // エラーダイアログが出ない（FileOperationSummary.HasReportableFailures の Cancelled 除外）
-    // ことと、移動元・衝突先の両ファイルが無傷で残ることを検証する。
     [E2EFact]
-    public async Task MoveConflictCancelKeepsSourceWithoutErrorDialog()
+    public Task MoveConflictCancelKeepsSourceWithoutErrorDialog()
+        => RunConflictCancelScenarioAsync(isCut: true);
+
+    [E2EFact]
+    public Task CopyConflictCancelKeepsSourceWithoutErrorDialog()
+        => RunConflictCancelScenarioAsync(isCut: false);
+
+    // 選択なし時のクリップボードショートカットが no-op であること（#181）を実機で検証する。
+    // 「何も起きない」を待つだけでは Ctrl 送出自体の失敗と区別できないため、先に選択ありの
+    // Ctrl+C でクリップボードへ載せ、選択解除後の Ctrl+X（no-op であるべき）が Copy 状態を
+    // 破壊しないことを、貼り付け結果がコピー（項目出現＋コピー元残存）になることで検証する。
+    [E2EFact]
+    public async Task ClipboardShortcutWithoutSelectionIsNoOp()
     {
         E2ETestData? testData = null;
         try
@@ -311,7 +320,62 @@ public sealed class AppE2ETests
                 var list = WaitForList(app, automation, window, _output);
                 WaitForListItems(list, minimumCount: 3);
 
-                SendCtrlShortcutToItem(list, "sample.jpg", VirtualKeyShort.KEY_X);
+                SendCtrlShortcutToItem(list, "second.jpg", VirtualKeyShort.KEY_C);
+
+                // 選択を解除してから Ctrl+X を送出する。VM の CutSelectionToClipboard は
+                // 選択なしでは no-op のため、クリップボードは Copy のまま維持されるべき。
+                ClearListSelection(list);
+                Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_X);
+
+                list = NavigateIntoFolder(app, automation, window, list, "folder", expectedItemCount: 1, _output);
+
+                SendCtrlShortcutToItem(list, "sample.jpg", VirtualKeyShort.KEY_V);
+
+                WaitForListItemByName(list, "second.jpg");
+
+                // Copy として貼り付けられた（選択なし Ctrl+X が Cut に上書きしていない）ことを
+                // コピー元の残存で確認する
+                var sourcePath = Path.Combine(testData.RootPath, "second.jpg");
+                var targetPath = Path.Combine(testData.RootPath, "folder", "second.jpg");
+                Assert.True(File.Exists(targetPath), $"Pasted file not found on disk: {targetPath}");
+                Assert.True(File.Exists(sourcePath), $"Copy source should remain (no-op Ctrl+X must not switch to cut): {sourcePath}");
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    // 同名衝突での移動/コピー（Ctrl+X / Ctrl+C → Ctrl+V）で競合ダイアログが表示され、
+    // キャンセルした場合にエラーダイアログが出ない（FileOperationSummary.HasReportableFailures
+    // の Cancelled 除外）ことと、操作元・衝突先の両ファイルが無傷で残ることを検証する。
+    // PasteSelectionAsyncCore は move/copy で競合ダイアログもエラー表示も別分岐のため、
+    // 両分岐を isCut で駆動する。
+    private async Task RunConflictCancelScenarioAsync(bool isCut)
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output, includeOperationFixtures: true).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window, _output);
+                WaitForListItems(list, minimumCount: 3);
+
+                SendCtrlShortcutToItem(list, "sample.jpg", isCut ? VirtualKeyShort.KEY_X : VirtualKeyShort.KEY_C);
 
                 list = NavigateIntoFolder(app, automation, window, list, "folder", expectedItemCount: 1, _output);
 
@@ -331,7 +395,7 @@ public sealed class AppE2ETests
 
                 var sourcePath = Path.Combine(testData.RootPath, "sample.jpg");
                 var conflictTargetPath = Path.Combine(testData.RootPath, "folder", "sample.jpg");
-                Assert.True(File.Exists(sourcePath), $"Cancelled move should keep the source: {sourcePath}");
+                Assert.True(File.Exists(sourcePath), $"Cancelled {(isCut ? "move" : "copy")} should keep the source: {sourcePath}");
                 Assert.True(File.Exists(conflictTargetPath), $"Conflict target should remain untouched: {conflictTargetPath}");
             }
             finally
@@ -606,6 +670,38 @@ public sealed class AppE2ETests
                 return isSelected;
             },
             false);
+    }
+
+    // リストの選択をすべて解除し、解除が UIA に反映されるまで待つ。
+    // ESC は OnFileListKeyDown で SelectedItems.Clear() にマップされている。
+    private static void ClearListSelection(ListBox list)
+    {
+        Retry.WhileTrue(
+            () =>
+            {
+                var anySelected = SafeGet(
+                    () => list.Items.Any(item =>
+                    {
+                        if (!item.Patterns.SelectionItem.IsSupported)
+                        {
+                            return false;
+                        }
+
+                        bool isSelected = item.Patterns.SelectionItem.Pattern.IsSelected;
+                        return isSelected;
+                    }),
+                    true);
+                if (!anySelected)
+                {
+                    return false;
+                }
+
+                TryFocusElement(list);
+                Keyboard.Type(VirtualKeyShort.ESCAPE);
+                return true;
+            },
+            timeout: TimeSpan.FromSeconds(10),
+            interval: TimeSpan.FromMilliseconds(300));
     }
 
     // 対象項目を選択・フォーカスしてから Ctrl+ショートカットを送出する。コピー/切り取りは
