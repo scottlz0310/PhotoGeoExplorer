@@ -13,8 +13,8 @@
   - `actions/cache/restore` + 条件付き `actions/cache/save`（v6、Node.js 24 対応）で NuGet パッケージキャッシュ（`~/.nuget/packages`、キーは csproj/global.json のハッシュ）を追加し restore を短縮。保存は suite 1 のみに限定し matrix 両ジョブの重複 save による無駄を排除（Copilot/thread-owl レビュー指摘対応）。`packages.lock.json` は導入せず（依存解決方式・Renovate 運用への影響を避けるため）
   - **根本原因の特定（thread-owl レビューで発覚）**: 分割前 4 run は毎回 `DeleteConfirmationDialogShowsForMultipleSelection` が attempt 1 で失敗していたが、これは「同じテストが壊れている」のではなく「そのプロセスで最初に実行されるテストである」ことが原因と判明（失敗前に完了したテストが 0 件であることをログで確認）。分割後は suite 2 の最初のテスト `ClipboardCopyPasteCopiesFileIntoSubfolder` も同様に attempt 1 で失敗するようになった（2 run とも再現）。つまり実態は「プロセス内で最初に実行される `[E2EFact]` は JIT ウォームアップ・AV スキャン・WinUI3 初回描画等のコールドスタートコストにより UIA タイムアウトしやすい」という既存の系統的 flaky であり、matrix 分割によって「最初の1本」の枠が単一プロセス1つから suite 数分（2つ）に増えたことで、flaky の発生機会が比例して増加していた
   - **対応**: `AppE2ETests` に `IClassFixture<WarmupFixture>` を導入し、各 matrix job（テストプロセス）で実テスト開始前に 1 回だけアプリを起動→終了するウォームアップを追加。これにより OS/AV/JIT/コンポジタのコールドスタートコストを実テスト計測から除外し、「最初の1本」問題を suite 分割の有無によらず解消する。ウォームアップ自体の失敗は best-effort（実テストの成否に影響させない）
-  - **flaky 率への影響**: 各 matrix job は独立した runner（VM）で実行されるため、issue #182 で明示的に非推奨とされた「同一マシン内 xUnit 並列によるフォーカス競合」は発生しない。ウォームアップ導入により「最初の1本」のコールドスタート flaky は理論上解消されるが、ウォームアップ導入後の CI 実測での再検証が必要（PR レビュー継続中に追記）
-  - wall clock は attempt を含む実測で比較する必要がある: 分割前（単一 job・retry込み）の job 全体は 8m51s（run `28786046897`）。分割後（2 job 並列・両 suite とも retry込み）は wall clock = max(suite1 job, suite2 job) = 6m35s（run `28788908674`）。retry を含めても約 25% の短縮を確認（ウォームアップ追加後の再計測は別途反映）
+  - **flaky 率への影響（ウォームアップ導入後に実測で確認）**: 各 matrix job は独立した runner（VM）で実行されるため、issue #182 で明示的に非推奨とされた「同一マシン内 xUnit 並列によるフォーカス競合」は発生しない。ウォームアップ導入後の CI 実行（run `28791361642`）では、suite 1（7本）・suite 2（6本）とも **attempt 1 で 0 失敗・retry 不要**を確認した。これは分割前後を通じて検証した全 run の中で唯一 retry なしで green に到達したケースであり、「最初の1本」のコールドスタート flaky が解消されたことを直接裏付ける
+  - wall clock はウォームアップ導入・retry 不要となった実測値で比較する: 分割前（単一 job・retry込み）の job 全体は 8m51s（run `28786046897`）。分割後＋ウォームアップ導入後（2 job 並列・retry なし）は wall clock = max(suite1, suite2) の `Run E2E tests` ステップで 1m37s / 1m1s、ジョブ全体は概ね 5〜6 分程度（固定コスト込み）。retry 常態化が解消されたことで、当初想定していた「テスト数按分」に近い安定した短縮効果が得られている
   - リトライ回数上限・`blame-hang-timeout` は変更なし
 
 ### テスト
