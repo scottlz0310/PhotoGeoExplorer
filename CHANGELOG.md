@@ -5,6 +5,13 @@
 ## [Unreleased]
 
 ### テスト
+- E2E に FileBrowser 操作系の残り 3 シナリオ（右クリック複数選択復元 / クリップボード / 移動競合キャンセル）と操作系 fixture を追加し、#181 の受け入れ条件を完了 (#181)
+  - `RightClickOnSelectionPreservesMultipleSelection`: 複数選択中に選択項目を右クリックしてコンテキストメニューを開いても複数選択が維持されること（VM `ResolveRightTapSelection` による復元）を検証。復元は RightTapped ハンドラのロジックのため APPS キーではなくマウス右クリックで駆動し、ESC で非破壊に終了
+  - `ClipboardCopyPasteCopiesFileIntoSubfolder` / `ClipboardCutPasteMovesFileIntoSubfolder`: Ctrl+C / Ctrl+X → フォルダへダブルクリック遷移 → Ctrl+V のキーボード操作で VM のクリップボード経路（`CopySelectionToClipboard` / `CutSelectionToClipboard` / `ExecutePasteAsync`）を駆動し、貼り付け先への項目出現（UI）とディスク状態（コピー元残存 / 移動元消滅）で検証。コンテキストメニューの `CopyPathMenuItem` / `CopyMenuItem` は別経路のため不使用（棚卸し `E2E-Phase5-Audit.md` §4 準拠）
+  - `MoveConflictCancelKeepsSourceWithoutErrorDialog`: 同名衝突での移動で競合ダイアログが表示され、キャンセル時にエラーダイアログが出ない（`FileOperationSummary.HasReportableFailures` の Cancelled 除外）ことと、移動元・衝突先の両ファイルが無傷で残ることを検証
+  - `E2ETestData` に操作系 fixture のオプトイン拡張（複数選択・クリップボード用 `second.jpg`、移動競合用 `folder/sample.jpg` 同名衝突）と `RootPath` 公開を追加。既定 fixture 前提の既存 7 テストには影響なし。破壊操作は従来どおり temp 隔離で完結
+  - production: 競合ダイアログ文面に `FileBrowser.ConflictMessage`、メッセージダイアログ文面に `FileBrowser.MessageDialogText` の automation ID を付与（`FileBrowserDialogs`、UI 挙動不変。エラーダイアログ非出現をロケール非依存で検証するためのフック）
+  - ローカル検証: 新規 4 テスト × 2 ラウンド = 8/8 pass、全 11 テスト通し 11/11 pass、単体テスト 629/629 pass
 - E2E `WaitForMainWindow` が起動時の SplashWindow を誤取得する flaky を修正 (#186)
   - `MainWindow.xaml` の RootGrid に `AutomationProperties.AutomationId="MainWindow"` を付与し、`SplashWindow.xaml` に `"SplashWindow"` を付与。`TryGetMainWindow` を `AutomationId="MainWindow"` マーカーの肯定的識別に変更（SplashWindow 除外ではなく MainWindow を確実に選択する）
   - SplashWindow が `IsAlwaysOnTop` で先に `Activate` される起動シーケンスで `Process.MainWindowHandle` が SplashWindow を指す問題を解消
