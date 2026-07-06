@@ -8,8 +8,8 @@
 - E2E ワークフローの総実行時間を短縮 (#182)
   - 実測（直近 3 実行の GitHub Actions ステップタイミング）に基づき対応: 固定コスト（checkout/restore/build/ランタイム確認）が約 2.5〜3 分、テスト実行時間がテスト数に比例（1本あたり平均 27〜33 秒）して増加していることを確認。#181 で 3→13 本に増えテスト実行時間が支配的コストになったため、runner 分割が最も効果的と判断
   - `AppE2ETests` の全 13 テストに `[Trait("Suite", "1"|"2")]` を付与し、実行時間が概ね均等になるよう 7本/6本に分割（ローカル実測: Suite1 1m28s / Suite2 1m36s）
-  - `e2e.yml` を `matrix: suite: [1, 2]`（`fail-fast: false`）でジョブ分割し、`dotnet test --filter "Suite=${{ matrix.suite }}"` で対応する Suite のみ実行。TRX ファイル名・アーティファクト名に suite を含め衝突を回避
-  - `actions/cache@v4` で NuGet パッケージキャッシュ（`~\.nuget\packages`、キーは csproj/global.json のハッシュ）を追加し restore を短縮。`packages.lock.json` は導入せず（依存解決方式・Renovate 運用への影響を避けるため）
+  - `e2e.yml` を `matrix: suite: [1, 2]`（`fail-fast: false`）でジョブ分割。suite 1 は正フィルタ（`Suite=1`）、suite 2 は否定フィルタ（`Suite!=1`）で実行し、`[Trait("Suite", ...)]` の付け忘れがあった新規テストも自動的に suite 2 側で実行されるようにして「両 suite から漏れて CI が静かに未実行になる」リスクを構造的に排除（thread-owl レビュー指摘対応）。TRX ファイル名・アーティファクト名に suite を含め衝突を回避
+  - `actions/cache/restore` + 条件付き `actions/cache/save`（v6、Node.js 24 対応）で NuGet パッケージキャッシュ（`~/.nuget/packages`、キーは csproj/global.json のハッシュ）を追加し restore を短縮。保存は suite 1 のみに限定し matrix 両ジョブの重複 save による無駄を排除（Copilot/thread-owl レビュー指摘対応）。`packages.lock.json` は導入せず（依存解決方式・Renovate 運用への影響を避けるため）
   - 各 matrix job は独立した runner（VM）で実行されるため、GUI/UIA の同一プロセス内並列で懸念されるフォーカス競合による flaky 増加は発生しない（issue #182 で非推奨とされたのは同一マシン内 xUnit 並列であり、本対応はそれとは異なる）
   - リトライ回数・`blame-hang-timeout` は変更なし（flaky データが不足しているため据え置き。直近 3 実行はいずれもリトライなしで成功）
 

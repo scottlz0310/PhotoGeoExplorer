@@ -24,7 +24,10 @@ namespace PhotoGeoExplorer.E2E;
 
 // [Trait("Suite", ...)] は CI（e2e.yml）の matrix ジョブでテストを2分割し並列実行するための
 // グルーピング。グループ間で総実行時間が概ね均等になるよう手動で割り振っている（#182）。
-// 新規 E2EFact 追加時は軽い方の Suite に足すか、両 Suite の合計時間を見て調整すること。
+// e2e.yml 側は suite 1 を正フィルタ（Suite=1）、suite 2 を否定フィルタ（Suite!=1）で実行するため、
+// Trait を付け忘れた新規 [E2EFact] は自動的に suite 2（デフォルトバケット）で実行される
+// （両 suite から漏れて CI が静かに未実行にならないための設計）。
+// 新規追加時は軽い方の Suite に足すか、両 Suite の合計時間を見て調整すること。
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public sealed class AppE2ETests
 {

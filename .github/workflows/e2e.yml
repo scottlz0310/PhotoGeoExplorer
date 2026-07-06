@@ -31,11 +31,13 @@ jobs:
 
       # packages.lock.json を導入せずに NuGet パッケージキャッシュのみ短縮する。
       # setup-dotnet 標準の cache 入力はロックファイル前提のため、csproj/global.json の
-      # ハッシュをキーにした actions/cache を直接使う。
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
+      # ハッシュをキーにした actions/cache を直接使う。パスは Windows でも `~/...`
+      # （フォワードスラッシュ）が公式に推奨される表記（`~\...` は tilde 展開の実装依存を招く）。
+      - name: Restore NuGet cache
+        id: nuget-cache
+        uses: actions/cache/restore@v6
         with:
-          path: ~\.nuget\packages
+          path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json') }}
           restore-keys: |
             nuget-${{ runner.os }}-
@@ -45,6 +47,15 @@ jobs:
 
       - name: Build
         run: dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64 -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest
+
+      # matrix の両 suite が同一キーへ保存を試みると片方が無駄な圧縮/アップロードを行うため、
+      # 保存は suite 1 のみに限定する（cache-hit 時は内容が変わらないため保存自体スキップ）。
+      - name: Save NuGet cache
+        if: matrix.suite == 1 && steps.nuget-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ steps.nuget-cache.outputs.cache-primary-key }}
 
       - name: Ensure Windows App SDK runtime
         shell: pwsh
@@ -153,14 +164,19 @@ jobs:
           $maxAttempts = 2
           $passed = $false
 
+          # Suite=1 は正フィルタ、Suite=2 は否定フィルタ（Suite!=1）にすることで、
+          # Trait("Suite", ...) の付け忘れがあった新規 [E2EFact] も必ず suite 2 側で
+          # 実行される（両方から漏れて CI が静かに何もテストしないことを構造的に防ぐ）。
+          $filter = if ("${{ matrix.suite }}" -eq "1") { "Suite=1" } else { "Suite!=1" }
+
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
             $resultFile = "e2e-results-suite${{ matrix.suite }}-attempt$attempt.trx"
-            Write-Host "Running E2E tests suite ${{ matrix.suite }} (attempt $attempt/$maxAttempts)..."
+            Write-Host "Running E2E tests suite ${{ matrix.suite }} (attempt $attempt/$maxAttempts, filter: $filter)..."
             $testArgs = @(
               "PhotoGeoExplorer.E2E/PhotoGeoExplorer.E2E.csproj",
               "-c", "Release",
               "--no-build",
-              "--filter", "Suite=${{ matrix.suite }}",
+              "--filter", $filter,
               "--logger", "trx;LogFileName=$resultFile",
               "--results-directory", "TestResults",
               "--blame-hang-timeout", "10m"
