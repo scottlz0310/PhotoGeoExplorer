@@ -27,13 +27,18 @@ public sealed class AppE2ETests
     private const string MainWindowMarkerAutomationId = "MainWindow";
     private const string SplashWindowMarkerAutomationId = "SplashWindow";
     private const string EditExifMenuAutomationId = "FileBrowser.EditExifMenuItem";
+    private const string DeleteMenuAutomationId = "FileBrowser.DeleteMenuItem";
     private const string ConfirmationMessageAutomationId = "FileBrowser.ConfirmationMessage";
+    private const string ConflictMessageAutomationId = "FileBrowser.ConflictMessage";
+    private const string MessageDialogTextAutomationId = "FileBrowser.MessageDialogText";
     private static readonly string[] SingleFileSelection = { "sample.jpg" };
     private static readonly string[] SingleFolderSelection = { "folder" };
     private static readonly string[] MultipleSelection = { "sample.jpg", "folder" };
+    private static readonly string[] MultipleFileSelection = { "sample.jpg", "second.jpg" };
     private static readonly string[] FileListAutomationIds = { "FileListDetails", "FileListIcon", "FileListList" };
     private static readonly string[] PrimaryDialogButtonNames = { "Save", "保存" };
     private static readonly string[] SecondaryDialogButtonNames = { "Cancel", "キャンセル" };
+    private static readonly string[] CloseDialogButtonNames = { "Cancel", "キャンセル" };
     private readonly ITestOutputHelper _output;
 
     public AppE2ETests(ITestOutputHelper output)
@@ -227,6 +232,250 @@ public sealed class AppE2ETests
     public Task DeleteConfirmationDialogShowsForMultipleSelection()
         => RunDeleteConfirmationScenarioAsync(MultipleSelection);
 
+    [E2EFact]
+    public Task ClipboardCopyPasteCopiesFileIntoSubfolder()
+        => RunClipboardPasteScenarioAsync(isCut: false);
+
+    [E2EFact]
+    public Task ClipboardCutPasteMovesFileIntoSubfolder()
+        => RunClipboardPasteScenarioAsync(isCut: true);
+
+    // 複数選択中に選択項目を右クリックしてコンテキストメニューを開いても複数選択が維持される
+    // こと（VM ResolveRightTapSelection による復元）を実機で検証する。メニューは ESC で閉じて
+    // 非破壊に終える。復元分岐の網羅は単体テストが担保するため、E2E は「右クリックで選択が
+    // 単数化しない」という統合結果のみを確認する。
+    [E2EFact]
+    public async Task RightClickOnSelectionPreservesMultipleSelection()
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output, includeOperationFixtures: true).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window, _output);
+                WaitForListItems(list, minimumCount: 3);
+
+                OpenContextMenuForSelection(window, automation, app.ProcessId, list, MultipleFileSelection);
+
+                // RightTapped ハンドラの選択復元が UIA に反映されるまで待ってから検証する
+                Retry.WhileTrue(
+                    () => MultipleFileSelection.Any(name => !IsListItemSelected(list, name)),
+                    timeout: TimeSpan.FromSeconds(10),
+                    interval: TimeSpan.FromMilliseconds(200),
+                    throwOnTimeout: false);
+                foreach (var name in MultipleFileSelection)
+                {
+                    Assert.True(IsListItemSelected(list, name), $"'{name}' should stay selected after right-click.");
+                }
+
+                Keyboard.Type(VirtualKeyShort.ESCAPE);
+                WaitForElementGone(window, automation, app.ProcessId, DeleteMenuAutomationId);
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    [E2EFact]
+    public Task MoveConflictCancelKeepsSourceWithoutErrorDialog()
+        => RunConflictCancelScenarioAsync(isCut: true);
+
+    [E2EFact]
+    public Task CopyConflictCancelKeepsSourceWithoutErrorDialog()
+        => RunConflictCancelScenarioAsync(isCut: false);
+
+    // 選択なし時のクリップボードショートカットが no-op であること（#181）を実機で検証する。
+    // 「何も起きない」を待つだけでは Ctrl 送出自体の失敗と区別できないため、先に選択ありの
+    // Ctrl+C でクリップボードへ載せ、選択解除後の Ctrl+X（no-op であるべき）が Copy 状態を
+    // 破壊しないことを、貼り付け結果がコピー（項目出現＋コピー元残存）になることで検証する。
+    [E2EFact]
+    public async Task ClipboardShortcutWithoutSelectionIsNoOp()
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output, includeOperationFixtures: true).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window, _output);
+                WaitForListItems(list, minimumCount: 3);
+
+                SendCtrlShortcutToItem(list, "second.jpg", VirtualKeyShort.KEY_C);
+
+                // 選択を解除してから Ctrl+X を送出する。VM の CutSelectionToClipboard は
+                // 選択なしでは no-op のため、クリップボードは Copy のまま維持されるべき。
+                ClearListSelection(list);
+                Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, VirtualKeyShort.KEY_X);
+
+                list = NavigateIntoFolder(app, automation, window, list, "folder", expectedItemCount: 1, _output);
+
+                SendCtrlShortcutToItem(list, "sample.jpg", VirtualKeyShort.KEY_V);
+
+                WaitForListItemByName(list, "second.jpg");
+
+                // Copy として貼り付けられた（選択なし Ctrl+X が Cut に上書きしていない）ことを
+                // コピー元の残存で確認する
+                var sourcePath = Path.Combine(testData.RootPath, "second.jpg");
+                var targetPath = Path.Combine(testData.RootPath, "folder", "second.jpg");
+                Assert.True(File.Exists(targetPath), $"Pasted file not found on disk: {targetPath}");
+                Assert.True(File.Exists(sourcePath), $"Copy source should remain (no-op Ctrl+X must not switch to cut): {sourcePath}");
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    // 同名衝突での移動/コピー（Ctrl+X / Ctrl+C → Ctrl+V）で競合ダイアログが表示され、
+    // キャンセルした場合にエラーダイアログが出ない（FileOperationSummary.HasReportableFailures
+    // の Cancelled 除外）ことと、操作元・衝突先の両ファイルが無傷で残ることを検証する。
+    // PasteSelectionAsyncCore は move/copy で競合ダイアログもエラー表示も別分岐のため、
+    // 両分岐を isCut で駆動する。
+    private async Task RunConflictCancelScenarioAsync(bool isCut)
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output, includeOperationFixtures: true).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window, _output);
+                WaitForListItems(list, minimumCount: 3);
+
+                SendCtrlShortcutToItem(list, "sample.jpg", isCut ? VirtualKeyShort.KEY_X : VirtualKeyShort.KEY_C);
+
+                list = NavigateIntoFolder(app, automation, window, list, "folder", expectedItemCount: 1, _output);
+
+                SendCtrlShortcutToItem(list, "sample.jpg", VirtualKeyShort.KEY_V);
+
+                var conflictMessage = WaitForElementByAutomationId(
+                    window, automation, app.ProcessId, ConflictMessageAutomationId);
+                Assert.NotNull(conflictMessage);
+
+                ClickCloseDialogButton(window, automation, app.ProcessId);
+                WaitForElementGone(window, automation, app.ProcessId, ConflictMessageAutomationId);
+
+                // キャンセルはエラーではないため、エラーダイアログが出ないことを一定時間確認する
+                var errorDialog = TryWaitForElementByAutomationId(
+                    window, automation, app.ProcessId, MessageDialogTextAutomationId, TimeSpan.FromSeconds(3));
+                Assert.Null(errorDialog);
+
+                var sourcePath = Path.Combine(testData.RootPath, "sample.jpg");
+                var conflictTargetPath = Path.Combine(testData.RootPath, "folder", "sample.jpg");
+                Assert.True(File.Exists(sourcePath), $"Cancelled {(isCut ? "move" : "copy")} should keep the source: {sourcePath}");
+                Assert.True(File.Exists(conflictTargetPath), $"Conflict target should remain untouched: {conflictTargetPath}");
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
+    // Ctrl+C / Ctrl+X → フォルダへ遷移 → Ctrl+V のキーボード操作で VM の
+    // CopySelectionToClipboard / CutSelectionToClipboard / ExecutePasteAsync を駆動し、
+    // 貼り付け先への項目出現（UI）とディスク状態（コピー元残存／移動元消滅）で結果を検証する。
+    // コンテキストメニューの CopyPathMenuItem / CopyMenuItem は別経路のため使わない
+    // （docs/Architecture/E2E-Phase5-Audit.md §4）。
+    private async Task RunClipboardPasteScenarioAsync(bool isCut)
+    {
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output, includeOperationFixtures: true).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window, _output);
+                WaitForListItems(list, minimumCount: 3);
+
+                SendCtrlShortcutToItem(list, "second.jpg", isCut ? VirtualKeyShort.KEY_X : VirtualKeyShort.KEY_C);
+
+                // folder（衝突用 fixture の sample.jpg 1 件のみ）へ遷移する
+                list = NavigateIntoFolder(app, automation, window, list, "folder", expectedItemCount: 1, _output);
+
+                // 貼り付け先のリストへフォーカスを移してから Ctrl+V を送出する。
+                // second.jpg は folder 内の既存ファイルと同名でないため競合ダイアログは出ない。
+                SendCtrlShortcutToItem(list, "sample.jpg", VirtualKeyShort.KEY_V);
+
+                WaitForListItemByName(list, "second.jpg");
+
+                var sourcePath = Path.Combine(testData.RootPath, "second.jpg");
+                var targetPath = Path.Combine(testData.RootPath, "folder", "second.jpg");
+                Assert.True(File.Exists(targetPath), $"Pasted file not found on disk: {targetPath}");
+                if (isCut)
+                {
+                    // UI に出現済みでも移動元の削除完了が遅れる可能性があるため消滅を待つ
+                    Retry.WhileTrue(
+                        () => File.Exists(sourcePath),
+                        timeout: TimeSpan.FromSeconds(10),
+                        interval: TimeSpan.FromMilliseconds(200),
+                        throwOnTimeout: false);
+                    Assert.False(File.Exists(sourcePath), $"Cut source should be removed: {sourcePath}");
+                }
+                else
+                {
+                    Assert.True(File.Exists(sourcePath), $"Copy source should remain: {sourcePath}");
+                }
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+    }
+
     // WaitForMainWindow が SplashWindow ではなく MainWindow を返すことを検証する。
     // SplashWindow が先に Activate される起動シーケンスにおいて、MainWindowMarkerAutomationId
     // によるウィンドウ識別が正しく機能することを確認する。
@@ -361,6 +610,167 @@ public sealed class AppE2ETests
     {
         ClickSecondaryDialogButton(window, automation, processId);
         WaitForElementGone(window, automation, processId, ConfirmationMessageAutomationId);
+    }
+
+    // 複数選択を維持したまま最後の項目をマウス右クリックし、コンテキストメニューを開く。
+    // 選択復元（ResolveRightTapSelection）は RightTapped ハンドラのロジックのため、
+    // APPS キーではなく必ずマウス右クリックで駆動する。試行失敗時の ESC はリストの選択を
+    // クリアし得るため、リトライごとに選択を作り直す。
+    private static void OpenContextMenuForSelection(
+        Window window,
+        UIA3Automation automation,
+        int processId,
+        ListBox list,
+        string[] itemNames)
+    {
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                var lastItem = SelectListItemsByName(list, itemNames);
+                TryScrollIntoView(lastItem);
+                WaitForElementClickable(lastItem);
+                RightClickElementCenter(lastItem);
+                var menuItem = TryWaitForMenuItemById(window, automation, processId, DeleteMenuAutomationId, TimeSpan.FromSeconds(5));
+                if (menuItem is not null)
+                {
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException or NoClickablePointException)
+            {
+            }
+
+            Keyboard.Type(VirtualKeyShort.ESCAPE);
+        }
+
+        throw new TimeoutException(
+            $"Context menu did not appear for selection [{string.Join(",", itemNames)}]. List snapshot: {BuildListSnapshot(list)}");
+    }
+
+    private static bool IsListItemSelected(ListBox list, string itemName)
+    {
+        var item = SafeGet(
+            () => list.Items.FirstOrDefault(candidate => ListItemMatches(candidate, itemName)),
+            null);
+        if (item is null)
+        {
+            return false;
+        }
+
+        return SafeGet(
+            () =>
+            {
+                if (!item.Patterns.SelectionItem.IsSupported)
+                {
+                    return false;
+                }
+
+                bool isSelected = item.Patterns.SelectionItem.Pattern.IsSelected;
+                return isSelected;
+            },
+            false);
+    }
+
+    // リストの選択をすべて解除し、解除が UIA に反映されるまで待つ。
+    // ESC は OnFileListKeyDown で SelectedItems.Clear() にマップされている。
+    private static void ClearListSelection(ListBox list)
+    {
+        Retry.WhileTrue(
+            () =>
+            {
+                var anySelected = SafeGet(
+                    () => list.Items.Any(item =>
+                    {
+                        if (!item.Patterns.SelectionItem.IsSupported)
+                        {
+                            return false;
+                        }
+
+                        bool isSelected = item.Patterns.SelectionItem.Pattern.IsSelected;
+                        return isSelected;
+                    }),
+                    true);
+                if (!anySelected)
+                {
+                    return false;
+                }
+
+                TryFocusElement(list);
+                Keyboard.Type(VirtualKeyShort.ESCAPE);
+                return true;
+            },
+            timeout: TimeSpan.FromSeconds(10),
+            interval: TimeSpan.FromMilliseconds(300));
+    }
+
+    // 対象項目を選択・フォーカスしてから Ctrl+ショートカットを送出する。コピー/切り取りは
+    // クリップボード状態を UI から観測できないため送出は 1 回とし、届かなかった場合は
+    // 後続の貼り付け結果検証（項目出現・ディスク状態）の失敗として検出する。
+    private static void SendCtrlShortcutToItem(ListBox list, string itemName, VirtualKeyShort key)
+    {
+        var item = WaitForListItemByName(list, itemName);
+        TryScrollIntoView(item);
+        SelectListItem(item);
+        TryFocusElement(item);
+        Keyboard.TypeSimultaneously(VirtualKeyShort.CONTROL, key);
+    }
+
+    // フォルダ項目をダブルクリックで開き、遷移完了（リスト件数が expectedItemCount に一致）を
+    // 待ってリストを取得し直して返す。遷移前後で件数が異なることを同期点とするため、
+    // 件数の変わらない遷移には使用できない。
+    private static ListBox NavigateIntoFolder(
+        Application app,
+        UIA3Automation automation,
+        Window window,
+        ListBox list,
+        string folderName,
+        int expectedItemCount,
+        ITestOutputHelper output)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                var folderItem = WaitForListItemByName(list, folderName);
+                TryScrollIntoView(folderItem);
+                WaitForElementClickable(folderItem);
+                DoubleClickElementCenter(folderItem);
+            }
+            catch (Exception ex) when (ex is COMException or ElementNotAvailableException or InvalidOperationException or NoClickablePointException)
+            {
+            }
+
+            var refreshed = WaitForList(app, automation, window, output);
+            var navigated = !Retry.WhileTrue(
+                () => SafeGet(() => refreshed.Items.Length, -1) != expectedItemCount,
+                timeout: TimeSpan.FromSeconds(8),
+                interval: TimeSpan.FromMilliseconds(200),
+                throwOnTimeout: false).TimedOut;
+            if (navigated)
+            {
+                return refreshed;
+            }
+        }
+
+        throw new TimeoutException(
+            $"Navigation into '{folderName}' did not complete. List snapshot: {BuildListSnapshot(list)}");
+    }
+
+    private static void DoubleClickElementCenter(AutomationElement element)
+    {
+        var left = SafeGet(() => element.BoundingRectangle.Left, 0d);
+        var top = SafeGet(() => element.BoundingRectangle.Top, 0d);
+        var width = SafeGet(() => element.BoundingRectangle.Width, 0d);
+        var height = SafeGet(() => element.BoundingRectangle.Height, 0d);
+        if (width <= 1 || height <= 1)
+        {
+            return;
+        }
+
+        var centerX = (int)Math.Round(left + (width / 2d), MidpointRounding.AwayFromZero);
+        var centerY = (int)Math.Round(top + (height / 2d), MidpointRounding.AwayFromZero);
+        Mouse.LeftDoubleClick(new System.Drawing.Point(centerX, centerY));
     }
 
     private static ListBoxItem SelectListItemsByName(ListBox list, string[] itemNames)
@@ -847,6 +1257,18 @@ public sealed class AppE2ETests
             processId,
             "SecondaryButton",
             SecondaryDialogButtonNames);
+    }
+
+    // 競合ダイアログのキャンセルは CloseButton（ContentDialog 標準パーツ）に割り当てられている。
+    // 未パッケージ起動ではボタン文言が未解決リソースキーになり得るため、ID を第一経路とする。
+    private static void ClickCloseDialogButton(Window window, UIA3Automation automation, int processId)
+    {
+        ClickDialogButton(
+            window,
+            automation,
+            processId,
+            "CloseButton",
+            CloseDialogButtonNames);
     }
 
     private static void ClickDialogButton(
@@ -1524,13 +1946,32 @@ public sealed class AppE2ETests
 
         public ProcessStartInfo StartInfo { get; }
 
-        public static async Task<E2ETestData> CreateAsync(ITestOutputHelper output)
+        /// <summary>操作系シナリオがディスクレベルで結果（移動・コピー・残存）を検証するための temp ルート。</summary>
+        public string RootPath => _root;
+
+        public static Task<E2ETestData> CreateAsync(ITestOutputHelper output)
+            => CreateAsync(output, includeOperationFixtures: false);
+
+        /// <summary>
+        /// includeOperationFixtures を指定すると操作系シナリオ用の fixture を追加する:
+        /// 複数選択・クリップボード検証用の second.jpg（ルート直下）と、
+        /// 移動競合検証用の同名 sample.jpg（folder 配下）。
+        /// 既定 fixture（sample.jpg ＋ 空 folder）前提の既存テストには影響しない。
+        /// </summary>
+        public static async Task<E2ETestData> CreateAsync(ITestOutputHelper output, bool includeOperationFixtures)
         {
             var root = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorerE2E", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
-            Directory.CreateDirectory(Path.Combine(root, "folder"));
+            var folderPath = Path.Combine(root, "folder");
+            Directory.CreateDirectory(folderPath);
             var imagePath = Path.Combine(root, "sample.jpg");
             await CreateImageAsync(imagePath).ConfigureAwait(false);
+
+            if (includeOperationFixtures)
+            {
+                await CreateImageAsync(Path.Combine(root, "second.jpg")).ConfigureAwait(false);
+                await CreateImageAsync(Path.Combine(folderPath, "sample.jpg")).ConfigureAwait(false);
+            }
 
             var appPath = ResolveAppPath();
             var startInfo = new ProcessStartInfo

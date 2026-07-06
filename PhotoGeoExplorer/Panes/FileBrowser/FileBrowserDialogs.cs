@@ -172,14 +172,18 @@ internal sealed class FileBrowserDialogs
             return;
         }
 
+        var messageBlock = new TextBlock
+        {
+            Text = message,
+            TextWrapping = TextWrapping.Wrap
+        };
+        // E2E がエラーダイアログの出現有無（競合キャンセル時のエラー抑止など）を検証できるよう ID を付与する
+        AutomationProperties.SetAutomationId(messageBlock, "FileBrowser.MessageDialogText");
+
         var dialog = new ContentDialog
         {
             Title = title,
-            Content = new TextBlock
-            {
-                Text = message,
-                TextWrapping = TextWrapping.Wrap
-            },
+            Content = messageBlock,
             CloseButtonText = LocalizationService.GetString("Common.Ok"),
             XamlRoot = _xamlRootSource.XamlRoot
         };
@@ -193,6 +197,10 @@ internal sealed class FileBrowserDialogs
     private async Task<ConflictResolution> ShowConflictAsync(string resourcePrefix, string fileName)
     {
         var detail = LocalizationService.Format($"{resourcePrefix}.Detail", fileName);
+
+        var detailBlock = new TextBlock { Text = detail, TextWrapping = TextWrapping.Wrap };
+        // E2E が競合ダイアログの出現（同名衝突時の Move/Copy 競合解決）を検証できるよう ID を付与する
+        AutomationProperties.SetAutomationId(detailBlock, "FileBrowser.ConflictMessage");
 
         // StackPanel で「すべて上書き」「すべてスキップ」ボタンを追加
         var overwriteAllButton = new Button
@@ -217,7 +225,7 @@ internal sealed class FileBrowserDialogs
                 Spacing = 12,
                 Children =
                 {
-                    new TextBlock { Text = detail, TextWrapping = TextWrapping.Wrap },
+                    detailBlock,
                     new StackPanel
                     {
                         Orientation = Orientation.Horizontal,
