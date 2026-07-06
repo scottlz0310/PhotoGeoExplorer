@@ -28,8 +28,16 @@ namespace PhotoGeoExplorer.E2E;
 // Trait を付け忘れた新規 [E2EFact] は自動的に suite 2（デフォルトバケット）で実行される
 // （両 suite から漏れて CI が静かに未実行にならないための設計）。
 // 新規追加時は軽い方の Suite に足すか、両 Suite の合計時間を見て調整すること。
+//
+// IClassFixture<WarmupFixture> について（#182 レビューで判明した既存 flaky への対処）:
+// プロセス内で最初に実行される [E2EFact] は、JIT ウォームアップ・AV スキャン・WinUI3
+// コンポジタの初回描画等のコールドスタートコストにより UIA タイムアウトしやすいという
+// 既存の flaky が確認されている。matrix 分割前は単一プロセスの「最初の1本」のみがこの
+// 影響を受けていたが、分割後は各 suite が独立プロセスとなり「最初の1本」の枠が suite 数分
+// 増えるため、flaky 発生機会もそれに比例して増加する。WarmupFixture はテストクラスにつき
+// 1 回だけアプリを起動→終了し、実テスト開始前にコールドスタートコストを吸収する。
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
-public sealed class AppE2ETests
+public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
 {
     private const string MainWindowMarkerAutomationId = "MainWindow";
     private const string SplashWindowMarkerAutomationId = "SplashWindow";
@@ -48,9 +56,10 @@ public sealed class AppE2ETests
     private static readonly string[] CloseDialogButtonNames = { "Cancel", "キャンセル" };
     private readonly ITestOutputHelper _output;
 
-    public AppE2ETests(ITestOutputHelper output)
+    public AppE2ETests(ITestOutputHelper output, WarmupFixture warmup)
     {
         _output = output;
+        _ = warmup; // ウォームアップは WarmupFixture のコンストラクタで実行済み。xUnit の DI 契約上の受け取りのみ。
     }
 
     [E2EFact]
@@ -2121,4 +2130,69 @@ public sealed class AppE2ETests
         }
     }
 
+    // テストクラスにつき 1 回だけアプリを起動→終了し、実テスト開始前にコールドスタート
+    // コスト（JIT ウォームアップ・AV スキャン・WinUI3 初回描画等）を吸収する。
+    // xUnit の IClassFixture はコンストラクタをテストクラスの最初のテスト実行前に一度だけ
+    // 呼び出すため、そのタイミングでウォームアップを行う。ウォームアップ自体の失敗は
+    // best-effort であり、実テストの成否に影響させてはならない（想定される例外はすべて
+    // 握りつぶす。ここで例外を伝播させるとフィクスチャ構築失敗としてクラス内の全テストが
+    // 失敗してしまうため、意図的に広めに catch する）。
+    [SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "xUnit の IClassFixture 契約上 AppE2ETests に密結合させる必要があり、private ヘルパー（WaitForMainWindow/TerminateApp/E2ETestData）への直接アクセスのため入れ子に保つ。")]
+    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "testData は finally 節で DisposeAsync() により確実に破棄している。")]
+    public sealed class WarmupFixture
+    {
+        public WarmupFixture()
+        {
+            if (!IsE2EEnabled())
+            {
+                return;
+            }
+
+            E2ETestData? testData = null;
+            Application? app = null;
+            try
+            {
+                testData = E2ETestData.CreateAsync(NoOpOutputHelper.Instance).GetAwaiter().GetResult();
+                using var automation = new UIA3Automation();
+                app = Application.Launch(testData.StartInfo);
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+            }
+            catch (Exception ex) when (ex is TimeoutException
+                or COMException
+                or InvalidOperationException
+                or Win32Exception
+                or ElementNotAvailableException
+                or FileNotFoundException
+                or IOException
+                or UnauthorizedAccessException)
+            {
+                // best-effort ウォームアップの失敗は無視する（実テストの成否に影響させない）。
+            }
+            finally
+            {
+                TerminateApp(app);
+                testData?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+        }
+
+        private static bool IsE2EEnabled()
+            => string.Equals(
+                Environment.GetEnvironmentVariable("PHOTO_GEO_EXPLORER_RUN_E2E"),
+                "1",
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class NoOpOutputHelper : ITestOutputHelper
+    {
+        public static readonly NoOpOutputHelper Instance = new();
+
+        public void WriteLine(string message)
+        {
+        }
+
+        public void WriteLine(string format, params object[] args)
+        {
+        }
+    }
 }
