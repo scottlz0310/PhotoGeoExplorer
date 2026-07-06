@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### CI
+- E2E ワークフローの総実行時間を短縮 (#182)
+  - 実測（直近 3 実行の GitHub Actions ステップタイミング）に基づき対応: 固定コスト（checkout/restore/build/ランタイム確認）が約 2.5〜3 分、テスト実行時間がテスト数に比例（1本あたり平均 27〜33 秒）して増加していることを確認。#181 で 3→13 本に増えテスト実行時間が支配的コストになったため、runner 分割が最も効果的と判断
+  - `AppE2ETests` の全 13 テストに `[Trait("Suite", "1"|"2")]` を付与し、実行時間が概ね均等になるよう 7本/6本に分割（ローカル実測: Suite1 1m28s / Suite2 1m36s）
+  - `e2e.yml` を `matrix: suite: [1, 2]`（`fail-fast: false`）でジョブ分割し、`dotnet test --filter "Suite=${{ matrix.suite }}"` で対応する Suite のみ実行。TRX ファイル名・アーティファクト名に suite を含め衝突を回避
+  - `actions/cache@v4` で NuGet パッケージキャッシュ（`~\.nuget\packages`、キーは csproj/global.json のハッシュ）を追加し restore を短縮。`packages.lock.json` は導入せず（依存解決方式・Renovate 運用への影響を避けるため）
+  - 各 matrix job は独立した runner（VM）で実行されるため、GUI/UIA の同一プロセス内並列で懸念されるフォーカス競合による flaky 増加は発生しない（issue #182 で非推奨とされたのは同一マシン内 xUnit 並列であり、本対応はそれとは異なる）
+  - リトライ回数・`blame-hang-timeout` は変更なし（flaky データが不足しているため据え置き。直近 3 実行はいずれもリトライなしで成功）
+
 ### テスト
 - E2E に FileBrowser 操作系の残りシナリオ（右クリック複数選択復元 / クリップボード / 移動・コピー競合キャンセル）と操作系 fixture を追加し、#181 の受け入れ条件を完了 (#181)
   - `RightClickOnSelectionPreservesMultipleSelection`: 複数選択中に選択項目を右クリックしてコンテキストメニューを開いても複数選択が維持されること（VM `ResolveRightTapSelection` による復元）を検証。復元は RightTapped ハンドラのロジックのため APPS キーではなくマウス右クリックで駆動し、ESC で非破壊に終了

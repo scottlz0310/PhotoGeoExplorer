@@ -13,6 +13,11 @@ permissions:
 jobs:
   e2e:
     runs-on: windows-latest
+    name: e2e (suite ${{ matrix.suite }})
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [1, 2]
     env:
       SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
@@ -23,6 +28,17 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
+
+      # packages.lock.json を導入せずに NuGet パッケージキャッシュのみ短縮する。
+      # setup-dotnet 標準の cache 入力はロックファイル前提のため、csproj/global.json の
+      # ハッシュをキーにした actions/cache を直接使う。
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~\.nuget\packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
       - name: Restore
         run: dotnet restore PhotoGeoExplorer.sln
@@ -138,12 +154,13 @@ jobs:
           $passed = $false
 
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            $resultFile = "e2e-results-attempt$attempt.trx"
-            Write-Host "Running E2E tests (attempt $attempt/$maxAttempts)..."
+            $resultFile = "e2e-results-suite${{ matrix.suite }}-attempt$attempt.trx"
+            Write-Host "Running E2E tests suite ${{ matrix.suite }} (attempt $attempt/$maxAttempts)..."
             $testArgs = @(
               "PhotoGeoExplorer.E2E/PhotoGeoExplorer.E2E.csproj",
               "-c", "Release",
               "--no-build",
+              "--filter", "Suite=${{ matrix.suite }}",
               "--logger", "trx;LogFileName=$resultFile",
               "--results-directory", "TestResults",
               "--blame-hang-timeout", "10m"
@@ -218,7 +235,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-artifacts-${{ github.run_id }}-${{ github.run_attempt }}
+          name: e2e-artifacts-${{ github.run_id }}-${{ github.run_attempt }}-suite${{ matrix.suite }}
           path: E2EArtifacts/
           if-no-files-found: warn
           retention-days: 14

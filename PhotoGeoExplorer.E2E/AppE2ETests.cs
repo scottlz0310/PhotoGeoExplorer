@@ -17,10 +17,14 @@ using FlaUI.UIA3;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace PhotoGeoExplorer.E2E;
 
+// [Trait("Suite", ...)] は CI（e2e.yml）の matrix ジョブでテストを2分割し並列実行するための
+// グルーピング。グループ間で総実行時間が概ね均等になるよう手動で割り振っている（#182）。
+// 新規 E2EFact 追加時は軽い方の Suite に足すか、両 Suite の合計時間を見て調整すること。
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
 public sealed class AppE2ETests
 {
@@ -47,6 +51,7 @@ public sealed class AppE2ETests
     }
 
     [E2EFact]
+    [Trait("Suite", "1")]
     public async Task LaunchOpenFolderPreviewMetadataAndMap()
     {
         E2ETestData? testData = null;
@@ -93,6 +98,7 @@ public sealed class AppE2ETests
     }
 
     [E2EFact]
+    [Trait("Suite", "1")]
     public async Task ExifEditorContextMenuAndDateToggleWorks()
     {
         E2ETestData? testData = null;
@@ -151,6 +157,7 @@ public sealed class AppE2ETests
     }
 
     [E2EFact]
+    [Trait("Suite", "1")]
     public async Task ExifEditorSaveAndReopenKeepsCoordinates()
     {
         E2ETestData? testData = null;
@@ -221,22 +228,27 @@ public sealed class AppE2ETests
     }
 
     [E2EFact]
+    [Trait("Suite", "1")]
     public Task DeleteConfirmationDialogShowsForSingleFile()
         => RunDeleteConfirmationScenarioAsync(SingleFileSelection);
 
     [E2EFact]
+    [Trait("Suite", "1")]
     public Task DeleteConfirmationDialogShowsForSingleFolder()
         => RunDeleteConfirmationScenarioAsync(SingleFolderSelection);
 
     [E2EFact]
+    [Trait("Suite", "1")]
     public Task DeleteConfirmationDialogShowsForMultipleSelection()
         => RunDeleteConfirmationScenarioAsync(MultipleSelection);
 
     [E2EFact]
+    [Trait("Suite", "2")]
     public Task ClipboardCopyPasteCopiesFileIntoSubfolder()
         => RunClipboardPasteScenarioAsync(isCut: false);
 
     [E2EFact]
+    [Trait("Suite", "2")]
     public Task ClipboardCutPasteMovesFileIntoSubfolder()
         => RunClipboardPasteScenarioAsync(isCut: true);
 
@@ -245,6 +257,7 @@ public sealed class AppE2ETests
     // 非破壊に終える。復元分岐の網羅は単体テストが担保するため、E2E は「右クリックで選択が
     // 単数化しない」という統合結果のみを確認する。
     [E2EFact]
+    [Trait("Suite", "2")]
     public async Task RightClickOnSelectionPreservesMultipleSelection()
     {
         E2ETestData? testData = null;
@@ -292,10 +305,12 @@ public sealed class AppE2ETests
     }
 
     [E2EFact]
+    [Trait("Suite", "2")]
     public Task MoveConflictCancelKeepsSourceWithoutErrorDialog()
         => RunConflictCancelScenarioAsync(isCut: true);
 
     [E2EFact]
+    [Trait("Suite", "2")]
     public Task CopyConflictCancelKeepsSourceWithoutErrorDialog()
         => RunConflictCancelScenarioAsync(isCut: false);
 
@@ -304,6 +319,7 @@ public sealed class AppE2ETests
     // Ctrl+C でクリップボードへ載せ、選択解除後の Ctrl+X（no-op であるべき）が Copy 状態を
     // 破壊しないことを、貼り付け結果がコピー（項目出現＋コピー元残存）になることで検証する。
     [E2EFact]
+    [Trait("Suite", "2")]
     public async Task ClipboardShortcutWithoutSelectionIsNoOp()
     {
         E2ETestData? testData = null;
@@ -480,6 +496,7 @@ public sealed class AppE2ETests
     // SplashWindow が先に Activate される起動シーケンスにおいて、MainWindowMarkerAutomationId
     // によるウィンドウ識別が正しく機能することを確認する。
     [E2EFact]
+    [Trait("Suite", "1")]
     public async Task WaitForMainWindowReturnsMainWindowNotSplashWindow()
     {
         E2ETestData? testData = null;
