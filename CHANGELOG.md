@@ -6,12 +6,15 @@
 
 ### CI
 - E2E ワークフローの総実行時間を短縮 (#182)
-  - 実測（直近 3 実行の GitHub Actions ステップタイミング）に基づき対応: 固定コスト（checkout/restore/build/ランタイム確認）が約 2.5〜3 分、テスト実行時間がテスト数に比例（1本あたり平均 27〜33 秒）して増加していることを確認。#181 で 3→13 本に増えテスト実行時間が支配的コストになったため、runner 分割が最も効果的と判断
-  - `AppE2ETests` の全 13 テストに `[Trait("Suite", "1"|"2")]` を付与し、実行時間が概ね均等になるよう 7本/6本に分割（ローカル実測: Suite1 1m28s / Suite2 1m36s）
+  - **実測（attempt 単位、GitHub Actions ログの実際の attempt 別 Passed/Failed 行に基づく再集計）**: 分割前後を問わず直近の main/PR 実行はいずれも 1 回目の試行で 1 本だけ flaky 失敗し 2 回目で成功する既存パターンが確認された（例: 分割前 main run `28786690007`＝13本中1本失敗→retry成功、`28333186948`／`28058515771`＝7本中1本失敗→retry成功）。これは本 PR が原因ではなく E2E スイートに元々存在する未解決の flaky（#180 が前提とする flaky 切り分けが必要な事象）であり、単一 attempt の実行時間を単純にテスト数へ按分した当初の分析は誤りだったため、以下は attempt 単位の実測に基づき訂正する
+  - 固定コスト（checkout/restore/build/ランタイム確認）は約 2.5〜3 分でほぼ一定。#181 で 3→13 本に増えテスト実行時間（1 attempt のクリーン実行で 13 本 ≈ 2m40s〜3m0s）が支配的コストになったため、runner 分割が最も効果的と判断
+  - `AppE2ETests` の全 13 テストに `[Trait("Suite", "1"|"2")]` を付与し、実行時間が概ね均等になるよう 7本/6本に分割（クリーン attempt 実測: suite1 ≈ 1m39s / suite2 ≈ 1m00s）
   - `e2e.yml` を `matrix: suite: [1, 2]`（`fail-fast: false`）でジョブ分割。suite 1 は正フィルタ（`Suite=1`）、suite 2 は否定フィルタ（`Suite!=1`）で実行し、`[Trait("Suite", ...)]` の付け忘れがあった新規テストも自動的に suite 2 側で実行されるようにして「両 suite から漏れて CI が静かに未実行になる」リスクを構造的に排除（thread-owl レビュー指摘対応）。TRX ファイル名・アーティファクト名に suite を含め衝突を回避
   - `actions/cache/restore` + 条件付き `actions/cache/save`（v6、Node.js 24 対応）で NuGet パッケージキャッシュ（`~/.nuget/packages`、キーは csproj/global.json のハッシュ）を追加し restore を短縮。保存は suite 1 のみに限定し matrix 両ジョブの重複 save による無駄を排除（Copilot/thread-owl レビュー指摘対応）。`packages.lock.json` は導入せず（依存解決方式・Renovate 運用への影響を避けるため）
-  - 各 matrix job は独立した runner（VM）で実行されるため、GUI/UIA の同一プロセス内並列で懸念されるフォーカス競合による flaky 増加は発生しない（issue #182 で非推奨とされたのは同一マシン内 xUnit 並列であり、本対応はそれとは異なる）
-  - リトライ回数・`blame-hang-timeout` は変更なし（flaky データが不足しているため据え置き。直近 3 実行はいずれもリトライなしで成功）
+  - **flaky 率への影響（訂正）**: 各 matrix job は独立した runner（VM）で実行されるため、issue #182 で明示的に非推奨とされた「同一マシン内 xUnit 並列によるフォーカス競合」は発生しない。一方で、既存の未解決 flaky が高頻度（観測した全 run で attempt 1 に 1 本失敗）で発生している以上、suite を 2 分割すると「いずれかの suite が retry を要する」機会は理論上増える（各 suite が独立に retry を要し得るため）。個々の job の retry 上限（最大 2 attempts）自体は変更していないが、ワークフロー全体で見た retry 消費機会は増加し得る点を正直に記載する。実測した唯一の分割後 run（`28788908674`）では suite 1・suite 2 とも 1 回の retry で green に到達しており、既存の max-2-attempts 枠を超えるケースは観測されていない
+  - wall clock は attempt を含む実測で比較する必要がある: 分割前（単一 job・retry込み）の job 全体は 8m51s（run `28786046897`）。分割後（2 job 並列・両 suite とも retry込み）は wall clock = max(suite1 job, suite2 job) = 6m35s（run `28788908674`）。retry を含めても約 25% の短縮を確認
+  - E2E スイート自体の flaky（毎 run 1 本失敗するパターン）は本 PR のスコープ外。原因調査・低減は #180 の前提整備または新規 issue でのフォローアップが必要
+  - リトライ回数上限・`blame-hang-timeout` は変更なし
 
 ### テスト
 - E2E に FileBrowser 操作系の残りシナリオ（右クリック複数選択復元 / クリップボード / 移動・コピー競合キャンセル）と操作系 fixture を追加し、#181 の受け入れ条件を完了 (#181)
