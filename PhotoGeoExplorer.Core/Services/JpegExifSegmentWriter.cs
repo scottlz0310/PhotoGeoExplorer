@@ -34,6 +34,11 @@ internal static class JpegExifSegmentWriter
         output.WriteByte((byte)secondByte);
 
         var exifPayloadAvailable = exifPayload is not null;
+        if (exifPayloadAvailable && !StartsWithExifHeader(exifPayload!))
+        {
+            return false;
+        }
+
         var exifWritten = false;
         var insertedAfterApp0 = false;
 
@@ -105,7 +110,7 @@ internal static class JpegExifSegmentWriter
                     return false;
                 }
 
-                input.CopyTo(output);
+                CopyRemaining(input, output, cancellationToken);
                 return true;
             }
 
@@ -128,7 +133,7 @@ internal static class JpegExifSegmentWriter
                 return false;
             }
 
-            var isExifSegment = marker == 0xE1 && IsExifSegment(segmentData);
+            var isExifSegment = marker == 0xE1 && StartsWithExifHeader(segmentData);
             if (isExifSegment)
             {
                 if (!exifWritten && exifPayloadAvailable)
@@ -177,16 +182,16 @@ internal static class JpegExifSegmentWriter
         return true;
     }
 
-    private static bool IsExifSegment(byte[] segmentData)
+    private static bool StartsWithExifHeader(byte[] data)
     {
-        if (segmentData.Length < ExifHeader.Length)
+        if (data.Length < ExifHeader.Length)
         {
             return false;
         }
 
         for (var i = 0; i < ExifHeader.Length; i++)
         {
-            if (segmentData[i] != ExifHeader[i])
+            if (data[i] != ExifHeader[i])
             {
                 return false;
             }
@@ -238,6 +243,17 @@ internal static class JpegExifSegmentWriter
         }
 
         return true;
+    }
+
+    private static void CopyRemaining(Stream input, Stream output, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = input.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            output.Write(buffer, 0, bytesRead);
+        }
     }
 
     private static bool TryReadExact(Stream stream, byte[] buffer, int length)

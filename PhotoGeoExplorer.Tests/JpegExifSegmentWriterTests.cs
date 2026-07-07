@@ -97,11 +97,37 @@ public sealed class JpegExifSegmentWriterTests
     public void Write_ReturnsFalse_WhenExifPayloadExceedsSegmentSizeLimit()
     {
         var input = Concat(Soi, Eoi);
-        var oversizedPayload = new byte[ushort.MaxValue];
+        var oversizedPayload = BuildExifPayload(new byte[ushort.MaxValue - JpegExifSegmentWriter.ExifHeader.Length]);
 
         var result = TryRunWrite(input, oversizedPayload, out _);
 
         Assert.False(result);
+    }
+
+    [Fact]
+    public void Write_ReturnsFalse_WhenExifPayloadDoesNotStartWithExifHeader()
+    {
+        var input = Concat(Soi, Eoi);
+        var invalidPayload = new byte[] { 0x00, 0x01, 0x02, 0x03 };
+
+        var result = TryRunWrite(input, invalidPayload, out _);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void Write_ThrowsOperationCanceledException_WhenCancelledDuringScanDataCopy()
+    {
+        var largeEntropyData = new byte[20000];
+        var input = Concat(Soi, BuildSegment(0xDA, ScanHeader), largeEntropyData, Eoi);
+
+        using var cts = new CancellationTokenSource();
+        using var baseInputStream = new MemoryStream(input);
+        using var inputStream = new CancelOnNthChunkReadStream(baseInputStream, cts, cancelOnReadNumber: 2);
+        using var outputStream = new MemoryStream();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            JpegExifSegmentWriter.Write(inputStream, outputStream, exifPayload: null, cts.Token));
     }
 
     public static IEnumerable<object[]> MalformedOrTruncatedStreams()
@@ -157,5 +183,68 @@ public sealed class JpegExifSegmentWriterTests
         }
 
         return result.ToArray();
+    }
+
+    /// <summary>
+    /// チャンク単位（count &gt; 1）の Read 呼び出しを数え、指定回数目でキャンセルを発火させる。
+    /// ReadByte 由来の count=1 呼び出しは JPEG マーカー走査で多数発生するため対象外とする。
+    /// </summary>
+    private sealed class CancelOnNthChunkReadStream : Stream
+    {
+        private readonly Stream _inner;
+        private readonly CancellationTokenSource _cancellationTokenSource;
+        private readonly int _cancelOnReadNumber;
+        private int _chunkReadCount;
+
+        public CancelOnNthChunkReadStream(Stream inner, CancellationTokenSource cancellationTokenSource, int cancelOnReadNumber)
+        {
+            _inner = inner;
+            _cancellationTokenSource = cancellationTokenSource;
+            _cancelOnReadNumber = cancelOnReadNumber;
+        }
+
+        public override bool CanRead => _inner.CanRead;
+
+        public override bool CanSeek => _inner.CanSeek;
+
+        public override bool CanWrite => _inner.CanWrite;
+
+        public override long Length => _inner.Length;
+
+        public override long Position
+        {
+            get => _inner.Position;
+            set => _inner.Position = value;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var bytesRead = _inner.Read(buffer, offset, count);
+            if (count > 1 && ++_chunkReadCount == _cancelOnReadNumber)
+            {
+                _cancellationTokenSource.Cancel();
+            }
+
+            return bytesRead;
+        }
+
+        public override void Flush() => _inner.Flush();
+
+        public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
+
+        public override void SetLength(long value) => _inner.SetLength(value);
+
+        public override void Write(byte[] buffer, int offset, int count) => _inner.Write(buffer, offset, count);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _inner.Dispose();
+                _cancellationTokenSource.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }
