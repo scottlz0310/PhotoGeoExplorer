@@ -1,14 +1,11 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Nts;
-using Mapsui.Projections;
 using Mapsui.Styles;
 using Mapsui.UI.WinUI;
 using Microsoft.UI;
@@ -23,13 +20,14 @@ using Windows.UI.Core;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
-internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IExifLocationPicker
+internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 {
     private const string PhotoItemKey = "PhotoItem";
     private const string PhotoMetadataKey = "PhotoMetadata";
     private static readonly Color SelectionFillColor = Color.FromArgb(64, 0, 120, 215);
     private static readonly Color SelectionOutlineColor = Color.FromArgb(255, 0, 120, 215);
 
+    private readonly MapExifLocationPicker _exifLocationPicker;
     private MapPaneViewModel? _viewModel;
     private Mapsui.Map? _map;
     private PhotoMetadata? _flyoutMetadata;
@@ -38,38 +36,18 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
     private MemoryLayer? _rectangleSelectionLayer;
     private bool _mapPanLockBeforeSelection;
     private bool _mapPanLockActive;
-    private TaskCompletionSource<(double Latitude, double Longitude)?>? _exifLocationPicker;
-    private bool _isPickingExifLocation;
-    private bool _isExifPickPointerActive;
-    private Windows.Foundation.Point? _exifPickPointerStart;
-    private bool _restoreMapStatusAfterExifPick;
     private bool _isViewLoaded;
 
     public MapPaneViewControl()
     {
         InitializeComponent();
+        _exifLocationPicker = new MapExifLocationPicker(
+            canPick: () => _map is not null,
+            hideMapStatus: HideMapStatusForExifPick,
+            restoreMapStatus: UpdateMapStatusFromViewModel);
     }
 
-    public bool CanPickExifLocation => _map is not null;
-
-    public Task<(double Latitude, double Longitude)?> PickExifLocationAsync()
-    {
-        if (!CanPickExifLocation)
-        {
-            return Task.FromResult<(double Latitude, double Longitude)?>(null);
-        }
-
-        if (_exifLocationPicker is not null)
-        {
-            return _exifLocationPicker.Task;
-        }
-
-        _isPickingExifLocation = true;
-        HideMapStatusForExifPick();
-        _exifLocationPicker = new TaskCompletionSource<(double Latitude, double Longitude)?>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        return _exifLocationPicker.Task;
-    }
+    internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
@@ -88,7 +66,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         _isViewLoaded = false;
-        CancelExifLocationPick();
+        _exifLocationPicker.Cancel();
         DetachViewModel();
         ClearRectangleSelectionLayer();
         _map = null;
@@ -150,14 +128,14 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
         if (propertyName == nameof(MapPaneViewModel.Map))
         {
             ApplyMapFromViewModel();
-            if (!_restoreMapStatusAfterExifPick)
+            if (!_exifLocationPicker.IsStatusRestorePending)
             {
                 UpdateMapStatusFromViewModel();
             }
             return;
         }
 
-        if (_restoreMapStatusAfterExifPick)
+        if (_exifLocationPicker.IsStatusRestorePending)
         {
             return;
         }
@@ -237,64 +215,21 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
         return DispatcherQueue?.HasThreadAccess ?? false;
     }
 
-    private void HideMapStatusForExifPick()
+    private bool HideMapStatusForExifPick()
     {
         if (MapStatusOverlay is null || MapStatusPanel is null)
         {
-            return;
+            return false;
         }
 
         if (MapStatusOverlay.Visibility == Visibility.Collapsed && MapStatusPanel.Visibility == Visibility.Collapsed)
         {
-            return;
+            return false;
         }
 
-        _restoreMapStatusAfterExifPick = true;
         MapStatusOverlay.Visibility = Visibility.Collapsed;
         MapStatusPanel.Visibility = Visibility.Collapsed;
-    }
-
-    private void RestoreMapStatusAfterExifPick()
-    {
-        if (!_restoreMapStatusAfterExifPick)
-        {
-            return;
-        }
-
-        _restoreMapStatusAfterExifPick = false;
-        UpdateMapStatusFromViewModel();
-    }
-
-    private void CompleteExifLocationPick(double latitude, double longitude)
-    {
-        if (!_isPickingExifLocation)
-        {
-            return;
-        }
-
-        _isPickingExifLocation = false;
-        _isExifPickPointerActive = false;
-        _exifPickPointerStart = null;
-        RestoreMapStatusAfterExifPick();
-        var picker = _exifLocationPicker;
-        _exifLocationPicker = null;
-        picker?.TrySetResult((latitude, longitude));
-    }
-
-    private void CancelExifLocationPick()
-    {
-        if (!_isPickingExifLocation)
-        {
-            return;
-        }
-
-        _isPickingExifLocation = false;
-        _isExifPickPointerActive = false;
-        _exifPickPointerStart = null;
-        RestoreMapStatusAfterExifPick();
-        var picker = _exifLocationPicker;
-        _exifLocationPicker = null;
-        picker?.TrySetResult(null);
+        return true;
     }
 
     private MemoryLayer? GetMarkerLayer()
@@ -414,22 +349,15 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
         }
 
         var point = e.GetCurrentPoint(MapControl);
-        if (_isPickingExifLocation)
+        if (_exifLocationPicker.IsPicking)
         {
-            if (point.Properties.IsRightButtonPressed)
+            if (_exifLocationPicker.HandlePointerPressed(
+                point.Properties.IsLeftButtonPressed,
+                point.Properties.IsRightButtonPressed,
+                point.Position))
             {
-                CancelExifLocationPick();
                 e.Handled = true;
-                return;
             }
-
-            if (!point.Properties.IsLeftButtonPressed)
-            {
-                return;
-            }
-
-            _isExifPickPointerActive = true;
-            _exifPickPointerStart = point.Position;
             return;
         }
 
@@ -483,36 +411,14 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
             return;
         }
 
-        if (_isPickingExifLocation)
+        if (_exifLocationPicker.IsPicking)
         {
-            if (!_isExifPickPointerActive)
+            if (_exifLocationPicker.HandlePointerReleased(
+                e.GetCurrentPoint(MapControl).Position,
+                () => GetWorldPosition(e)))
             {
-                return;
+                e.Handled = true;
             }
-
-            _isExifPickPointerActive = false;
-            var startPoint = _exifPickPointerStart;
-            _exifPickPointerStart = null;
-            if (startPoint is null)
-            {
-                return;
-            }
-
-            var currentPoint = e.GetCurrentPoint(MapControl).Position;
-            if (!MapPaneSelectionHelper.IsPointerMovementWithinThreshold(startPoint.Value, currentPoint))
-            {
-                return;
-            }
-
-            var worldPosition = GetWorldPosition(e);
-            if (worldPosition is null)
-            {
-                return;
-            }
-
-            var lonLat = SphericalMercator.ToLonLat(worldPosition);
-            CompleteExifLocationPick(lonLat.Y, lonLat.X);
-            e.Handled = true;
             return;
         }
 
@@ -550,8 +456,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable, IEx
     {
         _mapRectangleSelecting = false;
         _mapRectangleStart = null;
-        _isExifPickPointerActive = false;
-        _exifPickPointerStart = null;
+        _exifLocationPicker.HandlePointerCaptureLost();
         ClearRectangleSelectionLayer();
         RestoreMapPanLock();
     }

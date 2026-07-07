@@ -52,7 +52,7 @@ public sealed partial class MainWindow : Window, IDisposable
         var exifEditorService = new ExifEditorService(
             dialogService,
             new ExifMetadataService(),
-            MapPaneControl,
+            MapPaneControl.ExifLocationPicker,
             (message, severity) => _viewModel.ShowNotificationMessage(message, severity));
         // MainWindow のコンストラクタは UI スレッドで実行されるため、
         // ここで生成した UiDispatcher が UI スレッドの DispatcherQueue を捕捉する
