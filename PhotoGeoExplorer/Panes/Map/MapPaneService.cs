@@ -173,7 +173,7 @@ internal sealed class MapPaneService : IMapPaneService
                 return (item, null);
             }
 
-            var metadata = await ExifService.GetMetadataAsync(item.Item.FilePath, cancellationToken).ConfigureAwait(false);
+            var metadata = await ExifReader.GetMetadataAsync(item.Item.FilePath, cancellationToken).ConfigureAwait(false);
             return (item, metadata);
         }
         catch (OperationCanceledException)

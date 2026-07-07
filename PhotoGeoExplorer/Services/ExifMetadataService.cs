@@ -9,7 +9,7 @@ internal sealed class ExifMetadataService : IExifMetadataService
 {
     public Task<PhotoMetadata?> GetMetadataAsync(string filePath, CancellationToken cancellationToken)
     {
-        return ExifService.GetMetadataAsync(filePath, cancellationToken);
+        return ExifReader.GetMetadataAsync(filePath, cancellationToken);
     }
 
     public Task<bool> UpdateMetadataAsync(

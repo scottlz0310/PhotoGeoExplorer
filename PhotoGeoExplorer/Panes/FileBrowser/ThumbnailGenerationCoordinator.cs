@@ -44,7 +44,7 @@ internal sealed class ThumbnailGenerationCoordinator : IDisposable
     /// <param name="uiDispatcher">バッチ更新タイマーの構成に使う UI スレッドディスパッチャ。</param>
     /// <param name="isJpegFile">EXIF メタデータ取得対象（JPEG）かどうかの判定。</param>
     /// <param name="generateThumbnail">サムネイル生成処理。null の場合は <see cref="ThumbnailService.GenerateThumbnail"/>（テスト用シーム）。</param>
-    /// <param name="getMetadataAsync">EXIF メタデータ取得処理。null の場合は <see cref="ExifService.GetMetadataAsync"/>（テスト用シーム）。</param>
+    /// <param name="getMetadataAsync">EXIF メタデータ取得処理。null の場合は <see cref="ExifReader.GetMetadataAsync"/>（テスト用シーム）。</param>
     /// <param name="createThumbnailImage">サムネイル画像の生成処理。null の場合は BitmapImage を生成する既定実装（テスト用シーム）。</param>
     public ThumbnailGenerationCoordinator(
         IUiDispatcher uiDispatcher,
@@ -59,7 +59,7 @@ internal sealed class ThumbnailGenerationCoordinator : IDisposable
         _uiDispatcher = uiDispatcher;
         _isJpegFile = isJpegFile;
         _generateThumbnail = generateThumbnail ?? ThumbnailService.GenerateThumbnail;
-        _getMetadataAsync = getMetadataAsync ?? ExifService.GetMetadataAsync;
+        _getMetadataAsync = getMetadataAsync ?? ExifReader.GetMetadataAsync;
         _createThumbnailImage = createThumbnailImage ?? CreateThumbnailImage;
     }
 

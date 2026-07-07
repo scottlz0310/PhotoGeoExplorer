@@ -61,6 +61,10 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
+- `ExifService` の読み取り責務を `ExifReader` へ分離（#150 Phase 3 / #178 P3-A）(#199)
+  - `GetMetadataAsync` / `GetMetadata` / `ReadMetadata`（MetadataExtractor による GPS / カメラ情報 / 撮影日時の読み取りと例外ハンドリング）を `PhotoGeoExplorer.Core/Services/ExifReader.cs`（internal static）へ移動し、MetadataExtractor 依存を `ExifReader` に局所化（`ExifService` は 558 行 → 380 行の書き込み専用クラスに縮退）
+  - 呼び出し側 5 箇所（`PreviewPaneService` / `ExifMetadataService` / `MapPaneService` / `FileBrowserStatusViewModel` / `ThumbnailGenerationCoordinator`）を `ExifReader.GetMetadataAsync` へ振り向け（挙動は不変）
+  - 読み取り系テストを `ExifReaderTests` へ再編（既存の ExifSubIfd 日時欠落ケースを移動し、非画像ファイル / 非存在ファイルの null 返却ケースを追加）。`ExifServiceTests` の書き込み検証用読み取りは `ExifReader` 経由へ更新
 - `SettingsCoordinator` の純粋正規化関数を `SettingsNormalization` へ抽出（#150 Phase 2）(#177)
   - `NormalizeLanguageSetting` / `NormalizeMapZoomLevel` / `NormalizeExternalContentBaseUrl` / `NormalizePaneLayoutPreset` / `NormalizePaneRegionViews` / `FindValidAncestorPath` を `Services/SettingsNormalization.cs`（internal static）へ移動し、`SettingsCoordinator` をオーケストレーション責務に縮退（621 行 → 417 行）
   - `SettingsPaneViewModel` 側の重複正規化ロジックを抽出先へ集約。言語正規化は完全版（`ja` → `ja-JP` 等のタグ変換込み）へ委譲し、`SaveAsync` の言語変更判定が正規化後の値同士の比較になるよう改善。ズームレベルはスライダー入力向けの「最寄り値へスナップ」の意図を `SnapMapZoomLevelToNearest` として設定読み込み時の `NormalizeMapZoomLevel`（無効値→既定値）と区別して集約
