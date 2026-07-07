@@ -20,7 +20,7 @@ internal sealed class ExifMetadataService : IExifMetadataService
         bool updateFileModifiedDate,
         CancellationToken cancellationToken)
     {
-        return ExifService.UpdateMetadataAsync(
+        return ExifWriter.UpdateMetadataAsync(
             filePath,
             takenAt,
             latitude,

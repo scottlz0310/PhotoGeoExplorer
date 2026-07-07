@@ -5,7 +5,7 @@ using SixLabors.ImageSharp.PixelFormats;
 
 namespace PhotoGeoExplorer.Tests;
 
-public sealed class ExifServiceTests
+public sealed class ExifWriterTests
 {
     [Fact]
     public async Task UpdateMetadataAsyncUnsupportedFormatReturnsFalse()
@@ -16,7 +16,7 @@ public sealed class ExifServiceTests
             var txtPath = Path.Combine(root, "test.txt");
             await File.WriteAllTextAsync(txtPath, "test content").ConfigureAwait(true);
 
-            var result = await ExifService.UpdateMetadataAsync(
+            var result = await ExifWriter.UpdateMetadataAsync(
                 txtPath,
                 DateTimeOffset.Now,
                 35.6762,
@@ -47,7 +47,7 @@ public sealed class ExifServiceTests
             }
 
             var takenAt = new DateTimeOffset(2024, 1, 15, 12, 30, 0, TimeSpan.Zero);
-            var result = await ExifService.UpdateMetadataAsync(
+            var result = await ExifWriter.UpdateMetadataAsync(
                 jpgPath,
                 takenAt,
                 35.6762,
@@ -92,7 +92,7 @@ public sealed class ExifServiceTests
             var originalModifiedTime = File.GetLastWriteTime(jpgPath);
             var takenAt = new DateTimeOffset(2024, 1, 15, 12, 30, 0, TimeSpan.Zero);
 
-            await ExifService.UpdateMetadataAsync(
+            await ExifWriter.UpdateMetadataAsync(
                 jpgPath,
                 takenAt,
                 null,
@@ -125,7 +125,7 @@ public sealed class ExifServiceTests
             }
 
             // First, add GPS data
-            await ExifService.UpdateMetadataAsync(
+            await ExifWriter.UpdateMetadataAsync(
                 jpgPath,
                 null,
                 35.6762,
@@ -139,7 +139,7 @@ public sealed class ExifServiceTests
             Assert.NotNull(metadataWithGps.Longitude);
 
             // Now clear the GPS data
-            var result = await ExifService.UpdateMetadataAsync(
+            var result = await ExifWriter.UpdateMetadataAsync(
                 jpgPath,
                 null,
                 null,
@@ -177,7 +177,7 @@ public sealed class ExifServiceTests
 
             // Set initial date
             var initialDate = new DateTimeOffset(2023, 1, 1, 10, 0, 0, TimeSpan.Zero);
-            await ExifService.UpdateMetadataAsync(
+            await ExifWriter.UpdateMetadataAsync(
                 jpgPath,
                 initialDate,
                 null,
@@ -186,7 +186,7 @@ public sealed class ExifServiceTests
                 CancellationToken.None).ConfigureAwait(true);
 
             // Update only location, not date
-            await ExifService.UpdateMetadataAsync(
+            await ExifWriter.UpdateMetadataAsync(
                 jpgPath,
                 null,
                 35.6762,
@@ -215,7 +215,7 @@ public sealed class ExifServiceTests
     {
         var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent.jpg");
 
-        var result = await ExifService.UpdateMetadataAsync(
+        var result = await ExifWriter.UpdateMetadataAsync(
             nonExistentPath,
             DateTimeOffset.Now,
             35.6762,
@@ -224,6 +224,52 @@ public sealed class ExifServiceTests
             CancellationToken.None).ConfigureAwait(true);
 
         Assert.False(result);
+    }
+
+    [Theory]
+    [InlineData(0.0, 0.0)]
+    [InlineData(90.0, 180.0)]
+    [InlineData(-90.0, -180.0)]
+    [InlineData(-35.6762, -139.6503)]
+    [InlineData(89.9999, 179.9999)]
+    [InlineData(-89.9999, -179.9999)]
+    public async Task UpdateMetadataAsyncGpsBoundaryValuesRoundTripsCorrectly(double latitude, double longitude)
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var jpgPath = Path.Combine(root, "test.jpg");
+
+            using (var image = new Image<Rgba32>(100, 100))
+            {
+                await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
+            }
+
+            var result = await ExifWriter.UpdateMetadataAsync(
+                jpgPath,
+                null,
+                latitude,
+                longitude,
+                updateFileModifiedDate: false,
+                CancellationToken.None).ConfigureAwait(true);
+
+            Assert.True(result);
+
+            var metadata = await ExifReader.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
+            Assert.NotNull(metadata);
+            Assert.NotNull(metadata.Latitude);
+            Assert.NotNull(metadata.Longitude);
+            Assert.True(
+                Math.Abs(metadata.Latitude.Value - latitude) < 0.01,
+                $"Latitude mismatch: expected {latitude}, actual {metadata.Latitude.Value}");
+            Assert.True(
+                Math.Abs(metadata.Longitude.Value - longitude) < 0.01,
+                $"Longitude mismatch: expected {longitude}, actual {metadata.Longitude.Value}");
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
     }
 
     private static string CreateTempDirectory()
