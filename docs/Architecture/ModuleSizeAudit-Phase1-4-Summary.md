@@ -1,12 +1,12 @@
 # モジュール棚卸し最終成果サマリー（Phase 1〜4）
 
-> 対象: Issue #150「コードベース全体のモジュール棚卸しとゴッドクラス解体計画」の **Phase 1〜4**（子 issue #152〜#182, #206〜#208）
+> 対象: Issue #150「コードベース全体のモジュール棚卸しとゴッドクラス解体計画」の **Phase 1〜4**（子 issue #152〜#159, #164, #167, #171, #174〜#179, #199〜#201, #206〜#208。Phase 5 の #180〜#182 は対象外）
 > 開始時点: 2026-06-09（#150 起票時の調査）
 > 集計時点: 2026-07-07（#206 / #207 / #208 マージ後）。行数は `wc -l` 実測値（`*.cs`、`bin/` `obj/` 除く）
 
 ## 概要
 
-`FileBrowserPaneViewModel.cs` / `FileBrowserPaneView.xaml.cs` の 2 ゴッドクラスを起点に、コードベース全体のモジュールサイズを棚卸しし、責務混在の解消を段階的に進めた。Phase 1（FileBrowser 系ゴッドクラス分割）、Phase 2（App 層 🟠 ファイル分割）、Phase 3（Core 層 `ExifService` 分割）、Phase 4（残存 🟠 ファイルのトリアージと分割）を経て、当初調査で 🔴 要分割と判定された 2 ファイルはいずれも 500 行台まで縮退し、🟠 要注意だった App/Core 層ファイルは大半が 🟡 監視 または解消（クラス削除）まで改善した。Phase 5 では並行して E2E テスト基盤を拡充している。
+`FileBrowserPaneViewModel.cs` / `FileBrowserPaneView.xaml.cs` の 2 ゴッドクラスを起点に、コードベース全体のモジュールサイズを棚卸しし、責務混在の解消を段階的に進めた。Phase 1（FileBrowser 系ゴッドクラス分割）、Phase 2（App 層 🟠 ファイル分割）、Phase 3（Core 層 `ExifService` 分割）、Phase 4（残存 🟠 ファイルのトリアージと分割）を経て、当初調査で 🔴 要分割と判定された 2 ファイルはいずれも Phase 1 で `FileBrowserPaneViewModel.cs` 1,263 行・`FileBrowserPaneView.xaml.cs` 908 行まで縮退し（分類は 🔴 → 🟠）、🟠 要注意だった App/Core 層ファイルは大半が 🟡 監視 または解消（クラス削除）まで改善した。
 
 ## 全体行数比較
 
@@ -61,7 +61,7 @@
 
 ## Phase 1〜4 で新設したモジュール
 
-Phase 1（`FileBrowserPaneViewModel.cs` / `FileBrowserPaneView.xaml.cs` からの抽出）の詳細は [`FileBrowserDecomposition-Phase1-Summary.md`](FileBrowserDecomposition-Phase1-Summary.md) を参照（新設モジュール合計 2,408 行）。
+Phase 1（`FileBrowserPaneViewModel.cs` / `FileBrowserPaneView.xaml.cs` からの抽出）の詳細は [`FileBrowserDecomposition-Phase1-Summary.md`](FileBrowserDecomposition-Phase1-Summary.md) を参照。同ドキュメントの集計時点（PR #173 適用直後）の新設モジュール合計は 2,408 行だが、現在（2026-07-07）は `FileBrowserDialogs.cs`（311→324行）・`FileBrowserMenuBuilder.cs`（307→317行）が後続 PR で微増しており、現在値ベースでは **2,431 行**。
 
 ### Phase 2（App 層、#175-177）
 
@@ -87,7 +87,7 @@ Phase 1（`FileBrowserPaneViewModel.cs` / `FileBrowserPaneView.xaml.cs` から�
 | `Panes/Map/MapMarkerPresenter.cs` | 177 | 地図マーカー・ピンスタイル生成 | #207 |
 | `Services/HelpHtmlWindowController.cs` | 315 | HTML ヘルプウィンドウ（WebView2）のライフサイクル・ナビゲーション制御 | #208 |
 
-Phase 1〜4 の新設モジュール合計: **約 3,411 行**（Phase 1: 2,408 / Phase 2: 627 / Phase 3: 611 / Phase 4: 747、Phase 3 は `ExifService.cs` 558 行の後継）
+Phase 1〜4 の新設モジュール合計（現在値ベース）: **4,416 行**（Phase 1: 2,431 / Phase 2: 627 / Phase 3: 611 / Phase 4: 747、Phase 3 は `ExifService.cs` 558 行の後継）
 
 ## 分類凡例（#150 と同一基準）
 
@@ -98,7 +98,7 @@ Phase 1〜4 の新設モジュール合計: **約 3,411 行**（Phase 1: 2,408 /
 | 🟡 監視 | 200〜500行、単一責務または軽微な混在 | 今後の変更時にリファクタリング機会を探る |
 | ✅ 正常 | 200行未満または責務が明確 | 現状維持 |
 
-## 残存 🟠 ファイルの扱い
+## 残存する 500 行超ファイルの扱い
 
 再計測時点（2026-07-07）で 500 行超が残る 5 ファイルについて、今後の方針を以下の通り記録する。
 
