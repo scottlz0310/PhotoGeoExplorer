@@ -145,7 +145,7 @@
                         <ComboBox
                             x:Uid="SettingsPaneLayoutPreset"
                             Header="レイアウトプリセット"
-                            SelectedIndex="{Binding PaneLayoutPresetIndex, Mode=TwoWay}"
+                            SelectedIndex="{Binding PaneLayout.PaneLayoutPresetIndex, Mode=TwoWay}"
                             MinWidth="260">
                             <ComboBoxItem
                                 x:Uid="SettingsPaneLayoutPresetLeftCenterRightOption"
@@ -172,14 +172,14 @@
                             <TextBlock
                                 Grid.Row="0"
                                 Grid.Column="0"
-                                Text="{Binding Region1Label}"
+                                Text="{Binding PaneLayout.Region1Label}"
                                 VerticalAlignment="Center" />
                             <ComboBox
                                 Grid.Row="0"
                                 Grid.Column="1"
                                 x:Uid="SettingsPaneLayoutRegion1View"
                                 Header="表示ビュー"
-                                SelectedIndex="{Binding PaneRegion1ViewIndex, Mode=TwoWay}"
+                                SelectedIndex="{Binding PaneLayout.PaneRegion1ViewIndex, Mode=TwoWay}"
                                 MinWidth="220">
                                 <ComboBoxItem
                                     x:Uid="SettingsPaneLayoutRegion1ViewFileOption"
@@ -195,14 +195,14 @@
                             <TextBlock
                                 Grid.Row="1"
                                 Grid.Column="0"
-                                Text="{Binding Region2Label}"
+                                Text="{Binding PaneLayout.Region2Label}"
                                 VerticalAlignment="Center" />
                             <ComboBox
                                 Grid.Row="1"
                                 Grid.Column="1"
                                 x:Uid="SettingsPaneLayoutRegion2View"
                                 Header="表示ビュー"
-                                SelectedIndex="{Binding PaneRegion2ViewIndex, Mode=TwoWay}"
+                                SelectedIndex="{Binding PaneLayout.PaneRegion2ViewIndex, Mode=TwoWay}"
                                 MinWidth="220">
                                 <ComboBoxItem
                                     x:Uid="SettingsPaneLayoutRegion2ViewFileOption"
@@ -218,14 +218,14 @@
                             <TextBlock
                                 Grid.Row="2"
                                 Grid.Column="0"
-                                Text="{Binding Region3Label}"
+                                Text="{Binding PaneLayout.Region3Label}"
                                 VerticalAlignment="Center" />
                             <ComboBox
                                 Grid.Row="2"
                                 Grid.Column="1"
                                 x:Uid="SettingsPaneLayoutRegion3View"
                                 Header="表示ビュー"
-                                SelectedIndex="{Binding PaneRegion3ViewIndex, Mode=TwoWay}"
+                                SelectedIndex="{Binding PaneLayout.PaneRegion3ViewIndex, Mode=TwoWay}"
                                 MinWidth="220">
                                 <ComboBoxItem
                                     x:Uid="SettingsPaneLayoutRegion3ViewFileOption"
