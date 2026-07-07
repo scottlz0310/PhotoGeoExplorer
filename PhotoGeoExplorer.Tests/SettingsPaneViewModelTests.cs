@@ -53,10 +53,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.Equal(MapTileSourceType.EsriWorldImagery, viewModel.MapTileSource);
         Assert.False(viewModel.ShowImagesOnly);
         Assert.True(viewModel.ShowQuickStartOnStartup);
-        Assert.Equal(0, viewModel.PaneLayoutPresetIndex);
-        Assert.Equal(1, viewModel.PaneRegion1ViewIndex);
-        Assert.Equal(0, viewModel.PaneRegion2ViewIndex);
-        Assert.Equal(2, viewModel.PaneRegion3ViewIndex);
+        Assert.Equal(0, viewModel.PaneLayout.PaneLayoutPresetIndex);
+        Assert.Equal(1, viewModel.PaneLayout.PaneRegion1ViewIndex);
+        Assert.Equal(0, viewModel.PaneLayout.PaneRegion2ViewIndex);
+        Assert.Equal(2, viewModel.PaneLayout.PaneRegion3ViewIndex);
     }
 
     [Fact]
@@ -88,10 +88,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         viewModel.MapTileSource = MapTileSourceType.EsriWorldImagery;
         viewModel.ShowImagesOnly = false;
         viewModel.ShowQuickStartOnStartup = true;
-        viewModel.PaneLayoutPresetIndex = 2;
-        viewModel.PaneRegion1ViewIndex = 2;
-        viewModel.PaneRegion2ViewIndex = 1;
-        viewModel.PaneRegion3ViewIndex = 0;
+        viewModel.PaneLayout.PaneLayoutPresetIndex = 2;
+        viewModel.PaneLayout.PaneRegion1ViewIndex = 2;
+        viewModel.PaneLayout.PaneRegion2ViewIndex = 1;
+        viewModel.PaneLayout.PaneRegion3ViewIndex = 0;
 
         Assert.True(viewModel.SaveCommand.CanExecute(null));
 
@@ -138,11 +138,11 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
-        viewModel.PaneRegion1ViewIndex = (int)PaneViewType.Map;
+        viewModel.PaneLayout.PaneRegion1ViewIndex = (int)PaneViewType.Map;
 
-        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion1ViewIndex);
-        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion2ViewIndex);
-        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneLayout.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneLayout.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneLayout.PaneRegion3ViewIndex);
         Assert.Equal(PaneViewType.Map, coordinator.PaneRegion1View);
         Assert.Equal(PaneViewType.Preview, coordinator.PaneRegion2View);
         Assert.Equal(PaneViewType.File, coordinator.PaneRegion3View);
@@ -155,11 +155,11 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
-        viewModel.PaneLayoutPresetIndex = 0;
-        Assert.Equal(PaneLayoutPreset.LeftCenterRight, viewModel.SelectedPaneLayoutPreset);
+        viewModel.PaneLayout.PaneLayoutPresetIndex = 0;
+        Assert.Equal(PaneLayoutPreset.LeftCenterRight, viewModel.PaneLayout.SelectedPaneLayoutPreset);
 
-        viewModel.PaneLayoutPresetIndex = 1;
-        Assert.Equal(PaneLayoutPreset.LeftAndRightSplit, viewModel.SelectedPaneLayoutPreset);
+        viewModel.PaneLayout.PaneLayoutPresetIndex = 1;
+        Assert.Equal(PaneLayoutPreset.LeftAndRightSplit, viewModel.PaneLayout.SelectedPaneLayoutPreset);
     }
 
     [Fact]
@@ -169,19 +169,19 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionLeft"), viewModel.Region1Label);
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionTopRight"), viewModel.Region2Label);
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionBottomRight"), viewModel.Region3Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionLeft"), viewModel.PaneLayout.Region1Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionTopRight"), viewModel.PaneLayout.Region2Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionBottomRight"), viewModel.PaneLayout.Region3Label);
 
-        viewModel.PaneLayoutPresetIndex = 0;
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionLeft"), viewModel.Region1Label);
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionCenter"), viewModel.Region2Label);
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionRight"), viewModel.Region3Label);
+        viewModel.PaneLayout.PaneLayoutPresetIndex = 0;
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionLeft"), viewModel.PaneLayout.Region1Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionCenter"), viewModel.PaneLayout.Region2Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionRight"), viewModel.PaneLayout.Region3Label);
 
-        viewModel.PaneLayoutPresetIndex = 2;
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionTopLeft"), viewModel.Region1Label);
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionBottomLeft"), viewModel.Region2Label);
-        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionRight"), viewModel.Region3Label);
+        viewModel.PaneLayout.PaneLayoutPresetIndex = 2;
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionTopLeft"), viewModel.PaneLayout.Region1Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionBottomLeft"), viewModel.PaneLayout.Region2Label);
+        Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionRight"), viewModel.PaneLayout.Region3Label);
     }
 
     [Fact]
@@ -191,11 +191,11 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
-        viewModel.PaneRegion2ViewIndex = (int)PaneViewType.File;
+        viewModel.PaneLayout.PaneRegion2ViewIndex = (int)PaneViewType.File;
 
-        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion1ViewIndex);
-        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion2ViewIndex);
-        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneLayout.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneLayout.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneLayout.PaneRegion3ViewIndex);
     }
 
     [Fact]
@@ -205,11 +205,11 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
-        viewModel.PaneRegion2ViewIndex = (int)PaneViewType.Map;
+        viewModel.PaneLayout.PaneRegion2ViewIndex = (int)PaneViewType.Map;
 
-        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion1ViewIndex);
-        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion2ViewIndex);
-        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneLayout.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneLayout.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneLayout.PaneRegion3ViewIndex);
     }
 
     [Fact]
@@ -219,15 +219,15 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
-        viewModel.PaneRegion3ViewIndex = (int)PaneViewType.Preview;
-        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion1ViewIndex);
-        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion2ViewIndex);
-        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+        viewModel.PaneLayout.PaneRegion3ViewIndex = (int)PaneViewType.Preview;
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneLayout.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneLayout.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneLayout.PaneRegion3ViewIndex);
 
-        viewModel.PaneRegion3ViewIndex = (int)PaneViewType.File;
-        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneRegion1ViewIndex);
-        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion2ViewIndex);
-        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+        viewModel.PaneLayout.PaneRegion3ViewIndex = (int)PaneViewType.File;
+        Assert.Equal(PaneViewType.Preview, (PaneViewType)viewModel.PaneLayout.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneLayout.PaneRegion2ViewIndex);
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneLayout.PaneRegion3ViewIndex);
     }
 
     [Fact]
@@ -237,10 +237,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
-        viewModel.PaneRegion2View = (PaneViewType)99;
+        viewModel.PaneLayout.PaneRegion2View = (PaneViewType)99;
 
-        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneRegion1ViewIndex);
-        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneRegion3ViewIndex);
+        Assert.Equal(PaneViewType.File, (PaneViewType)viewModel.PaneLayout.PaneRegion1ViewIndex);
+        Assert.Equal(PaneViewType.Map, (PaneViewType)viewModel.PaneLayout.PaneRegion3ViewIndex);
         Assert.Equal((PaneViewType)99, coordinator.PaneRegion2View);
     }
 
@@ -313,10 +313,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.Equal(MapTileSourceType.OpenStreetMap, viewModel.MapTileSource);
         Assert.True(viewModel.ShowImagesOnly);
         Assert.False(viewModel.ShowQuickStartOnStartup);
-        Assert.Equal((int)AppSettings.DefaultPaneLayoutPreset, viewModel.PaneLayoutPresetIndex);
-        Assert.Equal((int)AppSettings.DefaultPaneRegion1View, viewModel.PaneRegion1ViewIndex);
-        Assert.Equal((int)AppSettings.DefaultPaneRegion2View, viewModel.PaneRegion2ViewIndex);
-        Assert.Equal((int)AppSettings.DefaultPaneRegion3View, viewModel.PaneRegion3ViewIndex);
+        Assert.Equal((int)AppSettings.DefaultPaneLayoutPreset, viewModel.PaneLayout.PaneLayoutPresetIndex);
+        Assert.Equal((int)AppSettings.DefaultPaneRegion1View, viewModel.PaneLayout.PaneRegion1ViewIndex);
+        Assert.Equal((int)AppSettings.DefaultPaneRegion2View, viewModel.PaneLayout.PaneRegion2ViewIndex);
+        Assert.Equal((int)AppSettings.DefaultPaneRegion3View, viewModel.PaneLayout.PaneRegion3ViewIndex);
     }
 
     [Fact]

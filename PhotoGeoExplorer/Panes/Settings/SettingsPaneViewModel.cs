@@ -28,10 +28,6 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
     private bool _showImagesOnly = true;
     private bool _showQuickStartOnStartup;
     private string? _lastFolderPath;
-    private PaneLayoutPreset _paneLayoutPreset = AppSettings.DefaultPaneLayoutPreset;
-    private PaneViewType _paneRegion1View = AppSettings.DefaultPaneRegion1View;
-    private PaneViewType _paneRegion2View = AppSettings.DefaultPaneRegion2View;
-    private PaneViewType _paneRegion3View = AppSettings.DefaultPaneRegion3View;
     private bool _suppressDirtyTracking;
     private bool _hasPendingChanges;
     private int _languageChangeVersion;
@@ -45,6 +41,9 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         _fileBrowserPaneViewModel = fileBrowserPaneViewModel ?? throw new ArgumentNullException(nameof(fileBrowserPaneViewModel));
         _shellViewModel = shellViewModel ?? throw new ArgumentNullException(nameof(shellViewModel));
         Title = LocalizationService.GetString("MenuSettings.Title");
+        PaneLayout = new SettingsPaneLayoutSectionViewModel(
+            _settingsCoordinator,
+            notifyChanged: () => _hasPendingChanges = true);
 
         SaveCommand = new RelayCommand(() => SaveAsync());
         ResetCommand = new RelayCommand(() => ResetAsync());
@@ -150,101 +149,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         }
     }
 
-    public PaneLayoutPreset SelectedPaneLayoutPreset
-    {
-        get => _paneLayoutPreset;
-        set
-        {
-            if (SetProperty(ref _paneLayoutPreset, value))
-            {
-                ApplyPaneLayoutPresetChange();
-                OnPropertyChanged(nameof(PaneLayoutPresetIndex));
-                OnPropertyChanged(nameof(Region1Label));
-                OnPropertyChanged(nameof(Region2Label));
-                OnPropertyChanged(nameof(Region3Label));
-            }
-        }
-    }
-
-    public int PaneLayoutPresetIndex
-    {
-        get => (int)_paneLayoutPreset;
-        set
-        {
-            SelectedPaneLayoutPreset = value switch
-            {
-                0 => PhotoGeoExplorer.Models.PaneLayoutPreset.LeftCenterRight,
-                2 => PhotoGeoExplorer.Models.PaneLayoutPreset.LeftSplitAndRight,
-                _ => PhotoGeoExplorer.Models.PaneLayoutPreset.LeftAndRightSplit
-            };
-        }
-    }
-
-    public PaneViewType PaneRegion1View
-    {
-        get => _paneRegion1View;
-        set
-        {
-            var previous = _paneRegion1View;
-            if (SetProperty(ref _paneRegion1View, value))
-            {
-                ApplyPaneRegionViewChange(regionIndex: 0, previousValue: previous);
-                OnPropertyChanged(nameof(PaneRegion1ViewIndex));
-            }
-        }
-    }
-
-    public int PaneRegion1ViewIndex
-    {
-        get => ToPaneViewIndex(_paneRegion1View);
-        set => PaneRegion1View = FromPaneViewIndex(value);
-    }
-
-    public PaneViewType PaneRegion2View
-    {
-        get => _paneRegion2View;
-        set
-        {
-            var previous = _paneRegion2View;
-            if (SetProperty(ref _paneRegion2View, value))
-            {
-                ApplyPaneRegionViewChange(regionIndex: 1, previousValue: previous);
-                OnPropertyChanged(nameof(PaneRegion2ViewIndex));
-            }
-        }
-    }
-
-    public int PaneRegion2ViewIndex
-    {
-        get => ToPaneViewIndex(_paneRegion2View);
-        set => PaneRegion2View = FromPaneViewIndex(value);
-    }
-
-    public PaneViewType PaneRegion3View
-    {
-        get => _paneRegion3View;
-        set
-        {
-            var previous = _paneRegion3View;
-            if (SetProperty(ref _paneRegion3View, value))
-            {
-                ApplyPaneRegionViewChange(regionIndex: 2, previousValue: previous);
-                OnPropertyChanged(nameof(PaneRegion3ViewIndex));
-            }
-        }
-    }
-
-    public int PaneRegion3ViewIndex
-    {
-        get => ToPaneViewIndex(_paneRegion3View);
-        set => PaneRegion3View = FromPaneViewIndex(value);
-    }
-
-    public string Region1Label => GetRegionLabel(regionIndex: 0);
-
-    public string Region2Label => GetRegionLabel(regionIndex: 1);
-
-    public string Region3Label => GetRegionLabel(regionIndex: 2);
+    public SettingsPaneLayoutSectionViewModel PaneLayout { get; }
 
     public bool ShowImagesOnly
     {
@@ -307,11 +212,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             _settingsCoordinator.ChangeMapZoomLevel(MapDefaultZoomLevel);
             _settingsCoordinator.ChangeMapTileSource(MapTileSource);
             _settingsCoordinator.ShowQuickStartOnStartup = ShowQuickStartOnStartup;
-            _settingsCoordinator.ChangePaneLayout(
-                SelectedPaneLayoutPreset,
-                PaneRegion1View,
-                PaneRegion2View,
-                PaneRegion3View);
+            PaneLayout.ApplyToCoordinator();
 
             if (_fileBrowserPaneViewModel.ShowImagesOnly != ShowImagesOnly)
             {
@@ -351,10 +252,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             MapTileSource = MapTileSourceType.OpenStreetMap;
             ShowImagesOnly = true;
             ShowQuickStartOnStartup = false;
-            SelectedPaneLayoutPreset = AppSettings.DefaultPaneLayoutPreset;
-            PaneRegion1View = AppSettings.DefaultPaneRegion1View;
-            PaneRegion2View = AppSettings.DefaultPaneRegion2View;
-            PaneRegion3View = AppSettings.DefaultPaneRegion3View;
+            PaneLayout.ResetToDefaults();
             LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath;
         }
         finally
@@ -408,10 +306,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             MapTileSource = _shellViewModel.CurrentMapTileSource;
             ShowImagesOnly = _fileBrowserPaneViewModel.ShowImagesOnly;
             ShowQuickStartOnStartup = _settingsCoordinator.ShowQuickStartOnStartup;
-            SelectedPaneLayoutPreset = _settingsCoordinator.PaneLayoutPreset;
-            PaneRegion1View = _settingsCoordinator.PaneRegion1View;
-            PaneRegion2View = _settingsCoordinator.PaneRegion2View;
-            PaneRegion3View = _settingsCoordinator.PaneRegion3View;
+            PaneLayout.RefreshFromCoordinator();
             LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath;
         }
         finally
@@ -478,130 +373,6 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         _settingsCoordinator.ShowQuickStartOnStartup = ShowQuickStartOnStartup;
         _settingsCoordinator.ScheduleSave();
         _hasPendingChanges = true;
-    }
-
-    private void ApplyPaneLayoutPresetChange()
-    {
-        if (_suppressDirtyTracking)
-        {
-            return;
-        }
-
-        ApplyPaneLayoutChange();
-    }
-
-    private void ApplyPaneRegionViewChange(int regionIndex, PaneViewType previousValue)
-    {
-        if (_suppressDirtyTracking)
-        {
-            return;
-        }
-
-        var selected = regionIndex switch
-        {
-            0 => PaneRegion1View,
-            1 => PaneRegion2View,
-            _ => PaneRegion3View
-        };
-
-        var duplicateRegionIndex = regionIndex switch
-        {
-            0 when PaneRegion2View == selected => 1,
-            0 when PaneRegion3View == selected => 2,
-            1 when PaneRegion1View == selected => 0,
-            1 when PaneRegion3View == selected => 2,
-            2 when PaneRegion1View == selected => 0,
-            2 when PaneRegion2View == selected => 1,
-            _ => -1
-        };
-
-        if (duplicateRegionIndex >= 0)
-        {
-            ReplacePaneRegionView(duplicateRegionIndex, previousValue);
-        }
-
-        ApplyPaneLayoutChange();
-    }
-
-    private void ApplyPaneLayoutChange()
-    {
-        _settingsCoordinator.ChangePaneLayout(
-            SelectedPaneLayoutPreset,
-            PaneRegion1View,
-            PaneRegion2View,
-            PaneRegion3View);
-        _hasPendingChanges = true;
-    }
-
-    private void ReplacePaneRegionView(int regionIndex, PaneViewType value)
-    {
-        _suppressDirtyTracking = true;
-        try
-        {
-            switch (regionIndex)
-            {
-                case 0:
-                    PaneRegion1View = value;
-                    break;
-                case 1:
-                    PaneRegion2View = value;
-                    break;
-                default:
-                    PaneRegion3View = value;
-                    break;
-            }
-        }
-        finally
-        {
-            _suppressDirtyTracking = false;
-        }
-    }
-
-    private string GetRegionLabel(int regionIndex)
-    {
-        var key = SelectedPaneLayoutPreset switch
-        {
-            PhotoGeoExplorer.Models.PaneLayoutPreset.LeftCenterRight => regionIndex switch
-            {
-                0 => "SettingsPaneLayoutRegionLeft",
-                1 => "SettingsPaneLayoutRegionCenter",
-                _ => "SettingsPaneLayoutRegionRight"
-            },
-            PhotoGeoExplorer.Models.PaneLayoutPreset.LeftSplitAndRight => regionIndex switch
-            {
-                0 => "SettingsPaneLayoutRegionTopLeft",
-                1 => "SettingsPaneLayoutRegionBottomLeft",
-                _ => "SettingsPaneLayoutRegionRight"
-            },
-            _ => regionIndex switch
-            {
-                0 => "SettingsPaneLayoutRegionLeft",
-                1 => "SettingsPaneLayoutRegionTopRight",
-                _ => "SettingsPaneLayoutRegionBottomRight"
-            }
-        };
-
-        return LocalizationService.GetString(key);
-    }
-
-    private static int ToPaneViewIndex(PaneViewType value)
-    {
-        return value switch
-        {
-            PaneViewType.Preview => 1,
-            PaneViewType.Map => 2,
-            _ => 0
-        };
-    }
-
-    private static PaneViewType FromPaneViewIndex(int value)
-    {
-        return value switch
-        {
-            1 => PaneViewType.Preview,
-            2 => PaneViewType.Map,
-            _ => PaneViewType.File
-        };
     }
 
     private void ApplyLanguageChange()

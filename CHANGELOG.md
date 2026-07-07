@@ -61,7 +61,11 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
-- `FileBrowserPaneView` に残存していた操作判断ロジックを ViewModel / Service へ移し MVVM 境界を是正 (#159)
+- `SettingsPaneViewModel` からペインレイアウト責務を `SettingsPaneLayoutSectionViewModel` へ抽出（#150 Phase 2）(#175)
+  - レイアウトプリセット・リージョン1〜3の表示ビュー選択・重複スワップ・リージョンラベル・インデックス変換（約 200 行）を専用の子 ViewModel（`Panes/Settings/SettingsPaneLayoutSectionViewModel.cs`、`BindableBase` 派生）へ移動し、`SettingsPaneViewModel` は `PaneLayout` プロパティで公開する調停役に縮退（671 行 → 387 行）
+  - 変更の即時適用は子 VM が `ISettingsCoordinator.ChangePaneLayout` を直接呼び、ダーティ追跡は `notifyChanged` コールバックで親へ通知。リフレッシュ（`RefreshFromCoordinator`）・リセット（`ResetToDefaults`）は子 VM 内部の抑制フラグで変更追跡を発火させない（既存挙動を維持）
+  - 純粋ロジック（`ToPaneViewIndex` / `FromPaneViewIndex` / `FromPresetIndex` / `GetRegionLabelKey`）を `internal static` に昇格し、パラメータ化単体テストで固定（`SettingsPaneLayoutSectionViewModelTests`、計 27 ケース）。重複スワップ・リフレッシュ/リセットの非通知・ラベル変更通知の挙動テストも追加
+  - `SettingsPaneView.xaml` のバインディングを `PaneLayout.*` パスへ更新（UI 挙動は不変）
   - エラーダイアログ表示要否の判定を `FileOperationSummary.HasReportableFailures`（キャンセルを除く失敗の有無）へ集約し、move/copy/delete/paste/drop で散在していた `HasFailures && Failures.Any(... != Cancelled)` と素の `HasFailures` の不統一を解消（ユーザーキャンセル時はエラーダイアログを表示しない挙動へ統一）
   - 「単一フォルダ選択なら移動ではなく開く」判断を VM `IsSingleFolderSelected` へ、削除確認メッセージ（単数/複数・ファイル/フォルダ分岐）の組み立てを VM `BuildDeleteConfirmationMessage()` へ、Ctrl+C/X の選択有無判定を VM `CopySelectionToClipboard()` / `CutSelectionToClipboard()` へ、右クリック時の選択復元対象の決定を VM `ResolveRightTapSelection()` へ移動。View はダイアログ/ピッカー表示・ListView 操作・キーイベント解釈のみに限定
   - VM へ移したロジックと `HasReportableFailures` にパラメータ化単体テストを追加（計 21 ケース）。VM へ移動した削除メッセージ組み立ては `FileBrowserDialogs.BuildDeleteMessage` を削除して一本化
