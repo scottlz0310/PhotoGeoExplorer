@@ -223,6 +223,34 @@ public class MapPaneViewModelTests
         }
     }
 
+    [Fact]
+    public async Task UpdateMarkersFromSelectionAsyncDoesNotThrowWhenCleanupHappensDuringLoad()
+    {
+        // Arrange
+        var service = new CleanupDuringLoadMapPaneService();
+        var viewModel = new MapPaneViewModel(service);
+        SetMapInitializedForTest(viewModel);
+
+        var photo = new PhotoListItem(
+            new PhotoItem(@"C:\Photos\selected.jpg", 1, DateTimeOffset.UtcNow, isFolder: false),
+            thumbnail: null);
+
+        // Act
+        var updateTask = viewModel.UpdateMarkersFromSelectionAsync(new[] { photo });
+
+        var loadStarted = await Task.WhenAny(service.LoadStarted, Task.Delay(1000)).ConfigureAwait(true);
+        Assert.Same(service.LoadStarted, loadStarted);
+
+        // await 中に Cleanup() を発生させ、_map/_markerLayer を破棄・null 化する
+        viewModel.Cleanup();
+        service.CompleteLoad(new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 35.681236, 139.767125));
+
+        // Assert: 破棄済みの map/markerLayer へアクセスせず例外なく完了すること
+        var completedTask = await Task.WhenAny(updateTask, Task.Delay(1000)).ConfigureAwait(true);
+        Assert.Same(updateTask, completedTask);
+        await updateTask.ConfigureAwait(true);
+    }
+
     private static void SetMapInitializedForTest(MapPaneViewModel viewModel)
     {
         var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -288,6 +316,46 @@ public class MapPaneViewModelTests
         {
             return Path.GetTempPath();
         }
+
+        public string GetPinImagePath(PhotoMetadata metadata)
+            => Path.Combine(Path.GetTempPath(), "red_pin.png");
+
+        public bool FileExistsAtPath(string path)
+            => false;
+    }
+
+    private sealed class CleanupDuringLoadMapPaneService : IMapPaneService
+    {
+        private readonly TaskCompletionSource _loadStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<PhotoMetadata?> _loadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task LoadStarted => _loadStarted.Task;
+
+        public void CompleteLoad(PhotoMetadata? metadata) => _loadCompletion.TrySetResult(metadata);
+
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
+            MapTileSourceType tileSource,
+            string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public async Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
+            IReadOnlyList<PhotoListItem> items,
+            CancellationToken cancellationToken)
+        {
+            _loadStarted.TrySetResult();
+            var metadata = await _loadCompletion.Task.ConfigureAwait(false);
+            return items.Select(item => (item, metadata)).ToArray();
+        }
+
+        public string GetTileCacheRootDirectory()
+            => Path.GetTempPath();
 
         public string GetPinImagePath(PhotoMetadata metadata)
             => Path.Combine(Path.GetTempPath(), "red_pin.png");

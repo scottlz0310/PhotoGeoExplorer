@@ -234,9 +234,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
-        var map = _map;
-        var markerLayer = _markerLayer;
-
         // 既存の更新をキャンセル
         var previousCts = _mapUpdateCts;
         _mapUpdateCts = null;
@@ -249,7 +246,12 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         var imageItems = selectedItems.Where(item => !item.IsFolder).ToList();
         if (imageItems.Count == 0)
         {
-            MapMarkerPresenter.ClearMarkers(map, markerLayer);
+            // await 中に Cleanup() が走り破棄されている可能性があるため、ここで現在のフィールドを再取得する
+            if (_map is { } mapAfterCancel && _markerLayer is { } markerLayerAfterCancel)
+            {
+                MapMarkerPresenter.ClearMarkers(mapAfterCancel, markerLayerAfterCancel);
+            }
+
             ShowStatus(
                 LocalizationService.GetString("MapStatus.SelectPhotoTitle"),
                 LocalizationService.GetString("MapStatus.SelectPhotoDetail"),
@@ -272,6 +274,12 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
 
         if (cts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        // await 中に Cleanup() が走り破棄されている可能性があるため、ここで現在のフィールドを再取得する
+        if (_map is not { } map || _markerLayer is not { } markerLayer)
         {
             return;
         }
