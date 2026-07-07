@@ -278,12 +278,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
-        // await 中に Cleanup() が走り破棄されている可能性があるため、ここで現在のフィールドを再取得する
-        if (_map is not { } map || _markerLayer is not { } markerLayer)
-        {
-            return;
-        }
-
         var points = new List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)>();
         foreach (var (item, metadata) in metadataItems)
         {
@@ -295,9 +289,16 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             points.Add((latitude, longitude, metadata, item.Item));
         }
 
+        // Presenter 呼び出し直前で現在のフィールドを再取得する。
+        // ConfigureAwait(false) を挟んでいるため継続スレッドは保証されず、
+        // 他スレッドの Cleanup() と真に並行し得るため、都度チェックが必要。
         if (points.Count == 0)
         {
-            MapMarkerPresenter.ClearMarkers(map, markerLayer);
+            if (_map is { } mapForClear && _markerLayer is { } markerLayerForClear)
+            {
+                MapMarkerPresenter.ClearMarkers(mapForClear, markerLayerForClear);
+            }
+
             ShowStatus(
                 LocalizationService.GetString("MapStatus.LocationMissingTitle"),
                 LocalizationService.GetString("MapStatus.LocationMissingSelectionDetail"),
@@ -307,13 +308,23 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         if (points.Count == 1)
         {
+            if (_map is not { } mapForSingle || _markerLayer is not { } markerLayerForSingle)
+            {
+                return;
+            }
+
             var single = points[0];
-            _markerPresenter.SetMarker(map, markerLayer, single.Latitude, single.Longitude, single.Metadata, single.Item, _mapDefaultZoomLevel);
+            _markerPresenter.SetMarker(mapForSingle, markerLayerForSingle, single.Latitude, single.Longitude, single.Metadata, single.Item, _mapDefaultZoomLevel);
             HideStatus();
             return;
         }
 
-        _markerPresenter.SetMarkers(map, markerLayer, points);
+        if (_map is not { } mapForMulti || _markerLayer is not { } markerLayerForMulti)
+        {
+            return;
+        }
+
+        _markerPresenter.SetMarkers(mapForMulti, markerLayerForMulti, points);
         HideStatus();
     }
 
