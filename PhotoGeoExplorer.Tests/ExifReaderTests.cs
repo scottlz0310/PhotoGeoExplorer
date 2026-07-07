@@ -30,6 +30,7 @@ public sealed class ExifReaderTests
             var metadata = await ExifReader.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
 
             Assert.NotNull(metadata);
+            Assert.NotNull(metadata.TakenAt);
         }
         finally
         {
@@ -59,11 +60,42 @@ public sealed class ExifReaderTests
     [Fact]
     public async Task GetMetadataAsyncNonExistentFileReturnsNull()
     {
-        var nonExistentPath = Path.Combine(Path.GetTempPath(), "nonexistent.jpg");
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid():N}.jpg");
+        Assert.False(File.Exists(nonExistentPath));
 
         var metadata = await ExifReader.GetMetadataAsync(nonExistentPath, CancellationToken.None).ConfigureAwait(true);
 
         Assert.Null(metadata);
+    }
+
+    [Fact]
+    public async Task GetMetadataSyncReadsSameMetadataAsAsync()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var jpgPath = Path.Combine(root, "sync.jpg");
+
+            using (var image = new Image<Rgba32>(100, 100))
+            {
+                var exifProfile = new ExifProfile();
+                exifProfile.SetValue(ExifTag.DateTimeOriginal, "2024:01:15 12:30:00");
+                image.Metadata.ExifProfile = exifProfile;
+                await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
+            }
+
+            var metadata = ExifReader.GetMetadata(jpgPath);
+
+            Assert.NotNull(metadata);
+            Assert.NotNull(metadata.TakenAt);
+            Assert.Equal(2024, metadata.TakenAt.Value.Year);
+            Assert.Equal(1, metadata.TakenAt.Value.Month);
+            Assert.Equal(15, metadata.TakenAt.Value.Day);
+        }
+        finally
+        {
+            TryDeleteDirectory(root);
+        }
     }
 
     private static string CreateTempDirectory()
