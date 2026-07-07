@@ -61,6 +61,11 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
+- `HelpService` の HTML ヘルプウィンドウ管理を `HelpHtmlWindowController` へ分離（#150 Phase 4 / #179）(#208)
+  - `ShowHelpHtmlWindowAsync` 内のウィンドウ生成・アクティベート処理、`CreateHelpHtmlWebView` / `CleanupHelpHtmlWindow` / `CloseHelpHtmlWindow` / `CloseHelpHtmlWebView` / `TryResizeHelpWindow` / `GetAppWindow`（WebView2 ウィンドウのライフサイクル）と `OnHelpWebViewInitialized` / `OnHelpWebViewNewWindowRequested` / `OnHelpWebViewNavigationStarting` / `OnHelpWebViewNavigationCompleted` / `ShouldOpenOutsideHelpWindow` / `AreSameOrigin` / `AreSameUri` / `ResolveExternalUri` / `TryGetExternalUri` / `OpenExternalUriAsync`（ナビゲーション制御）を `PhotoGeoExplorer/Services/HelpHtmlWindowController.cs` へ移動し、`HelpService` は「どのヘルプを表示するか」のオーケストレーションに専念（559行 → 299行、−46%）
+  - URI 解決の純粋関数群（`TryGetHelpHtmlUri` / `GetHelpHtmlFileName` / `TryGetExternalHelpHtmlUri` / `GetExternalPrivacyPolicyUri` / `GetExternalContentBaseUri`）は Issue で明示された通り分割対象外（`HelpService` に現状維持）。`HelpHtmlWindowController` の `ResolveExternalUri` はプライバシーポリシー URI 解決のため `HelpService.GetExternalPrivacyPolicyUri`（internal static）を参照
+  - 挙動は不変（外部/ローカル判定・同一オリジン判定・外部リンクのブラウザ起動・ローカルフォールバックのロジックはそのまま移動）
+  - Copilot レビュー指摘対応: `ShowOrNavigate` の既存ウィンドウ再利用分岐で `windowTitle` 引数が無視されていたため、当該分岐でも `Title` を更新するよう修正し、引数を常に有効にした
 - `MapPaneViewModel` の重複ズーム正規化解消とマーカー表示ロジック分離（#150 Phase 4）(#198, #207)
   - `DefaultMapZoomLevel` / `MapZoomLevelOptions` の独自定義を `MapZoomLevelCatalog`（`Models`）参照へ統一し、`NormalizeMapZoomLevel` を `SettingsNormalization.NormalizeMapZoomLevel` への委譲に置き換え。ズームレベルカタログ変更時の二重修正を解消（#198）
   - `SetMapMarker` / `SetMapMarkers` / `CreatePinStyles` / `TryCreatePinStyle` / `CreateFallbackMarkerStyle` / `ClearMapMarkers`（ピンスタイル生成・単一/複数マーカー配置・地図フィット計算）を `PhotoGeoExplorer/Panes/Map/MapMarkerPresenter.cs` へ分離し、`MapPaneViewModel` はマーカー更新のオーケストレーションに専念（572行 → 417行、−27%）。挙動は不変（#207）
