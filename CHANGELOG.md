@@ -61,7 +61,11 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
-- `ExifService` の読み取り責務を `ExifReader` へ分離（#150 Phase 3 / #178 P3-A）(#199)
+- `ExifService` の JPEG セグメント書き換えを `JpegExifSegmentWriter` へ分離（#150 Phase 3 / #178 P3-B）(#200)
+  - `WriteJpegWithUpdatedExif`（SOI / マーカー走査・EXIF セグメントの挿入・置換・削除）と `TryWriteExifSegment` / `IsExifSegment` / `ExifHeader` 定数、byte ストリームヘルパー（`TryReadByte` / `TryReadUInt16` / `WriteUInt16` / `CopyBytes` / `TryReadExact`）を `PhotoGeoExplorer.Core/Services/JpegExifSegmentWriter.cs`（internal static、ImageSharp 非依存）へ移動
+  - 公開 API をファイルパスではなく `Stream` 入出力（`Write(Stream input, Stream output, byte[]? exifPayload, CancellationToken cancellationToken)`）へ変更し、ファイル I/O は呼び出し元の `ExifService.WriteJpegWithUpdatedExif`（薄いラッパー、`File.OpenRead`/`File.Create` のみ）に残すことで、専用クラスを byte レベルの単体テストで直接検証可能にした（挙動は不変）
+  - `ExifService.BuildExifPayload` は `JpegExifSegmentWriter.ExifHeader` を参照するよう更新（`ExifService` は 380 行 → 209 行に縮退）
+  - `JpegExifSegmentWriterTests`（新規、15 ケース）を追加: APP0 直後への EXIF 挿入 / APP0 以外の先頭セグメント前への挿入 / 既存 EXIF セグメントの置換・削除（payload null 時） / EXIF 非存在時の無変更コピー / セグメントなし JPEG での EOI 直前挿入 / ペイロードが 65535 バイト超過時の失敗 / 非 JPEG・空ストリーム・各読み取り位置（マーカー・セグメント長・セグメントデータ・スキャンヘッダ）での途中 EOF 異常系（`[Theory]`/`[MemberData]` でパラメータ化）
   - `GetMetadataAsync` / `GetMetadata` / `ReadMetadata`（MetadataExtractor による GPS / カメラ情報 / 撮影日時の読み取りと例外ハンドリング）を `PhotoGeoExplorer.Core/Services/ExifReader.cs`（internal static）へ移動し、MetadataExtractor 依存を `ExifReader` に局所化（`ExifService` は 558 行 → 380 行の書き込み専用クラスに縮退）
   - 呼び出し側 5 箇所（`PreviewPaneService` / `ExifMetadataService` / `MapPaneService` / `FileBrowserStatusViewModel` / `ThumbnailGenerationCoordinator`）を `ExifReader.GetMetadataAsync` へ振り向け（挙動は不変）
   - 読み取り系テストを `ExifReaderTests` へ再編（既存の ExifSubIfd 日時欠落ケースを移動し、非画像ファイル / 非存在ファイルの null 返却ケースを追加）。`ExifServiceTests` の書き込み検証用読み取りは `ExifReader` 経由へ更新
