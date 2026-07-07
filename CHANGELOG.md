@@ -67,6 +67,7 @@
   - GPS 度分秒変換の境界値テスト（0 / ±90 / ±180 近傍・負値）を `ExifWriterTests`（`ExifServiceTests` からリネーム）に追加
   - #202（Epic: SixLabors.ImageSharp 依存撤去検証）Phase 1 のうち EXIF 書き込みに関する PoC を先行実施した結果、GPS 削除が WinRT `Windows.Graphics.Imaging` API では未成立（削除専用 API が存在せず、代替の再構築アプローチは未知タグを喪失するトレードオフがある）と判明したため、EXIF 書き込みの ImageSharp 依存撤去は見送り、現行実装を挙動変更なしで移動する方針とした（詳細は #202 参照）
   - #178（Phase 3: `ExifService` Reader / Writer 分離）を本 Issue の完了をもってクローズ
+  - `ExifMetadataService`（`ExifWriter`/`ExifReader` への委譲のみを行う薄いラッパー）に単体テストが存在せず、委譲先クラス名の変更が `codecov/patch` の新規未カバー行として検出されたため、`ExifMetadataServiceTests` を追加して委譲経路を直接検証
 - `ExifService` の JPEG セグメント書き換えを `JpegExifSegmentWriter` へ分離（#150 Phase 3 / #178 P3-B）(#200)
   - `WriteJpegWithUpdatedExif`（SOI / マーカー走査・EXIF セグメントの挿入・置換・削除）と `TryWriteExifSegment` / `IsExifSegment` / `ExifHeader` 定数、byte ストリームヘルパー（`TryReadByte` / `TryReadUInt16` / `WriteUInt16` / `CopyBytes` / `TryReadExact`）を `PhotoGeoExplorer.Core/Services/JpegExifSegmentWriter.cs`（internal static、ImageSharp 非依存）へ移動
   - 公開 API をファイルパスではなく `Stream` 入出力（`Write(Stream input, Stream output, byte[]? exifPayload, CancellationToken cancellationToken)`）へ変更し、ファイル I/O は呼び出し元の `ExifService.WriteJpegWithUpdatedExif`（薄いラッパー、`File.OpenRead`/`File.Create` のみ）に残すことで、専用クラスを byte レベルの単体テストで直接検証可能にした（挙動は不変）
