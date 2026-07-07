@@ -31,8 +31,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 {
     private const string PhotoMetadataKey = "PhotoMetadata";
     private const string PhotoItemKey = "PhotoItem";
-    private const int DefaultMapZoomLevel = 14;
-    private static readonly int[] MapZoomLevelOptions = { 8, 10, 12, 14, 16, 18 };
 
     private readonly IMapPaneService _service;
     private readonly WorkspaceState _workspaceState;
@@ -40,7 +38,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private TileLayer? _baseTileLayer;
     private MemoryLayer? _markerLayer;
     private MapTileSourceType _currentTileSource = MapTileSourceType.OpenStreetMap;
-    private int _mapDefaultZoomLevel = DefaultMapZoomLevel;
+    private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private CancellationTokenSource? _mapUpdateCts;
     private bool _isMapInitialized;
     private string _statusTitle = string.Empty;
@@ -137,7 +135,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         get => _mapDefaultZoomLevel;
         set
         {
-            var normalized = NormalizeMapZoomLevel(value);
+            var normalized = SettingsNormalization.NormalizeMapZoomLevel(value);
             SetProperty(ref _mapDefaultZoomLevel, normalized);
         }
     }
@@ -545,16 +543,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         latitude = lat;
         longitude = lon;
         return true;
-    }
-
-    private static int NormalizeMapZoomLevel(int level)
-    {
-        if (MapZoomLevelOptions.Contains(level))
-        {
-            return level;
-        }
-
-        return DefaultMapZoomLevel;
     }
 
     private void ShowStatus(string title, string detail, Symbol icon)
