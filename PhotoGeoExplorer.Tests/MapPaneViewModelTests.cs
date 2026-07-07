@@ -200,7 +200,9 @@ public class MapPaneViewModelTests
         var workspaceState = new WorkspaceState();
         var service = new WorkspaceSelectionMapPaneService();
         var viewModel = new MapPaneViewModel(service, workspaceState);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
         SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
 
         var photo = new PhotoListItem(
             new PhotoItem(@"C:\Photos\selected.jpg", 1, DateTimeOffset.UtcNow, isFolder: false),
@@ -223,7 +225,60 @@ public class MapPaneViewModelTests
         }
     }
 
-    private static void SetMapInitializedForTest(MapPaneViewModel viewModel)
+    [Fact]
+    public async Task UpdateMarkersFromSelectionAsyncDoesNotThrowWhenCleanupHappensDuringLoad()
+    {
+        // Arrange
+        var service = new CleanupDuringLoadMapPaneService();
+        var viewModel = new MapPaneViewModel(service);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+
+        var photo = new PhotoListItem(
+            new PhotoItem(@"C:\Photos\selected.jpg", 1, DateTimeOffset.UtcNow, isFolder: false),
+            thumbnail: null);
+
+        // Act
+        var updateTask = viewModel.UpdateMarkersFromSelectionAsync(new[] { photo });
+
+        var loadStarted = await Task.WhenAny(service.LoadStarted, Task.Delay(1000)).ConfigureAwait(true);
+        Assert.Same(service.LoadStarted, loadStarted);
+
+        // await 中に Cleanup() を発生させ、_map/_markerLayer を破棄・null 化する
+        viewModel.Cleanup();
+        service.CompleteLoad(new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 35.681236, 139.767125));
+
+        // Assert: 破棄済みの map/markerLayer へアクセスせず例外なく完了すること
+        var completedTask = await Task.WhenAny(updateTask, Task.Delay(1000)).ConfigureAwait(true);
+        Assert.Same(updateTask, completedTask);
+        await updateTask.ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task UpdateMarkersFromSelectionAsyncDoesNotUpdateDisposedLayerWhenCleanupHappensAfterLoadCompletes()
+    {
+        // Arrange
+        MapPaneViewModel? viewModel = null;
+        var service = new CleanupAfterLoadMapPaneService(() => viewModel!.Cleanup());
+        viewModel = new MapPaneViewModel(service);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        var markerLayer = SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+
+        var photo = new PhotoListItem(
+            new PhotoItem(@"C:\Photos\selected.jpg", 1, DateTimeOffset.UtcNow, isFolder: false),
+            thumbnail: null);
+
+        // Act: LoadPhotoMetadataAsync が結果を返す直前(Presenter 呼び出し前)に Cleanup() が走る
+        await viewModel.UpdateMarkersFromSelectionAsync(new[] { photo }).ConfigureAwait(true);
+
+        // Assert: 破棄済みレイヤーへマーカーが書き込まれていない(no-op)こと
+        Assert.Empty(markerLayer.Features);
+        Assert.Null(viewModel.Map);
+    }
+
+    private static MemoryLayer SetMapInitializedForTest(MapPaneViewModel viewModel)
     {
         var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
         var markerLayerField = typeof(MapPaneViewModel).GetField("_markerLayer", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -245,6 +300,7 @@ public class MapPaneViewModelTests
         mapField!.SetValue(viewModel, map);
         markerLayerField!.SetValue(viewModel, markerLayer);
         isMapInitializedField!.SetValue(viewModel, true);
+        return markerLayer;
     }
 
     private sealed class WorkspaceSelectionMapPaneService : IMapPaneService
@@ -288,6 +344,93 @@ public class MapPaneViewModelTests
         {
             return Path.GetTempPath();
         }
+
+        public string GetPinImagePath(PhotoMetadata metadata)
+            => Path.Combine(Path.GetTempPath(), "red_pin.png");
+
+        public bool FileExistsAtPath(string path)
+            => false;
+    }
+
+    private sealed class CleanupDuringLoadMapPaneService : IMapPaneService
+    {
+        private readonly TaskCompletionSource _loadStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<PhotoMetadata?> _loadCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task LoadStarted => _loadStarted.Task;
+
+        public void CompleteLoad(PhotoMetadata? metadata) => _loadCompletion.TrySetResult(metadata);
+
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
+            MapTileSourceType tileSource,
+            string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public async Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
+            IReadOnlyList<PhotoListItem> items,
+            CancellationToken cancellationToken)
+        {
+            _loadStarted.TrySetResult();
+            var metadata = await _loadCompletion.Task.ConfigureAwait(false);
+            return items.Select(item => (item, metadata)).ToArray();
+        }
+
+        public string GetTileCacheRootDirectory()
+            => Path.GetTempPath();
+
+        public string GetPinImagePath(PhotoMetadata metadata)
+            => Path.Combine(Path.GetTempPath(), "red_pin.png");
+
+        public bool FileExistsAtPath(string path)
+            => false;
+    }
+
+    private sealed class CleanupAfterLoadMapPaneService : IMapPaneService
+    {
+        private readonly Action _onLoadCompleting;
+
+        public CleanupAfterLoadMapPaneService(Action onLoadCompleting)
+        {
+            _onLoadCompleting = onLoadCompleting;
+        }
+
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
+            MapTileSourceType tileSource,
+            string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
+            IReadOnlyList<PhotoListItem> items,
+            CancellationToken cancellationToken)
+        {
+            var metadata = new PhotoMetadata(DateTimeOffset.UtcNow, null, null, latitude: 35.681236, longitude: 139.767125);
+
+            // LoadPhotoMetadataAsync が結果を返す直前(= UpdateMarkersFromSelectionAsync の
+            // 続きの処理が実行される直前)に Cleanup() を発生させる
+            _onLoadCompleting();
+
+            var metadataItems = items
+                .Select(item => (item, (PhotoMetadata?)metadata))
+                .ToArray();
+            return Task.FromResult<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>>(metadataItems);
+        }
+
+        public string GetTileCacheRootDirectory()
+            => Path.GetTempPath();
 
         public string GetPinImagePath(PhotoMetadata metadata)
             => Path.Combine(Path.GetTempPath(), "red_pin.png");

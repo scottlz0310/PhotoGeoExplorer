@@ -61,6 +61,11 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
+- `MapPaneViewModel` の重複ズーム正規化解消とマーカー表示ロジック分離（#150 Phase 4）(#198, #207)
+  - `DefaultMapZoomLevel` / `MapZoomLevelOptions` の独自定義を `MapZoomLevelCatalog`（`Models`）参照へ統一し、`NormalizeMapZoomLevel` を `SettingsNormalization.NormalizeMapZoomLevel` への委譲に置き換え。ズームレベルカタログ変更時の二重修正を解消（#198）
+  - `SetMapMarker` / `SetMapMarkers` / `CreatePinStyles` / `TryCreatePinStyle` / `CreateFallbackMarkerStyle` / `ClearMapMarkers`（ピンスタイル生成・単一/複数マーカー配置・地図フィット計算）を `PhotoGeoExplorer/Panes/Map/MapMarkerPresenter.cs` へ分離し、`MapPaneViewModel` はマーカー更新のオーケストレーションに専念（572行 → 417行、−27%）。挙動は不変（#207）
+  - `MapMarkerPresenterTests`（新規、6 ケース）を追加: マーカーのクリア・単一/複数配置・`PhotoMetadata`/`PhotoItem` の紐付け・ピン画像存在有無によるスタイル切り替えを検証
+  - thread-owl / Copilot レビュー指摘対応（blocking、2 サイクル）: `UpdateMarkersFromSelectionAsync` で `_map`/`_markerLayer` を `await` 前にローカル変数へ退避していたため、`await`（キャンセル完了待ち・メタデータ読み込み待ち）中に `OnCleanup()` が走ると破棄済みの map/layer を後続の `MapMarkerPresenter` 呼び出しが更新し得る回帰があった。`ConfigureAwait(false)` により継続スレッドが保証されないため、1 箇所の再取得では `points` 計算後の Presenter 呼び出し（`ClearMarkers`/`SetMarker`/`SetMarkers` の 3 箇所）までの間の競合区間が残ると thread-owl から再指摘を受け、各 Presenter 呼び出しの直前で都度 `_map`/`_markerLayer` を再取得する形に修正。`UpdateMarkersFromSelectionAsyncDoesNotThrowWhenCleanupHappensDuringLoad`（ロード待機中の Cleanup）・`UpdateMarkersFromSelectionAsyncDoesNotUpdateDisposedLayerWhenCleanupHappensAfterLoadCompletes`（ロード完了直後・Presenter 呼び出し直前の Cleanup）の 2 テストで固定
 - `MainWindow` のクラッシュレポート機能を `CrashReportDialogService` へ分離（#150 Phase 4）(#206)
   - `OnReportCrashClicked` / `BuildCrashReportSummaryPanel` / `ParseCrashLogField` / `OpenCrashReportGitHubIssueAsync` / `CopyLogAndOpenMailAsync` / `OnOpenCrashReportFolderClicked` / `OnOpenLogFolderClicked` / `HandleOpenLogFolderFailure` を `PhotoGeoExplorer/Services/CrashReportDialogService.cs` へ移動し、`MainWindow.xaml.cs` のイベントハンドラは委譲のみに縮退（770行 → 590行、−23%）。MainWindow 肥大化防止ガードレール違反（イベントハンドラに処理本体が直接実装されていた）を是正
   - ダイアログ表示は `DialogService.ShowContentDialogAsync`（XamlRoot 待機ロジック付き）経由に統一（`Content.XamlRoot` を直接参照していた旧実装から変更。実質的な挙動は同一）
