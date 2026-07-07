@@ -61,6 +61,12 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
+- `ExifService` の書き込み責務を `ExifWriter` へ分離しファサードを整理（#150 Phase 3 / #178 P3-C・最終）(#201)
+  - `UpdateMetadataAsync` / `WriteMetadata` / `BuildExifPayload` / `WriteJpegWithUpdatedExif` を `PhotoGeoExplorer.Core/Services/ExifWriter.cs`（internal static）へ移動
+  - #199（Reader 分離）・#200（JPEG セグメント書き換え分離）により `ExifService` は書き込み専用の薄いラッパーへ縮退済みだったため、ファサードとしての価値がなくなった `ExifService.cs` を削除。呼び出し側 `ExifMetadataService.UpdateMetadataAsync` を `ExifWriter` へ直接振り向け（挙動は不変）
+  - GPS 度分秒変換の境界値テスト（0 / ±90 / ±180 近傍・負値）を `ExifWriterTests`（`ExifServiceTests` からリネーム）に追加
+  - #202（Epic: SixLabors.ImageSharp 依存撤去検証）Phase 1 のうち EXIF 書き込みに関する PoC を先行実施した結果、GPS 削除が WinRT `Windows.Graphics.Imaging` API では未成立（削除専用 API が存在せず、代替の再構築アプローチは未知タグを喪失するトレードオフがある）と判明したため、EXIF 書き込みの ImageSharp 依存撤去は見送り、現行実装を挙動変更なしで移動する方針とした（詳細は #202 参照）
+  - #178（Phase 3: `ExifService` Reader / Writer 分離）を本 Issue の完了をもってクローズ
 - `ExifService` の JPEG セグメント書き換えを `JpegExifSegmentWriter` へ分離（#150 Phase 3 / #178 P3-B）(#200)
   - `WriteJpegWithUpdatedExif`（SOI / マーカー走査・EXIF セグメントの挿入・置換・削除）と `TryWriteExifSegment` / `IsExifSegment` / `ExifHeader` 定数、byte ストリームヘルパー（`TryReadByte` / `TryReadUInt16` / `WriteUInt16` / `CopyBytes` / `TryReadExact`）を `PhotoGeoExplorer.Core/Services/JpegExifSegmentWriter.cs`（internal static、ImageSharp 非依存）へ移動
   - 公開 API をファイルパスではなく `Stream` 入出力（`Write(Stream input, Stream output, byte[]? exifPayload, CancellationToken cancellationToken)`）へ変更し、ファイル I/O は呼び出し元の `ExifService.WriteJpegWithUpdatedExif`（薄いラッパー、`File.OpenRead`/`File.Create` のみ）に残すことで、専用クラスを byte レベルの単体テストで直接検証可能にした（挙動は不変）

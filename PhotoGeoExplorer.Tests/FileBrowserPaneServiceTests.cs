@@ -62,7 +62,7 @@ public class FileBrowserPaneServiceTests
         }
 
         var takenAt = new DateTimeOffset(2024, 1, 15, 12, 30, 0, TimeSpan.Zero);
-        await ExifService.UpdateMetadataAsync(
+        await ExifWriter.UpdateMetadataAsync(
             jpgPath,
             takenAt,
             35.6762,

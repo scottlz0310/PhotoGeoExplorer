@@ -12,7 +12,7 @@ namespace PhotoGeoExplorer.Services;
 /// <summary>
 /// EXIF メタデータの書き込み責務を担う（読み取りは <see cref="ExifReader"/> を参照）
 /// </summary>
-internal static class ExifService
+internal static class ExifWriter
 {
     public static Task<bool> UpdateMetadataAsync(
         string filePath,
