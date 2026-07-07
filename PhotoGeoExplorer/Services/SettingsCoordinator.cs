@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -136,7 +135,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
 
     public void ChangeMapZoomLevel(int level)
     {
-        var normalized = NormalizeMapZoomLevel(level);
+        var normalized = SettingsNormalization.NormalizeMapZoomLevel(level);
         var changed = _mapDefaultZoomLevel != normalized;
         _mapDefaultZoomLevel = normalized;
         _mapPaneViewModel.MapDefaultZoomLevel = normalized;
@@ -168,8 +167,8 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
 
     public void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
     {
-        var normalizedPreset = NormalizePaneLayoutPreset(preset);
-        var normalizedViews = NormalizePaneRegionViews(region1View, region2View, region3View);
+        var normalizedPreset = SettingsNormalization.NormalizePaneLayoutPreset(preset);
+        var normalizedViews = SettingsNormalization.NormalizePaneRegionViews(region1View, region2View, region3View);
         ApplyPaneLayoutSettings(normalizedPreset, normalizedViews.Region1View, normalizedViews.Region2View, normalizedViews.Region3View, saveSettings: true);
     }
 
@@ -235,140 +234,6 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         GC.SuppressFinalize(this);
     }
 
-    internal static string? NormalizeLanguageSetting(string? languageTag)
-    {
-        if (string.IsNullOrWhiteSpace(languageTag))
-        {
-            return null;
-        }
-
-        var trimmed = languageTag.Trim();
-        if (string.Equals(trimmed, "system", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        if (string.Equals(trimmed, "ja", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(trimmed, "ja-jp", StringComparison.OrdinalIgnoreCase))
-        {
-            return "ja-JP";
-        }
-
-        if (string.Equals(trimmed, "en", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(trimmed, "en-us", StringComparison.OrdinalIgnoreCase))
-        {
-            return "en-US";
-        }
-
-        return trimmed;
-    }
-
-    internal static int NormalizeMapZoomLevel(int level)
-    {
-        if (MapZoomLevelCatalog.Options.Contains(level))
-        {
-            return level;
-        }
-
-        return MapZoomLevelCatalog.Default;
-    }
-
-    internal static string? NormalizeExternalContentBaseUrl(string? baseUrl)
-    {
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            return null;
-        }
-
-        if (!Uri.TryCreate(baseUrl.Trim(), UriKind.Absolute, out var parsed))
-        {
-            return null;
-        }
-
-        if (!string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return parsed.AbsoluteUri.TrimEnd('/');
-    }
-
-    internal static PaneLayoutPreset NormalizePaneLayoutPreset(PaneLayoutPreset preset)
-    {
-        return Enum.IsDefined(preset)
-            ? preset
-            : AppSettings.DefaultPaneLayoutPreset;
-    }
-
-    internal static (PaneViewType Region1View, PaneViewType Region2View, PaneViewType Region3View) NormalizePaneRegionViews(
-        PaneViewType region1View,
-        PaneViewType region2View,
-        PaneViewType region3View)
-    {
-        var values = new[]
-        {
-            NormalizePaneView(region1View),
-            NormalizePaneView(region2View),
-            NormalizePaneView(region3View)
-        };
-
-        var allViews = Enum.GetValues<PaneViewType>();
-        var used = new HashSet<PaneViewType>();
-        for (var i = 0; i < values.Length; i++)
-        {
-            if (used.Add(values[i]))
-            {
-                continue;
-            }
-
-            var replacement = allViews.FirstOrDefault(candidate => !used.Contains(candidate));
-            values[i] = replacement;
-            used.Add(values[i]);
-        }
-
-        return (values[0], values[1], values[2]);
-    }
-
-    internal static string? FindValidAncestorPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null;
-        }
-
-        try
-        {
-            var current = Path.GetFullPath(path);
-
-            while (!string.IsNullOrWhiteSpace(current))
-            {
-                if (Directory.Exists(current))
-                {
-                    return current;
-                }
-
-                var parent = Directory.GetParent(current);
-                if (parent is null)
-                {
-                    break;
-                }
-
-                current = parent.FullName;
-            }
-        }
-        catch (Exception ex) when (ex is ArgumentException
-            or PathTooLongException
-            or System.Security.SecurityException
-            or NotSupportedException
-            or UnauthorizedAccessException)
-        {
-            AppLog.Error($"Failed to find valid ancestor path for '{path}'", ex);
-        }
-
-        return null;
-    }
-
     private async Task ApplySettingsAsync(AppSettings settings, bool showLanguagePrompt = false)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -376,10 +241,10 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         await ApplyLanguageSettingAsync(settings.Language, showLanguagePrompt).ConfigureAwait(true);
         ApplyThemePreference(settings.Theme, saveSettings: false);
 
-        _mapDefaultZoomLevel = NormalizeMapZoomLevel(settings.MapDefaultZoomLevel);
+        _mapDefaultZoomLevel = SettingsNormalization.NormalizeMapZoomLevel(settings.MapDefaultZoomLevel);
         _mapPaneViewModel.MapDefaultZoomLevel = _mapDefaultZoomLevel;
         _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
-        _externalContentBaseUrl = NormalizeExternalContentBaseUrl(settings.ExternalContentBaseUrl);
+        _externalContentBaseUrl = SettingsNormalization.NormalizeExternalContentBaseUrl(settings.ExternalContentBaseUrl);
 
         var savedTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
         if (savedTileSource != _mapTileSource)
@@ -401,8 +266,8 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _fileBrowserPaneViewModel.ShowDetailsSizeColumn = settings.ShowDetailsSizeColumn;
         _fileBrowserPaneViewModel.ShowDetailsTakenAtColumn = settings.ShowDetailsTakenAtColumn;
         _fileBrowserPaneViewModel.ShowDetailsLocationColumn = settings.ShowDetailsLocationColumn;
-        var normalizedPreset = NormalizePaneLayoutPreset(settings.PaneLayoutPreset);
-        var normalizedViews = NormalizePaneRegionViews(settings.PaneRegion1View, settings.PaneRegion2View, settings.PaneRegion3View);
+        var normalizedPreset = SettingsNormalization.NormalizePaneLayoutPreset(settings.PaneLayoutPreset);
+        var normalizedViews = SettingsNormalization.NormalizePaneRegionViews(settings.PaneRegion1View, settings.PaneRegion2View, settings.PaneRegion3View);
         settings.PaneLayoutPreset = normalizedPreset;
         settings.PaneRegion1View = normalizedViews.Region1View;
         settings.PaneRegion2View = normalizedViews.Region2View;
@@ -425,7 +290,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
 
         if (!string.IsNullOrWhiteSpace(settings.LastFolderPath))
         {
-            var validPath = FindValidAncestorPath(settings.LastFolderPath);
+            var validPath = SettingsNormalization.FindValidAncestorPath(settings.LastFolderPath);
             if (!string.IsNullOrWhiteSpace(validPath))
             {
                 await _fileBrowserPaneViewModel.LoadFolderAsync(validPath).ConfigureAwait(true);
@@ -442,7 +307,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
 
     private async Task ApplyLanguageSettingAsync(string? languageTag, bool showRestartPrompt)
     {
-        var normalized = NormalizeLanguageSetting(languageTag);
+        var normalized = SettingsNormalization.NormalizeLanguageSetting(languageTag);
         var changed = !string.Equals(_languageOverride, normalized, StringComparison.OrdinalIgnoreCase);
         _languageOverride = normalized;
         ApplyLanguageOverride(normalized);
@@ -610,12 +475,5 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             _themePreference,
             _mapDefaultZoomLevel,
             _mapTileSource);
-    }
-
-    private static PaneViewType NormalizePaneView(PaneViewType view)
-    {
-        return Enum.IsDefined(view)
-            ? view
-            : PaneViewType.File;
     }
 }
