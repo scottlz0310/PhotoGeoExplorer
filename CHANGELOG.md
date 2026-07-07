@@ -61,6 +61,11 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
+- `MapPaneViewControl` から EXIF/GPS 位置ピッカー責務を `MapExifLocationPicker` へ分離（#150 Phase 2）(#176)
+  - `IExifLocationPicker` 実装（`PickExifLocationAsync` の TaskCompletionSource 管理）、ピック中のポインタ状態機械（右クリックキャンセル・しきい値内クリック判定・キャプチャ喪失）、ステータス表示の退避/復元追跡を専用ハンドラ（`Panes/Map/MapExifLocationPicker.cs`）へ移動し、View を 694 行 → 515 行に縮退
+  - EXIF ピックと矩形選択で共有していたポインタハンドラ（Pressed/Released/CaptureLost）をモード別ルーターに整理。ピック中はハンドラへ委譲し戻り値で `e.Handled` を決定、矩形選択・マーカー flyout の分岐は不変（さらなる分離は Phase 4 候補としてスコープ外）
+  - UI 依存（マップ有無判定・ステータスオーバーレイの退避/復元）はコールバック注入とし、状態遷移（キャンセル・ドラッグ超過の無視・ワールド座標未解決時の継続・キャプチャ喪失後の再試行等）をパラメータ化単体テストで固定（`MapExifLocationPickerTests`、計 15 ケース）
+  - `MainWindow` は `MapPaneControl.ExifLocationPicker` を `ExifEditorService` へ渡す形へ変更し、View 自身は `IExifLocationPicker` を実装しない（挙動は不変）
 - `SettingsPaneViewModel` からペインレイアウト責務を `SettingsPaneLayoutSectionViewModel` へ抽出（#150 Phase 2）(#175)
   - レイアウトプリセット・リージョン1〜3の表示ビュー選択・重複スワップ・リージョンラベル・インデックス変換（約 200 行）を専用の子 ViewModel（`Panes/Settings/SettingsPaneLayoutSectionViewModel.cs`、`BindableBase` 派生）へ移動し、`SettingsPaneViewModel` は `PaneLayout` プロパティで公開する調停役に縮退（671 行 → 387 行）
   - 変更の即時適用は子 VM が `ISettingsCoordinator.ChangePaneLayout` を直接呼び、ダーティ追跡は `notifyChanged` コールバックで親へ通知。リフレッシュ（`RefreshFromCoordinator`）・リセット（`ResetToDefaults`）は子 VM 内部の抑制フラグで変更追跡を発火させない（既存挙動を維持）
