@@ -40,6 +40,7 @@ internal sealed class HelpHtmlWindowController : IDisposable
 
         if (_window is not null)
         {
+            _window.Title = windowTitle;
             if (_webView is not null)
             {
                 _webView.Source = uri;
