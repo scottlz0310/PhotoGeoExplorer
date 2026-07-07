@@ -61,11 +61,13 @@ internal static class SettingsNormalization
             return level;
         }
 
-        var nearest = MapZoomLevelCatalog.Options
-            .OrderBy(candidate => Math.Abs(candidate - level))
-            .FirstOrDefault();
+        if (MapZoomLevelCatalog.Options.Length == 0)
+        {
+            return MapZoomLevelCatalog.Default;
+        }
 
-        return nearest == 0 ? MapZoomLevelCatalog.Default : nearest;
+        // int 減算のオーバーフロー（Math.Abs(int.MinValue) の例外含む）を避けるため long で距離を計算する
+        return MapZoomLevelCatalog.Options.MinBy(candidate => Math.Abs((long)candidate - level));
     }
 
     internal static string? NormalizeExternalContentBaseUrl(string? baseUrl)

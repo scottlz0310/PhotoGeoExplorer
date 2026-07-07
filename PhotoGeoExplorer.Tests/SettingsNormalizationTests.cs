@@ -54,6 +54,8 @@ public sealed class SettingsNormalizationTests
     [InlineData(17, 16)]
     [InlineData(19, 18)]
     [InlineData(100, 18)]
+    [InlineData(int.MinValue, 8)]
+    [InlineData(int.MaxValue, 18)]
     public void SnapMapZoomLevelToNearestReturnsExpectedValue(int input, int expected)
     {
         var actual = SettingsNormalization.SnapMapZoomLevelToNearest(input);

@@ -102,6 +102,14 @@ public sealed class LastFolderPathRecoveryTests
     }
 
     [Fact]
+    public void FindValidAncestorPathReturnsNullForPathWithInvalidCharacters()
+    {
+        var result = SettingsNormalization.FindValidAncestorPath("invalid\0path");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public void FindValidAncestorPathHandlesRelativePaths()
     {
         var tempRoot = CreateTempDirectory();
