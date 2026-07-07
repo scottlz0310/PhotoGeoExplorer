@@ -29,11 +29,9 @@ namespace PhotoGeoExplorer.Panes.Map;
 /// </summary>
 internal sealed class MapPaneViewModel : PaneViewModelBase
 {
-    private const string PhotoMetadataKey = "PhotoMetadata";
-    private const string PhotoItemKey = "PhotoItem";
-
     private readonly IMapPaneService _service;
     private readonly WorkspaceState _workspaceState;
+    private readonly MapMarkerPresenter _markerPresenter;
     private Mapsui.Map? _map;
     private TileLayer? _baseTileLayer;
     private MemoryLayer? _markerLayer;
@@ -60,6 +58,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
+        _markerPresenter = new MapMarkerPresenter(_service);
         Title = "Map";
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
     }
@@ -235,6 +234,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
+        var map = _map;
+        var markerLayer = _markerLayer;
+
         // 既存の更新をキャンセル
         var previousCts = _mapUpdateCts;
         _mapUpdateCts = null;
@@ -247,7 +249,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         var imageItems = selectedItems.Where(item => !item.IsFolder).ToList();
         if (imageItems.Count == 0)
         {
-            ClearMapMarkers();
+            MapMarkerPresenter.ClearMarkers(map, markerLayer);
             ShowStatus(
                 LocalizationService.GetString("MapStatus.SelectPhotoTitle"),
                 LocalizationService.GetString("MapStatus.SelectPhotoDetail"),
@@ -287,7 +289,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         if (points.Count == 0)
         {
-            ClearMapMarkers();
+            MapMarkerPresenter.ClearMarkers(map, markerLayer);
             ShowStatus(
                 LocalizationService.GetString("MapStatus.LocationMissingTitle"),
                 LocalizationService.GetString("MapStatus.LocationMissingSelectionDetail"),
@@ -298,12 +300,12 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         if (points.Count == 1)
         {
             var single = points[0];
-            SetMapMarker(single.Latitude, single.Longitude, single.Metadata, single.Item);
+            _markerPresenter.SetMarker(map, markerLayer, single.Latitude, single.Longitude, single.Metadata, single.Item, _mapDefaultZoomLevel);
             HideStatus();
             return;
         }
 
-        SetMapMarkers(points);
+        _markerPresenter.SetMarkers(map, markerLayer, points);
         HideStatus();
     }
 
@@ -382,151 +384,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         Map = map;
         HideStatus();
         AppLog.Info("Map initialized in MapPaneViewModel.");
-    }
-
-    private void ClearMapMarkers()
-    {
-        if (_markerLayer is null)
-        {
-            return;
-        }
-
-        _markerLayer.Features = Array.Empty<IFeature>();
-        _map?.Refresh();
-    }
-
-    private void SetMapMarker(double latitude, double longitude, PhotoMetadata metadata, PhotoItem photoItem)
-    {
-        if (_map is null || _markerLayer is null)
-        {
-            return;
-        }
-
-        var position = SphericalMercator.FromLonLat(new MPoint(longitude, latitude));
-        var feature = new PointFeature(position);
-        feature.Styles.Clear();
-        foreach (var style in CreatePinStyles(metadata))
-        {
-            feature.Styles.Add(style);
-        }
-        feature[PhotoMetadataKey] = metadata;
-        feature[PhotoItemKey] = photoItem;
-        _markerLayer.Features = new[] { feature };
-        _map.Refresh();
-
-        var navigator = _map.Navigator;
-        navigator.CenterOn(position, 0, Mapsui.Animations.Easing.CubicOut);
-        if (navigator.Resolutions.Count > 0)
-        {
-            var targetLevel = Math.Clamp(_mapDefaultZoomLevel, 0, navigator.Resolutions.Count - 1);
-            navigator.ZoomToLevel(targetLevel);
-        }
-    }
-
-    private void SetMapMarkers(List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)> items)
-    {
-        if (_map is null || _markerLayer is null)
-        {
-            return;
-        }
-
-        var features = new List<IFeature>(items.Count);
-        var hasBounds = false;
-        var minX = 0d;
-        var minY = 0d;
-        var maxX = 0d;
-        var maxY = 0d;
-
-        foreach (var item in items)
-        {
-            var position = SphericalMercator.FromLonLat(new MPoint(item.Longitude, item.Latitude));
-            if (!hasBounds)
-            {
-                minX = maxX = position.X;
-                minY = maxY = position.Y;
-                hasBounds = true;
-            }
-            else
-            {
-                minX = Math.Min(minX, position.X);
-                maxX = Math.Max(maxX, position.X);
-                minY = Math.Min(minY, position.Y);
-                maxY = Math.Max(maxY, position.Y);
-            }
-
-            var feature = new PointFeature(position);
-            feature.Styles.Clear();
-            foreach (var style in CreatePinStyles(item.Metadata))
-            {
-                feature.Styles.Add(style);
-            }
-            feature[PhotoMetadataKey] = item.Metadata;
-            feature[PhotoItemKey] = item.Item;
-            features.Add(feature);
-        }
-
-        _markerLayer.Features = features;
-        _map.Refresh();
-
-        if (!hasBounds)
-        {
-            return;
-        }
-
-        var spanX = maxX - minX;
-        var spanY = maxY - minY;
-        var padding = Math.Max(spanX, spanY) * 0.1;
-        if (padding <= 0)
-        {
-            padding = 500;
-        }
-
-        var bounds = new MRect(minX - padding, minY - padding, maxX + padding, maxY + padding);
-        _map.Navigator.ZoomToBox(bounds, MBoxFit.Fit, 0, Mapsui.Animations.Easing.CubicOut);
-    }
-
-    private IStyle[] CreatePinStyles(PhotoMetadata metadata)
-    {
-        var pinPath = _service.GetPinImagePath(metadata);
-        if (TryCreatePinStyle(pinPath, out var pinStyle))
-        {
-            return new IStyle[] { pinStyle };
-        }
-
-        return new IStyle[] { CreateFallbackMarkerStyle() };
-    }
-
-    private bool TryCreatePinStyle(string imagePath, out ImageStyle pinStyle)
-    {
-        pinStyle = null!;
-        if (string.IsNullOrWhiteSpace(imagePath) || !_service.FileExistsAtPath(imagePath))
-        {
-            if (!string.IsNullOrWhiteSpace(imagePath))
-            {
-                AppLog.Info($"Pin image missing: {imagePath}");
-            }
-            return false;
-        }
-
-        var imageUri = new Uri(imagePath).AbsoluteUri;
-        pinStyle = new ImageStyle
-        {
-            Image = new Mapsui.Styles.Image { Source = imageUri },
-            SymbolScale = 1,
-            RelativeOffset = new RelativeOffset(0, 0.5)
-        };
-        return true;
-    }
-
-    private static SymbolStyle CreateFallbackMarkerStyle()
-    {
-        return new SymbolStyle
-        {
-            SymbolType = SymbolType.Ellipse,
-            SymbolScale = 0.8,
-            Fill = new Brush(Color.FromArgb(255, 32, 128, 255)),
-            Outline = new Pen(Color.White, 2)
-        };
     }
 
     private static bool TryGetValidLocation(PhotoMetadata metadata, out double latitude, out double longitude)
