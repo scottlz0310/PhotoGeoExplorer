@@ -43,7 +43,7 @@ internal sealed class FileBrowserStatusViewModel : BindableBase, IDisposable
     private PhotoListItem? _selectedItem;
 
     /// <param name="uiDispatcher">メタデータロード完了時の UI 更新に使うディスパッチャ。</param>
-    /// <param name="getMetadataAsync">EXIF メタデータ取得処理。null の場合は <see cref="ExifService.GetMetadataAsync"/>（テスト用シーム）。</param>
+    /// <param name="getMetadataAsync">EXIF メタデータ取得処理。null の場合は <see cref="ExifReader.GetMetadataAsync"/>（テスト用シーム）。</param>
     public FileBrowserStatusViewModel(
         IUiDispatcher uiDispatcher,
         Func<string, CancellationToken, Task<PhotoMetadata?>>? getMetadataAsync = null)
@@ -51,7 +51,7 @@ internal sealed class FileBrowserStatusViewModel : BindableBase, IDisposable
         ArgumentNullException.ThrowIfNull(uiDispatcher);
 
         _uiDispatcher = uiDispatcher;
-        _getMetadataAsync = getMetadataAsync ?? ExifService.GetMetadataAsync;
+        _getMetadataAsync = getMetadataAsync ?? ExifReader.GetMetadataAsync;
     }
 
     public string? StatusMessage

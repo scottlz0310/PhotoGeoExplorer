@@ -49,7 +49,7 @@ internal sealed class PreviewPaneService : IPreviewPaneService
     /// 指定ファイルの EXIF メタデータを非同期で読み込む
     /// </summary>
     public Task<PhotoMetadata?> GetMetadataAsync(string filePath, CancellationToken cancellationToken)
-        => ExifService.GetMetadataAsync(filePath, cancellationToken);
+        => ExifReader.GetMetadataAsync(filePath, cancellationToken);
 
     /// <summary>
     /// ビューポートに画像をフィットさせるズームファクターを計算

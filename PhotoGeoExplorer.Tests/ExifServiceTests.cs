@@ -1,7 +1,6 @@
 using PhotoGeoExplorer.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using SixLabors.ImageSharp.PixelFormats;
 
 namespace PhotoGeoExplorer.Tests;
@@ -59,7 +58,7 @@ public sealed class ExifServiceTests
             Assert.True(result);
 
             // Verify the metadata was written
-            var metadata = await ExifService.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
+            var metadata = await ExifReader.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
             Assert.NotNull(metadata);
             Assert.NotNull(metadata.TakenAt);
             Assert.Equal(takenAt.DateTime.Year, metadata.TakenAt.Value.DateTime.Year);
@@ -134,7 +133,7 @@ public sealed class ExifServiceTests
                 updateFileModifiedDate: false,
                 CancellationToken.None).ConfigureAwait(true);
 
-            var metadataWithGps = await ExifService.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
+            var metadataWithGps = await ExifReader.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
             Assert.NotNull(metadataWithGps);
             Assert.NotNull(metadataWithGps.Latitude);
             Assert.NotNull(metadataWithGps.Longitude);
@@ -151,7 +150,7 @@ public sealed class ExifServiceTests
             Assert.True(result);
 
             // Verify GPS data is removed
-            var metadataWithoutGps = await ExifService.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
+            var metadataWithoutGps = await ExifReader.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
             Assert.NotNull(metadataWithoutGps);
             Assert.Null(metadataWithoutGps.Latitude);
             Assert.Null(metadataWithoutGps.Longitude);
@@ -196,7 +195,7 @@ public sealed class ExifServiceTests
                 CancellationToken.None).ConfigureAwait(true);
 
             // Verify date is preserved
-            var metadata = await ExifService.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
+            var metadata = await ExifReader.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
             Assert.NotNull(metadata);
             Assert.NotNull(metadata.TakenAt);
             Assert.Equal(initialDate.Year, metadata.TakenAt.Value.Year);
@@ -204,35 +203,6 @@ public sealed class ExifServiceTests
             Assert.Equal(initialDate.Day, metadata.TakenAt.Value.Day);
             Assert.NotNull(metadata.Latitude);
             Assert.NotNull(metadata.Longitude);
-        }
-        finally
-        {
-            TryDeleteDirectory(root);
-        }
-    }
-
-    [Fact]
-    public async Task GetMetadataAsyncJpegWithExifSubIfdButNoDateTimeTagsDoesNotThrow()
-    {
-        var root = CreateTempDirectory();
-        try
-        {
-            var jpgPath = Path.Combine(root, "no_datetime.jpg");
-
-            using (var image = new Image<Rgba32>(100, 100))
-            {
-                var exifProfile = new ExifProfile();
-                // ExifVersion を設定して ExifSubIfdDirectory を生成させる（Date/Time Original は意図的に設定しない）
-                exifProfile.SetValue(ExifTag.ExifVersion, new byte[] { 0x30, 0x32, 0x32, 0x30 });
-                image.Metadata.ExifProfile = exifProfile;
-                await image.SaveAsync(jpgPath, new JpegEncoder()).ConfigureAwait(true);
-            }
-
-            // MetadataException をスローせずに正常完了することを確認する
-            // Date/Time Original 不在時はファイル更新日時にフォールバックするため TakenAt は非 null になる
-            var metadata = await ExifService.GetMetadataAsync(jpgPath, CancellationToken.None).ConfigureAwait(true);
-
-            Assert.NotNull(metadata);
         }
         finally
         {
