@@ -11,7 +11,7 @@ namespace PhotoGeoExplorer.Services;
 /// クラッシュレポートダイアログの表示・アクション（GitHub Issue 起動・メール起動・フォルダを開く）を担う
 /// </summary>
 [ExcludeFromCodeCoverage]
-internal sealed class CrashReportDialogService : ICrashReportDialogService
+internal sealed class CrashReportDialogService
 {
     private readonly IDialogService _dialogService;
     private readonly Func<ICrashReportService?> _getCrashReportService;
@@ -73,8 +73,15 @@ internal sealed class CrashReportDialogService : ICrashReportDialogService
                 AppLog.Info($"Created log directory: {logDirectory}");
             }
 
-            _ = await Windows.System.Launcher.LaunchFolderPathAsync(logDirectory);
-            AppLog.Info($"Opened log folder: {logDirectory}");
+            var launched = await Windows.System.Launcher.LaunchFolderPathAsync(logDirectory);
+            if (launched)
+            {
+                AppLog.Info($"Opened log folder: {logDirectory}");
+            }
+            else
+            {
+                HandleOpenLogFolderFailure($"Failed to launch log folder: {logDirectory}");
+            }
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -109,7 +116,11 @@ internal sealed class CrashReportDialogService : ICrashReportDialogService
                 Directory.CreateDirectory(path);
             }
 
-            _ = await Windows.System.Launcher.LaunchFolderPathAsync(path);
+            var launched = await Windows.System.Launcher.LaunchFolderPathAsync(path);
+            if (!launched)
+            {
+                HandleOpenLogFolderFailure($"Failed to launch crash report folder: {path}");
+            }
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -229,6 +240,14 @@ internal sealed class CrashReportDialogService : ICrashReportDialogService
     private void HandleOpenLogFolderFailure(Exception ex)
     {
         AppLog.Error("Failed to open log folder", ex);
+        _showNotification(
+            LocalizationService.GetString("Message.FailedOpenLogFolder"),
+            InfoBarSeverity.Error);
+    }
+
+    private void HandleOpenLogFolderFailure(string logMessage)
+    {
+        AppLog.Error(logMessage);
         _showNotification(
             LocalizationService.GetString("Message.FailedOpenLogFolder"),
             InfoBarSeverity.Error);

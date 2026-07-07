@@ -62,10 +62,11 @@
 
 ### リファクタリング
 - `MainWindow` のクラッシュレポート機能を `CrashReportDialogService` へ分離（#150 Phase 4）(#206)
-  - `OnReportCrashClicked` / `BuildCrashReportSummaryPanel` / `ParseCrashLogField` / `OpenCrashReportGitHubIssueAsync` / `CopyLogAndOpenMailAsync` / `OnOpenCrashReportFolderClicked` / `OnOpenLogFolderClicked` / `HandleOpenLogFolderFailure` を `PhotoGeoExplorer/Services/CrashReportDialogService.cs`（`ICrashReportDialogService` 実装）へ移動し、`MainWindow.xaml.cs` のイベントハンドラは委譲のみに縮退（770行 → 590行、−23%）。MainWindow 肥大化防止ガードレール違反（イベントハンドラに処理本体が直接実装されていた）を是正
+  - `OnReportCrashClicked` / `BuildCrashReportSummaryPanel` / `ParseCrashLogField` / `OpenCrashReportGitHubIssueAsync` / `CopyLogAndOpenMailAsync` / `OnOpenCrashReportFolderClicked` / `OnOpenLogFolderClicked` / `HandleOpenLogFolderFailure` を `PhotoGeoExplorer/Services/CrashReportDialogService.cs` へ移動し、`MainWindow.xaml.cs` のイベントハンドラは委譲のみに縮退（770行 → 590行、−23%）。MainWindow 肥大化防止ガードレール違反（イベントハンドラに処理本体が直接実装されていた）を是正
   - ダイアログ表示は `DialogService.ShowContentDialogAsync`（XamlRoot 待機ロジック付き）経由に統一（`Content.XamlRoot` を直接参照していた旧実装から変更。実質的な挙動は同一）
   - `_crashReportService` はコンストラクタ後に `SetCrashReportService` で遅延設定されるため、`CrashReportDialogService` へは `Func<ICrashReportService?>` として注入し参照解決を遅延（挙動不変）
   - GitHub Issue URL / mailto URI 構築ロジックを `BuildCrashReportGitHubIssueUrl` / `BuildCrashReportMailtoUri`（internal static）として起動処理から分離し、`CrashReportDialogServiceTests`（新規、9 ケース）でログフィールド抽出・URL構築・長文ログの truncate 挙動を検証
+  - Copilot レビュー指摘対応: 未使用だった `ICrashReportDialogService`（`MainWindow` は具象型 `CrashReportDialogService` をフィールド保持しており注入先が存在しなかった。`IHelpService` は `MainViewModel` への注入用に実利用されているのと対照的）を削除。`Launcher.LaunchFolderPathAsync` の戻り値（`bool`）を無視し失敗時も成功ログ・無通知になっていた `OpenLogFolderAsync` / `OpenCrashReportsFolderAsync` を、戻り値確認のうえ失敗時にエラーログ・通知を出すよう修正
 - `ExifService` の書き込み責務を `ExifWriter` へ分離しファサードを整理（#150 Phase 3 / #178 P3-C・最終）(#201)
   - `UpdateMetadataAsync` / `WriteMetadata` / `BuildExifPayload` / `WriteJpegWithUpdatedExif` を `PhotoGeoExplorer.Core/Services/ExifWriter.cs`（internal static）へ移動
   - #199（Reader 分離）・#200（JPEG セグメント書き換え分離）により `ExifService` は書き込み専用の薄いラッパーへ縮退済みだったため、ファサードとしての価値がなくなった `ExifService.cs` を削除。呼び出し側 `ExifMetadataService.UpdateMetadataAsync` を `ExifWriter` へ直接振り向け（挙動は不変）
