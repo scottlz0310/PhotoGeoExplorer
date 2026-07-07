@@ -61,6 +61,12 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
+- `SettingsCoordinator` の純粋正規化関数を `SettingsNormalization` へ抽出（#150 Phase 2）(#177)
+  - `NormalizeLanguageSetting` / `NormalizeMapZoomLevel` / `NormalizeExternalContentBaseUrl` / `NormalizePaneLayoutPreset` / `NormalizePaneRegionViews` / `FindValidAncestorPath` を `Services/SettingsNormalization.cs`（internal static）へ移動し、`SettingsCoordinator` をオーケストレーション責務に縮退（621 行 → 417 行）
+  - `SettingsPaneViewModel` 側の重複正規化ロジックを抽出先へ集約。言語正規化は完全版（`ja` → `ja-JP` 等のタグ変換込み）へ委譲し、`SaveAsync` の言語変更判定が正規化後の値同士の比較になるよう改善。ズームレベルはスライダー入力向けの「最寄り値へスナップ」の意図を `SnapMapZoomLevelToNearest` として設定読み込み時の `NormalizeMapZoomLevel`（無効値→既定値）と区別して集約
+  - `ISettingsCoordinator` の公開表面を見直し。全メンバーが `MainWindow` / `MainViewModel` / `SettingsPaneViewModel` / `SettingsPaneLayoutSectionViewModel` から参照されており、スリム化対象なし（変更なし）
+  - 正規化関数の単体テストを `SettingsNormalizationTests` へ移動し、空白のみ・大文字小文字・trim・非 URL 文字列・`file:` スキーム・カタログ外ズーム値等の境界値ケースを追加（計 53 ケース）。`FindValidAncestorPath` を参照する既存テスト（`LastFolderPathRecoveryTests` / `StartupPathResolutionTests`）の参照先を更新
+  - `SnapMapZoomLevelToNearest` の距離計算を long 化して int オーバーフロー（`Math.Abs(int.MinValue)` の例外含む）を排除し、`FirstOrDefault()` の 0 センチネルを空カタログガード＋`MinBy` へ置換（Copilot レビュー指摘対応）。`int.MinValue` / `int.MaxValue` の境界ケースと `FindValidAncestorPath` の不正文字パス異常系テストを追加
 - `MapPaneViewControl` から EXIF/GPS 位置ピッカー責務を `MapExifLocationPicker` へ分離（#150 Phase 2）(#176)
   - `IExifLocationPicker` 実装（`PickExifLocationAsync` の TaskCompletionSource 管理）、ピック中のポインタ状態機械（右クリックキャンセル・しきい値内クリック判定・キャプチャ喪失）、ステータス表示の退避/復元追跡を専用ハンドラ（`Panes/Map/MapExifLocationPicker.cs`）へ移動し、View を 694 行 → 515 行に縮退
   - EXIF ピックと矩形選択で共有していたポインタハンドラ（Pressed/Released/CaptureLost）をモード別ルーターに整理。ピック中はハンドラへ委譲し戻り値で `e.Handled` を決定、矩形選択・マーカー flyout の分岐は不変（さらなる分離は Phase 4 候補としてスコープ外）

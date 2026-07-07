@@ -14,7 +14,7 @@ public sealed class LastFolderPathRecoveryTests
             var validPath = Path.Combine(tempRoot, "subfolder");
             Directory.CreateDirectory(validPath);
 
-            var result = SettingsCoordinator.FindValidAncestorPath(validPath);
+            var result = SettingsNormalization.FindValidAncestorPath(validPath);
 
             Assert.NotNull(result);
             Assert.Equal(Path.GetFullPath(validPath), result);
@@ -35,7 +35,7 @@ public sealed class LastFolderPathRecoveryTests
             var childPath = Path.Combine(parentPath, "child");
             Directory.CreateDirectory(parentPath);
 
-            var result = SettingsCoordinator.FindValidAncestorPath(childPath);
+            var result = SettingsNormalization.FindValidAncestorPath(childPath);
 
             Assert.NotNull(result);
             Assert.Equal(Path.GetFullPath(parentPath), result);
@@ -57,7 +57,7 @@ public sealed class LastFolderPathRecoveryTests
             var childPath = Path.Combine(parentPath, "child");
             Directory.CreateDirectory(grandparentPath);
 
-            var result = SettingsCoordinator.FindValidAncestorPath(childPath);
+            var result = SettingsNormalization.FindValidAncestorPath(childPath);
 
             Assert.NotNull(result);
             Assert.Equal(Path.GetFullPath(grandparentPath), result);
@@ -73,7 +73,7 @@ public sealed class LastFolderPathRecoveryTests
     {
         var invalidPath = Path.Combine("Z:", "nonexistent", "path", "folder");
 
-        var result = SettingsCoordinator.FindValidAncestorPath(invalidPath);
+        var result = SettingsNormalization.FindValidAncestorPath(invalidPath);
 
         if (result is not null)
         {
@@ -88,7 +88,7 @@ public sealed class LastFolderPathRecoveryTests
     [Fact]
     public void FindValidAncestorPathReturnsNullForEmptyPath()
     {
-        var result = SettingsCoordinator.FindValidAncestorPath(string.Empty);
+        var result = SettingsNormalization.FindValidAncestorPath(string.Empty);
 
         Assert.Null(result);
     }
@@ -96,7 +96,15 @@ public sealed class LastFolderPathRecoveryTests
     [Fact]
     public void FindValidAncestorPathReturnsNullForNullPath()
     {
-        var result = SettingsCoordinator.FindValidAncestorPath(null);
+        var result = SettingsNormalization.FindValidAncestorPath(null);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void FindValidAncestorPathReturnsNullForPathWithInvalidCharacters()
+    {
+        var result = SettingsNormalization.FindValidAncestorPath("invalid\0path");
 
         Assert.Null(result);
     }
@@ -116,7 +124,7 @@ public sealed class LastFolderPathRecoveryTests
                 Directory.SetCurrentDirectory(tempRoot);
                 var relativePath = Path.Combine("subfolder", "nonexistent");
 
-                var result = SettingsCoordinator.FindValidAncestorPath(relativePath);
+                var result = SettingsNormalization.FindValidAncestorPath(relativePath);
 
                 Assert.NotNull(result);
                 Assert.Equal(Path.GetFullPath(subfolder), result);
@@ -146,7 +154,7 @@ public sealed class LastFolderPathRecoveryTests
 
             Directory.CreateDirectory(level1);
 
-            var result = SettingsCoordinator.FindValidAncestorPath(level5);
+            var result = SettingsNormalization.FindValidAncestorPath(level5);
 
             Assert.NotNull(result);
             Assert.Equal(Path.GetFullPath(level1), result);

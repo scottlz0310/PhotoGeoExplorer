@@ -54,7 +54,7 @@ public sealed class StartupPathResolutionTests
         {
             var lastFolderPath = tempRoot;
 
-            var result = SettingsCoordinator.FindValidAncestorPath(lastFolderPath);
+            var result = SettingsNormalization.FindValidAncestorPath(lastFolderPath);
 
             Assert.NotNull(result);
             Assert.Equal(Path.GetFullPath(lastFolderPath), result);
@@ -75,7 +75,7 @@ public sealed class StartupPathResolutionTests
             var invalidChild = Path.Combine(validParent, "nonexistent_child");
             Directory.CreateDirectory(validParent);
 
-            var result = SettingsCoordinator.FindValidAncestorPath(invalidChild);
+            var result = SettingsNormalization.FindValidAncestorPath(invalidChild);
 
             Assert.NotNull(result);
             Assert.Equal(Path.GetFullPath(validParent), result);

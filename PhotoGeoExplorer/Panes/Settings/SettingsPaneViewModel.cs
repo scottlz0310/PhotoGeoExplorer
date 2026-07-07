@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using PhotoGeoExplorer.Models;
@@ -102,7 +101,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         get => _mapDefaultZoomLevel;
         set
         {
-            var normalizedLevel = NormalizeMapZoomLevel(value);
+            var normalizedLevel = SettingsNormalization.SnapMapZoomLevelToNearest(value);
             if (SetProperty(ref _mapDefaultZoomLevel, normalizedLevel))
             {
                 ApplyMapZoomLevelChange();
@@ -207,7 +206,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
         try
         {
-            var normalizedLanguage = NormalizeLanguageSetting(Language);
+            var normalizedLanguage = SettingsNormalization.NormalizeLanguageSetting(Language);
             _settingsCoordinator.ChangeTheme(Theme);
             _settingsCoordinator.ChangeMapZoomLevel(MapDefaultZoomLevel);
             _settingsCoordinator.ChangeMapTileSource(MapTileSource);
@@ -396,7 +395,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
                 return;
             }
 
-            var normalizedLanguage = NormalizeLanguageSetting(language);
+            var normalizedLanguage = SettingsNormalization.NormalizeLanguageSetting(language);
             await _settingsCoordinator.ChangeLanguageAsync(normalizedLanguage, showRestartPrompt: false).ConfigureAwait(true);
 
             if (changeVersion != _languageChangeVersion)
@@ -413,30 +412,4 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         }
     }
 
-    private static string? NormalizeLanguageSetting(string? language)
-    {
-        if (string.IsNullOrWhiteSpace(language))
-        {
-            return null;
-        }
-
-        var trimmed = language.Trim();
-        return string.Equals(trimmed, SystemLanguageOptionValue, StringComparison.OrdinalIgnoreCase)
-            ? null
-            : trimmed;
-    }
-
-    private static int NormalizeMapZoomLevel(int level)
-    {
-        if (MapZoomLevelCatalog.Options.Contains(level))
-        {
-            return level;
-        }
-
-        var nearest = MapZoomLevelCatalog.Options
-            .OrderBy(candidate => Math.Abs(candidate - level))
-            .FirstOrDefault();
-
-        return nearest == 0 ? MapZoomLevelCatalog.Default : nearest;
-    }
 }
