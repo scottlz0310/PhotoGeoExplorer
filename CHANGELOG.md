@@ -57,6 +57,10 @@
   - 当該 3 ファイルのみを `codecov.yml` の `ignore` に追加。テスト可能な純粋関数（`FileBrowserDialogErrorMap`）・ViewModel・Service はカバレッジ集計対象として維持（ブランケット除外はしない）
 
 ### ドキュメント
+- #150（コードベース全体のモジュール棚卸しとゴッドクラス解体計画）の Phase 1〜4 最終成果を `docs/Architecture/ModuleSizeAudit-Phase1-4-Summary.md` に集計・総括 (#209)
+  - 開始時点（2026-06-09）と現在（2026-07-07）のモジュール行数・分類（🔴/🟠/🟡/✅）を全ファイル比較。🔴 要分割 2 ファイルは Phase 1 で `FileBrowserPaneViewModel.cs` 1,263 行・`FileBrowserPaneView.xaml.cs` 908 行まで縮退（分類は 🔴→🟠）、🟠 要注意だった App/Core 層 4 ファイルは Phase 2〜4 で 🟡 監視 相当まで改善または解消（`ExifService` 削除）
+  - 残存する 500 行超 5 ファイルの扱いを記録: `FileBrowserPaneViewModel` / `FileBrowserPaneView` / `FileOperationService` は既存の分割判断（Phase 1 完了形・#179 トリアージ結果）を踏襲し監視継続、`MapPaneViewControl` は次フェーズ化候補として監視継続、`MainWindow.xaml.cs` の更新チェック機能はガードレール違反（処理本体の直接実装）が判明したため Follow-up Issue #213 を起票
+  - #150 は本総括をもって完了としてクローズ
 - E2E 現状フィット棚卸し結果（automation ID 一覧・操作系 ID ギャップと対応・テストデータ拡張要件・#174 との関連・E2E 安定化方針・P5-B 着手前提）を `docs/Architecture/E2E-Phase5-Audit.md` に整理 (#180)
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
