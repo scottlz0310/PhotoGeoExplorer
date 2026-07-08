@@ -34,6 +34,13 @@ internal sealed class UpdateCheckDialogService
                     LocalizationService.GetString("Dialog.UpdateCheck.Title"),
                     message).ConfigureAwait(true);
             }
+            else if (!updateResult.IsSuccess)
+            {
+                AppLog.Error($"Update check failed: {updateResult.ErrorMessage}");
+                await _showMessageDialogAsync(
+                    LocalizationService.GetString("Dialog.UpdateCheck.Title"),
+                    LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
+            }
             else
             {
                 await _showMessageDialogAsync(
