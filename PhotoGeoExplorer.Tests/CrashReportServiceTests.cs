@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using PhotoGeoExplorer.Services;
 using Xunit;
@@ -88,6 +89,34 @@ public sealed class CrashReportServiceTests : IDisposable
         service.RecordStartup();
 
         Assert.True(service.PreviouslyTerminatedAbnormally);
+    }
+
+    [Theory]
+    [InlineData(false, false, false, false)] // 何も残っていない（正常な前回終了）
+    [InlineData(true, false, true, false)]   // running.lock のみ（強制終了・電源断等、報告可能なログはない）
+    [InlineData(false, true, true, true)]    // crash.marker のみ（WriteCrashLog 後に marker だけ残存するケース）
+    [InlineData(true, true, true, true)]     // 両方存在（典型的なクラッシュ直後の再起動）
+    public void RecordStartup_DeterminesReportability_BasedOnCrashMarkerPresence(
+        bool lockFileExists,
+        bool crashMarkerExists,
+        bool expectedPreviouslyTerminatedAbnormally,
+        bool expectedHasReportableCrash)
+    {
+        if (lockFileExists)
+        {
+            File.WriteAllText(Path.Combine(_tempDir, "running.lock"), "stale");
+        }
+
+        if (crashMarkerExists)
+        {
+            File.WriteAllText(Path.Combine(_tempDir, "crash.marker"), "marker");
+        }
+
+        var service = new CrashReportService(_tempDir);
+        service.RecordStartup();
+
+        Assert.Equal(expectedPreviouslyTerminatedAbnormally, service.PreviouslyTerminatedAbnormally);
+        Assert.Equal(expectedHasReportableCrash, service.HasReportableCrash);
     }
 
     [Fact]
@@ -264,5 +293,109 @@ public sealed class CrashReportServiceTests : IDisposable
         var result = service.GetLatestCrashLogContent();
 
         Assert.Null(result);
+    }
+
+    public static IEnumerable<object[]> MultiInstanceLifecycleScenarios()
+    {
+        yield return new object[]
+        {
+            "多重起動→両方正常終了（前回異常終了として検出されない）",
+            (Action<string>)(dir =>
+            {
+                var processA = new CrashReportService(dir);
+                processA.RecordStartup();
+                var processB = new CrashReportService(dir);
+                processB.RecordStartup();
+                processA.RecordNormalExit();
+                processB.RecordNormalExit();
+            }),
+            false,
+            false
+        };
+
+        yield return new object[]
+        {
+            "多重起動→片方が正常終了、片方がクラッシュ（ログあり）",
+            (Action<string>)(dir =>
+            {
+                var processA = new CrashReportService(dir);
+                processA.RecordStartup();
+                var processB = new CrashReportService(dir);
+                processB.RecordStartup();
+                processA.RecordNormalExit();
+                processB.WriteCrashLog(new InvalidOperationException("crash in process B"));
+                processB.RecordNormalExit();
+            }),
+            true,
+            true
+        };
+
+        yield return new object[]
+        {
+            "単一起動→クラッシュログを書いてから正常終了",
+            (Action<string>)(dir =>
+            {
+                var process = new CrashReportService(dir);
+                process.RecordStartup();
+                process.WriteCrashLog(new InvalidOperationException("crash"));
+                process.RecordNormalExit();
+            }),
+            true,
+            true
+        };
+
+        yield return new object[]
+        {
+            "単一起動→強制終了（RecordNormalExit も WriteCrashLog も呼ばれない）",
+            (Action<string>)(dir =>
+            {
+                var process = new CrashReportService(dir);
+                process.RecordStartup();
+                // 強制終了・電源断を模す: 終了処理は一切呼ばれない
+            }),
+            true,
+            false
+        };
+
+        yield return new object[]
+        {
+            "順次起動→終了を繰り返した後も状態が正しく引き継がれる",
+            (Action<string>)(dir =>
+            {
+                var first = new CrashReportService(dir);
+                first.RecordStartup();
+                first.RecordNormalExit();
+
+                var second = new CrashReportService(dir);
+                second.RecordStartup();
+                Assert.False(second.PreviouslyTerminatedAbnormally);
+                second.RecordNormalExit();
+            }),
+            false,
+            false
+        };
+    }
+
+    [Theory]
+    [MemberData(nameof(MultiInstanceLifecycleScenarios))]
+    public void RecordStartup_MultiInstanceLifecycle_NextStartupReflectsExpectedState(
+        string scenario,
+        Action<string> setupScenario,
+        bool expectedPreviouslyTerminatedAbnormally,
+        bool expectedHasReportableCrash)
+    {
+        ArgumentNullException.ThrowIfNull(setupScenario);
+
+        setupScenario(_tempDir);
+
+        var nextInstance = new CrashReportService(_tempDir);
+        nextInstance.RecordStartup();
+
+        Assert.True(
+            expectedPreviouslyTerminatedAbnormally == nextInstance.PreviouslyTerminatedAbnormally,
+            $"[{scenario}] PreviouslyTerminatedAbnormally: expected {expectedPreviouslyTerminatedAbnormally}, actual {nextInstance.PreviouslyTerminatedAbnormally}");
+        Assert.True(
+            expectedHasReportableCrash == nextInstance.HasReportableCrash,
+            $"[{scenario}] HasReportableCrash: expected {expectedHasReportableCrash}, actual {nextInstance.HasReportableCrash}");
     }
 }

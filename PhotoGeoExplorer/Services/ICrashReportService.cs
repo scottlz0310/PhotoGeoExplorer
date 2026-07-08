@@ -6,6 +6,8 @@ internal interface ICrashReportService
 {
     bool PreviouslyTerminatedAbnormally { get; }
 
+    bool HasReportableCrash { get; }
+
     string CrashReportsDirectoryPath { get; }
 
     void RecordStartup();

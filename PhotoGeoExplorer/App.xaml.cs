@@ -12,6 +12,7 @@ using Windows.Storage;
 namespace PhotoGeoExplorer;
 
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
+[ExcludeFromCodeCoverage]
 public partial class App : Application
 {
     private const int MinimumSplashDurationMs = 3000;
@@ -21,6 +22,9 @@ public partial class App : Application
     private DateTimeOffset _splashShownAt;
     private bool _splashCloseRequested;
     private bool _crashDetected;
+    private static readonly object PendingActivationLock = new();
+    private static App? _current;
+    private static AppActivationArguments? _pendingRedirectedActivation;
     private static readonly Services.CrashReportService CrashReporter = new();
 
     public App()
@@ -31,6 +35,11 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        lock (PendingActivationLock)
+        {
+            _current = this;
+        }
+
         AppLog.Info("App constructed.");
     }
 
@@ -46,13 +55,66 @@ public partial class App : Application
 
         var mainWindow = new MainWindow();
         mainWindow.SetCrashReportService(CrashReporter);
-        _window = mainWindow;
         if (!string.IsNullOrWhiteSpace(_startupFilePath))
         {
             mainWindow.SetStartupFilePath(_startupFilePath);
         }
+
+        // _window の公開と、App 構築前から保留された pending の回収を同じ lock 境界で直列化し、
+        // 起動シーケンスのどの時点で activation が届いても取りこぼさない。
+        AppActivationArguments? pendingActivation;
+        lock (PendingActivationLock)
+        {
+            _window = mainWindow;
+            pendingActivation = _pendingRedirectedActivation;
+            _pendingRedirectedActivation = null;
+        }
+
+        if (pendingActivation is not null)
+        {
+            ApplyRedirectedActivation(mainWindow, pendingActivation);
+        }
+
         _window.Activated += OnMainWindowActivated;
         _window.Activate();
+    }
+
+    internal static void OnRedirectedActivation(object? sender, AppActivationArguments args)
+    {
+        // Program で Application.Start 前に購読するため、App 構築前に届いた引数も pending に保留する。
+        MainWindow? mainWindow;
+        lock (PendingActivationLock)
+        {
+            if (_current?._window is MainWindow existing)
+            {
+                mainWindow = existing;
+            }
+            else
+            {
+                _pendingRedirectedActivation = args;
+                return;
+            }
+        }
+
+        ApplyRedirectedActivation(mainWindow, args);
+    }
+
+    private static void ApplyRedirectedActivation(MainWindow mainWindow, AppActivationArguments args)
+    {
+        mainWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            mainWindow.BringToForeground();
+
+            var filePath = GetFileActivationPath(args);
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                _ = mainWindow.NavigateToFileAsync(filePath).ContinueWith(
+                    task => AppLog.Error("Failed to navigate to redirected file.", task.Exception),
+                    System.Threading.CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted,
+                    TaskScheduler.Default);
+            }
+        });
     }
 
     private void OnMainWindowActivated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs e)
@@ -186,6 +248,11 @@ public partial class App : Application
             return null;
         }
 
+        return GetFileActivationPath(activationArgs);
+    }
+
+    private static string? GetFileActivationPath(AppActivationArguments activationArgs)
+    {
         if (activationArgs.Kind != ExtendedActivationKind.File)
         {
             return null;

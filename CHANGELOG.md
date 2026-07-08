@@ -32,6 +32,17 @@
   - `WaitForMainWindowReturnsMainWindowNotSplashWindow` テストを追加：`WaitForMainWindow` が返すウィンドウに `MainWindow` マーカーが存在し `SplashWindow` マーカーが存在しないことを検証
 
 ### バグ修正
+- 多重起動時の `running.lock` 競合によるクラッシュレポート誤表示を防止 (#215)
+  - **根本原因**: `CrashReportService.RecordStartup()` は全プロセス共通の `running.lock` の存在有無のみで「前回異常終了」を判定していたため、先に起動した正常稼働中プロセスの `running.lock` を後から起動したプロセスが異常終了の残骸と誤認していた
+  - **単一インスタンス化**（Windows App SDK `AppInstance.FindOrRegisterForKey` + `RedirectActivationToAsync`）を `Program.cs`/`App.xaml.cs` に導入し、2重起動時は既存プロセスへアクティベーションを転送して自プロセスを即終了させることで、複数プロセスが同時に `CrashReportService` の状態ファイルを操作する状況自体を解消した
+  - 既存インスタンス側は `AppInstance.Activated` イベントでリダイレクトされたアクティベーションを受信し、`MainWindow.BringToForeground()`（`SetForegroundWindow`）でウィンドウを前面化。ファイルアクティベーション（拡張子関連付け経由の起動）の場合は `MainWindow.NavigateToFileAsync()` が既存の `StartupCoordinator` を再利用してフォルダ遷移・該当ファイル選択を行う（多重起動時にファイルを開いても既存ウィンドウ側に反映される）
+  - **クラッシュレポートバナー表示条件の是正**（多重起動とは独立した既存バグ）: `crash.marker`（`WriteCrashLog` 実行の形跡）が存在しない場合は `running.lock` の存在のみで異常終了と判定していたため、強制終了・電源断などクラッシュログを生成できない終了後に、過去の無関係なクラッシュログを「今回の異常終了」として表示してしまう問題があった。`ICrashReportService` に `HasReportableCrash`（`crash.marker` の存在のみで判定）を追加し、`MainWindow` のバナー表示判定を `PreviouslyTerminatedAbnormally` からこちらへ切り替え
+  - `CrashReportServiceTests` に `crash.marker`/`running.lock` の組み合わせ判定と、同一 app data directory を共有する複数インスタンスでの起動順・終了順・異常終了パターンを検証するパラメータ化テストを追加
+  - 実機検証（MSIX パッケージ版、`DevInstall.ps1` でインストール）: 多重起動時に `running.lock` が上書きされずクラッシュバナーが誤表示されないこと、ファイル関連付け経由での2重起動時に既存ウィンドウのフォルダが遷移すること、強制終了後（`crash.marker` なし）はバナー非表示、実際のクラッシュログがある場合は従来どおりバナー表示されることを確認
+  - Copilot / thread-owl レビュー指摘対応（blocking 3件）: (1) `RedirectActivationToAsync` 失敗時に起動を継続していたため後発プロセスも `RecordStartup()` を実行し `running.lock` 競合が再発し得た点を修正し、リダイレクト失敗時は起動を中止するよう変更（thread-owl blocking）。(2) `OnLaunched` で `MainWindow` 構築中にリダイレクトが届くとアクティベーションが失われるレースコンディションを修正し、`_window` 未構築時は保留して構築後に適用するよう変更。(3) `NavigateToFileAsync` の fire-and-forget 呼び出しが例外発生時に `UnobservedTaskException` 経由でクラッシュ扱いになり得た点を修正し、`ContinueWith(OnlyOnFaulted)` で例外を観測してログに記録するよう変更。未使用 using も削除
+  - Codecov 指摘対応: `App`/`Program` は WinUI3/Windows App SDK ランタイムに強く依存する起動シーケンス（`Main`、`OnLaunched`、単一インスタンス化ロジック）で構造的に単体テスト不能なため、既存の `CrashReportDialogService` 等と同様に `[ExcludeFromCodeCoverage]` を付与。付与前に既存テストが `App`/`Program` のメンバーを一切参照していないことを確認済み（既存カバレッジ 0%、隠蔽ではなく実態を反映）
+  - thread-owl レビュー指摘対応（blocking、継続）: 前回のレースコンディション修正（`_window` 未構築時に pending へ保留）は `_window` のチェックと pending の格納・回収が同一 lock 境界になっておらず、依然として TOCTOU 競合（チェック直後に `OnLaunched` 側の `_window` 設定・pending 回収が割り込み、activation を取りこぼす）が成立し得た。`_window` の公開と pending の受け渡しを単一の `lock (_pendingActivationLock)` で直列化するよう修正
+  - thread-owl レビュー指摘対応（blocking、継続）: 単一インスタンスキーの登録から `OnLaunched` での `AppInstance.Activated` 購読までに後発プロセスのリダイレクトが完了すると activation が失われる競合を修正。メインインスタンス確定直後・`Application.Start` 前に購読し、`App` 構築前の引数を既存の pending 機構で保留するよう変更
 - リネーム・フォルダ作成・外部ファイルドロップ後に `COMException (0x8001010E: RPC_E_WRONG_THREAD)` でクラッシュする問題を修正 (#188)
   - `ExecuteRenameAsync` / `ExecuteCreateFolderAsync` / `HandleExternalFileDropAsync` で `await RefreshAsync().ConfigureAwait(false)` 後に UIスレッド外から `SelectedItem` セッター（WinRT PropertyChanged 通知）を呼んでいたため
   - `SelectItemByPath` の呼び出しを `_uiDispatcher.RunAsync` でラップし、`SelectedItem` への代入を UIスレッド上で実行するよう修正

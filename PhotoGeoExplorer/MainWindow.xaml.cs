@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -16,6 +17,7 @@ using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Graphics;
 using Windows.System;
+using WinRT.Interop;
 
 namespace PhotoGeoExplorer;
 
@@ -183,7 +185,7 @@ public sealed partial class MainWindow : Window, IDisposable
         // XamlRoot が確定するまでワンテンポ遅らせてからダイアログを表示
         DispatcherQueue.TryEnqueue(async () =>
         {
-            if (_crashReportService?.PreviouslyTerminatedAbnormally == true)
+            if (_crashReportService?.HasReportableCrash == true)
             {
                 _viewModel.ShowCrashReportBanner(_crashReportService.CrashReportsDirectoryPath);
             }
@@ -256,6 +258,46 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         _startupCoordinator.SetStartupFilePath(filePath);
     }
+
+    /// <summary>
+    /// 別プロセスから RedirectActivationToAsync 経由でファイルが指定された際、
+    /// 既存ウィンドウ側でフォルダ遷移・該当ファイル選択を行います。
+    /// </summary>
+    internal async Task NavigateToFileAsync(string filePath)
+    {
+        _startupCoordinator.SetStartupFilePath(filePath);
+        await _startupCoordinator.ApplyStartupAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// ウィンドウを前面化します。単一インスタンス化で別プロセスからのアクティベーションを
+    /// リダイレクトされた際、既存ウィンドウをユーザーに確実に見せるために使用します。
+    /// </summary>
+    internal void BringToForeground()
+    {
+        try
+        {
+            var hwnd = WindowNative.GetWindowHandle(this);
+            ShowWindow(hwnd, ShowWindowRestore);
+            SetForegroundWindow(hwnd);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("Failed to bring window to foreground.", ex);
+        }
+    }
+
+    private const int ShowWindowRestore = 9;
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     private void OnFileBrowserPanePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
