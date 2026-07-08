@@ -21,6 +21,8 @@ public partial class App : Application
     private DateTimeOffset _splashShownAt;
     private bool _splashCloseRequested;
     private bool _crashDetected;
+    private readonly object _pendingActivationLock = new();
+    private AppActivationArguments? _pendingRedirectedActivation;
     private static readonly Services.CrashReportService CrashReporter = new();
 
     public App()
@@ -52,6 +54,21 @@ public partial class App : Application
         {
             mainWindow.SetStartupFilePath(_startupFilePath);
         }
+
+        // OnLaunched 実行中（_window 構築前）に別プロセスからのリダイレクトが届いていた場合、
+        // OnRedirectedActivation は即 return して保留していたため、ここで取り出して適用する。
+        AppActivationArguments? pendingActivation;
+        lock (_pendingActivationLock)
+        {
+            pendingActivation = _pendingRedirectedActivation;
+            _pendingRedirectedActivation = null;
+        }
+
+        if (pendingActivation is not null)
+        {
+            ApplyRedirectedActivation(mainWindow, pendingActivation);
+        }
+
         _window.Activated += OnMainWindowActivated;
         _window.Activate();
     }
@@ -62,9 +79,22 @@ public partial class App : Application
         // UI スレッドへマーシャリングしてから MainWindow を操作する。
         if (_window is not MainWindow mainWindow)
         {
+            // OnLaunched で MainWindow を構築中にリダイレクトが届いた場合、
+            // ここで失うと後発プロセスからのアクティベーションが反映されない。
+            // 保留しておき、OnLaunched 側で MainWindow 構築後に適用する。
+            lock (_pendingActivationLock)
+            {
+                _pendingRedirectedActivation = args;
+            }
+
             return;
         }
 
+        ApplyRedirectedActivation(mainWindow, args);
+    }
+
+    private static void ApplyRedirectedActivation(MainWindow mainWindow, AppActivationArguments args)
+    {
         mainWindow.DispatcherQueue.TryEnqueue(() =>
         {
             mainWindow.BringToForeground();
@@ -72,7 +102,11 @@ public partial class App : Application
             var filePath = GetFileActivationPath(args);
             if (!string.IsNullOrWhiteSpace(filePath))
             {
-                _ = mainWindow.NavigateToFileAsync(filePath);
+                _ = mainWindow.NavigateToFileAsync(filePath).ContinueWith(
+                    task => AppLog.Error("Failed to navigate to redirected file.", task.Exception),
+                    System.Threading.CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted,
+                    TaskScheduler.Default);
             }
         });
     }

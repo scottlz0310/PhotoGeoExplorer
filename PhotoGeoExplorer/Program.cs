@@ -4,7 +4,6 @@ using System.Threading;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
-using Windows.ApplicationModel.Activation;
 
 namespace PhotoGeoExplorer;
 
@@ -104,7 +103,13 @@ internal static partial class Program
     /// 単一インスタンスとして自プロセスを登録します。
     /// 既に別プロセスが稼働中の場合はアクティベーション引数をそちらへリダイレクトします。
     /// </summary>
-    /// <returns>自プロセスが唯一のインスタンスとして起動を継続すべき場合は true。判定不能時も安全側として true を返す。</returns>
+    /// <returns>
+    /// 自プロセスが唯一のインスタンスとして起動を継続すべき場合は true。
+    /// 起動有無を判定できない場合（GetActivatedEventArgs/FindOrRegisterForKey 失敗時）も安全側として true を返す。
+    /// 既存インスタンスの存在が確定した後は、リダイレクトの成否によらず必ず false を返す。
+    /// リダイレクトに失敗したまま true を返すと、後発プロセスも Application.Start まで進んでしまい、
+    /// このメソッドが防ぐはずの running.lock 競合（複数プロセスによる CrashReportService.RecordStartup 同時実行）が再発するため。
+    /// </returns>
     private static bool TryClaimSingleInstance()
     {
         AppActivationArguments activatedArgs;
@@ -140,8 +145,7 @@ internal static partial class Program
         }
         catch (Exception ex) when (ex is InvalidOperationException or COMException)
         {
-            AppLog.Error("Failed to redirect activation to the existing instance.", ex);
-            return true;
+            AppLog.Error("Failed to redirect activation to the existing instance. Exiting without starting a second instance to avoid running.lock contention.", ex);
         }
 
         return false;
