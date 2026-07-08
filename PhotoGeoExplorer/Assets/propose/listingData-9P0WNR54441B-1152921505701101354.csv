@@ -4,17 +4,17 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.8.5)
-- Fixed: Crash (ObjectDisposedException) when switching folders or closing the app during thumbnail generation
-- Fixed: Crash (MetadataException) when opening photos without a Date/Time Original EXIF tag
-- Fixed: Crash (RPC_E_WRONG_THREAD) after file move/copy operations complete
-- Improved: Issue detection banner wording updated for graceful degradation scenarios
-- Improved: Metadata parse failures now handled gracefully; affected files are skipped instead of crashing","リリースノート（v1.8.5）
-- 修正: サムネイル生成中にフォルダ切り替えやアプリ終了を行うと発生するクラッシュ（ObjectDisposedException）を修正
-- 修正: Date/Time Original タグを持たない写真を読み込むと発生するクラッシュ（MetadataException）を修正
-- 修正: ファイル移動・コピー操作完了時に発生するクラッシュ（RPC_E_WRONG_THREAD）を修正
-- 改善: graceful degradation ケースに対応した問題検出バナーの文言を修正
-- 改善: メタデータ解析の部分失敗を graceful degradation で処理し、アプリのクラッシュを防止"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.8.6)
+- Fixed: A false crash report could appear when launching the app more than once
+- Improved: Opening the app or a photo again now activates the existing window
+- Fixed: A UI-thread crash after renaming items, creating folders, or dropping external files
+- Fixed: A false folder-loading error caused by overlapping folder loads
+- Improved: Internal architecture and automated tests for long-term stability","リリースノート（v1.8.6）
+- 修正: アプリを複数回起動した際にクラッシュレポートが誤表示される問題を修正
+- 改善: アプリや写真を再度開いた際に、既存のウィンドウを前面に表示
+- 修正: リネーム、フォルダー作成、外部ファイルのドロップ後に発生する UI スレッドのクラッシュを修正
+- 修正: フォルダー読み込みの競合によりエラーが誤表示される問題を修正
+- 改善: 長期的な安定性に向けて内部構造と自動テストを強化"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,

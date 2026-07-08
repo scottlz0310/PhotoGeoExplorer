@@ -4,7 +4,10 @@
 
 ## [Unreleased]
 
+## [1.8.6] - 2026-07-08
+
 ### CI
+- Release ワークフローで `listingData-*.csv` が0件または複数件の場合にエラー終了し、誤った Store リスティングを選択しないよう検証を追加
 - E2E ワークフローの総実行時間を短縮 (#182)
   - **実測（attempt 単位、GitHub Actions ログの実際の attempt 別 Passed/Failed 行に基づく再集計）**: 分割前後を問わず直近の main/PR 実行はいずれも 1 回目の試行で 1 本だけ flaky 失敗し 2 回目で成功する既存パターンが確認された（例: 分割前 main run `28786690007`＝13本中1本失敗→retry成功、`28333186948`／`28058515771`＝7本中1本失敗→retry成功）。これは本 PR が原因ではなく E2E スイートに元々存在する未解決の flaky（#180 が前提とする flaky 切り分けが必要な事象）であり、単一 attempt の実行時間を単純にテスト数へ按分した当初の分析は誤りだったため、以下は attempt 単位の実測に基づき訂正する
   - 固定コスト（checkout/restore/build/ランタイム確認）は約 2.5〜3 分でほぼ一定。#181 で 3→13 本に増えテスト実行時間（1 attempt のクリーン実行で 13 本 ≈ 2m40s〜3m0s）が支配的コストになったため、runner 分割が最も効果的と判断
@@ -68,6 +71,7 @@
   - 当該 3 ファイルのみを `codecov.yml` の `ignore` に追加。テスト可能な純粋関数（`FileBrowserDialogErrorMap`）・ViewModel・Service はカバレッジ集計対象として維持（ブランケット除外はしない）
 
 ### ドキュメント
+- Partner Center からエクスポートする `listingdata.csv` とリポジトリで管理する `listingData-*.csv` の役割をリリース手順で明確化
 - #150（コードベース全体のモジュール棚卸しとゴッドクラス解体計画）の Phase 1〜4 最終成果を `docs/Architecture/ModuleSizeAudit-Phase1-4-Summary.md` に集計・総括 (#209)
   - 開始時点（2026-06-09）と現在（2026-07-07）のモジュール行数・分類（🔴/🟠/🟡/✅）を全ファイル比較。🔴 要分割 2 ファイルは Phase 1 で `FileBrowserPaneViewModel.cs` 1,263 行・`FileBrowserPaneView.xaml.cs` 908 行まで縮退（分類は 🔴→🟠）、🟠 要注意だった App/Core 層 4 ファイルは Phase 2〜4 で 🟡 監視 相当まで改善または解消（`ExifService` 削除）
   - 残存する 500 行超 5 ファイルの扱いを記録: `FileBrowserPaneViewModel` / `FileBrowserPaneView` / `FileOperationService` は既存の分割判断（Phase 1 完了形・#179 トリアージ結果）を踏襲し監視継続、`MapPaneViewControl` は次フェーズ化候補として監視継続、`MainWindow.xaml.cs` の更新チェック機能はガードレール違反（処理本体の直接実装）が判明したため Follow-up Issue #213 を起票

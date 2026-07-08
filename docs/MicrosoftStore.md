@@ -38,7 +38,8 @@
 
 ### 3. Store リスティングの準備 (Assets & Listing Data)
 
-メタデータやアセットの更新は、Partner Center 上で手動入力するか、CSV インポートを利用します。
+Release ワークフローは、リポジトリ内の Listing Data CSV を Partner Center の申請データへ反映します。
+タグ作成前に、リリースノートと必要なアセットを更新してください。
 
 #### アセットの準備
 - `PhotoGeoExplorer/Assets/propose/` フォルダを作業用として使用
@@ -46,25 +47,27 @@
 - 必要に応じてファイル名を連番などに整理
 
 #### Listing Data (CSV) の更新
-Partner Center から現在の情報をエクスポートし、修正してインポートする方法が確実です。
+Partner Center から現在の情報をエクスポートし、リポジトリ内の CSV と差分を確認してからリポジトリ内の CSV を修正します。
 
-1. **エクスポート**: Partner Center > アプリ > Store リスティング > エクスポート
-2. **編集**: `listingdata.csv` を編集（VS Code 等の UTF-8 BOM 対応エディタ推奨）
+1. **エクスポート**: Partner Center > アプリ > Store リスティング > エクスポートから `listingdata.csv` をダウンロード
+2. **編集**: リポジトリ内の `PhotoGeoExplorer/Assets/propose/listingData-*.csv` を編集（VS Code 等の UTF-8 BOM 対応エディタ推奨）
    - `Description`: バージョンアップ内容を反映
    - `ReleaseNotes`: 今回の変更点
-   - 改行は `&#x0D;&#x0A;` でエスケープ
-3. **インポート**:
-   - `propose` フォルダ内に編集した CSV と画像ファイルを配置
-   - Partner Center のインポート機能で **フォルダごと** アップロード
+   - CSV フィールド内の改行と引用符を壊さない
+3. **コミット**:
+   - `propose` フォルダ内の CSV と必要な画像ファイルをリリース準備 PR に含める
+   - UTF-8 BOM + CRLF を維持する
 
-### 4. Partner Center への提出
+### 4. Release ワークフローと Partner Center
 
-1. Partner Center > アプリ > **運用** > **新しい提出** を作成
-2. **パッケージ**: `msixupload` ファイルをドラッグ＆ドロップ
-   - 古いパッケージは削除
-3. **Store リスティング**: インポートした情報や手動入力内容を確認
-4. **審査ノート**: テスト用アカウント情報や動作確認手順（必要な場合）
-5. **提出**: 「Certification」へ進む
+1. WACK 合格後に `vX.Y.Z` タグを push
+2. `.github/workflows/release.yml` が MSIX Store Upload パッケージを生成
+3. GitHub Release を作成し、`msixupload` を添付
+4. `Submit-ToPartnerCenter.ps1` がパッケージと Listing Data を Partner Center の申請データへ送信
+5. Partner Center でパッケージ、リスティング、審査ノートを確認
+6. runFullTrust の用途を審査ノートに記載し、認定を手動で開始
+
+ワークフローは既存の pending submission を自動削除しません。pending submission がある場合は失敗するため、内容を確認してから Partner Center で手動削除します。
 
 ---
 
@@ -75,8 +78,7 @@ Partner Center から現在の情報をエクスポートし、修正してイ�
 ### 公開状況
 
 - 公開済み: https://apps.microsoft.com/detail/9P0WNR54441B
-- 公開バージョン: v1.8.3
-- 次回リリース: v1.8.4
+- 公開バージョンは Partner Center で確認する（文書へ固定値を記録しない）
 - Store ID: 9P0WNR54441B
 
 ### Partner Center 設定
@@ -201,8 +203,9 @@ Store提出用のパッケージをローカルでサイドローディングし
 
 ### CI/CD パイプライン
 
-- [ ] GitHub Actions での MSIX ビルドワークフロー作成
-- [ ] Partner Center への自動アップロード設定（オプション）
+- [x] GitHub Actions での MSIX ビルドと GitHub Release 作成
+- [x] Partner Center へのパッケージ・Listing Data 送信
+- [ ] Partner Center での内容確認と認定開始（手動）
 
 ## Store 申請準備
 
