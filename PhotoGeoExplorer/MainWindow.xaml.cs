@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -38,6 +37,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly HelpService _helpService;
     private readonly MainWindowLayoutCoordinator _layoutCoordinator;
     private readonly CrashReportDialogService _crashReportDialogService;
+    private readonly UpdateCheckDialogService _updateCheckDialogService;
     internal FileBrowserPaneViewModel FileBrowserPaneViewModel => _fileBrowserPaneViewModel;
 
     internal void SetCrashReportService(Services.ICrashReportService crashReportService)
@@ -88,6 +88,7 @@ public sealed partial class MainWindow : Window, IDisposable
             () => _crashReportService,
             () => _viewModel.CrashReportsDirectoryPath,
             (message, severity) => _viewModel.ShowNotificationMessage(message, severity));
+        _updateCheckDialogService = new UpdateCheckDialogService(ShowMessageDialogAsync);
         _viewModel.ConfigureHelpService(_helpService);
         _viewModel.ConfigureSettingsCoordinator(_settingsCoordinator);
         RootGrid.DataContext = _viewModel;
@@ -465,50 +466,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private async void OnCheckUpdatesClicked(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            AppLog.Info("Manual update check triggered");
-            var currentVersion = typeof(App).Assembly.GetName().Version;
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var updateResult = await UpdateService.CheckForUpdatesAsync(currentVersion, cts.Token).ConfigureAwait(true);
-
-            if (updateResult.IsUpdateAvailable)
-            {
-                var message = LocalizationService.Format("Dialog.UpdateCheck.UpdateAvailableDetail", updateResult.LatestVersion?.ToString() ?? "Unknown");
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.UpdateCheck.Title"),
-                    message).ConfigureAwait(true);
-            }
-            else
-            {
-                await ShowMessageDialogAsync(
-                    LocalizationService.GetString("Dialog.UpdateCheck.Title"),
-                    LocalizationService.GetString("Dialog.UpdateCheck.NoUpdateDetail")).ConfigureAwait(true);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            AppLog.Info("Update check was cancelled (timeout or user action)");
-            await ShowMessageDialogAsync(
-                LocalizationService.GetString("Dialog.UpdateCheck.Title"),
-                LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
-        }
-        catch (InvalidOperationException ex)
-        {
-            await HandleUpdateCheckFailureAsync(ex).ConfigureAwait(true);
-        }
-        catch (ArgumentException ex)
-        {
-            await HandleUpdateCheckFailureAsync(ex).ConfigureAwait(true);
-        }
-    }
-
-    private async Task HandleUpdateCheckFailureAsync(Exception ex)
-    {
-        AppLog.Error("Failed to check for updates", ex);
-        await ShowMessageDialogAsync(
-            LocalizationService.GetString("Dialog.UpdateCheck.Title"),
-            LocalizationService.GetString("Dialog.UpdateCheck.ErrorDetail")).ConfigureAwait(true);
+        await _updateCheckDialogService.CheckForUpdatesAsync().ConfigureAwait(true);
     }
 
     private async Task ShowMessageDialogAsync(string title, string message)

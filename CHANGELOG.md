@@ -65,6 +65,12 @@
 - FileBrowser ゴッドクラス解体 Phase 1（#150 / 子 issue #152〜#159）の成果を `docs/Architecture/FileBrowserDecomposition-Phase1-Summary.md` にモジュール行数で集計（View `1,941→908`・ViewModel `2,089→1,263`、責務別モジュール 9 件を新設）(#159)
 
 ### リファクタリング
+- `MainWindow` の更新チェック機能を `UpdateCheckDialogService` へ分離（#150 Phase 6 Follow-up / #209）(#213)
+  - `OnCheckUpdatesClicked` の処理本体（更新チェック実行・結果判定・タイムアウト/例外ハンドリング・ダイアログ表示）と `HandleUpdateCheckFailureAsync` を `PhotoGeoExplorer/Services/UpdateCheckDialogService.cs` へ移動し、`MainWindow.xaml.cs` のイベントハンドラを委譲のみに縮退（767行 → 548行、−29%）。#206（`CrashReportDialogService` 分離）と同型のガードレール是正
+  - `ShowMessageDialogAsync`（XamlRoot 待機込み）は `OnOpenSettingsPaneClicked` からも共有利用されているため `MainWindow` に残し、`Func<string, string, Task>` として `UpdateCheckDialogService` へ注入する設計とした。`EnsureXamlRootAsync` の共有利用箇所（`OnOpenSettingsPaneClicked`）は無変更で、既存の `DialogService` との重複ロジック解消は本 Issue のスコープ外として見送り
+  - 挙動は不変。FlaUI による一時検証テスト（更新チェックダイアログ表示・設定ペイン表示の実機操作、日本語ロケールでの「アップデートを確認」「設定...」メニュー経由）で確認後に削除
+  - `docs/Architecture/ModuleSizeAudit-Phase1-4-Summary.md` を #213 反映後の最新状態（全体行数・モジュール一覧・残存ファイル一覧・関連 Issue/PR 一覧）に更新
+  - Copilot レビュー指摘対応: `UpdateService.CheckForUpdatesAsync` は通信/パース失敗時に例外を投げず `ErrorMessage` 付きの `IsUpdateAvailable=false` を返す設計だが、`CheckForUpdatesAsync` の分岐が `IsUpdateAvailable` のみで判定していたため、通信エラー時にも「更新なし（最新版）」ダイアログが誤表示されるバグがあった（移動元の `MainWindow.OnCheckUpdatesClicked` から引き継いだ既存バグ）。`updateResult.IsSuccess` を先に判定してエラーダイアログへ分岐するよう修正
 - `HelpService` の HTML ヘルプウィンドウ管理を `HelpHtmlWindowController` へ分離（#150 Phase 4 / #179）(#208)
   - `ShowHelpHtmlWindowAsync` 内のウィンドウ生成・アクティベート処理、`CreateHelpHtmlWebView` / `CleanupHelpHtmlWindow` / `CloseHelpHtmlWindow` / `CloseHelpHtmlWebView` / `TryResizeHelpWindow` / `GetAppWindow`（WebView2 ウィンドウのライフサイクル）と `OnHelpWebViewInitialized` / `OnHelpWebViewNewWindowRequested` / `OnHelpWebViewNavigationStarting` / `OnHelpWebViewNavigationCompleted` / `ShouldOpenOutsideHelpWindow` / `AreSameOrigin` / `AreSameUri` / `ResolveExternalUri` / `TryGetExternalUri` / `OpenExternalUriAsync`（ナビゲーション制御）を `PhotoGeoExplorer/Services/HelpHtmlWindowController.cs` へ移動し、`HelpService` は「どのヘルプを表示するか」のオーケストレーションに専念（559行 → 299行、−46%）
   - URI 解決の純粋関数群（`TryGetHelpHtmlUri` / `GetHelpHtmlFileName` / `TryGetExternalHelpHtmlUri` / `GetExternalPrivacyPolicyUri` / `GetExternalContentBaseUri`）は Issue で明示された通り分割対象外（`HelpService` に現状維持）。`HelpHtmlWindowController` の `ResolveExternalUri` はプライバシーポリシー URI 解決のため `HelpService.GetExternalPrivacyPolicyUri`（internal static）を参照

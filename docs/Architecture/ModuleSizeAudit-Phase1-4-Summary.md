@@ -1,8 +1,8 @@
 # モジュール棚卸し最終成果サマリー（Phase 1〜4）
 
-> 対象: Issue #150「コードベース全体のモジュール棚卸しとゴッドクラス解体計画」の **Phase 1〜4**（子 issue #152〜#159, #164, #167, #171, #174〜#179, #199〜#201, #206〜#208。Phase 5 の #180〜#182 は対象外）
+> 対象: Issue #150「コードベース全体のモジュール棚卸しとゴッドクラス解体計画」の **Phase 1〜4**（子 issue #152〜#159, #164, #167, #171, #174〜#179, #199〜#201, #206〜#208。Phase 5 の #180〜#182 は対象外）+ Phase 6 Follow-up **#213**
 > 開始時点: 2026-06-09（#150 起票時の調査）
-> 集計時点: 2026-07-07（#206 / #207 / #208 マージ後）。行数は `wc -l` 実測値（`*.cs`、`bin/` `obj/` 除く）
+> 集計時点: 2026-07-08（#213 マージ後）。行数は `wc -l` 実測値（`*.cs`、`bin/` `obj/` 除く）
 
 ## 概要
 
@@ -10,11 +10,11 @@
 
 ## 全体行数比較
 
-| 区分 | 開始時点（2026-06-09） | 現在（2026-07-07） | 差分 |
+| 区分 | 開始時点（2026-06-09） | 現在（2026-07-08、#213 反映後） | 差分 |
 | --- | ---: | ---: | ---: |
-| プロダクション（`PhotoGeoExplorer/` + `PhotoGeoExplorer.Core/`） | 16,239 | 17,181 | **+942（+5.8%）** |
+| プロダクション（`PhotoGeoExplorer/` + `PhotoGeoExplorer.Core/`） | 16,239 | 17,207 | **+968（+6.0%）** |
 | テスト（`PhotoGeoExplorer.Tests/` + `PhotoGeoExplorer.E2E/`） | 11,455 | 15,401 | **+3,946（+34.5%）** |
-| 合計 | 27,694 | 32,582 | **+4,888（+17.7%）** |
+| 合計 | 27,694 | 32,608 | **+4,914（+17.7%）** |
 
 **プロダクション行数が増加している点について**: 本棚卸しの目的は総 LOC 削減ではなく、ゴッドクラスの責務分離である。分割により抽出したモジュールにはインターフェース定義・コンストラクタ DI 配線・独立した例外ハンドリングが伴うため、責務単位の合計行数は元のゴッドクラス単体より増える（[Phase 1 サマリ](FileBrowserDecomposition-Phase1-Summary.md)で確認済みの傾向がPhase 2〜4でも継続）。価値は各モジュールの独立性・テスト容易性・保守性の向上にある。
 
@@ -28,7 +28,7 @@
 | --- | ---: | ---: | ---: | --- | --- |
 | `Panes/FileBrowser/FileBrowserPaneViewModel.cs` | 2,089 | 1,263 | −826（−40%） | 🔴→🟠 | #152-155 |
 | `Panes/FileBrowser/FileBrowserPaneView.xaml.cs` | 1,941 | 908 | −1,033（−53%） | 🔴→🟠 | #156-159 |
-| `MainWindow.xaml.cs` | 767 | 590 | −177（−23%） | 🟠→🟠 | #206 |
+| `MainWindow.xaml.cs` | 767 | 548 | −219（−29%） | 🟠→🟡 | #206, #213 |
 | `Panes/Map/MapPaneViewControl.xaml.cs` | 694 | 599 | −95（−14%） | 🟠→🟠 | #176 |
 | `Panes/Settings/SettingsPaneViewModel.cs` | 671 | 415 | −256（−38%） | 🟠→🟡 | #175 |
 | `Services/SettingsCoordinator.cs` | 621 | 479 | −142（−23%） | 🟠→🟡 | #177 |
@@ -89,6 +89,14 @@ Phase 1（`FileBrowserPaneViewModel.cs` / `FileBrowserPaneView.xaml.cs` から�
 
 Phase 1〜4 の新設モジュール合計（現在値ベース）: **4,416 行**（Phase 1: 2,431 / Phase 2: 627 / Phase 3: 611 / Phase 4: 747、Phase 3 は `ExifService.cs` 558 行の後継）
 
+### Phase 6 Follow-up（#213）
+
+| モジュール | 行数 | 責務 | Issue |
+| --- | ---: | --- | --- |
+| `Services/UpdateCheckDialogService.cs` | 68 | 手動更新チェックの実行・結果判定・ダイアログ表示 | #213 |
+
+`MainWindow.xaml.cs` の `OnCheckUpdatesClicked` / `HandleUpdateCheckFailureAsync` の処理本体を移動し、イベントハンドラを委譲のみに縮退（767行 → 548行）。`ShowMessageDialogAsync`（XamlRoot 待機込み）は既存の `OnOpenSettingsPaneClicked` との共有を維持するため `MainWindow` に残し、`Func<string, string, Task>` として `UpdateCheckDialogService` へ注入する設計とした（`EnsureXamlRootAsync` の共有利用箇所は無変更）。
+
 ## 分類凡例（#150 と同一基準）
 
 | 記号 | 基準 | アクション |
@@ -100,7 +108,7 @@ Phase 1〜4 の新設モジュール合計（現在値ベース）: **4,416 行*
 
 ## 残存する 500 行超ファイルの扱い
 
-再計測時点（2026-07-07）で 500 行超が残る 5 ファイルについて、今後の方針を以下の通り記録する。
+再計測時点（2026-07-08、#213 反映後）で 500 行超が残る 4 ファイルについて、今後の方針を以下の通り記録する。`MainWindow.xaml.cs` は #213 の対応により 548 行（🟠→🟡）まで縮退したため、本表からは除外した（詳細は「Phase 6 Follow-up」節）。
 
 | ファイル | 現在行数 | 方針 | 理由 |
 | --- | ---: | --- | --- |
@@ -108,17 +116,16 @@ Phase 1〜4 の新設モジュール合計（現在値ベース）: **4,416 行*
 | `Panes/FileBrowser/FileBrowserPaneView.xaml.cs` | 908 | **監視継続** | Phase 1（#156-159）で MVVM 境界是正済み。View 表示・入力受付責務に整理済みで、これ以上の分割は View の性質上（XAML コードビハインドの構造）優先度低 |
 | `Services/FileOperationService.cs` | 609 | **監視継続** | #179 のトリアージで単一責務（ファイル操作の実行）と判断済み。分割不要 |
 | `Panes/Map/MapPaneViewControl.xaml.cs` | 599 | **次フェーズ化を検討**（Issue 化は見送り） | #176 で EXIF/GPS ピッカー責務を分離済み。残存は Mapsui コントロール初期化・UI 責務が中心で、複数責務混在の明確な証跡は今回未確認のため、Issue 化はせず監視を継続する |
-| `MainWindow.xaml.cs` | 590 | **Follow-up Issue 起票**（#213） | #206 でクラッシュレポート機能を分離済みだが、更新チェック機能（`OnCheckUpdatesClicked` / `HandleUpdateCheckFailureAsync` 等、約 80 行）の処理本体がイベントハンドラに直接実装されており、MainWindow 肥大化防止ガードレール（「イベントハンドラは委譲のみに留める」）に違反している状態が残存。#206 と同型のパターンのため分離候補として明確 |
 
 ## Follow-up Issue
 
-- **#213**: `MainWindow.xaml.cs` の更新チェック機能を専用サービスへ分離（ガードレール違反是正）。`OnCheckUpdatesClicked` / `HandleUpdateCheckFailureAsync` の処理本体を `UpdateCheckDialogService`（仮称）へ移動する。`ShowMessageDialogAsync` / `EnsureXamlRootAsync` は `OnOpenSettingsPaneClicked` からも共有利用されているため、分離時は依存関係の設計が必要。
+- **#213**（対応済み）: `MainWindow.xaml.cs` の更新チェック機能を専用サービスへ分離（ガードレール違反是正）。`OnCheckUpdatesClicked` / `HandleUpdateCheckFailureAsync` の処理本体を `UpdateCheckDialogService` へ移動し、`MainWindow.xaml.cs` を 590行 → 548行に縮退。`EnsureXamlRootAsync` の共有利用箇所（`OnOpenSettingsPaneClicked`）は無変更で維持されていることを FlaUI による実機動作確認で検証済み
 
 ## 品質・テスト
 
-- 単体テスト: **745 件合格 / 0 失敗**（2026-07-07 時点、`dotnet test PhotoGeoExplorer.sln -c Release -p:Platform=x64`）
+- 単体テスト: **745 件合格 / 0 失敗**（2026-07-08 時点、`dotnet test PhotoGeoExplorer.sln -c Release -p:Platform=x64`）
 - E2E: 13 シナリオ（ローカル実行時はスキップ、CI では `e2e.yml` の 2 suite 並列実行で検証）
-- Phase 1〜4 を通じてビルド・テストのグリーンを維持しながら段階的に分割を実施
+- Phase 1〜4・#213 を通じてビルド・テストのグリーンを維持しながら段階的に分割を実施。#213 は FlaUI による一時検証テスト（更新チェックダイアログ表示・設定ペイン表示の実機操作確認、確認後に削除）で挙動不変を確認
 
 ## 関連 Issue / PR 一覧
 
@@ -142,13 +149,14 @@ Phase 1〜4 の新設モジュール合計（現在値ベース）: **4,416 行*
 | #207 | MapPaneViewModel マーカー表示ロジック分離 | #211 | 4 |
 | #208 | HelpService HTML ヘルプウィンドウ管理分離 | #212 | 4 |
 | #180-182 | E2E テスト基盤棚卸し・拡充・高速化 | — | 5 |
-| #209 | 本総括 Issue | — | 6 |
-| #213 | MainWindow 更新チェック機能分離（Follow-up） | — | 6（フォロー） |
+| #209 | 本総括 Issue | #214 | 6 |
+| #213 | MainWindow 更新チェック機能分離（Follow-up） | #216 | 6（フォロー） |
 
 ## まとめ
 
 - 当初 🔴 要分割と判定された 2 ゴッドクラスは、Phase 1 の 8 子 Issue により合計 4,030 行 → 2,171 行（−46%）まで縮退し、責務単位のモジュールへ分割された
 - 🟠 要注意だった App 層 3 ファイル（`SettingsPaneViewModel` / `SettingsCoordinator` / `MapPaneViewModel`）と Core 層 1 ファイル（`ExifService`）は、Phase 2〜4 を経てそれぞれ 🟡 監視 相当まで改善、または解消（クラス削除）した
 - `HelpService.cs`（🟡 監視）も Phase 4（#208）で 559 行 → 300 行（−46%）まで縮退した
-- 残存する 500 行超ファイル 5 件のうち、明確なガードレール違反（`MainWindow.xaml.cs` の更新チェック機能）を Follow-up Issue（#213）として起票した。他は既存の分割判断（Phase 1 完了形、#179 トリアージ結果）を踏襲し監視継続とする
-- 本総括をもって #150 を完了としてクローズする
+- `MainWindow.xaml.cs` は #206（クラッシュレポート機能分離）に続き #213（更新チェック機能分離）で 767 行 → 548 行（−29%）まで縮退し、分類も 🟠→🟡 に改善した
+- 残存していた 500 行超ファイル 5 件のうち、明確なガードレール違反があった `MainWindow.xaml.cs` の更新チェック機能は Follow-up Issue #213 で対応済み。残る 4 件は既存の分割判断（Phase 1 完了形、#179 トリアージ結果）を踏襲し監視継続とする
+- #150 は本総括（#209）をもって完了としてクローズ済み（2026-07-08）。#213 は #150 クローズ後に判明したガードレール違反の追加是正
