@@ -5,8 +5,11 @@
 - [ ] `PhotoGeoExplorer/PhotoGeoExplorer.csproj` の `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` を更新
 - [ ] `PhotoGeoExplorer/Package.appxmanifest` の `Identity Version` を更新（例: `1.2.3.0`）
 - [ ] `CHANGELOG.md` に該当バージョンのセクションを追加
-- [ ] リリースノートに含める内容を整理（tasks.md の完了/未完了、docs の要点）
-- [ ] Store 向けドキュメントを更新（`docs/MicrosoftStore.md`, `docs/WACK-TestResults.md`）
+- [ ] `PhotoGeoExplorer/Assets/propose/listingData-*.csv` の日英 `ReleaseNotes` を更新
+- [ ] リリースノートに含める内容を整理（関連する作業管理文書、docs の要点）
+- [ ] `dotnet format --verify-no-changes PhotoGeoExplorer.sln` を実行
+- [ ] `dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64` を実行
+- [ ] `dotnet test PhotoGeoExplorer.sln -c Release -p:Platform=x64` を実行
 
 ## リリース実行
 
@@ -18,34 +21,34 @@
 - [ ] `.\scripts\RunWackTests.ps1` で WACK を実行し合格を確認
 - [ ] `docs/WACK-TestResults.md` に結果を追記
 - [ ] `vX.Y.Z` タグを作成して push
-- [ ] GitHub Release が自動作成されていることを確認
-- [ ] MSIX Bundle アーティファクトが添付されていることを確認
-- [ ] リリースノートを手動編集（必要に応じて）
-- [ ] Partner Center に提出し、runFullTrust の用途を審査ノートに記載
+- [ ] Release ワークフローが成功したことを確認
+- [ ] GitHub Release に `msixupload` が添付され、CHANGELOG の該当セクションが掲載されていることを確認
+- [ ] Partner Center にパッケージとリスティングが反映されたことを確認
+- [ ] Partner Center の審査ノートに runFullTrust の用途を記載し、認定を手動で開始
 
 ## Microsoft Store リスティング更新
 
-Partner Center でアプリの説明文やスクリーンショットを更新する場合の手順。
+Release ワークフローは、リポジトリ内の `PhotoGeoExplorer/Assets/propose/listingData-*.csv` を Partner Center へ送信する。
+説明文やスクリーンショットも更新する場合は、タグ作成前に CSV とアセットを更新する。
 
-### listingdata.csv のダウンロードと編集
+### listingData CSV の更新
 
-1. **ダウンロード**
+1. **エクスポート**
    - Partner Center > アプリ > Store リスティング > エクスポート
-   - `listingdata.csv` をダウンロード
+   - 現在の `listingdata.csv` をダウンロードし、リポジトリ内の CSV と差分を確認
 
 2. **編集**
-   - UTF-8 BOM 付きで保存できるエディタ（VSCode, Excel等）で編集
+   - リポジトリ内の `PhotoGeoExplorer/Assets/propose/listingData-*.csv` を UTF-8 BOM + CRLF で編集
    - 主な編集対象:
      - `Description`: アプリの説明文（新機能、修正内容を反映）
      - `ReleaseNotes`: 今回のリリースノート
      - `Keywords`: 検索キーワード（SEO対策）
      - `Features`: 主要機能リスト
-   - 注意: 改行は `&#x0D;&#x0A;` でエスケープする
+   - CSV フィールド内の改行と引用符を壊さない
 
-3. **アップロード**
-   - Partner Center > アプリ > Store リスティング > インポート
-   - 編集した `listingdata.csv` をアップロード
-   - プレビューで内容を確認
+3. **反映確認**
+   - タグ push 後、Release ワークフローが CSV を申請データへ反映する
+   - Partner Center のプレビューで内容を確認してから認定を開始
 
 4. **スクリーンショット更新**（必要に応じて）
    - UI に変更がある場合は新しいスクリーンショットを用意

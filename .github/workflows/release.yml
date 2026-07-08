@@ -137,5 +137,11 @@ jobs:
           MSSTORE_SELLER_ID: ${{ secrets.MSSTORE_SELLER_ID }}
         run: |
           $msix = (Get-ChildItem artifacts/*.msixupload | Sort-Object Name -Descending | Select-Object -First 1).FullName
-          $csv  = (Get-ChildItem PhotoGeoExplorer/Assets/propose/listingData-*.csv | Sort-Object Name -Descending | Select-Object -First 1).FullName
+          $listingDataFiles = @(Get-ChildItem PhotoGeoExplorer/Assets/propose/listingData-*.csv -File)
+          if ($listingDataFiles.Count -ne 1) {
+            $fileNames = if ($listingDataFiles.Count -eq 0) { "(none)" } else { $listingDataFiles.Name -join ", " }
+            Write-Error "Expected exactly one listingData-*.csv file, but found $($listingDataFiles.Count): $fileNames"
+            exit 1
+          }
+          $csv = $listingDataFiles[0].FullName
           pwsh ./scripts/Submit-ToPartnerCenter.ps1 -MsixUpload $msix -ListingDataCsv $csv
