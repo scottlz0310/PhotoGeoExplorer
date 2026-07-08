@@ -37,6 +37,7 @@ public partial class App : Application
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
         AppLog.Info("App launched.");
+        AppInstance.GetCurrent().Activated += OnRedirectedActivation;
         ApplyLanguageOverrideFromSettings();
         _startupFilePath = GetFileActivationPath();
         AppLog.Info($"Running as packaged app (App context): {IsPackaged()}");
@@ -53,6 +54,27 @@ public partial class App : Application
         }
         _window.Activated += OnMainWindowActivated;
         _window.Activate();
+    }
+
+    private void OnRedirectedActivation(object? sender, AppActivationArguments args)
+    {
+        // 別プロセスから RedirectActivationToAsync 経由で呼ばれる場合、バックグラウンドスレッドで発火するため
+        // UI スレッドへマーシャリングしてから MainWindow を操作する。
+        if (_window is not MainWindow mainWindow)
+        {
+            return;
+        }
+
+        mainWindow.DispatcherQueue.TryEnqueue(() =>
+        {
+            mainWindow.BringToForeground();
+
+            var filePath = GetFileActivationPath(args);
+            if (!string.IsNullOrWhiteSpace(filePath))
+            {
+                _ = mainWindow.NavigateToFileAsync(filePath);
+            }
+        });
     }
 
     private void OnMainWindowActivated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs e)
@@ -186,6 +208,11 @@ public partial class App : Application
             return null;
         }
 
+        return GetFileActivationPath(activationArgs);
+    }
+
+    private static string? GetFileActivationPath(AppActivationArguments activationArgs)
+    {
         if (activationArgs.Kind != ExtendedActivationKind.File)
         {
             return null;

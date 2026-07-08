@@ -297,6 +297,7 @@ public class MapPaneServiceTests
     private sealed class FakeCrashReportService : ICrashReportService
     {
         public bool PreviouslyTerminatedAbnormally => false;
+        public bool HasReportableCrash => false;
         public string CrashReportsDirectoryPath => string.Empty;
         public int WriteCallCount { get; private set; }
 

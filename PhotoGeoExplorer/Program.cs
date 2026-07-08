@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
+using Windows.ApplicationModel.Activation;
 
 namespace PhotoGeoExplorer;
 
@@ -10,6 +12,7 @@ internal static partial class Program
 {
     private const uint WindowsAppSdkMajorMinor = 0x00010008;
     private const int AppModelErrorNoPackage = 15700;
+    private const string SingleInstanceKey = "PhotoGeoExplorer_MainInstance";
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -61,6 +64,13 @@ internal static partial class Program
             }
         }
 
+        if (!TryClaimSingleInstance())
+        {
+            AppLog.Info("Another instance is already running. Activation was redirected; exiting this process.");
+            ShutdownBootstrapIfInitialized(bootstrapInitialized);
+            return;
+        }
+
         try
         {
             AppLog.Info("Calling Application.Start.");
@@ -85,27 +95,80 @@ internal static partial class Program
         finally
         {
             AppLog.Info("Program.Main entering shutdown sequence.");
-            // Bootstrap が成功した場合のみ Shutdown を呼ぶ
-            if (bootstrapInitialized)
-            {
-                try
-                {
-                    Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap.Shutdown();
-                    AppLog.Info("Windows App Runtime bootstrap shutdown.");
-                }
-                catch (Exception ex) when (
-                    ex is BadImageFormatException or
-                    DllNotFoundException or
-                    EntryPointNotFoundException or
-                    FileNotFoundException or
-                    InvalidOperationException or
-                    UnauthorizedAccessException)
-                {
-                    AppLog.Error("Windows App SDK bootstrap shutdown failed.", ex);
-                }
-            }
-
+            ShutdownBootstrapIfInitialized(bootstrapInitialized);
             AppLog.Info("Program.Main finished.");
+        }
+    }
+
+    /// <summary>
+    /// 単一インスタンスとして自プロセスを登録します。
+    /// 既に別プロセスが稼働中の場合はアクティベーション引数をそちらへリダイレクトします。
+    /// </summary>
+    /// <returns>自プロセスが唯一のインスタンスとして起動を継続すべき場合は true。判定不能時も安全側として true を返す。</returns>
+    private static bool TryClaimSingleInstance()
+    {
+        AppActivationArguments activatedArgs;
+        try
+        {
+            activatedArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or COMException)
+        {
+            AppLog.Error("Failed to get activation arguments for single-instance check.", ex);
+            return true;
+        }
+
+        AppInstance mainInstance;
+        try
+        {
+            mainInstance = AppInstance.FindOrRegisterForKey(SingleInstanceKey);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or COMException)
+        {
+            AppLog.Error("Failed to register single-instance key.", ex);
+            return true;
+        }
+
+        if (mainInstance.IsCurrent)
+        {
+            return true;
+        }
+
+        try
+        {
+            mainInstance.RedirectActivationToAsync(activatedArgs).AsTask().GetAwaiter().GetResult();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or COMException)
+        {
+            AppLog.Error("Failed to redirect activation to the existing instance.", ex);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void ShutdownBootstrapIfInitialized(bool bootstrapInitialized)
+    {
+        // Bootstrap が成功した場合のみ Shutdown を呼ぶ
+        if (!bootstrapInitialized)
+        {
+            return;
+        }
+
+        try
+        {
+            Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap.Shutdown();
+            AppLog.Info("Windows App Runtime bootstrap shutdown.");
+        }
+        catch (Exception ex) when (
+            ex is BadImageFormatException or
+            DllNotFoundException or
+            EntryPointNotFoundException or
+            FileNotFoundException or
+            InvalidOperationException or
+            UnauthorizedAccessException)
+        {
+            AppLog.Error("Windows App SDK bootstrap shutdown failed.", ex);
         }
     }
 

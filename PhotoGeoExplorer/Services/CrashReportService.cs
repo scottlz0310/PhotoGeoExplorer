@@ -35,11 +35,15 @@ internal sealed class CrashReportService : ICrashReportService
 
     public bool PreviouslyTerminatedAbnormally { get; private set; }
 
+    public bool HasReportableCrash { get; private set; }
+
     public string CrashReportsDirectoryPath => _crashReportsDir;
 
     public void RecordStartup()
     {
-        PreviouslyTerminatedAbnormally = File.Exists(_lockFilePath) || File.Exists(_crashMarkerPath);
+        var hasCrashMarker = File.Exists(_crashMarkerPath);
+        PreviouslyTerminatedAbnormally = File.Exists(_lockFilePath) || hasCrashMarker;
+        HasReportableCrash = hasCrashMarker;
         TryDeleteFile(_crashMarkerPath);
         TryCreateLockFile();
     }
