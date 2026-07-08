@@ -40,6 +40,7 @@
   - `CrashReportServiceTests` に `crash.marker`/`running.lock` の組み合わせ判定と、同一 app data directory を共有する複数インスタンスでの起動順・終了順・異常終了パターンを検証するパラメータ化テストを追加
   - 実機検証（MSIX パッケージ版、`DevInstall.ps1` でインストール）: 多重起動時に `running.lock` が上書きされずクラッシュバナーが誤表示されないこと、ファイル関連付け経由での2重起動時に既存ウィンドウのフォルダが遷移すること、強制終了後（`crash.marker` なし）はバナー非表示、実際のクラッシュログがある場合は従来どおりバナー表示されることを確認
   - Copilot / thread-owl レビュー指摘対応（blocking 3件）: (1) `RedirectActivationToAsync` 失敗時に起動を継続していたため後発プロセスも `RecordStartup()` を実行し `running.lock` 競合が再発し得た点を修正し、リダイレクト失敗時は起動を中止するよう変更（thread-owl blocking）。(2) `OnLaunched` で `MainWindow` 構築中にリダイレクトが届くとアクティベーションが失われるレースコンディションを修正し、`_window` 未構築時は保留して構築後に適用するよう変更。(3) `NavigateToFileAsync` の fire-and-forget 呼び出しが例外発生時に `UnobservedTaskException` 経由でクラッシュ扱いになり得た点を修正し、`ContinueWith(OnlyOnFaulted)` で例外を観測してログに記録するよう変更。未使用 using も削除
+  - Codecov 指摘対応: `App`/`Program` は WinUI3/Windows App SDK ランタイムに強く依存する起動シーケンス（`Main`、`OnLaunched`、単一インスタンス化ロジック）で構造的に単体テスト不能なため、既存の `CrashReportDialogService` 等と同様に `[ExcludeFromCodeCoverage]` を付与。付与前に既存テストが `App`/`Program` のメンバーを一切参照していないことを確認済み（既存カバレッジ 0%、隠蔽ではなく実態を反映）
 - リネーム・フォルダ作成・外部ファイルドロップ後に `COMException (0x8001010E: RPC_E_WRONG_THREAD)` でクラッシュする問題を修正 (#188)
   - `ExecuteRenameAsync` / `ExecuteCreateFolderAsync` / `HandleExternalFileDropAsync` で `await RefreshAsync().ConfigureAwait(false)` 後に UIスレッド外から `SelectedItem` セッター（WinRT PropertyChanged 通知）を呼んでいたため
   - `SelectItemByPath` の呼び出しを `_uiDispatcher.RunAsync` でラップし、`SelectedItem` への代入を UIスレッド上で実行するよう修正

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.UI.Dispatching;
@@ -7,6 +8,7 @@ using Microsoft.Windows.AppLifecycle;
 
 namespace PhotoGeoExplorer;
 
+[ExcludeFromCodeCoverage]
 internal static partial class Program
 {
     private const uint WindowsAppSdkMajorMinor = 0x00010008;

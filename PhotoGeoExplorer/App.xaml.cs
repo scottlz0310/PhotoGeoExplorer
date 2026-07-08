@@ -12,6 +12,7 @@ using Windows.Storage;
 namespace PhotoGeoExplorer;
 
 [SuppressMessage("Design", "CA1515:Consider making public types internal")]
+[ExcludeFromCodeCoverage]
 public partial class App : Application
 {
     private const int MinimumSplashDurationMs = 3000;
