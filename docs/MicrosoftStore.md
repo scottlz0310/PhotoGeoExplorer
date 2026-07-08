@@ -47,10 +47,10 @@ Release ワークフローは、リポジトリ内の Listing Data CSV を Partn
 - 必要に応じてファイル名を連番などに整理
 
 #### Listing Data (CSV) の更新
-Partner Center から現在の情報をエクスポートし、リポジトリ内の CSV と差分を確認してから修正します。
+Partner Center から現在の情報をエクスポートし、リポジトリ内の CSV と差分を確認してからリポジトリ内の CSV を修正します。
 
-1. **エクスポート**: Partner Center > アプリ > Store リスティング > エクスポート
-2. **編集**: `listingdata.csv` を編集（VS Code 等の UTF-8 BOM 対応エディタ推奨）
+1. **エクスポート**: Partner Center > アプリ > Store リスティング > エクスポートから `listingdata.csv` をダウンロード
+2. **編集**: リポジトリ内の `PhotoGeoExplorer/Assets/propose/listingData-*.csv` を編集（VS Code 等の UTF-8 BOM 対応エディタ推奨）
    - `Description`: バージョンアップ内容を反映
    - `ReleaseNotes`: 今回の変更点
    - CSV フィールド内の改行と引用符を壊さない

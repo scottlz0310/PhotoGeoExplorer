@@ -35,7 +35,7 @@ Release ワークフローは、リポジトリ内の `PhotoGeoExplorer/Assets/p
 
 1. **エクスポート**
    - Partner Center > アプリ > Store リスティング > エクスポート
-   - 現在の `listingdata.csv` をダウンロードし、リポジトリ内の CSV と差分を確認
+   - エクスポートした `listingdata.csv` とリポジトリ内の CSV の差分を確認
 
 2. **編集**
    - リポジトリ内の `PhotoGeoExplorer/Assets/propose/listingData-*.csv` を UTF-8 BOM + CRLF で編集
