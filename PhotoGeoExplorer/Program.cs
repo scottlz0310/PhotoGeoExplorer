@@ -14,6 +14,7 @@ internal static partial class Program
     private const uint WindowsAppSdkMajorMinor = 0x00010008;
     private const int AppModelErrorNoPackage = 15700;
     private const string SingleInstanceKey = "PhotoGeoExplorer_MainInstance";
+    private static AppInstance? _mainInstance;
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -138,6 +139,8 @@ internal static partial class Program
 
         if (mainInstance.IsCurrent)
         {
+            mainInstance.Activated += App.OnRedirectedActivation;
+            _mainInstance = mainInstance;
             return true;
         }
 

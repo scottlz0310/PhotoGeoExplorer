@@ -22,8 +22,9 @@ public partial class App : Application
     private DateTimeOffset _splashShownAt;
     private bool _splashCloseRequested;
     private bool _crashDetected;
-    private readonly object _pendingActivationLock = new();
-    private AppActivationArguments? _pendingRedirectedActivation;
+    private static readonly object PendingActivationLock = new();
+    private static App? _current;
+    private static AppActivationArguments? _pendingRedirectedActivation;
     private static readonly Services.CrashReportService CrashReporter = new();
 
     public App()
@@ -34,13 +35,17 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+        lock (PendingActivationLock)
+        {
+            _current = this;
+        }
+
         AppLog.Info("App constructed.");
     }
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
         AppLog.Info("App launched.");
-        AppInstance.GetCurrent().Activated += OnRedirectedActivation;
         ApplyLanguageOverrideFromSettings();
         _startupFilePath = GetFileActivationPath();
         AppLog.Info($"Running as packaged app (App context): {IsPackaged()}");
@@ -55,12 +60,10 @@ public partial class App : Application
             mainWindow.SetStartupFilePath(_startupFilePath);
         }
 
-        // _window の公開と、OnRedirectedActivation が保留した pending の回収を同じ lock 境界で
-        // 直列化する。分離していると、チェック（_window is null）から格納までの間に OnLaunched 側の
-        // _window 設定・pending 回収が割り込み、リダイレクトされた activation が失われる TOCTOU 競合が
-        // 生じ得るため（thread-owl レビュー指摘）。
+        // _window の公開と、App 構築前から保留された pending の回収を同じ lock 境界で直列化し、
+        // 起動シーケンスのどの時点で activation が届いても取りこぼさない。
         AppActivationArguments? pendingActivation;
-        lock (_pendingActivationLock)
+        lock (PendingActivationLock)
         {
             _window = mainWindow;
             pendingActivation = _pendingRedirectedActivation;
@@ -76,24 +79,18 @@ public partial class App : Application
         _window.Activate();
     }
 
-    private void OnRedirectedActivation(object? sender, AppActivationArguments args)
+    internal static void OnRedirectedActivation(object? sender, AppActivationArguments args)
     {
-        // 別プロセスから RedirectActivationToAsync 経由で呼ばれる場合、バックグラウンドスレッドで発火するため
-        // UI スレッドへマーシャリングしてから MainWindow を操作する。
-        // _window のチェックと pending への格納を OnLaunched 側の _window 設定・pending 回収と
-        // 同じ lock 境界で直列化することで、どちらが先に実行されても activation を取りこぼさない。
+        // Program で Application.Start 前に購読するため、App 構築前に届いた引数も pending に保留する。
         MainWindow? mainWindow;
-        lock (_pendingActivationLock)
+        lock (PendingActivationLock)
         {
-            if (_window is MainWindow existing)
+            if (_current?._window is MainWindow existing)
             {
                 mainWindow = existing;
             }
             else
             {
-                // OnLaunched で MainWindow を構築中にリダイレクトが届いた場合、
-                // ここで失うと後発プロセスからのアクティベーションが反映されない。
-                // 保留しておき、OnLaunched 側で MainWindow 構築後に適用する。
                 _pendingRedirectedActivation = args;
                 return;
             }
