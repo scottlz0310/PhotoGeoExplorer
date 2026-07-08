@@ -50,17 +50,19 @@ public partial class App : Application
 
         var mainWindow = new MainWindow();
         mainWindow.SetCrashReportService(CrashReporter);
-        _window = mainWindow;
         if (!string.IsNullOrWhiteSpace(_startupFilePath))
         {
             mainWindow.SetStartupFilePath(_startupFilePath);
         }
 
-        // OnLaunched 実行中（_window 構築前）に別プロセスからのリダイレクトが届いていた場合、
-        // OnRedirectedActivation は即 return して保留していたため、ここで取り出して適用する。
+        // _window の公開と、OnRedirectedActivation が保留した pending の回収を同じ lock 境界で
+        // 直列化する。分離していると、チェック（_window is null）から格納までの間に OnLaunched 側の
+        // _window 設定・pending 回収が割り込み、リダイレクトされた activation が失われる TOCTOU 競合が
+        // 生じ得るため（thread-owl レビュー指摘）。
         AppActivationArguments? pendingActivation;
         lock (_pendingActivationLock)
         {
+            _window = mainWindow;
             pendingActivation = _pendingRedirectedActivation;
             _pendingRedirectedActivation = null;
         }
@@ -78,17 +80,23 @@ public partial class App : Application
     {
         // 別プロセスから RedirectActivationToAsync 経由で呼ばれる場合、バックグラウンドスレッドで発火するため
         // UI スレッドへマーシャリングしてから MainWindow を操作する。
-        if (_window is not MainWindow mainWindow)
+        // _window のチェックと pending への格納を OnLaunched 側の _window 設定・pending 回収と
+        // 同じ lock 境界で直列化することで、どちらが先に実行されても activation を取りこぼさない。
+        MainWindow? mainWindow;
+        lock (_pendingActivationLock)
         {
-            // OnLaunched で MainWindow を構築中にリダイレクトが届いた場合、
-            // ここで失うと後発プロセスからのアクティベーションが反映されない。
-            // 保留しておき、OnLaunched 側で MainWindow 構築後に適用する。
-            lock (_pendingActivationLock)
+            if (_window is MainWindow existing)
             {
-                _pendingRedirectedActivation = args;
+                mainWindow = existing;
             }
-
-            return;
+            else
+            {
+                // OnLaunched で MainWindow を構築中にリダイレクトが届いた場合、
+                // ここで失うと後発プロセスからのアクティベーションが反映されない。
+                // 保留しておき、OnLaunched 側で MainWindow 構築後に適用する。
+                _pendingRedirectedActivation = args;
+                return;
+            }
         }
 
         ApplyRedirectedActivation(mainWindow, args);
