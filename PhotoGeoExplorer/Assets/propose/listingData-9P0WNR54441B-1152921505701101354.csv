@@ -4,17 +4,15 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.8.6)
-- Fixed: A false crash report could appear when launching the app more than once
-- Improved: Opening the app or a photo again now activates the existing window
-- Fixed: A UI-thread crash after renaming items, creating folders, or dropping external files
-- Fixed: A false folder-loading error caused by overlapping folder loads
-- Improved: Internal architecture and automated tests for long-term stability","リリースノート（v1.8.6）
-- 修正: アプリを複数回起動した際にクラッシュレポートが誤表示される問題を修正
-- 改善: アプリや写真を再度開いた際に、既存のウィンドウを前面に表示
-- 修正: リネーム、フォルダー作成、外部ファイルのドロップ後に発生する UI スレッドのクラッシュを修正
-- 修正: フォルダー読み込みの競合によりエラーが誤表示される問題を修正
-- 改善: 長期的な安定性に向けて内部構造と自動テストを強化"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.9.0)
+- New: Save the current map view as a PNG image from a button in the map header
+- New: Saved images include map tiles, photo markers, and attribution at the display resolution
+- New: The save dialog remembers your last destination and starts from the photo folder or Pictures
+- Improved: The save button stays disabled while the map is initializing or loading tiles, so images never contain missing tiles","リリースノート（v1.9.0）
+- 新機能: 地図ヘッダーのボタンから、現在の地図表示を PNG 画像として保存
+- 新機能: 保存する画像に地図タイル・写真マーカー・著作権表記を表示解像度で描画
+- 新機能: 保存ダイアログが前回の保存先を記憶し、写真のフォルダーまたはピクチャから開始
+- 改善: 地図の初期化中・タイル読み込み中は保存ボタンを無効化し、タイル欠けのある画像が保存されないよう変更"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
