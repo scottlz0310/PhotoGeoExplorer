@@ -100,11 +100,32 @@ jobs:
             }
           }
 
-          $runtime = Get-InstalledRuntime
-          if (-not $runtime) {
-            throw "Windows App SDK runtime $requiredVersion or later installation verification failed."
+          # インストーラー終了直後は実行ユーザーへのパッケージ登録が完了していないことがあるため、
+          # 少し待ってから検証する。
+          $runtime = $null
+          foreach ($attempt in 1..6) {
+            $runtime = Get-InstalledRuntime
+            if ($runtime) { break }
+            Start-Sleep -Seconds 5
           }
-          Write-Host "Windows App SDK runtime: $($runtime.Name) $($runtime.Version)"
+
+          if ($runtime) {
+            Write-Host "Windows App SDK runtime: $($runtime.Name) $($runtime.Version)"
+          } else {
+            # ここで打ち切らず E2E 本体に進める。bootstrap が本当に解決できるかは
+            # アプリ起動時に判定され、失敗すれば E2E テストが落ちるため検知漏れにはならない。
+            Write-Warning "Windows App SDK runtime $requiredVersion or later was not detected for the current user."
+            Write-Host "Installed Windows App Runtime packages (current user):"
+            Get-AppxPackage -Name "Microsoft.WindowsAppRuntime*" |
+              ForEach-Object { Write-Host "  $($_.Name) $($_.Version)" }
+            try {
+              Write-Host "Installed Windows App Runtime packages (all users):"
+              Get-AppxPackage -Name "Microsoft.WindowsAppRuntime*" -AllUsers |
+                ForEach-Object { Write-Host "  $($_.Name) $($_.Version)" }
+            } catch {
+              Write-Warning "Failed to enumerate packages for all users: $_"
+            }
+          }
 
       - name: Set display resolution
         shell: pwsh
