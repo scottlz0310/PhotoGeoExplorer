@@ -23,4 +23,8 @@ internal interface IDialogService
         string suggestedFileName,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? fileTypeChoices = null,
         CancellationToken cancellationToken = default);
+
+    Task<string?> ShowMapImageSaveFilePickerAsync(
+        MapImageSavePickerOptions options,
+        CancellationToken cancellationToken = default);
 }
