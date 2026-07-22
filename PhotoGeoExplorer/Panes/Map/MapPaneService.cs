@@ -232,7 +232,7 @@ internal sealed class MapPaneService : IMapPaneService
             new BruTile.Predefined.GlobalSphericalMercator(),
             "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             name: "Esri WorldImagery",
-            attribution: new BruTile.Attribution("Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"),
+            attribution: new BruTile.Attribution("Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community"),
             configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
             persistentCache: persistentCache);
 

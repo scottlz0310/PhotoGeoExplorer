@@ -69,6 +69,7 @@ public class MapPaneServiceTests
             // Assert
             Assert.NotNull(layer);
             Assert.Equal("OpenStreetMap", layer.Name);
+            Assert.Equal("© OpenStreetMap contributors", layer.TileSource.Attribution.Text);
 
             // Cleanup
             layer.Dispose();
@@ -95,6 +96,9 @@ public class MapPaneServiceTests
             // Assert
             Assert.NotNull(layer);
             Assert.Equal("Esri WorldImagery", layer.Name);
+            Assert.Equal(
+                "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+                layer.TileSource.Attribution.Text);
 
             // Cleanup
             layer.Dispose();
