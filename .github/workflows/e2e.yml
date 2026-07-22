@@ -103,10 +103,29 @@ jobs:
           # インストーラー終了直後は実行ユーザーへのパッケージ登録が完了していないことがあるため、
           # 少し待ってから検証する。
           $runtime = $null
-          foreach ($attempt in 1..6) {
+          foreach ($attempt in 1..3) {
             $runtime = Get-InstalledRuntime
             if ($runtime) { break }
             Start-Sleep -Seconds 5
+          }
+
+          # インストーラーはパッケージをプロビジョニングするが、GitHub Actions の実行ユーザーへは
+          # 登録されないことがある（-AllUsers では見えるが current user では解決できない）。
+          # bootstrap は current user の登録を参照するため、明示的に登録する。
+          if (-not $runtime) {
+            $provisioned = Get-AppxPackage -Name $runtimePackageName -AllUsers -ErrorAction SilentlyContinue |
+              Where-Object { [Version]$_.Version -ge $requiredVersion } |
+              Sort-Object { [Version]$_.Version } -Descending |
+              Select-Object -First 1
+            if ($provisioned) {
+              Write-Host "Registering $($provisioned.PackageFamilyName) for the current user..."
+              try {
+                Add-AppxPackage -RegisterByFamilyName -MainPackage $provisioned.PackageFamilyName -ErrorAction Stop
+              } catch {
+                Write-Warning "Add-AppxPackage -RegisterByFamilyName failed: $_"
+              }
+              $runtime = Get-InstalledRuntime
+            }
           }
 
           if ($runtime) {
