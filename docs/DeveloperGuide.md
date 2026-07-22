@@ -15,19 +15,7 @@
 - **.NET 10 SDK** (Preview)
   - [Download .NET 10](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-### 3. Windows App Runtime 2.2 以降
-- `dotnet run --project PhotoGeoExplorer/PhotoGeoExplorer.csproj` のような**非パッケージ実行**では、アプリ起動時に Windows App SDK の bootstrap が走ります。参照している `Microsoft.WindowsAppSDK` のバージョンに対応したランタイムが未導入だと「Windows App SDK の初期化に失敗しました」ダイアログが表示されて起動できません。
-- 導入コマンド（いずれか）:
-
-  ```powershell
-  winget install --id Microsoft.WindowsAppRuntime.2
-  ```
-
-  または [WindowsAppRuntimeInstall.exe](https://aka.ms/windowsappsdk/2.2/latest/windowsappruntimeinstall-x64.exe) を実行します。
-- 確認: `Get-AppxPackage -Name "Microsoft.WindowsAppRuntime.2"`
-- MSIX（`DevInstall.ps1` 経由のインストール）で実行する場合は、依存パッケージとして解決されるため個別導入は不要です。
-
-### 4. Visual Studio 2022 (v17.2 以降)
+### 3. Visual Studio 2022 (v17.2 以降)
 ビルド自体はコマンドラインでも可能ですが、MSIX パッケージ作成ツール (`MakeAppx.exe`, `SignTool.exe`) を入手するために、以下のコンポーネントのインストールが必要です。
 
 Visual Studio Installer で以下を選択してください：

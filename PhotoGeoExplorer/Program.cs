@@ -11,6 +11,7 @@ namespace PhotoGeoExplorer;
 [ExcludeFromCodeCoverage]
 internal static partial class Program
 {
+    private const uint WindowsAppSdkMajorMinor = 0x00010008;
     private const int AppModelErrorNoPackage = 15700;
     private const string SingleInstanceKey = "PhotoGeoExplorer_MainInstance";
     private static AppInstance? _mainInstance;
@@ -40,8 +41,7 @@ internal static partial class Program
         {
             try
             {
-                Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap.Initialize(
-                    Microsoft.WindowsAppSDK.Release.MajorMinor);
+                Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap.Initialize(WindowsAppSdkMajorMinor);
                 bootstrapInitialized = true;
                 AppLog.Info("Windows App Runtime bootstrap initialized.");
             }
