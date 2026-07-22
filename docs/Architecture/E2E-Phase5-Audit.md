@@ -9,7 +9,7 @@
   2. `ExifEditorContextMenuAndDateToggleWorks` — EXIF エディタ コンテキストメニュー＋日付トグル
   3. `ExifEditorSaveAndReopenKeepsCoordinates` — EXIF エディタ 保存→再オープンで座標保持
 - 実行ゲート: `[E2EFact]`（`PHOTO_GEO_EXPLORER_RUN_E2E=1` 未設定時は Skip）。
-- CI（`.github/workflows/e2e.yml`）: PR/push（main・develop）。windows-latest、WindowsAppRuntime 1.8 導入、1920x1080 設定、**最大 2 回リトライ＋`--blame-hang-timeout 10m`**（flaky 前提）。
+- CI（`.github/workflows/e2e.yml`）: PR/push（main・develop）。windows-latest、WindowsAppRuntime 2.2 以降導入（`Microsoft.WindowsAppRuntime.2`）、1920x1080 設定、**最大 2 回リトライ＋`--blame-hang-timeout 10m`**（flaky 前提）。
 - テストデータ（`E2ETestData`）: temp に `sample.jpg`（Fujifilm/X100V、GPS・DateTimeOriginal 付与）1 枚＋空 `folder` 1 個。アプリは `--folder <temp>` 起動。終了は `TerminateApp`（Close→WaitForExit→Kill）→その後 temp 再帰削除。
 
 ## 2. automation ID 整合点検（既存 3 テスト参照分）

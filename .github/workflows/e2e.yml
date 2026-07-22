@@ -60,14 +60,26 @@ jobs:
       - name: Ensure Windows App SDK runtime
         shell: pwsh
         run: |
-          $runtime = Get-AppxPackage -Name "Microsoft.WindowsAppRuntime.1.8*" -ErrorAction SilentlyContinue
-          if (-not $runtime) {
-            Write-Host "Windows App SDK runtime 1.8 not found. Installing..."
+          # E2E は WindowsPackageType=None のビルドを直接起動するため、Program.Main の bootstrap が
+          # 参照パッケージ (Microsoft.WindowsAppSDK) の Release.MajorMinor を解決できる必要がある。
+          # 2.x のランタイムはマイナー単位ではなくメジャー単位の family 名で提供される。
+          $runtimePackageName = "Microsoft.WindowsAppRuntime.2"
+          $requiredVersion = [Version]"2.2"
+
+          function Get-InstalledRuntime {
+            Get-AppxPackage -Name $runtimePackageName -ErrorAction SilentlyContinue |
+              Where-Object { [Version]$_.Version -ge $requiredVersion } |
+              Sort-Object { [Version]$_.Version } -Descending |
+              Select-Object -First 1
+          }
+
+          if (-not (Get-InstalledRuntime)) {
+            Write-Host "Windows App SDK runtime $requiredVersion or later not found. Installing..."
             $installed = $false
 
             # 方法1: 公式インストーラー exe（winget より安定）
             try {
-              $installerUri = "https://aka.ms/windowsappsdk/1.8/latest/windowsappruntimeinstall-x64.exe"
+              $installerUri = "https://aka.ms/windowsappsdk/2.2/latest/windowsappruntimeinstall-x64.exe"
               $installerPath = Join-Path $env:RUNNER_TEMP "windowsappruntimeinstall-x64.exe"
               Invoke-WebRequest -Uri $installerUri -OutFile $installerPath -ErrorAction Stop
               $proc = Start-Process -FilePath $installerPath -ArgumentList "--quiet" -Wait -PassThru
@@ -81,26 +93,18 @@ jobs:
               Write-Warning "WindowsAppRuntimeInstall.exe method failed: $_"
             }
 
-            # 方法2: winget（フォールバック）
+            # 方法2: winget（フォールバック）。2.x の winget id はメジャー単位。
             if (-not $installed -and (Get-Command winget -ErrorAction SilentlyContinue)) {
-              winget install --id Microsoft.WindowsAppRuntime.1.8 --accept-source-agreements --accept-package-agreements --silent
-              if ($LASTEXITCODE -eq 0) { $installed = $true }
-              else { Write-Warning "winget install failed (exit: $LASTEXITCODE)" }
-            }
-
-            # 方法3: msix 直接インストール（最終フォールバック）
-            if (-not $installed) {
-              $uri = "https://aka.ms/windowsappsdk/1.8/latest/Microsoft.WindowsAppRuntime.1.8.x64.msix"
-              $msix = Join-Path $env:RUNNER_TEMP "Microsoft.WindowsAppRuntime.1.8.x64.msix"
-              Invoke-WebRequest -Uri $uri -OutFile $msix
-              Add-AppxPackage -Path $msix
+              winget install --id Microsoft.WindowsAppRuntime.2 --accept-source-agreements --accept-package-agreements --silent
+              if ($LASTEXITCODE -ne 0) { Write-Warning "winget install failed (exit: $LASTEXITCODE)" }
             }
           }
 
-          $runtime = Get-AppxPackage -Name "Microsoft.WindowsAppRuntime.1.8*" -ErrorAction SilentlyContinue
+          $runtime = Get-InstalledRuntime
           if (-not $runtime) {
-            throw "Windows App SDK runtime 1.8 installation verification failed."
+            throw "Windows App SDK runtime $requiredVersion or later installation verification failed."
           }
+          Write-Host "Windows App SDK runtime: $($runtime.Name) $($runtime.Version)"
 
       - name: Set display resolution
         shell: pwsh

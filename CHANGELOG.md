@@ -8,6 +8,8 @@
 - 地図ヘッダーに保存ボタンを追加し、OS の保存ダイアログから現在の地図表示を PNG として保存できる WinUI 統合と日英ローカライズを追加。非パッケージ版の Windows App Runtime bootstrap も参照パッケージの 2.2 に同期 (#226)
   - 保存ボタンの `async void` ハンドラで例外を終端し、書き込み権限のない保存先・空き容量不足・描画失敗などで `MapPaneViewModel.SaveMapImageAsync` が再スローした際にアプリが終了する問題を解消（thread-owl レビュー指摘対応）。保存失敗ケースの ViewModel テストを capture 失敗 / 保存失敗の 2 パターンにパラメータ化
   - `Map.Layers.Changed` を購読し、タイルソース切替でベースレイヤーが差し替わった直後も `TileLayer.Busy` の監視が新レイヤーへ追随するよう修正（thread-owl レビュー指摘対応）。タイル読み込み中に保存してタイル欠けの PNG が出力される窓を解消
+  - CI ワークフロー（`e2e.yml` / `ci.yml`）の Windows App Runtime 調達を参照パッケージと同じ 2.2 系へ追従（thread-owl レビュー指摘対応）。2.x のランタイムはマイナー単位ではなくメジャー単位の family 名（`Microsoft.WindowsAppRuntime.2`）で提供されるため、1.8 のみ導入していた従来設定では非パッケージ起動（`WindowsPackageType=None`）の bootstrap が解決できず E2E が全滅していた。2.x では msix 直リンクが提供されないためフォールバックから削除し、インストーラー exe と winget の 2 段構成に変更
+  - `docs/DeveloperGuide.md` に非パッケージ実行（`dotnet run`）の前提となる Windows App Runtime 2.2 以降の導入手順を追記し、`docs/Architecture/E2E-Phase5-Audit.md` の CI ランタイム記述を更新
 - 地図の初期化・Viewport・タイル読み込み・保存中状態に連動する画像保存可否と、保存先選択・PNG 取得・保存・キャンセル・通知を統合する ViewModel ワークフローを追加 (#225)
 - 現在の地図表示範囲を物理ピクセル寸法でオフスクリーン描画し、タイル・写真マーカー・著作権表記を含む PNG ストリームとして保存できる基盤を追加 (#224)
 - 地図画像保存向けに、前回の保存先を OS が機能別に記憶し、画像保存元または Pictures フォルダーを初回候補にする PNG 専用の保存ダイアログ基盤を追加 (#223)
