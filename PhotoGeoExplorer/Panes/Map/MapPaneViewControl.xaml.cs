@@ -194,6 +194,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     {
         map.DataChanged += OnMapDataChanged;
         map.Navigator.ViewportChanged += OnMapViewportChanged;
+        map.Layers.Changed += OnMapLayersChanged;
         UpdateTileLayerSubscription(map);
     }
 
@@ -206,10 +207,16 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
         map.DataChanged -= OnMapDataChanged;
         map.Navigator.ViewportChanged -= OnMapViewportChanged;
+        map.Layers.Changed -= OnMapLayersChanged;
         UpdateTileLayerSubscription(null);
     }
 
     private void OnMapDataChanged(object? sender, DataChangedEventArgs e)
+        => QueueMapImageSaveStateUpdate();
+
+    // タイルソース切替はベースレイヤーを差し替えるだけで Map インスタンスを変えないため、
+    // レイヤー構成の変化を捉えないと Busy 購読が破棄済みの旧レイヤーに残る。
+    private void OnMapLayersChanged(object sender, LayerCollectionChangedEventArgs args)
         => QueueMapImageSaveStateUpdate();
 
     private void OnTileLayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -273,9 +280,20 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
-        await _viewModel.SaveMapImageAsync(
-            _dialogService.ShowMapImageSaveFilePickerAsync,
-            CaptureMapImageAsync).ConfigureAwait(true);
+        try
+        {
+            await _viewModel.SaveMapImageAsync(
+                _dialogService.ShowMapImageSaveFilePickerAsync,
+                CaptureMapImageAsync).ConfigureAwait(true);
+        }
+        // ViewModel は失敗通知を出したうえで再スローする契約のため、async void の
+        // ここで終端しないと Application.UnhandledException へ抜けてプロセスが落ちる。
+#pragma warning disable CA1031 // Do not catch general exception types
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            AppLog.Error("Failed to save the current map image.", ex);
+        }
     }
 
     private Task<Stream> CaptureMapImageAsync(CancellationToken cancellationToken)

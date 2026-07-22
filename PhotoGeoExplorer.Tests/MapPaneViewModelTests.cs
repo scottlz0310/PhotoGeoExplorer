@@ -227,12 +227,17 @@ public class MapPaneViewModelTests
         viewModel.Cleanup();
     }
 
-    [Fact]
-    public async Task SaveMapImageAsyncPublishesFailureAndRethrowsOriginalException()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SaveMapImageAsyncPublishesFailureAndRethrowsOriginalException(bool failDuringSave)
     {
         // Arrange
-        var (viewModel, workspaceState, _) = await CreateReadyMapImageViewModelAsync().ConfigureAwait(true);
-        var expectedException = new InvalidOperationException("snapshot failed");
+        var (viewModel, workspaceState, imageService) = await CreateReadyMapImageViewModelAsync().ConfigureAwait(true);
+        var expectedException = failDuringSave
+            ? new IOException("destination is not writable")
+            : (Exception)new InvalidOperationException("snapshot failed");
+        imageService.SaveFailure = failDuringSave ? expectedException : null;
         string? notification = null;
         InfoBarSeverity? severity = null;
         workspaceState.NotificationRequested += (_, args) =>
@@ -241,14 +246,17 @@ public class MapPaneViewModelTests
             severity = args.Severity;
         };
 
-        var actualException = await Assert.ThrowsAsync<InvalidOperationException>(
+        var actualException = await Assert.ThrowsAnyAsync<Exception>(
             () => viewModel.SaveMapImageAsync(
                 (_, _) => Task.FromResult<string?>(@"C:\Exports\map.png"),
-                _ => Task.FromException<Stream>(expectedException))).ConfigureAwait(true);
+                _ => failDuringSave
+                    ? Task.FromResult<Stream>(new MemoryStream([1, 2, 3]))
+                    : Task.FromException<Stream>(expectedException))).ConfigureAwait(true);
 
         Assert.Same(expectedException, actualException);
-        Assert.Contains("snapshot failed", notification, StringComparison.Ordinal);
+        Assert.Contains(expectedException.Message, notification, StringComparison.Ordinal);
         Assert.Equal(InfoBarSeverity.Error, severity);
+        Assert.False(viewModel.IsMapImageSaving);
         viewModel.Cleanup();
     }
 
@@ -497,6 +505,8 @@ public class MapPaneViewModelTests
     {
         public string? SavedFilePath { get; private set; }
 
+        public Exception? SaveFailure { get; set; }
+
         public string CreateDefaultFileName(DateTimeOffset timestamp) => "map.png";
 
         public Stream RenderPng(Map map, Viewport viewport, float pixelDensity)
@@ -504,6 +514,11 @@ public class MapPaneViewModelTests
 
         public Task SavePngAsync(Stream pngStream, string filePath, CancellationToken cancellationToken)
         {
+            if (SaveFailure is not null)
+            {
+                return Task.FromException(SaveFailure);
+            }
+
             SavedFilePath = filePath;
             return Task.CompletedTask;
         }
