@@ -222,6 +222,13 @@ public sealed class ExifEditorServiceTests
         {
             return Task.FromResult<StorageFile?>(null);
         }
+
+        public Task<string?> ShowMapImageSaveFilePickerAsync(
+            MapImageSavePickerOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<string?>(null);
+        }
     }
 
     private sealed class FakeExifMetadataService : IExifMetadataService

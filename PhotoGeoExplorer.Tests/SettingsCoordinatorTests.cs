@@ -307,5 +307,12 @@ public sealed class SettingsCoordinatorTests : IDisposable
         {
             return Task.FromResult<StorageFile?>(null);
         }
+
+        public Task<string?> ShowMapImageSaveFilePickerAsync(
+            MapImageSavePickerOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<string?>(null);
+        }
     }
 }

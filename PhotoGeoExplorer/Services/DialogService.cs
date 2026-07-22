@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using AppSdkFileSavePicker = Microsoft.Windows.Storage.Pickers.FileSavePicker;
+using AppSdkPickerLocationId = Microsoft.Windows.Storage.Pickers.PickerLocationId;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -158,6 +161,37 @@ internal sealed class DialogService : IDialogService
         }
 
         return null;
+    }
+
+    [ExcludeFromCodeCoverage(Justification = "OS の保存ダイアログには実ウィンドウとユーザー操作が必要なため。")]
+    public async Task<string?> ShowMapImageSaveFilePickerAsync(
+        MapImageSavePickerOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var picker = new AppSdkFileSavePicker(_pickerHostWindow.AppWindow.Id)
+        {
+            DefaultFileExtension = MapImageSavePickerOptions.DefaultFileExtension,
+            SettingsIdentifier = MapImageSavePickerOptions.SettingsIdentifier,
+            SuggestedFileName = options.SuggestedFileName,
+            // OS に保存済みの場所を優先し、履歴がない場合だけ画像保存元または Pictures を使う。
+            SuggestedStartFolder = options.SuggestedStartFolder,
+            SuggestedStartLocation = AppSdkPickerLocationId.PicturesLibrary
+        };
+        picker.FileTypeChoices.Add(
+            MapImageSavePickerOptions.FileTypeLabel,
+            new List<string> { MapImageSavePickerOptions.DefaultFileExtension });
+
+        try
+        {
+            var result = await picker.PickSaveFileAsync().AsTask(cancellationToken).ConfigureAwait(true);
+            return result?.Path;
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
     }
 
     private async Task<bool> EnsureXamlRootAsync(CancellationToken cancellationToken)
