@@ -450,6 +450,12 @@
   <data name="MapHeader.Text" xml:space="preserve">
     <value>Map</value>
   </data>
+  <data name="MapImageSaveButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Save map image</value>
+  </data>
+  <data name="MapImageSaveButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Save map image</value>
+  </data>
   <data name="Message.PicturesFolderNotFound" xml:space="preserve">
     <value>Pictures folder not found.</value>
   </data>

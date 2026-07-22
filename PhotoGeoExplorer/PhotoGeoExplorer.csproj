@@ -21,6 +21,7 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <WindowsAppSdkBootstrapInitialize>false</WindowsAppSdkBootstrapInitialize>
     <WindowsAppSdkAutoInitialize>false</WindowsAppSdkAutoInitialize>
+    <WindowsAppSdkIncludeVersionInfo>true</WindowsAppSdkIncludeVersionInfo>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>

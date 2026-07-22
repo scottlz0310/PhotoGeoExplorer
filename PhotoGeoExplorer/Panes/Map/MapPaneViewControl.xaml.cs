@@ -2,11 +2,16 @@ using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Extensions;
+using Mapsui.Fetcher;
 using Mapsui.Layers;
 using Mapsui.Nts;
 using Mapsui.Styles;
+using Mapsui.Tiling.Layers;
+using Mapsui.UI;
 using Mapsui.UI.WinUI;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -28,8 +33,11 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private static readonly Color SelectionOutlineColor = Color.FromArgb(255, 0, 120, 215);
 
     private readonly MapExifLocationPicker _exifLocationPicker;
+    private IDialogService _dialogService = null!;
+    private IMapImageService _mapImageService = null!;
     private MapPaneViewModel? _viewModel;
     private Mapsui.Map? _map;
+    private INotifyPropertyChanged? _subscribedTileLayer;
     private PhotoMetadata? _flyoutMetadata;
     private bool _mapRectangleSelecting;
     private MPoint? _mapRectangleStart;
@@ -49,6 +57,12 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
 
+    internal void ConfigureMapImageExport(IDialogService dialogService, IMapImageService mapImageService)
+    {
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _mapImageService = mapImageService ?? throw new ArgumentNullException(nameof(mapImageService));
+    }
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _isViewLoaded = true;
@@ -56,6 +70,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         // Loaded 前に受信した PropertyChanged を取りこぼした場合に備えて UI を再同期する
         ApplyMapFromViewModel();
         UpdateMapStatusFromViewModel();
+        UpdateMapImageSaveState();
     }
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
@@ -67,6 +82,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     {
         _isViewLoaded = false;
         _exifLocationPicker.Cancel();
+        UnsubscribeFromMapState(_map);
+        _viewModel?.UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);
         DetachViewModel();
         ClearRectangleSelectionLayer();
         _map = null;
@@ -162,11 +179,113 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         }
 
         ClearRectangleSelectionLayer();
+        UnsubscribeFromMapState(_map);
         _map = map;
         if (map is not null)
         {
             MapControl.Map = map;
+            SubscribeToMapState(map);
         }
+
+        UpdateMapImageSaveState();
+    }
+
+    private void SubscribeToMapState(Mapsui.Map map)
+    {
+        map.DataChanged += OnMapDataChanged;
+        map.Navigator.ViewportChanged += OnMapViewportChanged;
+        UpdateTileLayerSubscription(map);
+    }
+
+    private void UnsubscribeFromMapState(Mapsui.Map? map)
+    {
+        if (map is null)
+        {
+            return;
+        }
+
+        map.DataChanged -= OnMapDataChanged;
+        map.Navigator.ViewportChanged -= OnMapViewportChanged;
+        UpdateTileLayerSubscription(null);
+    }
+
+    private void OnMapDataChanged(object? sender, DataChangedEventArgs e)
+        => QueueMapImageSaveStateUpdate();
+
+    private void OnTileLayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TileLayer.Busy))
+        {
+            QueueMapImageSaveStateUpdate();
+        }
+    }
+
+    private void OnMapViewportChanged(object? sender, ViewportChangedEventArgs e)
+        => QueueMapImageSaveStateUpdate();
+
+    private void OnMapControlSizeChanged(object sender, SizeChangedEventArgs e)
+        => UpdateMapImageSaveState();
+
+    private void QueueMapImageSaveStateUpdate()
+    {
+        if (!HasUiThreadAccess())
+        {
+            _ = DispatcherQueue?.TryEnqueue(UpdateMapImageSaveState);
+            return;
+        }
+
+        UpdateMapImageSaveState();
+    }
+
+    private void UpdateMapImageSaveState()
+    {
+        var map = _map;
+        UpdateTileLayerSubscription(map);
+        var hasValidViewport = map?.Navigator.Viewport.HasSize() == true;
+        var isTileLoading = map?.Layers.OfType<TileLayer>().Any(layer => layer.Busy) == true;
+        _viewModel?.UpdateMapImageSaveState(hasValidViewport, isTileLoading);
+    }
+
+    private void UpdateTileLayerSubscription(Mapsui.Map? map)
+    {
+        var tileLayer = map?.Layers.OfType<TileLayer>().FirstOrDefault();
+        if (ReferenceEquals(_subscribedTileLayer, tileLayer))
+        {
+            return;
+        }
+
+        if (_subscribedTileLayer is not null)
+        {
+            _subscribedTileLayer.PropertyChanged -= OnTileLayerPropertyChanged;
+        }
+
+        _subscribedTileLayer = tileLayer;
+        if (_subscribedTileLayer is not null)
+        {
+            _subscribedTileLayer.PropertyChanged += OnTileLayerPropertyChanged;
+        }
+    }
+
+    private async void OnSaveMapImageClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        await _viewModel.SaveMapImageAsync(
+            _dialogService.ShowMapImageSaveFilePickerAsync,
+            CaptureMapImageAsync).ConfigureAwait(true);
+    }
+
+    private Task<Stream> CaptureMapImageAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var map = MapControl.Map;
+        var viewport = map.Navigator.Viewport;
+        var pixelDensity = ((IMapControl)MapControl).GetPixelDensity()
+            ?? throw new InvalidOperationException("Map pixel density is not available.");
+        return Task.FromResult(_mapImageService.RenderPng(map, viewport, pixelDensity));
     }
 
     private void UpdateMapStatusFromViewModel()
@@ -576,6 +695,9 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     public void Dispose()
     {
         ClearRectangleSelectionLayer();
+        UnsubscribeFromMapState(_map);
+        DetachViewModel();
+        _map = null;
         GC.SuppressFinalize(this);
     }
 

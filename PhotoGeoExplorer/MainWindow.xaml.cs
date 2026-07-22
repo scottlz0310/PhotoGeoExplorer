@@ -67,7 +67,11 @@ public sealed partial class MainWindow : Window, IDisposable
             uiDispatcher: new UiDispatcher());
         _startupCoordinator = new StartupCoordinator(_fileBrowserPaneViewModel);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
-        _mapPaneViewModel = new MapPaneViewModel(new MapPaneService(), _viewModel.WorkspaceState);
+        var mapImageService = new MapImageService();
+        _mapPaneViewModel = new MapPaneViewModel(
+            new MapPaneService(),
+            _viewModel.WorkspaceState,
+            mapImageService);
         _settingsCoordinator = new SettingsCoordinator(
             new SettingsService(),
             dialogService,
@@ -99,6 +103,7 @@ public sealed partial class MainWindow : Window, IDisposable
         PreviewPaneControl.DataContext = _previewPaneViewModel;
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         MapPaneControl.DataContext = _mapPaneViewModel;
+        MapPaneControl.ConfigureMapImageExport(dialogService, mapImageService);
         var paneLayoutHostService = new PaneLayoutHostService(
             FileBrowserPane,
             DetailPane,

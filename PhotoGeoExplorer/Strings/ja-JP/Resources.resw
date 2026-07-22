@@ -450,6 +450,12 @@
   <data name="MapHeader.Text" xml:space="preserve">
     <value>地図</value>
   </data>
+  <data name="MapImageSaveButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>地図画像を保存</value>
+  </data>
+  <data name="MapImageSaveButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>地図画像を保存</value>
+  </data>
   <data name="Message.PicturesFolderNotFound" xml:space="preserve">
     <value>ピクチャ フォルダーが見つかりません。</value>
   </data>
