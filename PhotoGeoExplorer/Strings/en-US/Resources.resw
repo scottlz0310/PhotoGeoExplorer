@@ -941,4 +941,13 @@
   <data name="CrashReportDialog.MailBody" xml:space="preserve">
     <value>The diagnostic log has been copied to your clipboard. Please paste it into this email (Ctrl+V) and send.</value>
   </data>
+  <data name="Message.MapImageSaveSucceeded" xml:space="preserve">
+    <value>Saved the map image:</value>
+  </data>
+  <data name="Message.MapImageSaveCanceled" xml:space="preserve">
+    <value>Map image saving was canceled.</value>
+  </data>
+  <data name="Message.MapImageSaveFailed" xml:space="preserve">
+    <value>Failed to save the map image:</value>
+  </data>
 </root>

@@ -941,4 +941,13 @@
   <data name="CrashReportDialog.MailBody" xml:space="preserve">
     <value>診断ログをクリップボードにコピーしました。このメールに貼り付けてお送りください（Ctrl+V）。</value>
   </data>
+  <data name="Message.MapImageSaveSucceeded" xml:space="preserve">
+    <value>地図画像を保存しました:</value>
+  </data>
+  <data name="Message.MapImageSaveCanceled" xml:space="preserve">
+    <value>地図画像の保存をキャンセルしました。</value>
+  </data>
+  <data name="Message.MapImageSaveFailed" xml:space="preserve">
+    <value>地図画像の保存に失敗しました:</value>
+  </data>
 </root>

@@ -30,6 +30,7 @@ namespace PhotoGeoExplorer.Panes.Map;
 internal sealed class MapPaneViewModel : PaneViewModelBase
 {
     private readonly IMapPaneService _service;
+    private readonly IMapImageService _mapImageService;
     private readonly WorkspaceState _workspaceState;
     private readonly MapMarkerPresenter _markerPresenter;
     private Mapsui.Map? _map;
@@ -38,26 +39,39 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private MapTileSourceType _currentTileSource = MapTileSourceType.OpenStreetMap;
     private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private CancellationTokenSource? _mapUpdateCts;
+    private CancellationTokenSource? _mapImageSaveCts;
     private bool _isMapInitialized;
+    private bool _hasValidMapViewport;
+    private bool _isMapTileLoading;
+    private bool _isMapImageSaving;
     private string _statusTitle = string.Empty;
     private string _statusDetail = string.Empty;
     private Symbol _statusIcon = Symbol.Map;
     private Visibility _statusVisibility = Visibility.Collapsed;
 
     public MapPaneViewModel()
-        : this(new MapPaneService(), new WorkspaceState())
+        : this(new MapPaneService(), new WorkspaceState(), new MapImageService())
     {
     }
 
     internal MapPaneViewModel(IMapPaneService service)
-        : this(service, new WorkspaceState())
+        : this(service, new WorkspaceState(), new MapImageService())
     {
     }
 
     internal MapPaneViewModel(IMapPaneService service, WorkspaceState workspaceState)
+        : this(service, workspaceState, new MapImageService())
+    {
+    }
+
+    internal MapPaneViewModel(
+        IMapPaneService service,
+        WorkspaceState workspaceState,
+        IMapImageService mapImageService)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
+        _mapImageService = mapImageService ?? throw new ArgumentNullException(nameof(mapImageService));
         _markerPresenter = new MapMarkerPresenter(_service);
         Title = "Map";
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
@@ -78,8 +92,37 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     public bool IsMapInitialized
     {
         get => _isMapInitialized;
-        private set => SetProperty(ref _isMapInitialized, value);
+        private set
+        {
+            if (SetProperty(ref _isMapInitialized, value))
+            {
+                OnPropertyChanged(nameof(CanSaveMapImage));
+            }
+        }
     }
+
+    /// <summary>
+    /// 地図画像を保存中かどうか
+    /// </summary>
+    public bool IsMapImageSaving
+    {
+        get => _isMapImageSaving;
+        private set
+        {
+            if (SetProperty(ref _isMapImageSaving, value))
+            {
+                OnPropertyChanged(nameof(CanSaveMapImage));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 現在の地図表示を画像として保存できるかどうか
+    /// </summary>
+    public bool CanSaveMapImage => IsMapInitialized
+        && _hasValidMapViewport
+        && !_isMapTileLoading
+        && !IsMapImageSaving;
 
     /// <summary>
     /// ステータスメッセージのタイトル
@@ -208,6 +251,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     protected override void OnCleanup()
     {
         _workspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
+        _mapImageSaveCts?.Cancel();
+        UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);
+        IsMapInitialized = false;
         _mapUpdateCts?.Cancel();
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
@@ -220,6 +266,88 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         _map?.Dispose();
         Map = null;
+    }
+
+    /// <summary>
+    /// View が保持する Viewport とタイル読み込み状態を保存可否へ反映する
+    /// </summary>
+    public void UpdateMapImageSaveState(bool hasValidViewport, bool isTileLoading)
+    {
+        if (_hasValidMapViewport == hasValidViewport && _isMapTileLoading == isTileLoading)
+        {
+            return;
+        }
+
+        _hasValidMapViewport = hasValidViewport;
+        _isMapTileLoading = isTileLoading;
+        OnPropertyChanged(nameof(CanSaveMapImage));
+    }
+
+    /// <summary>
+    /// 保存先選択と現在の地図スナップショット取得を View に委譲して PNG を保存する
+    /// </summary>
+    public async Task SaveMapImageAsync(
+        MapImageSavePickerAsync showSavePickerAsync,
+        MapImageSnapshotProviderAsync captureSnapshotAsync)
+    {
+        ArgumentNullException.ThrowIfNull(showSavePickerAsync);
+        ArgumentNullException.ThrowIfNull(captureSnapshotAsync);
+
+        if (!CanSaveMapImage)
+        {
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _mapImageSaveCts = cts;
+        IsMapImageSaving = true;
+
+        try
+        {
+            var suggestedFileName = _mapImageService.CreateDefaultFileName(DateTimeOffset.Now);
+            var pickerOptions = MapImageSavePickerOptions.Create(
+                _workspaceState.CurrentFolderPath,
+                suggestedFileName);
+            var outputPath = await showSavePickerAsync(pickerOptions, cts.Token).ConfigureAwait(true);
+
+            if (outputPath is null)
+            {
+                RequestNotification(
+                    LocalizationService.GetString("Message.MapImageSaveCanceled"),
+                    InfoBarSeverity.Informational);
+                return;
+            }
+
+            using var pngStream = await captureSnapshotAsync(cts.Token).ConfigureAwait(true);
+            await _mapImageService.SavePngAsync(pngStream, outputPath, cts.Token).ConfigureAwait(true);
+            RequestNotification(
+                $"{LocalizationService.GetString("Message.MapImageSaveSucceeded")} {outputPath}",
+                InfoBarSeverity.Success);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            RequestNotification(
+                LocalizationService.GetString("Message.MapImageSaveCanceled"),
+                InfoBarSeverity.Informational);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("Failed to save the current map image.", ex);
+            RequestNotification(
+                $"{LocalizationService.GetString("Message.MapImageSaveFailed")} {ex.Message}",
+                InfoBarSeverity.Error);
+            throw;
+        }
+        finally
+        {
+            if (ReferenceEquals(_mapImageSaveCts, cts))
+            {
+                _mapImageSaveCts = null;
+            }
+
+            cts.Dispose();
+            IsMapImageSaving = false;
+        }
     }
 
     /// <summary>
