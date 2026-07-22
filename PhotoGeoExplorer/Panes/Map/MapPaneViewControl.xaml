@@ -72,7 +72,31 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <TextBlock Text="Map" FontSize="20" FontWeight="SemiBold" x:Uid="MapHeader" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                Text="Map"
+                FontSize="20"
+                FontWeight="SemiBold"
+                VerticalAlignment="Center"
+                x:Uid="MapHeader" />
+            <Button
+                Grid.Column="1"
+                Width="32"
+                Height="32"
+                Padding="0"
+                VerticalAlignment="Center"
+                AutomationProperties.AutomationId="MapImageSaveButton"
+                Click="OnSaveMapImageClicked"
+                IsEnabled="{Binding CanSaveMapImage, Mode=OneWay}"
+                ToolTipService.ToolTip="Save map image"
+                x:Uid="MapImageSaveButton">
+                <SymbolIcon Symbol="Save" />
+            </Button>
+        </Grid>
         <Grid Grid.Row="1" Margin="0,8,0,0">
             <Border Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="6" />
             <Grid x:Name="MapHost">
@@ -80,6 +104,7 @@
                     x:Name="MapControl"
                     AutomationProperties.AutomationId="MapControl"
                     Info="OnMapInfoReceived"
+                    SizeChanged="OnMapControlSizeChanged"
                     PointerCaptureLost="OnMapPointerCaptureLost"
                     PointerMoved="OnMapPointerMoved"
                     PointerPressed="OnMapPointerPressed"
