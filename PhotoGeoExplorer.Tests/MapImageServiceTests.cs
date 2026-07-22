@@ -13,7 +13,7 @@ public sealed class MapImageServiceTests
     [Fact]
     public void CreateDefaultFileNameUsesInvariantTimestamp()
     {
-        var service = CreateService(new MemoryStream());
+        var service = CreateService();
 
         var fileName = service.CreateDefaultFileName(new DateTimeOffset(2026, 7, 22, 13, 45, 6, TimeSpan.FromHours(9)));
 
@@ -54,36 +54,84 @@ public sealed class MapImageServiceTests
     [Fact]
     public async Task SavePngAsyncWritesEntireStream()
     {
+        var directoryPath = CreateTemporaryDirectory();
+        var filePath = Path.Combine(directoryPath, "map.png");
+        await File.WriteAllBytesAsync(filePath, [9, 8, 7]).ConfigureAwait(true);
         using var source = new MemoryStream([1, 2, 3, 4]);
-        var destination = new MemoryStream();
-        var service = CreateService(destination);
+        var service = new MapImageService();
 
-        await service.SavePngAsync(source, "map.png", CancellationToken.None).ConfigureAwait(true);
+        try
+        {
+            await service.SavePngAsync(source, filePath, CancellationToken.None).ConfigureAwait(true);
 
-        Assert.Equal([1, 2, 3, 4], destination.ToArray());
+            Assert.Equal([1, 2, 3, 4], await File.ReadAllBytesAsync(filePath).ConfigureAwait(true));
+            Assert.Single(Directory.GetFiles(directoryPath));
+        }
+        finally
+        {
+            Directory.Delete(directoryPath, recursive: true);
+        }
     }
 
     [Fact]
-    public async Task SavePngAsyncAddsPathContextToWriteFailure()
+    public async Task SavePngAsyncPreservesExistingFileWhenAlreadyCanceled()
     {
+        var directoryPath = CreateTemporaryDirectory();
+        var filePath = Path.Combine(directoryPath, "map.png");
+        await File.WriteAllBytesAsync(filePath, [9, 8, 7]).ConfigureAwait(true);
         using var source = new MemoryStream([1, 2, 3, 4]);
-        var expectedException = new UnauthorizedAccessException("access denied");
-        var service = new MapImageService(
-            new CapturingRenderer(new MemoryStream()),
-            _ => throw expectedException);
+        using var cancellationTokenSource = new CancellationTokenSource();
+        await cancellationTokenSource.CancelAsync().ConfigureAwait(true);
+        var service = new MapImageService();
 
-        var exception = await Assert.ThrowsAsync<IOException>(
-            () => service.SavePngAsync(source, "unwritable-map.png", CancellationToken.None)).ConfigureAwait(true);
+        try
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => service.SavePngAsync(source, filePath, cancellationTokenSource.Token)).ConfigureAwait(true);
 
-        Assert.Contains("unwritable-map.png", exception.Message, StringComparison.Ordinal);
-        Assert.Same(expectedException, exception.InnerException);
+            Assert.Equal([9, 8, 7], await File.ReadAllBytesAsync(filePath).ConfigureAwait(true));
+            Assert.Single(Directory.GetFiles(directoryPath));
+        }
+        finally
+        {
+            Directory.Delete(directoryPath, recursive: true);
+        }
     }
 
-    private static MapImageService CreateService(MemoryStream destination)
+    [Fact]
+    public async Task SavePngAsyncPreservesExistingFileWhenCopyFails()
     {
-        return new MapImageService(
-            new CapturingRenderer(new MemoryStream()),
-            _ => destination);
+        var directoryPath = CreateTemporaryDirectory();
+        var filePath = Path.Combine(directoryPath, "map.png");
+        await File.WriteAllBytesAsync(filePath, [9, 8, 7]).ConfigureAwait(true);
+        using var source = new FailingReadStream([1, 2, 3, 4]);
+        var service = new MapImageService();
+
+        try
+        {
+            var exception = await Assert.ThrowsAsync<IOException>(
+                () => service.SavePngAsync(source, filePath, CancellationToken.None)).ConfigureAwait(true);
+
+            Assert.Contains(filePath, exception.Message, StringComparison.Ordinal);
+            Assert.Equal([9, 8, 7], await File.ReadAllBytesAsync(filePath).ConfigureAwait(true));
+            Assert.Single(Directory.GetFiles(directoryPath));
+        }
+        finally
+        {
+            Directory.Delete(directoryPath, recursive: true);
+        }
+    }
+
+    private static MapImageService CreateService()
+    {
+        return new MapImageService(new CapturingRenderer(new MemoryStream()), _ => new MemoryStream());
+    }
+
+    private static string CreateTemporaryDirectory()
+    {
+        var directoryPath = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorer.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directoryPath);
+        return directoryPath;
     }
 
     private sealed class CapturingRenderer(Stream stream) : IMapImageRenderer
@@ -111,4 +159,23 @@ public sealed class MapImageServiceTests
         }
     }
 
+    private sealed class FailingReadStream : MemoryStream
+    {
+        private readonly byte[] _bytes;
+
+        public FailingReadStream(byte[] bytes)
+            : base(bytes)
+        {
+            _bytes = bytes;
+        }
+
+        public override async Task CopyToAsync(
+            Stream destination,
+            int bufferSize,
+            CancellationToken cancellationToken)
+        {
+            await destination.WriteAsync(_bytes.AsMemory(0, 2), cancellationToken).ConfigureAwait(false);
+            throw new IOException("read failed");
+        }
+    }
 }
