@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### ドキュメント
+- `README.md` に winget (`winget install PhotoGeoExplorer`) によるインストール手順を追加
+
 ## [1.9.0] - 2026-07-22
 
 ### 機能
