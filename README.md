@@ -118,15 +118,25 @@ E2E は通常スキップします。UIA (FlaUI) による WinUI 自動化は、
 環境依存の不安定さがあるため、日常の品質確認は手動テストを重視する方針です。
 実行する場合は `PHOTO_GEO_EXPLORER_RUN_E2E=1` を指定して手動環境で実行してください。
 
-## Microsoft Store
+## インストール
 
-Microsoft Store 版は公開済みです: https://apps.microsoft.com/detail/9P0WNR54441B
-申請/運用メモは `docs/MicrosoftStore.md`、WACK 結果は `docs/WACK-TestResults.md` にまとめています。
+### winget 経由
 
-## MSI インストール
+Windows 10/11 のターミナル（PowerShell または コマンド プロンプト）で以下のコマンドを実行してインストールできます。
 
-MSI インストーラーによる配布は v1.5.1 で終了しました。
-以降は Microsoft Store または上記の手順でインストールしてください。
+```powershell
+winget install --id 9P0WNR54441B --source msstore
+# または名前指定
+winget install --exact PhotoGeoExplorer --source msstore
+```
+
+### Microsoft Store 経由
+
+[Microsoft Store](https://apps.microsoft.com/detail/9P0WNR54441B) から入手・インストールできます。
+
+> [!NOTE]
+> - MSI インストーラーによる配布は v1.5.1 で終了しました。
+> - ストア申請/運用メモは [`docs/MicrosoftStore.md`](docs/MicrosoftStore.md)、WACK 結果は [`docs/WACK-TestResults.md`](docs/WACK-TestResults.md) を参照してください。
 
 ## MSIX (試験的)
 
