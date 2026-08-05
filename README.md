@@ -5,6 +5,26 @@
 PhotoGeoExplorer は、写真の位置情報を地図上に表示する Windows デスクトップアプリです。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。
 
+## インストール
+
+### winget 経由
+
+Windows 10/11 のターミナル（PowerShell または コマンド プロンプト）で以下のコマンドを実行してインストールできます。
+
+```powershell
+winget install --id 9P0WNR54441B --source msstore
+# または名前指定
+winget install --exact PhotoGeoExplorer --source msstore
+```
+
+### Microsoft Store 経由
+
+[Microsoft Store](https://apps.microsoft.com/detail/9P0WNR54441B) から入手・インストールできます。
+
+> [!NOTE]
+> - MSI インストーラーによる配布は v1.5.1 で終了しました。
+> - ストア申請/運用メモは [`docs/MicrosoftStore.md`](docs/MicrosoftStore.md)、WACK 結果は [`docs/WACK-TestResults.md`](docs/WACK-TestResults.md) を参照してください。
+
 ## ステータス
 
 - Microsoft Store で公開済み: https://apps.microsoft.com/detail/9P0WNR54441B
@@ -117,26 +137,6 @@ Remove-Item -Recurse -Force TestResults
 E2E は通常スキップします。UIA (FlaUI) による WinUI 自動化は、デスクトップの対話セッションが必要で
 環境依存の不安定さがあるため、日常の品質確認は手動テストを重視する方針です。
 実行する場合は `PHOTO_GEO_EXPLORER_RUN_E2E=1` を指定して手動環境で実行してください。
-
-## インストール
-
-### winget 経由
-
-Windows 10/11 のターミナル（PowerShell または コマンド プロンプト）で以下のコマンドを実行してインストールできます。
-
-```powershell
-winget install --id 9P0WNR54441B --source msstore
-# または名前指定
-winget install --exact PhotoGeoExplorer --source msstore
-```
-
-### Microsoft Store 経由
-
-[Microsoft Store](https://apps.microsoft.com/detail/9P0WNR54441B) から入手・インストールできます。
-
-> [!NOTE]
-> - MSI インストーラーによる配布は v1.5.1 で終了しました。
-> - ストア申請/運用メモは [`docs/MicrosoftStore.md`](docs/MicrosoftStore.md)、WACK 結果は [`docs/WACK-TestResults.md`](docs/WACK-TestResults.md) を参照してください。
 
 ## MSIX (試験的)
 

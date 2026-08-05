@@ -5,7 +5,7 @@
 ## [Unreleased]
 
 ### ドキュメント
-- `README.md` に winget (`winget install --id 9P0WNR54441B --source msstore`) によるインストール手順を追加
+- `README.md` の「インストール」セクションをファーストビュー（アプリ概要直後）へ再配置しアクセス性を向上
 
 ## [1.9.0] - 2026-07-22
 
