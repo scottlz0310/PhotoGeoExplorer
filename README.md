@@ -125,9 +125,9 @@ E2E は通常スキップします。UIA (FlaUI) による WinUI 自動化は、
 Windows 10/11 のターミナル（PowerShell または コマンド プロンプト）で以下のコマンドを実行してインストールできます。
 
 ```powershell
-winget install --id 9P0WNR54441B --source msstore -e
-# またはアプリ名を指定（msstore を明示）
-winget install PhotoGeoExplorer --source msstore -e
+winget install --id 9P0WNR54441B --source msstore
+# または名前指定
+winget install --exact PhotoGeoExplorer --source msstore
 ```
 
 ### Microsoft Store 経由
