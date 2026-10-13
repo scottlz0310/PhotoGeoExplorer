@@ -87,6 +87,91 @@ public sealed class StartupCoordinatorTests : IDisposable
         Assert.Equal(startupFilePath, viewModel.SelectedItem!.FilePath);
     }
 
+    [Fact]
+    public async Task NavigateToFileAsyncWaitsForInitializationCompleted()
+    {
+        var tempDir = CreateTempDirectory();
+        var filePath = Path.Combine(tempDir, "redirected.jpg");
+        await File.WriteAllTextAsync(filePath, "test").ConfigureAwait(true);
+
+        using var viewModel = CreateViewModel();
+        using var coordinator = CreateCoordinator(viewModel);
+
+        var navigation = coordinator.NavigateToFileAsync(filePath);
+
+        Assert.False(navigation.IsCompleted);
+        Assert.Null(viewModel.SelectedItem);
+
+        coordinator.NotifyInitializationCompleted();
+        await navigation.ConfigureAwait(true);
+
+        Assert.Equal(tempDir, viewModel.CurrentFolderPath);
+        Assert.Equal(filePath, viewModel.SelectedItem!.FilePath);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(5)]
+    public async Task NavigateToFileAsyncSelectsLastRequestedFileWhenRequestsOverlap(int requestCount)
+    {
+        var tempDir = CreateTempDirectory();
+        var filePaths = new List<string>();
+        for (var i = 0; i < requestCount; i++)
+        {
+            var filePath = Path.Combine(tempDir, $"redirected_{i}.jpg");
+            await File.WriteAllTextAsync(filePath, "test").ConfigureAwait(true);
+            filePaths.Add(filePath);
+        }
+
+        using var viewModel = CreateViewModel();
+        using var coordinator = CreateCoordinator(viewModel);
+        coordinator.NotifyInitializationCompleted();
+
+        // 完了を待たずに連続して要求し、リダイレクトが短時間に重なる状況を再現する。
+        var navigations = filePaths.Select(coordinator.NavigateToFileAsync).ToList();
+        await Task.WhenAll(navigations).ConfigureAwait(true);
+
+        Assert.Equal(filePaths[^1], viewModel.SelectedItem!.FilePath);
+    }
+
+    [Fact]
+    public async Task NavigateToFileAsyncAppliesRedirectedFileAfterInitialStartupFile()
+    {
+        var tempDir = CreateTempDirectory();
+        var startupFilePath = Path.Combine(tempDir, "startup.jpg");
+        var redirectedFilePath = Path.Combine(tempDir, "redirected.jpg");
+        await File.WriteAllTextAsync(startupFilePath, "test").ConfigureAwait(true);
+        await File.WriteAllTextAsync(redirectedFilePath, "test").ConfigureAwait(true);
+
+        using var viewModel = CreateViewModel();
+        using var coordinator = CreateCoordinator(viewModel);
+        coordinator.SetStartupFilePath(startupFilePath);
+        var redirected = coordinator.NavigateToFileAsync(redirectedFilePath);
+
+        await coordinator.ApplyStartupAsync().ConfigureAwait(true);
+        coordinator.NotifyInitializationCompleted();
+        await redirected.ConfigureAwait(true);
+
+        Assert.Equal(redirectedFilePath, viewModel.SelectedItem!.FilePath);
+    }
+
+    private static FileBrowserPaneViewModel CreateViewModel()
+    {
+        return new FileBrowserPaneViewModel(
+            new FileBrowserPaneService(),
+            new WorkspaceState(),
+            folderWatcherService: NoOpFolderWatcherService.Shared);
+    }
+
+    private static StartupCoordinator CreateCoordinator(FileBrowserPaneViewModel viewModel)
+    {
+        return new StartupCoordinator(
+            viewModel,
+            commandLineArgsProvider: () => DefaultCommandLineArgs,
+            startupFolderOverrideProvider: () => null);
+    }
+
     public void Dispose()
     {
         foreach (var directory in _tempDirectories)

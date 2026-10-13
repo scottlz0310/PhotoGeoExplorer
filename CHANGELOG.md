@@ -4,7 +4,16 @@
 
 ## [Unreleased]
 
+### 修正
+- 起動済みの PhotoGeoExplorer へ別の JPG をファイル関連付けで開くと、既存プロセスが `CoreMessagingXP.dll` でクラッシュする問題を修正 (#240)
+  - 根本原因: リダイレクトされた activation 引数（転送元プロセス上の `StorageFile`）を、転送元プロセスの終了後に既存プロセスが参照していた。`AppInstance.Activated` ハンドラ内で同期的にファイルパスへ解決し、以降はパス文字列のみを保持するよう変更
+  - `RedirectActivationToAsync` を STA スレッドで同期待機せず、別スレッドで実行して `CoWaitForMultipleObjects` で待機する Windows App SDK 公式パターンへ変更
+  - 起動初期化の完了前に届いたリダイレクトを初期化完了後に実行し、短時間に連続したリダイレクトも受信順に直列化して `LoadFolderAsync` の競合を防止
+  - `AppInstance.GetActivatedEventArgs()` の取得を `Program` の 1 回に集約
+  - 共有ログ `app.log` を単一インスタンスと確定したプロセスのみが初期化するよう変更し、リダイレクト元が既存プロセスのログを消さないよう修正。リダイレクトの受信・転送完了・ファイル選択のログを追加
+
 ### ドキュメント
+- `docs/ManualTestChecklist.md` に単一インスタンスとファイル関連付けの確認手順を追加 (#240)
 - `README.md` の「インストール」セクションをファーストビュー（アプリ概要直後）へ再配置しアクセス性を向上
 
 ## [1.9.0] - 2026-07-22
