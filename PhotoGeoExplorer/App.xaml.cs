@@ -24,7 +24,7 @@ public partial class App : Application
     private bool _crashDetected;
     private static readonly object PendingActivationLock = new();
     private static App? _current;
-    private static AppActivationArguments? _pendingRedirectedActivation;
+    private static RedirectedActivation? _pendingRedirectedActivation;
     private static readonly Services.CrashReportService CrashReporter = new();
 
     public App()
@@ -62,7 +62,7 @@ public partial class App : Application
 
         // _window の公開と、App 構築前から保留された pending の回収を同じ lock 境界で直列化し、
         // 起動シーケンスのどの時点で activation が届いても取りこぼさない。
-        AppActivationArguments? pendingActivation;
+        RedirectedActivation? pendingActivation;
         lock (PendingActivationLock)
         {
             _window = mainWindow;
@@ -81,7 +81,11 @@ public partial class App : Application
 
     internal static void OnRedirectedActivation(object? sender, AppActivationArguments args)
     {
-        // Program で Application.Start 前に購読するため、App 構築前に届いた引数も pending に保留する。
+        // 転送元プロセスはこのハンドラの復帰後すぐに終了する。args.Data の StorageFile は転送元プロセス上のオブジェクトで、
+        // 復帰後に参照すると RPC_S_SERVER_UNAVAILABLE となり CoreMessagingXP.dll がクラッシュする（#240）ため、必ずここでパスへ解決する。
+        var activation = new RedirectedActivation(ResolveRedirectedFilePath(args));
+
+        // Program で Application.Start 前に購読するため、App 構築前に届いた activation も pending に保留する。
         MainWindow? mainWindow;
         lock (PendingActivationLock)
         {
@@ -91,24 +95,39 @@ public partial class App : Application
             }
             else
             {
-                _pendingRedirectedActivation = args;
+                _pendingRedirectedActivation = activation;
+                AppLog.Info($"Redirected activation received before the main window was ready. Kind: {args.Kind}. Pending.");
                 return;
             }
         }
 
-        ApplyRedirectedActivation(mainWindow, args);
+        AppLog.Info($"Redirected activation received. Kind: {args.Kind}");
+
+        ApplyRedirectedActivation(mainWindow, activation);
     }
 
-    private static void ApplyRedirectedActivation(MainWindow mainWindow, AppActivationArguments args)
+    private static string? ResolveRedirectedFilePath(AppActivationArguments args)
+    {
+        try
+        {
+            return GetFileActivationPath(args);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            AppLog.Error("Failed to resolve the file path of the redirected activation.", ex);
+            return null;
+        }
+    }
+
+    private static void ApplyRedirectedActivation(MainWindow mainWindow, RedirectedActivation activation)
     {
         mainWindow.DispatcherQueue.TryEnqueue(() =>
         {
             mainWindow.BringToForeground();
 
-            var filePath = GetFileActivationPath(args);
-            if (!string.IsNullOrWhiteSpace(filePath))
+            if (!string.IsNullOrWhiteSpace(activation.FilePath))
             {
-                _ = mainWindow.NavigateToFileAsync(filePath).ContinueWith(
+                _ = mainWindow.NavigateToFileAsync(activation.FilePath).ContinueWith(
                     task => AppLog.Error("Failed to navigate to redirected file.", task.Exception),
                     System.Threading.CancellationToken.None,
                     TaskContinuationOptions.OnlyOnFaulted,
@@ -116,6 +135,8 @@ public partial class App : Application
             }
         });
     }
+
+    private sealed record RedirectedActivation(string? FilePath);
 
     private void OnMainWindowActivated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs e)
     {
@@ -230,25 +251,11 @@ public partial class App : Application
         }
     }
 
+    // パッケージアプリでは起動引数を最初の GetActivatedEventArgs でしか取得できないため、Program が取得済みの値を使う。
     private static string? GetFileActivationPath()
     {
-        AppActivationArguments activationArgs;
-        try
-        {
-            activationArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
-        }
-        catch (InvalidOperationException ex)
-        {
-            AppLog.Error("Failed to get activation arguments.", ex);
-            return null;
-        }
-        catch (System.Runtime.InteropServices.COMException ex)
-        {
-            AppLog.Error("Failed to get activation arguments.", ex);
-            return null;
-        }
-
-        return GetFileActivationPath(activationArgs);
+        var activationArgs = Program.InitialActivationArgs;
+        return activationArgs is null ? null : GetFileActivationPath(activationArgs);
     }
 
     private static string? GetFileActivationPath(AppActivationArguments activationArgs)

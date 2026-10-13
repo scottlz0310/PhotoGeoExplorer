@@ -180,12 +180,20 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapInitialized = true;
         AppLog.Info("MainWindow activated.");
 
-        // MapPaneViewModel を初期化
-        await _mapPaneViewModel.InitializeAsync().ConfigureAwait(true);
+        try
+        {
+            // MapPaneViewModel を初期化
+            await _mapPaneViewModel.InitializeAsync().ConfigureAwait(true);
 
-        await _settingsCoordinator.LoadAsync().ConfigureAwait(true);
-        await _startupCoordinator.ApplyStartupAsync().ConfigureAwait(true);
-        await _fileBrowserPaneViewModel.InitializeAsync().ConfigureAwait(true);
+            await _settingsCoordinator.LoadAsync().ConfigureAwait(true);
+            await _startupCoordinator.ApplyStartupAsync().ConfigureAwait(true);
+            await _fileBrowserPaneViewModel.InitializeAsync().ConfigureAwait(true);
+        }
+        finally
+        {
+            // 失敗時も通知し、初期化中に届いたリダイレクトが永久に待機されないようにする。
+            _startupCoordinator.NotifyInitializationCompleted();
+        }
 
         // XamlRoot が確定するまでワンテンポ遅らせてからダイアログを表示
         DispatcherQueue.TryEnqueue(async () =>
@@ -268,10 +276,9 @@ public sealed partial class MainWindow : Window, IDisposable
     /// 別プロセスから RedirectActivationToAsync 経由でファイルが指定された際、
     /// 既存ウィンドウ側でフォルダ遷移・該当ファイル選択を行います。
     /// </summary>
-    internal async Task NavigateToFileAsync(string filePath)
+    internal Task NavigateToFileAsync(string filePath)
     {
-        _startupCoordinator.SetStartupFilePath(filePath);
-        await _startupCoordinator.ApplyStartupAsync().ConfigureAwait(true);
+        return _startupCoordinator.NavigateToFileAsync(filePath);
     }
 
     /// <summary>

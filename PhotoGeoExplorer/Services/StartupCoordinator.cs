@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Panes.FileBrowser;
 
@@ -11,6 +12,9 @@ internal sealed class StartupCoordinator : IStartupCoordinator
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly Func<string[]> _commandLineArgsProvider;
     private readonly Func<string?> _startupFolderOverrideProvider;
+    // 起動中のリダイレクトと、短時間に連続したリダイレクトが LoadFolderAsync を同時に操作しないよう直列化する。
+    private readonly SemaphoreSlim _navigationGate = new(1, 1);
+    private readonly TaskCompletionSource _initializationCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _disposed;
     private string? _startupFilePath;
 
@@ -45,9 +49,32 @@ internal sealed class StartupCoordinator : IStartupCoordinator
         await ApplyStartupFileActivationAsync().ConfigureAwait(true);
     }
 
+    public void NotifyInitializationCompleted()
+    {
+        _initializationCompleted.TrySetResult();
+    }
+
+    public async Task NavigateToFileAsync(string filePath)
+    {
+        ThrowIfDisposed();
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        await _initializationCompleted.Task.ConfigureAwait(true);
+        await _navigationGate.WaitAsync().ConfigureAwait(true);
+        try
+        {
+            await SelectFileAsync(filePath).ConfigureAwait(true);
+        }
+        finally
+        {
+            _navigationGate.Release();
+        }
+    }
+
     public void Dispose()
     {
         _disposed = true;
+        _navigationGate.Dispose();
     }
 
     internal static string? ResolveStartupFolderOverride(string[] args, string? envPath)
@@ -131,6 +158,11 @@ internal sealed class StartupCoordinator : IStartupCoordinator
         var filePath = _startupFilePath;
         _startupFilePath = null;
 
+        await SelectFileAsync(filePath).ConfigureAwait(true);
+    }
+
+    private async Task SelectFileAsync(string filePath)
+    {
         if (!File.Exists(filePath))
         {
             AppLog.Error($"Startup file not found: {filePath}");
@@ -156,6 +188,7 @@ internal sealed class StartupCoordinator : IStartupCoordinator
 
         _fileBrowserPaneViewModel.UpdateSelection(new[] { item });
         _fileBrowserPaneViewModel.SelectedItem = item;
+        AppLog.Info($"Startup file selected: {filePath}");
     }
 
     private void ThrowIfDisposed()

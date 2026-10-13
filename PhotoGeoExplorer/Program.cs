@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -24,10 +25,21 @@ internal static partial class Program
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
 
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("ole32.dll")]
+    private static extern uint CoWaitForMultipleObjects(
+        uint dwFlags, uint dwMilliseconds, uint nHandles, IntPtr[] pHandles, out uint dwIndex);
+
+    /// <summary>
+    /// 起動時に一度だけ取得した activation 引数。パッケージアプリでは最初の取得でしか引数を得られないため、
+    /// 起動ファイルの解決はこの値を共有する。取得に失敗した場合は null。
+    /// </summary>
+    internal static AppActivationArguments? InitialActivationArgs { get; private set; }
+
     [STAThread]
     public static void Main(string[] args)
     {
-        AppLog.Reset();
+        // 共有ログの初期化は単一インスタンスと確定したプロセスのみが行う（リダイレクト元が既存プロセスのログを消さないため）。
         AppLog.Info($"Program.Main starting. SessionId: {AppLog.CurrentSessionId}");
 
         var isPackaged = IsRunningAsPackagedApp();
@@ -72,6 +84,9 @@ internal static partial class Program
             ShutdownBootstrapIfInitialized(bootstrapInitialized);
             return;
         }
+
+        AppLog.Reset();
+        AppLog.Info($"Program.Main continuing as the primary instance. SessionId: {AppLog.CurrentSessionId}, packaged: {isPackaged}");
 
         try
         {
@@ -119,6 +134,7 @@ internal static partial class Program
         try
         {
             activatedArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
+            InitialActivationArgs = activatedArgs;
         }
         catch (Exception ex) when (ex is InvalidOperationException or COMException)
         {
@@ -146,7 +162,9 @@ internal static partial class Program
 
         try
         {
-            mainInstance.RedirectActivationToAsync(activatedArgs).AsTask().GetAwaiter().GetResult();
+            AppLog.Info($"Redirecting activation to the existing instance. Kind: {activatedArgs.Kind}, TargetProcessId: {mainInstance.ProcessId}");
+            RedirectActivationTo(mainInstance, activatedArgs);
+            AppLog.Info("Activation redirect completed.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or COMException)
         {
@@ -154,6 +172,37 @@ internal static partial class Program
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 既存インスタンスへ activation を転送します。
+    /// STA スレッドで RedirectActivationToAsync を同期待機すると、既存プロセスとの COM 通信が STA のメッセージ処理を要求したときに
+    /// デッドロック／CoreMessagingXP.dll のクラッシュ（#240）を招くため、転送は別スレッドで行い、STA 側は COM メッセージを処理しながら待機する。
+    /// </summary>
+    private static void RedirectActivationTo(AppInstance mainInstance, AppActivationArguments args)
+    {
+        using var completed = new ManualResetEvent(false);
+        var redirectTask = Task.Run(async () =>
+        {
+            try
+            {
+                await mainInstance.RedirectActivationToAsync(args).AsTask().ConfigureAwait(false);
+            }
+            finally
+            {
+                _ = completed.Set();
+            }
+        });
+
+        const uint InfiniteTimeout = 0xFFFFFFFF;
+        var hr = CoWaitForMultipleObjects(0, InfiniteTimeout, 1, [completed.SafeWaitHandle.DangerousGetHandle()], out _);
+        if (hr != 0)
+        {
+            Marshal.ThrowExceptionForHR((int)hr);
+        }
+
+        // 完了済みのため同期的に結果を取得できる。転送に失敗していた場合はここで例外が再スローされる。
+        redirectTask.GetAwaiter().GetResult();
     }
 
     private static void ShutdownBootstrapIfInitialized(bool bootstrapInitialized)

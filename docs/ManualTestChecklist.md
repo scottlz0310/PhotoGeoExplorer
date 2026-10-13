@@ -44,6 +44,27 @@
 - アプリ再起動後に、プリセットとビュー割り当てが復元される
 - プレビュー最大化の ON/OFF 後も、最大化解除時に選択済みレイアウトへ戻る
 
+## 単一インスタンスとファイル関連付け（#215 / #240）
+
+MSIX 版（`.\scripts\DevInstall.ps1` で導入）で、JPG の既定アプリを PhotoGeoExplorer にして確認する。
+単一インスタンスのリダイレクトは MSIX のファイル activation 経由でのみ発生するため、`dotnet run` では再現できない。
+
+- 起動済み・起動完了後にエクスプローラーで別の JPG をダブルクリックすると、既存ウィンドウが前面化し、対象フォルダーへ遷移して対象ファイルが選択される
+- 起動直後（スプラッシュ表示中）に別の JPG をダブルクリックしても、クラッシュせず、最後に開いたファイルが最終的に選択される
+- 短時間（約 100ms 間隔）に複数の JPG を連続して開いても、クラッシュせず、最後に開いたファイルが選択される
+- 初回の JPG ダブルクリックによる起動で、対象フォルダーへの遷移とファイル選択が行われる
+- イベントビューアー（Windows ログ > アプリケーション）に `PhotoGeoExplorer.exe` / `CoreMessagingXP.dll` の「アプリケーション エラー」（イベント ID 1000）が記録されない
+- `app.log` にリダイレクトの経過（`Redirecting activation...` / `Activation redirect completed.` / `Redirected activation received` / `Startup file selected`）が残り、`ERROR` がない
+
+起動直後の連続起動を PowerShell で再現する例（`<フォルダー>` に JPG を置く）:
+
+```powershell
+Stop-Process -Name PhotoGeoExplorer -Force -ErrorAction SilentlyContinue
+Start-Process "<フォルダー>\a.jpg"; Start-Sleep -Milliseconds 800
+Start-Process "<フォルダー>\b.jpg"; Start-Sleep -Milliseconds 700
+Start-Process "<フォルダー>\c.jpg"
+```
+
 ## 期待されるログ
 
 - `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` にエラーが出ない
