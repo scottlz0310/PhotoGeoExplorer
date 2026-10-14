@@ -22,6 +22,10 @@
     <WindowsAppSdkBootstrapInitialize>false</WindowsAppSdkBootstrapInitialize>
     <WindowsAppSdkAutoInitialize>false</WindowsAppSdkAutoInitialize>
     <WindowsAppSdkIncludeVersionInfo>true</WindowsAppSdkIncludeVersionInfo>
+    <!-- 非パッケージ起動は参照 SDK のランタイムを同梱し、端末や CI の登録状態に依存させない。 -->
+    <WindowsAppSDKSelfContained Condition="'$(WindowsAppSDKSelfContained)'=='' and '$(WindowsPackageType)'=='None'">true</WindowsAppSDKSelfContained>
+    <WindowsAppSdkAutoInitialize Condition="'$(WindowsAppSDKSelfContained)'=='true' and '$(WindowsPackageType)'=='None'">true</WindowsAppSdkAutoInitialize>
+    <WindowsAppSdkUndockedRegFreeWinRTInitialize Condition="'$(WindowsAppSDKSelfContained)'=='true' and '$(WindowsPackageType)'=='None'">true</WindowsAppSdkUndockedRegFreeWinRTInitialize>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>

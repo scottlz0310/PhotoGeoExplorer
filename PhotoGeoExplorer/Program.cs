@@ -7,12 +7,14 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 
+// SDK の初期化用 P/Invoke でも作業ディレクトリや PATH から DLL を読み込ませない。
+[assembly: DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+
 namespace PhotoGeoExplorer;
 
 [ExcludeFromCodeCoverage]
 internal static partial class Program
 {
-    private const uint WindowsAppSdkMajorMinor = 0x00010008;
     private const int AppModelErrorNoPackage = 15700;
     private const string SingleInstanceKey = "PhotoGeoExplorer_MainInstance";
     private static AppInstance? _mainInstance;
@@ -48,12 +50,13 @@ internal static partial class Program
         var bootstrapInitialized = false;
 
         // MSIX パッケージ（Store 版）では Bootstrap は不要（呼ぶとエラーになる）
-        // 非パッケージ（MSI 版）でのみ Bootstrap を実行
+        // 非パッケージでもランタイム同梱時は Bootstrap による外部ランタイムの登録を行わない。
+#if !MICROSOFT_WINDOWSAPPSDK_SELFCONTAINED
         if (!isPackaged)
         {
             try
             {
-                Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap.Initialize(WindowsAppSdkMajorMinor);
+                Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap.Initialize(Microsoft.WindowsAppSDK.Release.MajorMinor);
                 bootstrapInitialized = true;
                 AppLog.Info("Windows App Runtime bootstrap initialized.");
             }
@@ -77,6 +80,7 @@ internal static partial class Program
                 return;
             }
         }
+#endif
 
         if (!TryClaimSingleInstance())
         {

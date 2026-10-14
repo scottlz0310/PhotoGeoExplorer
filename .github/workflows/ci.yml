@@ -46,21 +46,6 @@ jobs:
       - name: Build with analyzers
         run: dotnet build PhotoGeoExplorer.sln -c ${{ matrix.configuration }} -p:Platform=${{ matrix.platform }} -p:TreatWarningsAsErrors=true -p:AnalysisLevel=latest
 
-      - name: Ensure Windows App SDK runtime
-        shell: pwsh
-        run: |
-          $runtime = Get-AppxPackage -Name "Microsoft.WindowsAppRuntime*" -ErrorAction SilentlyContinue
-          if (-not $runtime) {
-            if (Get-Command winget -ErrorAction SilentlyContinue) {
-              winget install --id Microsoft.WindowsAppRuntime.1.8 --accept-source-agreements --accept-package-agreements --silent
-            } else {
-              $uri = "https://aka.ms/windowsappsdk/1.8/latest/Microsoft.WindowsAppRuntime.1.8.x64.msix"
-              $msix = Join-Path $env:RUNNER_TEMP "Microsoft.WindowsAppRuntime.1.8.x64.msix"
-              Invoke-WebRequest -Uri $uri -OutFile $msix
-              Add-AppxPackage -Path $msix
-            }
-          }
-
       - name: Check for outdated packages
         shell: pwsh
         run: |

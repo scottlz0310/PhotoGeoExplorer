@@ -54,12 +54,41 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
     private static readonly string[] PrimaryDialogButtonNames = { "Save", "保存" };
     private static readonly string[] SecondaryDialogButtonNames = { "Cancel", "キャンセル" };
     private static readonly string[] CloseDialogButtonNames = { "Cancel", "キャンセル" };
+    private static readonly string[] BundledRuntimeModuleNames = { "Microsoft.WindowsAppRuntime.dll", "Microsoft.UI.Xaml.dll" };
     private readonly ITestOutputHelper _output;
 
     public AppE2ETests(ITestOutputHelper output, WarmupFixture warmup)
     {
         _output = output;
         _ = warmup; // ウォームアップは WarmupFixture のコンストラクタで実行済み。xUnit の DI 契約上の受け取りのみ。
+    }
+
+    [E2EFact]
+    [Trait("Suite", "1")]
+    public async Task UnpackagedStartupLoadsBundledRuntime()
+    {
+        var testData = await E2ETestData.CreateAsync(_output).ConfigureAwait(true);
+        await using (testData.ConfigureAwait(true))
+        {
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                _ = WaitForMainWindow(app, automation);
+                using var process = Process.GetProcessById(app.ProcessId);
+                var appDirectory = Path.GetDirectoryName(testData.StartInfo.FileName)!;
+                foreach (var moduleName in BundledRuntimeModuleNames)
+                {
+                    var module = Assert.Single(process.Modules.Cast<ProcessModule>(),
+                        candidate => string.Equals(candidate.ModuleName, moduleName, StringComparison.OrdinalIgnoreCase));
+                    Assert.Equal(Path.Combine(appDirectory, moduleName), module.FileName, ignoreCase: true);
+                }
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
     }
 
     [E2EFact]
