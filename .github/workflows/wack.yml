@@ -1,0 +1,66 @@
+# PR の段階で WACK を実行し、不合格となる変更をタグを打つ前に検出する (#261)。
+# 実行するのは、WACK の結果に影響しうる変更だけ（paths）。Release と同じビルド・同じ判定を使う。
+
+name: WACK
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "PhotoGeoExplorer/Package.appxmanifest"
+      - "PhotoGeoExplorer/PhotoGeoExplorer.csproj"
+      - "PhotoGeoExplorer/app.manifest"
+      - "PhotoGeoExplorer.Core/PhotoGeoExplorer.Core.csproj"
+      - "PhotoGeoExplorer/Assets/**"
+      # ストアのリスティング文は、パッケージにも WACK の結果にも影響しない。
+      - "!PhotoGeoExplorer/Assets/propose/**"
+      - "Directory.Build.props"
+      - "global.json"
+      - "scripts/Build-MsixUpload.ps1"
+      - "scripts/Invoke-WackGate.ps1"
+      - "scripts/WackGate.psm1"
+      - ".github/workflows/wack.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wack-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wack:
+    runs-on: windows-latest
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore PhotoGeoExplorer.sln
+
+      # Release と同じビルド（Release / x64 / StoreUpload）。そうでないと、Release で不合格になるものを見逃す。
+      - name: Build MSIX Bundle
+        shell: pwsh
+        run: ./scripts/Build-MsixUpload.ps1
+
+      # 判定は Release と共通（scripts/WackGate.psm1）。失敗を無視する手段は設けない。
+      - name: WACK gate
+        shell: pwsh
+        run: ./scripts/Invoke-WackGate.ps1 -PackagesDir PhotoGeoExplorer\AppPackages -ManifestPath PhotoGeoExplorer/Package.appxmanifest -OutputDir wack-report
+
+      # 不合格のときも、原因を読めるよう報告書を保存する。
+      - name: Upload WACK report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: wack-report
+          path: wack-report/
+          if-no-files-found: warn
