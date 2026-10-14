@@ -298,9 +298,14 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
         _folderPickerHistory.Load(saved);
     }
 
+    /// <summary>
+    /// フォルダー選択ダイアログの初期位置。前回その機能で確定したフォルダー、無ければ表示中のフォルダー
+    /// （存在しなければ存在する最も近い親フォルダー）。どちらも無ければ null。
+    /// </summary>
     public string? GetFolderPickerStartFolder(string key)
     {
-        return _folderPickerHistory.GetStartFolder(key);
+        return _folderPickerHistory.GetStartFolder(key)
+            ?? SettingsNormalization.FindValidAncestorPath(CurrentFolderPath);
     }
 
     public void RecordFolderPickerSelection(string key, string folderPath)

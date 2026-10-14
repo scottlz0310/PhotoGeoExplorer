@@ -59,6 +59,68 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
+    public async Task GetFolderPickerStartFolderFallsBackToTheCurrentFolderWhenNothingIsRecorded()
+    {
+        var tempDir = CreateTempTestDirectory();
+        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), new WorkspaceState(), folderWatcherService: NoOpFolderWatcherService.Shared);
+
+        try
+        {
+            await viewModel.LoadFolderAsync(tempDir).ConfigureAwait(true);
+
+            Assert.Equal(tempDir, viewModel.GetFolderPickerStartFolder(FileBrowserDialogs.MoveFolderPickerSettingsIdentifier));
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task GetFolderPickerStartFolderPrefersTheRecordedFolderOverTheCurrentFolder()
+    {
+        var currentDir = CreateTempTestDirectory();
+        var recordedDir = CreateTempTestDirectory();
+        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), new WorkspaceState(), folderWatcherService: NoOpFolderWatcherService.Shared);
+
+        try
+        {
+            await viewModel.LoadFolderAsync(currentDir).ConfigureAwait(true);
+            viewModel.RecordFolderPickerSelection(FileBrowserDialogs.CopyFolderPickerSettingsIdentifier, recordedDir);
+
+            Assert.Equal(recordedDir, viewModel.GetFolderPickerStartFolder(FileBrowserDialogs.CopyFolderPickerSettingsIdentifier));
+            Assert.Equal(currentDir, viewModel.GetFolderPickerStartFolder(FileBrowserDialogs.MoveFolderPickerSettingsIdentifier));
+        }
+        finally
+        {
+            CleanupTempDirectory(currentDir);
+            CleanupTempDirectory(recordedDir);
+        }
+    }
+
+    [Fact]
+    public async Task GetFolderPickerStartFolderFallsBackToTheCurrentFolderWhenTheRecordedFolderIsGone()
+    {
+        var currentDir = CreateTempTestDirectory();
+        var recordedDir = CreateTempTestDirectory();
+        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), new WorkspaceState(), folderWatcherService: NoOpFolderWatcherService.Shared);
+
+        try
+        {
+            await viewModel.LoadFolderAsync(currentDir).ConfigureAwait(true);
+            viewModel.RecordFolderPickerSelection(FileBrowserDialogs.OpenFolderPickerSettingsIdentifier, recordedDir);
+            Directory.Delete(recordedDir);
+
+            Assert.Equal(currentDir, viewModel.GetFolderPickerStartFolder(FileBrowserDialogs.OpenFolderPickerSettingsIdentifier));
+        }
+        finally
+        {
+            CleanupTempDirectory(currentDir);
+            CleanupTempDirectory(recordedDir);
+        }
+    }
+
+    [Fact]
     public void LoadFolderPickerStartFoldersRestoresTheSavedFolders()
     {
         using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), new WorkspaceState(), folderWatcherService: NoOpFolderWatcherService.Shared);
