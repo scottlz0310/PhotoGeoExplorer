@@ -4,15 +4,15 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.9.0)
-- New: Save the current map view as a PNG image from a button in the map header
-- New: Saved images include map tiles, photo markers, and attribution at the display resolution
-- New: The save dialog remembers your last destination and starts from the photo folder or Pictures
-- Improved: The save button stays disabled while the map is initializing or loading tiles, so images never contain missing tiles","リリースノート（v1.9.0）
-- 新機能: 地図ヘッダーのボタンから、現在の地図表示を PNG 画像として保存
-- 新機能: 保存する画像に地図タイル・写真マーカー・著作権表記を表示解像度で描画
-- 新機能: 保存ダイアログが前回の保存先を記憶し、写真のフォルダーまたはピクチャから開始
-- 改善: 地図の初期化中・タイル読み込み中は保存ボタンを無効化し、タイル欠けのある画像が保存されないよう変更"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.9.1)
+- Fixed: Opening a JPG file from File Explorer while PhotoGeoExplorer is already running no longer crashes the running app
+- Fixed: Move, Copy, and Open folder no longer get stuck with a disabled confirm button when you pick the same folder as last time
+- Changed: The Move, Copy, and Open folder dialogs now start from the folder you last confirmed for that action, or the current folder if there is none (remembered only while the app is running)
+- Fixed: The map image save dialog now starts from the folder you last saved to, or the current folder if there is none (remembered only while the app is running)","リリースノート（v1.9.1）
+- 修正: 起動中の PhotoGeoExplorer で、エクスプローラーから別の JPG を開くとアプリがクラッシュする問題を修正
+- 修正: 移動・コピー・フォルダーを開くで、前回と同じフォルダーを選ぶと決定ボタンが無効になり選択できない問題を修正
+- 変更: 移動・コピー・フォルダーを開くのダイアログが、機能ごとに前回確定したフォルダー（無ければ表示中のフォルダー）から開くように変更（アプリの実行中のみ記憶）
+- 修正: 地図画像の保存ダイアログが、前回保存したフォルダー（無ければ表示中のフォルダー）から開くように修正（アプリの実行中のみ記憶）"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
