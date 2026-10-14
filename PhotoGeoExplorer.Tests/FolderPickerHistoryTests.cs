@@ -62,6 +62,28 @@ public sealed class FolderPickerHistoryTests
     }
 
     [Fact]
+    public void RecordFileLocationRemembersTheParentFolderOfTheFile()
+    {
+        var history = new FolderPickerHistory(_ => true);
+
+        history.RecordFileLocation(OpenKey, @"C:\exports\map.png");
+
+        Assert.Equal(@"C:\exports", history.GetStartFolder(OpenKey));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("map.png")]
+    [InlineData(@"C:\")]
+    public void RecordFileLocationThrowsWhenThereIsNoParentFolder(string filePath)
+    {
+        var history = new FolderPickerHistory(_ => true);
+
+        Assert.ThrowsAny<ArgumentException>(() => history.RecordFileLocation(OpenKey, filePath));
+    }
+
+    [Fact]
     public void ConstructorThrowsWhenDirectoryExistsIsNull()
     {
         Assert.Throws<ArgumentNullException>(() => new FolderPickerHistory(null!));

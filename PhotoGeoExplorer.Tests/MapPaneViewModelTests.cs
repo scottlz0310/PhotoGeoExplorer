@@ -202,6 +202,50 @@ public class MapPaneViewModelTests
         viewModel.Cleanup();
     }
 
+    [Fact]
+    public async Task SaveMapImageAsyncStartsFromTheLastConfirmedFolderAndIgnoresCancellation()
+    {
+        // Arrange
+        var sourceFolder = Directory.CreateTempSubdirectory("pge-map-source-");
+        var exportFolder = Directory.CreateTempSubdirectory("pge-map-export-");
+        var (viewModel, _, _) = await CreateReadyMapImageViewModelAsync(sourceFolder.FullName).ConfigureAwait(true);
+        var startFolders = new List<string>();
+        string? pickerResult = Path.Combine(exportFolder.FullName, "map.png");
+
+        Task<string?> PickAsync(MapImageSavePickerOptions options, CancellationToken cancellationToken)
+        {
+            startFolders.Add(options.SuggestedStartFolder);
+            return Task.FromResult(pickerResult);
+        }
+
+        Task<Stream> CaptureAsync(CancellationToken cancellationToken)
+            => Task.FromResult<Stream>(new MemoryStream([1, 2, 3]));
+
+        try
+        {
+            // Act
+            await viewModel.SaveMapImageAsync(PickAsync, CaptureAsync).ConfigureAwait(true);
+            pickerResult = null;
+            await viewModel.SaveMapImageAsync(PickAsync, CaptureAsync).ConfigureAwait(true);
+            exportFolder.Delete(recursive: true);
+            await viewModel.SaveMapImageAsync(PickAsync, CaptureAsync).ConfigureAwait(true);
+
+            // Assert
+            Assert.Equal(
+                [sourceFolder.FullName, exportFolder.FullName, sourceFolder.FullName],
+                startFolders);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+            sourceFolder.Delete(recursive: true);
+            if (exportFolder.Exists)
+            {
+                exportFolder.Delete(recursive: true);
+            }
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
