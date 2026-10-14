@@ -51,7 +51,11 @@ internal sealed class FileBrowserDialogs
             LocalizationService.GetString(keys.TitleKey),
             LocalizationService.GetString(keys.MessageKey));
 
-    public async Task<string?> PickFolderAsync(string settingsIdentifier)
+    /// <summary>
+    /// フォルダーを選択する。suggestedStartFolder があればそこから開き、無ければピクチャから開く。
+    /// FolderPicker は SettingsIdentifier を指定しても前回フォルダーを復元しないため、初期位置は呼び出し側が記憶して渡す。
+    /// </summary>
+    public async Task<string?> PickFolderAsync(string settingsIdentifier, string? suggestedStartFolder)
     {
         var hostWindow = _hostWindowAccessor();
         if (hostWindow is null)
@@ -61,9 +65,16 @@ internal sealed class FileBrowserDialogs
 
         var picker = new FolderPicker(hostWindow.AppWindow.Id)
         {
-            SettingsIdentifier = settingsIdentifier,
-            SuggestedStartLocation = PickerLocationId.PicturesLibrary
+            SettingsIdentifier = settingsIdentifier
         };
+        if (suggestedStartFolder is null)
+        {
+            picker.SuggestedStartLocation = PickerLocationId.PicturesLibrary;
+        }
+        else
+        {
+            picker.SuggestedFolder = suggestedStartFolder;
+        }
 
         try
         {

@@ -16,6 +16,11 @@ public sealed class SettingsServiceTests
             var settings = new AppSettings
             {
                 LastFolderPath = "C:\\Photos",
+                FolderPickerStartFolders = new Dictionary<string, string>
+                {
+                    ["PhotoGeoExplorer.FileBrowser.Open"] = "C:\\Photos\\Open",
+                    ["PhotoGeoExplorer.FileBrowser.Move"] = "C:\\Photos\\Move"
+                },
                 ShowImagesOnly = false,
                 FileViewMode = FileViewMode.Icon,
                 ShowDetailsModifiedColumn = false,
@@ -37,6 +42,7 @@ public sealed class SettingsServiceTests
 
             Assert.NotNull(imported);
             Assert.Equal(settings.LastFolderPath, imported!.LastFolderPath);
+            Assert.Equal(settings.FolderPickerStartFolders, imported.FolderPickerStartFolders);
             Assert.Equal(settings.ShowImagesOnly, imported.ShowImagesOnly);
             Assert.Equal(settings.FileViewMode, imported.FileViewMode);
             Assert.Equal(settings.ShowDetailsModifiedColumn, imported.ShowDetailsModifiedColumn);

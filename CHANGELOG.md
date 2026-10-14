@@ -14,6 +14,10 @@
   - 判定ロジックを `scripts/ListingData.psm1`、入口を `scripts/Test-ListingData.ps1` に置き、Pester の単体テストを追加
 
 ### 修正
+- フォルダー選択ダイアログ（開く・移動・コピー）が、前回確定したフォルダーではなく常にピクチャから開く退行を修正 (#262)
+  - #235 で移行した Windows App SDK の FolderPicker は、`SettingsIdentifier` を指定しても前回フォルダーを復元しない（非パッケージ起動・MSIX とも実機で確認）ため、機能別の前回確定フォルダーをアプリ側で記憶し、`SuggestedFolder` として渡す
+  - 前回フォルダーは設定ファイル（`settings.json` の `folderPickerStartFolders`）に保存し、再起動後も復元。記憶が無い、またはフォルダーが存在しない場合は、従来どおりピクチャから開く
+  - 前回フォルダーから開いたダイアログで、何も変えずに決定ボタンを押して確定できる（#235 の修正を維持）
 - 非パッケージ実行と E2E に参照 SDK の Windows App Runtime を同梱し、SDK 更新後も bootstrap・CI の固定ランタイム 1.8 に依存しないよう修正 (#231)
   - MSIX の framework-dependent 配布を維持し、明示的に非同梱としたビルドの bootstrap は SDK のバージョン情報へ追従
   - SDK 自動初期化用 P/Invoke の DLL 探索を `SafeDirectories` に限定

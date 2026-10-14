@@ -53,6 +53,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private Func<Task>? _deleteSelectionAction;
     private readonly FileOperationCoordinator _operationCoordinator;
     private readonly IFolderWatcherService _folderWatcherService;
+    private readonly FolderPickerHistory _folderPickerHistory = new();
 
     public FileBrowserPaneViewModel()
         : this(new FileBrowserPaneService(), new WorkspaceState())
@@ -284,6 +285,29 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             {
                 OnPropertyChanged(nameof(DetailsLocationColumnVisibility));
             }
+        }
+    }
+
+    /// <summary>
+    /// 機能別（開く・移動・コピー）の前回確定フォルダー。設定へ保存する。
+    /// </summary>
+    public IReadOnlyDictionary<string, string> FolderPickerStartFolders => _folderPickerHistory.ToDictionary();
+
+    public void LoadFolderPickerStartFolders(IReadOnlyDictionary<string, string>? saved)
+    {
+        _folderPickerHistory.Load(saved);
+    }
+
+    public string? GetFolderPickerStartFolder(string key)
+    {
+        return _folderPickerHistory.GetStartFolder(key);
+    }
+
+    public void RecordFolderPickerSelection(string key, string folderPath)
+    {
+        if (_folderPickerHistory.Record(key, folderPath))
+        {
+            OnPropertyChanged(nameof(FolderPickerStartFolders));
         }
     }
 
