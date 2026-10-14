@@ -5,6 +5,10 @@
 ## [Unreleased]
 
 ### 変更
+- Windows App SDK の更新などの PR で WACK を実行し、不合格となる変更をタグを打つ前に検出するようにした (#261)
+  - 新しい `WACK` ワークフロー（`.github/workflows/wack.yml`）を追加。WACK の結果に影響しうる変更（`Package.appxmanifest`・`PhotoGeoExplorer.csproj`・`app.manifest`・`Assets/`（`Assets/propose/` を除く）・`Directory.Build.props`・`global.json`・WACK 関連スクリプト）の PR だけで実行し、対象外の PR では実行しない。`workflow_dispatch` でも実行可能
+  - Release の `dotnet publish`（Release / x64 / StoreUpload）を `scripts/Build-MsixUpload.ps1` に切り出し、Release と PR 時の WACK で共有。判定は #234 の `Invoke-WackGate.ps1` / `WackGate.psm1` を再利用。報告書は artifact `wack-report` に保存。失敗を無視する手段はない
+  - `docs/ReleaseChecklist.md` に PR 時の WACK との関係を追記（PR 時の合格はタグ時の合格を保証せず、Release の `WACK gate` が最終ゲート）
 - Release ワークフローで WACK を実行し、合格しなければ GitHub Release の作成と Partner Center への提出へ進まないようにした (#234)
   - 提出する `.msixupload` と同じ MSIX の中身（Publisher と署名だけ差し替えたコピー）を検査し、`OVERALL_RESULT=PASS`・`PARTIAL_RUN=FALSE`・`APP_VERSION` がマニフェストの版と一致することを判定
   - 報告書を GitHub Release と artifact `wack-report` に添付。`docs/WACK-TestResults.md` は v1.9.0 までの履歴として凍結

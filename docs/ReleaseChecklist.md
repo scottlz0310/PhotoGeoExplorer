@@ -19,6 +19,12 @@
 > Optional テスト（既知の `[88] Blocked executables`）の失敗は、`OVERALL_RESULT` に影響しない限り許容する。
 > 検査するのは、提出する `.msixupload` と同じ MSIX の中身（Publisher と署名だけ差し替えたコピー）で、提出ファイルそのものではない。
 
+> [!NOTE]
+> **PR の段階でも、WACK の結果に影響しうる変更では `WACK` ワークフロー（`.github/workflows/wack.yml`）が同じ判定を実行する**（Windows App SDK の更新、`Package.appxmanifest`・`PhotoGeoExplorer.csproj`・`app.manifest`・`Assets/`（`Assets/propose/` を除く）・`Directory.Build.props`・`global.json`・WACK 関連スクリプトの変更）。
+> ビルドは `scripts/Build-MsixUpload.ps1`、判定は `scripts/Invoke-WackGate.ps1` / `scripts/WackGate.psm1` を Release と共有する。対象外の PR では実行されない。
+> PR 時の合格は、タグ時の合格を保証しない（対象外の変更や、ランナーの更新で結果が変わり得る）。**Release ワークフローの `WACK gate` が、提出前の最終的なゲートである。**
+> 手動で実行する場合は、Actions の `WACK` ワークフローを `workflow_dispatch` で実行する。
+
 - [ ] `vX.Y.Z` タグを作成して push
 - [ ] Release ワークフローが成功したことを確認（`WACK gate` ステップが成功し、artifact `wack-report` と GitHub Release に `wack-report-X.Y.Z.0.xml` が添付されている）
 - [ ] GitHub Release に `msixupload` が添付され、CHANGELOG の該当セクションが掲載されていることを確認
