@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### 変更
+- Release ワークフローで WACK を実行し、合格しなければ GitHub Release の作成と Partner Center への提出へ進まないようにした (#234)
+  - 提出する `.msixupload` と同じ MSIX の中身（Publisher と署名だけ差し替えたコピー）を検査し、`OVERALL_RESULT=PASS`・`PARTIAL_RUN=FALSE`・`APP_VERSION` がマニフェストの版と一致することを判定
+  - 報告書を GitHub Release と artifact `wack-report` に添付。`docs/WACK-TestResults.md` は v1.9.0 までの履歴として凍結
+  - 判定ロジックを `scripts/WackGate.psm1` に切り出し、Pester（`scripts/tests/`）の単体テストを CI に追加
+
 ### 修正
 - 非パッケージ実行と E2E に参照 SDK の Windows App Runtime を同梱し、SDK 更新後も bootstrap・CI の固定ランタイム 1.8 に依存しないよう修正 (#231)
   - MSIX の framework-dependent 配布を維持し、明示的に非同梱としたビルドの bootstrap は SDK のバージョン情報へ追従

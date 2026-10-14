@@ -1,5 +1,10 @@
 # Windows アプリ認定キット (WACK) テスト結果
 
+> [!NOTE]
+> **この文書は v1.9.0 までの履歴で、以後は追記しない。** WACK は Release ワークフローが実行して合否を判定し
+> （`.github/workflows/release.yml` の `WACK gate`、`scripts/Invoke-WackGate.ps1`）、報告書
+> `wack-report-<版>.xml` を GitHub Release と artifact `wack-report` に残す。v1.8.6 の欠落は、記録が手書きだったことの名残で、遡って補わない。
+
 最終更新: 2026-07-22 (v1.9.0 検証)
 
 ## テスト結果サマリー

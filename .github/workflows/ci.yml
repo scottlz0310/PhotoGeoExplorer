@@ -85,6 +85,17 @@ jobs:
           )
           dotnet test @testArgs
 
+      # scripts/ の PowerShell（Release の WACK ゲートの判定など）の単体テスト。Codecov には集計しない（#256）。
+      - name: Script tests (Pester)
+        shell: pwsh
+        run: |
+          Import-Module Pester -MinimumVersion 5.0.0 -ErrorAction Stop
+          $config = New-PesterConfiguration
+          $config.Run.Path = 'scripts/tests'
+          $config.Run.Exit = $true
+          $config.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $config
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
