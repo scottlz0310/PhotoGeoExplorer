@@ -53,6 +53,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     private Func<Task>? _deleteSelectionAction;
     private readonly FileOperationCoordinator _operationCoordinator;
     private readonly IFolderWatcherService _folderWatcherService;
+    private readonly FolderPickerHistory _folderPickerHistory = new();
 
     public FileBrowserPaneViewModel()
         : this(new FileBrowserPaneService(), new WorkspaceState())
@@ -285,6 +286,21 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                 OnPropertyChanged(nameof(DetailsLocationColumnVisibility));
             }
         }
+    }
+
+    /// <summary>
+    /// フォルダー選択ダイアログの初期位置。アプリ実行中に前回その機能で確定したフォルダー、無ければ表示中のフォルダー
+    /// （存在しなければ存在する最も近い親フォルダー）。どちらも無ければ null。
+    /// </summary>
+    public string? GetFolderPickerStartFolder(string key)
+    {
+        return _folderPickerHistory.GetStartFolder(key)
+            ?? SettingsNormalization.FindValidAncestorPath(CurrentFolderPath);
+    }
+
+    public void RecordFolderPickerSelection(string key, string folderPath)
+    {
+        _folderPickerHistory.Record(key, folderPath);
     }
 
     public int FileViewModeIndex

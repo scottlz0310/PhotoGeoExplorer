@@ -680,7 +680,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var destination = await _dialogs.PickFolderAsync(FileBrowserDialogs.MoveFolderPickerSettingsIdentifier).ConfigureAwait(true);
+        var destination = await PickFolderWithHistoryAsync(FileBrowserDialogs.MoveFolderPickerSettingsIdentifier).ConfigureAwait(true);
         if (destination is null)
         {
             return;
@@ -821,7 +821,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var destination = await _dialogs.PickFolderAsync(FileBrowserDialogs.CopyFolderPickerSettingsIdentifier).ConfigureAwait(true);
+        var destination = await PickFolderWithHistoryAsync(FileBrowserDialogs.CopyFolderPickerSettingsIdentifier).ConfigureAwait(true);
         if (destination is null)
         {
             return;
@@ -866,6 +866,23 @@ internal sealed partial class FileBrowserPaneView : UserControl
         return null;
     }
 
+    private async Task<string?> PickFolderWithHistoryAsync(string settingsIdentifier)
+    {
+        var viewModel = ViewModel;
+        if (viewModel is null)
+        {
+            return null;
+        }
+
+        var folder = await _dialogs.PickFolderAsync(settingsIdentifier, viewModel.GetFolderPickerStartFolder(settingsIdentifier)).ConfigureAwait(true);
+        if (folder is not null)
+        {
+            viewModel.RecordFolderPickerSelection(settingsIdentifier, folder);
+        }
+
+        return folder;
+    }
+
     private async Task OpenFolderPickerAsync()
     {
         if (ViewModel is null)
@@ -873,7 +890,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var folder = await _dialogs.PickFolderAsync(FileBrowserDialogs.OpenFolderPickerSettingsIdentifier).ConfigureAwait(true);
+        var folder = await PickFolderWithHistoryAsync(FileBrowserDialogs.OpenFolderPickerSettingsIdentifier).ConfigureAwait(true);
 
         if (folder is null)
         {
