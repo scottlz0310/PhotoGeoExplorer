@@ -13,7 +13,6 @@ using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Storage.Pickers;
 using Windows.System;
 
 namespace PhotoGeoExplorer.Panes.FileBrowser;
@@ -681,14 +680,14 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var destination = await _dialogs.PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
+        var destination = await _dialogs.PickFolderAsync(FileBrowserDialogs.MoveFolderPickerSettingsIdentifier).ConfigureAwait(true);
         if (destination is null)
         {
             return;
         }
 
         var summary = await ViewModel.ExecuteMoveItemsToFolderAsync(
-            ViewModel.SelectedItems, destination.Path, _dialogs.ShowMoveConflictAsync)
+            ViewModel.SelectedItems, destination, _dialogs.ShowMoveConflictAsync)
             .ConfigureAwait(true);
         if (summary.HasReportableFailures)
         {
@@ -822,13 +821,13 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var destination = await _dialogs.PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
+        var destination = await _dialogs.PickFolderAsync(FileBrowserDialogs.CopyFolderPickerSettingsIdentifier).ConfigureAwait(true);
         if (destination is null)
         {
             return;
         }
 
-        var summary = await ViewModel.ExecuteCopyItemsToFolderAsync(ViewModel.SelectedItems, destination.Path)
+        var summary = await ViewModel.ExecuteCopyItemsToFolderAsync(ViewModel.SelectedItems, destination)
             .ConfigureAwait(true);
         if (summary.HasReportableFailures)
         {
@@ -874,14 +873,14 @@ internal sealed partial class FileBrowserPaneView : UserControl
             return;
         }
 
-        var folder = await _dialogs.PickFolderAsync(PickerLocationId.PicturesLibrary).ConfigureAwait(true);
+        var folder = await _dialogs.PickFolderAsync(FileBrowserDialogs.OpenFolderPickerSettingsIdentifier).ConfigureAwait(true);
 
         if (folder is null)
         {
             return;
         }
 
-        await ViewModel.LoadFolderAsync(folder.Path).ConfigureAwait(true);
+        await ViewModel.LoadFolderAsync(folder).ConfigureAwait(true);
     }
 
     private ListViewBase? GetFileListView()

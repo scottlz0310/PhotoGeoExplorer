@@ -3,10 +3,8 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Windows.Storage.Pickers;
 using PhotoGeoExplorer.Services;
-using Windows.Storage;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 
 namespace PhotoGeoExplorer.Panes.FileBrowser;
 
@@ -17,6 +15,9 @@ namespace PhotoGeoExplorer.Panes.FileBrowser;
 /// </summary>
 internal sealed class FileBrowserDialogs
 {
+    public const string MoveFolderPickerSettingsIdentifier = "PhotoGeoExplorer.FileBrowser.Move";
+    public const string CopyFolderPickerSettingsIdentifier = "PhotoGeoExplorer.FileBrowser.Copy";
+    public const string OpenFolderPickerSettingsIdentifier = "PhotoGeoExplorer.FileBrowser.Open";
     private readonly FrameworkElement _xamlRootSource;
     private readonly Func<Window?> _hostWindowAccessor;
     private bool _isWaitingForXamlRoot;
@@ -50,38 +51,33 @@ internal sealed class FileBrowserDialogs
             LocalizationService.GetString(keys.TitleKey),
             LocalizationService.GetString(keys.MessageKey));
 
-    public async Task<StorageFolder?> PickFolderAsync(PickerLocationId startLocation)
+    public async Task<string?> PickFolderAsync(string settingsIdentifier)
     {
-        var picker = new FolderPicker
-        {
-            SuggestedStartLocation = startLocation
-        };
-        picker.FileTypeFilter.Add("*");
-
         var hostWindow = _hostWindowAccessor();
         if (hostWindow is null)
         {
-            AppLog.Error("HostWindow is not set for FileBrowserPaneView.");
-            return null;
+            throw new InvalidOperationException("フォルダー選択を表示するホストウィンドウが設定されていません。");
         }
 
-        var hwnd = WindowNative.GetWindowHandle(hostWindow);
-        InitializeWithWindow.Initialize(picker, hwnd);
+        var picker = new FolderPicker(hostWindow.AppWindow.Id)
+        {
+            SettingsIdentifier = settingsIdentifier,
+            SuggestedStartLocation = PickerLocationId.PicturesLibrary
+        };
 
         try
         {
-            return await picker.PickSingleFolderAsync().AsTask().ConfigureAwait(true);
+            var result = await picker.PickSingleFolderAsync().AsTask().ConfigureAwait(true);
+            return result?.Path;
         }
-        catch (UnauthorizedAccessException ex)
+        catch (OperationCanceledException)
         {
-            AppLog.Error("Folder picker failed.", ex);
+            return null;
         }
-        catch (System.Runtime.InteropServices.COMException ex)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
         {
-            AppLog.Error("Folder picker failed.", ex);
+            throw new InvalidOperationException($"フォルダー選択に失敗しました（{settingsIdentifier}）。", ex);
         }
-
-        return null;
     }
 
     public async Task<string?> ShowTextInputAsync(
