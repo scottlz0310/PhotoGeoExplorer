@@ -60,26 +60,35 @@ public sealed class FolderWatcherServiceTests : IDisposable
         Assert.Equal(tcs.Task, raised);
     }
 
-    [Fact]
-    public async Task Watch_BurstyEvents_DebouncesToSingleNotification()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(5)]
+    public void BurstyEvents_DebounceToSingleNotificationPerBurst(int eventsPerBurst)
     {
-        using var service = new FolderWatcherService(
-            debounceInterval: TimeSpan.FromMilliseconds(200));
+        // 実時間・OS のイベント到着に依存すると、負荷の高い CI でバーストが分割されるため、
+        // 手動時計とデバウンス入口の直接呼び出しで決定的に検証する。
+        var debounce = TimeSpan.FromMilliseconds(200);
+        var clock = new ManualTimeProvider();
+        using var service = new FolderWatcherService(debounceInterval: debounce, timeProvider: clock);
 
         var count = 0;
-        service.FolderChanged += (_, _) => Interlocked.Increment(ref count);
-        service.Watch(_tempDir);
+        service.FolderChanged += (_, _) => count++;
 
-        for (var i = 0; i < 5; i++)
+        for (var burst = 1; burst <= 2; burst++)
         {
-            await File.WriteAllTextAsync(
-                Path.Combine(_tempDir, $"burst{i}.txt"), "x").ConfigureAwait(true);
-            await Task.Delay(10).ConfigureAwait(true);
+            for (var i = 0; i < eventsPerBurst; i++)
+            {
+                service.ResetDebounceTimer();
+                clock.Advance(debounce - TimeSpan.FromMilliseconds(1));
+                Assert.Equal(burst - 1, count);
+            }
+
+            clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.Equal(burst, count);
+
+            clock.Advance(TimeSpan.FromSeconds(10));
+            Assert.Equal(burst, count);
         }
-
-        await Task.Delay(500).ConfigureAwait(true);
-
-        Assert.Equal(1, count);
     }
 
     // =========================================================
@@ -175,6 +184,75 @@ public sealed class FolderWatcherServiceTests : IDisposable
         finally
         {
             try { Directory.Delete(dir2, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    private sealed class ManualTimeProvider : TimeProvider
+    {
+        private readonly List<ManualTimer> _timers = [];
+        private DateTimeOffset _now = DateTimeOffset.UnixEpoch;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = new ManualTimer(this, callback, state);
+            timer.Change(dueTime, period);
+            _timers.Add(timer);
+            return timer;
+        }
+
+        public void Advance(TimeSpan delta)
+        {
+            var target = _now + delta;
+            while (true)
+            {
+                var next = _timers
+                    .Where(t => t.DueAt is not null && t.DueAt <= target)
+                    .OrderBy(t => t.DueAt)
+                    .FirstOrDefault();
+                if (next is null)
+                {
+                    break;
+                }
+
+                _now = next.DueAt!.Value;
+                next.Fire();
+            }
+
+            _now = target;
+        }
+
+        private sealed class ManualTimer(ManualTimeProvider owner, TimerCallback callback, object? state) : ITimer
+        {
+            private TimeSpan _period = Timeout.InfiniteTimeSpan;
+
+            public DateTimeOffset? DueAt { get; private set; }
+
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                DueAt = dueTime == Timeout.InfiniteTimeSpan ? null : owner._now + dueTime;
+                _period = period;
+                return true;
+            }
+
+            public void Fire()
+            {
+                DueAt = _period == Timeout.InfiniteTimeSpan ? null : owner._now + _period;
+                callback(state);
+            }
+
+            public void Dispose()
+            {
+                DueAt = null;
+                owner._timers.Remove(this);
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return ValueTask.CompletedTask;
+            }
         }
     }
 }

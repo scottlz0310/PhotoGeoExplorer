@@ -8,11 +8,12 @@ internal sealed class FolderWatcherService : IFolderWatcherService
 {
     private readonly TimeSpan _debounceInterval;
     private readonly TimeSpan _pollingInterval;
+    private readonly TimeProvider _timeProvider;
 
     private readonly object _timerLock = new();
     private FileSystemWatcher? _watcher;
-    private Timer? _debounceTimer;
-    private Timer? _pollingTimer;
+    private ITimer? _debounceTimer;
+    private ITimer? _pollingTimer;
     private string? _currentFolderPath;
     private bool _disposed;
 
@@ -20,10 +21,12 @@ internal sealed class FolderWatcherService : IFolderWatcherService
 
     public FolderWatcherService(
         TimeSpan? debounceInterval = null,
-        TimeSpan? pollingInterval = null)
+        TimeSpan? pollingInterval = null,
+        TimeProvider? timeProvider = null)
     {
         _debounceInterval = debounceInterval ?? TimeSpan.FromMilliseconds(500);
         _pollingInterval = pollingInterval ?? TimeSpan.FromSeconds(60);
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public void Watch(string folderPath)
@@ -58,7 +61,7 @@ internal sealed class FolderWatcherService : IFolderWatcherService
 
         if (!watcherStarted)
         {
-            _pollingTimer = new Timer(
+            _pollingTimer = _timeProvider.CreateTimer(
                 _ => RaiseFolderChanged(),
                 null,
                 _pollingInterval,
@@ -106,7 +109,8 @@ internal sealed class FolderWatcherService : IFolderWatcherService
         ResetDebounceTimer();
     }
 
-    private void ResetDebounceTimer()
+    // OS のイベント到着に依存せずデバウンスを検証するため、テストからはここを直接呼ぶ。
+    internal void ResetDebounceTimer()
     {
         lock (_timerLock)
         {
@@ -117,7 +121,7 @@ internal sealed class FolderWatcherService : IFolderWatcherService
 
             if (_debounceTimer is null)
             {
-                _debounceTimer = new Timer(
+                _debounceTimer = _timeProvider.CreateTimer(
                     _ => RaiseFolderChanged(),
                     null,
                     _debounceInterval,
