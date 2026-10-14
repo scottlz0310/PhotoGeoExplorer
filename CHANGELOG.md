@@ -9,6 +9,9 @@
   - MSIX の framework-dependent 配布を維持し、明示的に非同梱としたビルドの bootstrap は SDK のバージョン情報へ追従
   - SDK 自動初期化用 P/Invoke の DLL 探索を `SafeDirectories` に限定
   - 同梱ランタイムの読み込み元を E2E で検証し、地図 ViewModel の単体テストでは UI queue の取得を注入して実行環境依存を排除
+- 移動・コピー・フォルダーを開くで、前回と同じフォルダーを選ぶと決定ボタンが無効になり続けて選択できない問題を修正 (#235)
+  - フォルダー選択を Windows App SDK の FolderPicker に移行し、選択結果をパスで受け渡す
+  - 移動・コピー・開くに別々の `SettingsIdentifier` を設定。非パッケージ起動では前回フォルダーの復元は確認できず、初期位置は常にピクチャ
 - 起動済みの PhotoGeoExplorer へ別の JPG をファイル関連付けで開くと、既存プロセスが `CoreMessagingXP.dll` でクラッシュする問題を修正 (#240)
   - 根本原因: リダイレクトされた activation 引数（転送元プロセス上の `StorageFile`）を、転送元プロセスの終了後に既存プロセスが参照していた。`AppInstance.Activated` ハンドラ内で同期的にファイルパスへ解決し、以降はパス文字列のみを保持するよう変更
   - `RedirectActivationToAsync` を STA スレッドで同期待機せず、別スレッドで実行して `CoWaitForMultipleObjects` で待機する Windows App SDK 公式パターンへ変更
