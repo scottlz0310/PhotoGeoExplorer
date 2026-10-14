@@ -79,7 +79,19 @@ internal static class ThumbnailService
                 Compand = true
             }));
             image.Save(tempPath, new JpegEncoder { Quality = ThumbnailJpegQuality });
-            File.Move(tempPath, thumbnailPath, overwrite: true);
+            File.Move(tempPath, thumbnailPath, overwrite: false);
+            return thumbnailPath;
+        }
+        // 同じキーのサムネイルは内容が同一のため、並行生成の先着側が配置済みなら成功とする。
+        // 置換先が他スレッドに開かれていると、Windows では IOException ではなく UnauthorizedAccessException になる。
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && File.Exists(thumbnailPath))
+        {
+            AppLog.Info($"Thumbnail was already cached by a concurrent request: {filePath}");
+            if (width is null)
+            {
+                TryGetImageSize(filePath, out width, out height);
+            }
+
             return thumbnailPath;
         }
         catch (UnauthorizedAccessException ex)
