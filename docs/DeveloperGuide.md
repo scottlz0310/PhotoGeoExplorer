@@ -28,6 +28,23 @@ Visual Studio Installer で以下を選択してください：
 
 ## 🚀 ローカルビルドとインストール
 
+### 非パッケージ実行（開発・E2E）
+
+```powershell
+dotnet run --project PhotoGeoExplorer/PhotoGeoExplorer.csproj -c Release -p:Platform=x64
+```
+
+`WindowsPackageType=None` のビルドでは、参照する Windows App SDK のランタイムを出力先に同梱します。
+Windows App Runtime の別途インストールやユーザーへの登録は不要です。
+SDK の registration-free 自動初期化を使用し、外部ランタイムへの bootstrap は行いません。
+.NET 自体を同梱する設定ではないため、対応する .NET の実行環境は必要です。
+
+MSIX ビルドは従来どおり framework-dependent で、Store が宣言された依存ランタイムを解決します。
+`WindowsAppSDKSelfContained=false` を明示した非パッケージビルドを使う場合は、参照 SDK に対応する Windows App Runtime が実行ユーザーに登録されている必要があります。
+bootstrap の要求バージョンは SDK の `Microsoft.WindowsAppSDK.Release.MajorMinor` から取得します。
+
+参考: [Windows App SDK の self-contained 配布](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/self-contained-deploy/deploy-self-contained-apps)
+
 リポジトリには、Store 提出用と同じ構成（MSIX）でビルドし、自己署名証明書で署名してインストールするスクリプトが含まれています。
 
 ### ワンステップ・インストール

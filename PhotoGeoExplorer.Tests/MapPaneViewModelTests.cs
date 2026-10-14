@@ -78,7 +78,7 @@ public class MapPaneViewModelTests
         bool expected)
     {
         // Arrange
-        var viewModel = new MapPaneViewModel();
+        var viewModel = CreateViewModelWithoutDispatcher();
         if (isMapInitialized)
         {
             await viewModel.InitializeAsync().ConfigureAwait(true);
@@ -94,7 +94,7 @@ public class MapPaneViewModelTests
     public async Task InitializeAsyncCompletesWithoutError()
     {
         // Arrange
-        var viewModel = new MapPaneViewModel();
+        var viewModel = CreateViewModelWithoutDispatcher();
 
         // Act & Assert (テスト環境では UI スレッドがないため、初期化はスキップされる)
         await viewModel.InitializeAsync().ConfigureAwait(true);
@@ -446,11 +446,14 @@ public class MapPaneViewModelTests
     {
         var workspaceState = new WorkspaceState { CurrentFolderPath = currentFolderPath };
         var imageService = new RecordingMapImageService();
-        var viewModel = new MapPaneViewModel(new MapPaneService(), workspaceState, imageService);
+        var viewModel = new MapPaneViewModel(new MapPaneService(), workspaceState, imageService, static () => null);
         await viewModel.InitializeAsync().ConfigureAwait(true);
         viewModel.UpdateMapImageSaveState(hasValidViewport: true, isTileLoading: false);
         return (viewModel, workspaceState, imageService);
     }
+
+    private static MapPaneViewModel CreateViewModelWithoutDispatcher()
+        => new(new MapPaneService(), new WorkspaceState(), new MapImageService(), static () => null);
 
     private sealed class WorkspaceSelectionMapPaneService : IMapPaneService
     {

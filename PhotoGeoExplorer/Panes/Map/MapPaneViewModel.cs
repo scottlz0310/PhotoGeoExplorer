@@ -33,6 +33,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private readonly IMapImageService _mapImageService;
     private readonly WorkspaceState _workspaceState;
     private readonly MapMarkerPresenter _markerPresenter;
+    private readonly Func<DispatcherQueue?> _dispatcherQueueAccessor;
     private Mapsui.Map? _map;
     private TileLayer? _baseTileLayer;
     private MemoryLayer? _markerLayer;
@@ -67,11 +68,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     internal MapPaneViewModel(
         IMapPaneService service,
         WorkspaceState workspaceState,
-        IMapImageService mapImageService)
+        IMapImageService mapImageService,
+        Func<DispatcherQueue?>? dispatcherQueueAccessor = null)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         _mapImageService = mapImageService ?? throw new ArgumentNullException(nameof(mapImageService));
+        _dispatcherQueueAccessor = dispatcherQueueAccessor ?? DispatcherQueue.GetForCurrentThread;
         _markerPresenter = new MapMarkerPresenter(_service);
         Title = "Map";
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
@@ -191,7 +194,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             const int ClassNotRegisteredHresult = unchecked((int)0x80040154);
             try
             {
-                dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+                dispatcherQueue = _dispatcherQueueAccessor();
             }
             catch (COMException ex) when (ex.HResult == ClassNotRegisteredHresult)
             {
