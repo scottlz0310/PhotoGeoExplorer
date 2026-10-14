@@ -85,7 +85,9 @@ jobs:
           )
           dotnet test @testArgs
 
-      # scripts/ の PowerShell（Release の WACK ゲートの判定など）の単体テスト。Codecov には集計しない（#256）。
+      # scripts/ の PowerShell（Release の WACK ゲートの判定など）の単体テストとカバレッジ（#256）。
+      # 計測対象は scripts/*.psm1（テスト可能なロジック）だけ。環境依存の手順スクリプト（*.ps1）は計測しない。
+      # 出力は、Pester 5.x（ランナーの現行は 5.9.0）と 6.x の両方で選べる JaCoCo にする。
       - name: Script tests (Pester)
         shell: pwsh
         run: |
@@ -94,6 +96,10 @@ jobs:
           $config.Run.Path = 'scripts/tests'
           $config.Run.Exit = $true
           $config.Output.Verbosity = 'Detailed'
+          $config.CodeCoverage.Enabled = $true
+          $config.CodeCoverage.Path = 'scripts/*.psm1'
+          $config.CodeCoverage.OutputFormat = 'JaCoCo'
+          $config.CodeCoverage.OutputPath = 'TestResults/pester/coverage.jacoco.xml'
           Invoke-Pester -Configuration $config
 
       - name: Upload coverage to Codecov
@@ -102,6 +108,15 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: TestResults/**/coverage.cobertura.xml
           flags: unittests
+          disable_search: true
+          fail_ci_if_error: true
+
+      - name: Upload PowerShell coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: TestResults/pester/coverage.jacoco.xml
+          flags: powershell
           disable_search: true
           fail_ci_if_error: true
 

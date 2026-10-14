@@ -2,6 +2,28 @@ coverage:
   precision: 2
   round: down
   range: "60...100"
+  status:
+    patch:
+      # codecov/patch stays .NET-only, as before PowerShell coverage was added.
+      default:
+        flags:
+          - unittests
+      # PowerShell (Pester) starts as informational (#256). Decide later whether
+      # to make it a gate once the numbers are stable.
+      powershell:
+        flags:
+          - powershell
+        informational: true
+
+flags:
+  unittests:
+    paths:
+      - PhotoGeoExplorer/
+      - PhotoGeoExplorer.Core/
+  powershell:
+    paths:
+      - scripts/
+
 fixes:
   - 'D:/a/PhotoGeoExplorer/PhotoGeoExplorer/::'
 
