@@ -42,7 +42,7 @@ winget install --exact PhotoGeoExplorer --source msstore
 - Mapsui による地図表示とオフラインタイルキャッシュ
 - 設定の永続化、言語/テーマ切替、設定のエクスポート/インポート
 - アップデート通知（GitHub Release 参照）
-- `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` へのアプリログ出力
+- `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` へのアプリログ出力（1 MB ごとに世代管理し、最大 5 ファイル）
 
 ## 今後の方向性
 

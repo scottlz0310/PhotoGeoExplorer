@@ -138,7 +138,7 @@ internal async Task ExecuteMoveOperationAsync(
 - 大きいタスクは先に Issue を作成して整理します。
 
 ## セキュリティと設定
-- ログは `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` に出力し、起動時にリセットします。
+- ログは `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` に出力します。起動時には削除せず、1 ファイルが 1 MB を超えたら `app.1.log` 以降へ繰り下げ、`app.log` を含めて最大 5 ファイル（合計約 5 MB）を保持します。
 - Release ワークフローは `v1.2.0` のようなタグで `win-x64` 向け MSIX Bundle（`.msixupload`）を作成します。
 - バージョン更新時のチェック項目は `docs/ReleaseChecklist.md` を参照します。
 

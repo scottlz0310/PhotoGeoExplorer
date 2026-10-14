@@ -89,7 +89,6 @@ internal static partial class Program
             return;
         }
 
-        AppLog.Reset();
         AppLog.Info($"Program.Main continuing as the primary instance. SessionId: {AppLog.CurrentSessionId}, packaged: {isPackaged}");
 
         try

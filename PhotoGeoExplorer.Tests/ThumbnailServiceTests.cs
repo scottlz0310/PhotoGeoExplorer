@@ -120,7 +120,6 @@ public sealed class ThumbnailServiceTests
             }
 
             var lastWriteUtc = new FileInfo(imagePath).LastWriteTimeUtc;
-            var logOffset = GetLogLength();
             using var barrier = new Barrier(parallelism);
 
             var tasks = Enumerable.Range(0, parallelism).Select(index => Task.Run(() =>
@@ -133,7 +132,7 @@ public sealed class ThumbnailServiceTests
             thumbnailPath = Assert.Single(results.Distinct());
             Assert.NotNull(thumbnailPath);
             Assert.True(File.Exists(thumbnailPath));
-            Assert.DoesNotContain($"ERROR Failed to cache thumbnail: {imagePath}", ReadLogSince(logOffset), StringComparison.Ordinal);
+            Assert.DoesNotContain($"ERROR Failed to cache thumbnail: {imagePath}", ReadAllLogs(), StringComparison.Ordinal);
         }
         finally
         {
@@ -155,7 +154,6 @@ public sealed class ThumbnailServiceTests
         {
             var imagePath = Path.Combine(root, "broken.jpg");
             File.WriteAllBytes(imagePath, [0x00, 0x01, 0x02, 0x03]);
-            var logOffset = GetLogLength();
 
             var result = ThumbnailService.GetOrCreateThumbnailPath(
                 imagePath,
@@ -164,7 +162,7 @@ public sealed class ThumbnailServiceTests
                 out _);
 
             Assert.Null(result);
-            Assert.Contains($"ERROR Failed to cache thumbnail: {imagePath}", ReadLogSince(logOffset), StringComparison.Ordinal);
+            Assert.Contains($"ERROR Failed to cache thumbnail: {imagePath}", ReadAllLogs(), StringComparison.Ordinal);
         }
         finally
         {
@@ -172,28 +170,31 @@ public sealed class ThumbnailServiceTests
         }
     }
 
-    private static long GetLogLength()
+    // ローテーションで世代ファイルへ移ることがあるため、全世代を読む（パスは GUID 入りで一意）。
+    private static string ReadAllLogs()
     {
-        var info = new FileInfo(AppLog.LogFilePath);
-        return info.Exists ? info.Length : 0;
-    }
-
-    private static string ReadLogSince(long offset)
-    {
-        if (!File.Exists(AppLog.LogFilePath))
+        var directory = Path.GetDirectoryName(AppLog.LogFilePath)!;
+        if (!Directory.Exists(directory))
         {
             return string.Empty;
         }
 
-        using var stream = new FileStream(AppLog.LogFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        if (offset > stream.Length)
+        var builder = new System.Text.StringBuilder();
+        foreach (var path in Directory.GetFiles(directory, "app*.log"))
         {
-            return string.Empty;
+            try
+            {
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                builder.Append(reader.ReadToEnd());
+            }
+            catch (FileNotFoundException)
+            {
+                // 列挙後にローテーションで世代名が変わった。移動先の世代ファイルは別の反復で読まれる。
+            }
         }
 
-        stream.Seek(offset, SeekOrigin.Begin);
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
+        return builder.ToString();
     }
 
     private static void TryDeleteFile(string path)
