@@ -38,25 +38,15 @@ public sealed class FolderPickerHistoryTests
         Assert.Null(history.GetStartFolder("PhotoGeoExplorer.FileBrowser.Copy"));
     }
 
-    [Theory]
-    [InlineData(@"C:\photos", @"C:\photos", false)]
-    [InlineData(@"C:\photos", @"C:\other", true)]
-    [InlineData(@"C:\photos", @"C:\PHOTOS", true)]
-    public void RecordReportsWhetherTheFolderChanged(string first, string second, bool expectedChanged)
-    {
-        var history = new FolderPickerHistory(_ => true);
-        history.Record(OpenKey, first);
-
-        Assert.Equal(expectedChanged, history.Record(OpenKey, second));
-        Assert.Equal(second, history.GetStartFolder(OpenKey));
-    }
-
     [Fact]
-    public void RecordReportsChangeForTheFirstFolder()
+    public void RecordReplacesThePreviousFolderForTheSameKey()
     {
         var history = new FolderPickerHistory(_ => true);
+        history.Record(OpenKey, @"C:\first");
 
-        Assert.True(history.Record(OpenKey, @"C:\photos"));
+        history.Record(OpenKey, @"C:\second");
+
+        Assert.Equal(@"C:\second", history.GetStartFolder(OpenKey));
     }
 
     [Theory]
@@ -69,47 +59,6 @@ public sealed class FolderPickerHistoryTests
         var history = new FolderPickerHistory(_ => true);
 
         Assert.ThrowsAny<ArgumentException>(() => history.Record(key, path));
-    }
-
-    [Fact]
-    public void LoadReplacesTheRecordsAndSkipsBlankEntries()
-    {
-        var history = new FolderPickerHistory(_ => true);
-        history.Record(OpenKey, @"C:\old");
-
-        history.Load(new Dictionary<string, string>
-        {
-            [MoveKey] = @"C:\move",
-            [" "] = @"C:\blank-key",
-            ["PhotoGeoExplorer.FileBrowser.Copy"] = " "
-        });
-
-        Assert.Null(history.GetStartFolder(OpenKey));
-        Assert.Equal(@"C:\move", history.GetStartFolder(MoveKey));
-        Assert.Equal(new Dictionary<string, string> { [MoveKey] = @"C:\move" }, history.ToDictionary());
-    }
-
-    [Fact]
-    public void LoadWithNullClearsTheRecords()
-    {
-        var history = new FolderPickerHistory(_ => true);
-        history.Record(OpenKey, @"C:\old");
-
-        history.Load(null);
-
-        Assert.Empty(history.ToDictionary());
-    }
-
-    [Fact]
-    public void ToDictionaryReturnsASnapshot()
-    {
-        var history = new FolderPickerHistory(_ => true);
-        history.Record(OpenKey, @"C:\first");
-        var snapshot = history.ToDictionary();
-
-        history.Record(OpenKey, @"C:\second");
-
-        Assert.Equal(@"C:\first", snapshot[OpenKey]);
     }
 
     [Fact]

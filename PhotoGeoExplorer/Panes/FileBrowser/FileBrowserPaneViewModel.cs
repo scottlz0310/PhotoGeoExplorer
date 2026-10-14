@@ -289,17 +289,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// 機能別（開く・移動・コピー）の前回確定フォルダー。設定へ保存する。
-    /// </summary>
-    public IReadOnlyDictionary<string, string> FolderPickerStartFolders => _folderPickerHistory.ToDictionary();
-
-    public void LoadFolderPickerStartFolders(IReadOnlyDictionary<string, string>? saved)
-    {
-        _folderPickerHistory.Load(saved);
-    }
-
-    /// <summary>
-    /// フォルダー選択ダイアログの初期位置。前回その機能で確定したフォルダー、無ければ表示中のフォルダー
+    /// フォルダー選択ダイアログの初期位置。アプリ実行中に前回その機能で確定したフォルダー、無ければ表示中のフォルダー
     /// （存在しなければ存在する最も近い親フォルダー）。どちらも無ければ null。
     /// </summary>
     public string? GetFolderPickerStartFolder(string key)
@@ -310,10 +300,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     public void RecordFolderPickerSelection(string key, string folderPath)
     {
-        if (_folderPickerHistory.Record(key, folderPath))
-        {
-            OnPropertyChanged(nameof(FolderPickerStartFolders));
-        }
+        _folderPickerHistory.Record(key, folderPath);
     }
 
     public int FileViewModeIndex

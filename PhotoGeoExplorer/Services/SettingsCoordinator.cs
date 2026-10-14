@@ -241,7 +241,6 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         await ApplyLanguageSettingAsync(settings.Language, showLanguagePrompt).ConfigureAwait(true);
         ApplyThemePreference(settings.Theme, saveSettings: false);
 
-        _fileBrowserPaneViewModel.LoadFolderPickerStartFolders(settings.FolderPickerStartFolders);
         _mapDefaultZoomLevel = SettingsNormalization.NormalizeMapZoomLevel(settings.MapDefaultZoomLevel);
         _mapPaneViewModel.MapDefaultZoomLevel = _mapDefaultZoomLevel;
         _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
@@ -396,8 +395,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             or nameof(FileBrowserPaneViewModel.ShowDetailsSizeColumn)
             or nameof(FileBrowserPaneViewModel.ShowDetailsTakenAtColumn)
             or nameof(FileBrowserPaneViewModel.ShowDetailsLocationColumn)
-            or nameof(FileBrowserPaneViewModel.CurrentFolderPath)
-            or nameof(FileBrowserPaneViewModel.FolderPickerStartFolders))
+            or nameof(FileBrowserPaneViewModel.CurrentFolderPath))
         {
             ScheduleSave();
         }
@@ -450,7 +448,6 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         return new AppSettings
         {
             LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath,
-            FolderPickerStartFolders = _fileBrowserPaneViewModel.FolderPickerStartFolders,
             ShowImagesOnly = _fileBrowserPaneViewModel.ShowImagesOnly,
             FileViewMode = _fileBrowserPaneViewModel.FileViewMode,
             ShowDetailsModifiedColumn = _fileBrowserPaneViewModel.ShowDetailsModifiedColumn,

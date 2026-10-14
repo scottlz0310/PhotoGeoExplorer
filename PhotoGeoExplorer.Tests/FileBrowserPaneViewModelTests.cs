@@ -37,28 +37,6 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
-    public void RecordFolderPickerSelectionRaisesPropertyChangedOnlyWhenTheFolderChanges()
-    {
-        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), new WorkspaceState(), folderWatcherService: NoOpFolderWatcherService.Shared);
-        var raisedCount = 0;
-        viewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(FileBrowserPaneViewModel.FolderPickerStartFolders))
-            {
-                raisedCount++;
-            }
-        };
-        var folder = Path.GetTempPath();
-
-        viewModel.RecordFolderPickerSelection(FileBrowserDialogs.OpenFolderPickerSettingsIdentifier, folder);
-        viewModel.RecordFolderPickerSelection(FileBrowserDialogs.OpenFolderPickerSettingsIdentifier, folder);
-
-        Assert.Equal(1, raisedCount);
-        Assert.Equal(folder, viewModel.GetFolderPickerStartFolder(FileBrowserDialogs.OpenFolderPickerSettingsIdentifier));
-        Assert.Null(viewModel.GetFolderPickerStartFolder(FileBrowserDialogs.MoveFolderPickerSettingsIdentifier));
-    }
-
-    [Fact]
     public async Task GetFolderPickerStartFolderFallsBackToTheCurrentFolderWhenNothingIsRecorded()
     {
         var tempDir = CreateTempTestDirectory();
@@ -118,21 +96,6 @@ public class FileBrowserPaneViewModelTests
             CleanupTempDirectory(currentDir);
             CleanupTempDirectory(recordedDir);
         }
-    }
-
-    [Fact]
-    public void LoadFolderPickerStartFoldersRestoresTheSavedFolders()
-    {
-        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), new WorkspaceState(), folderWatcherService: NoOpFolderWatcherService.Shared);
-        var folder = Path.GetTempPath();
-
-        viewModel.LoadFolderPickerStartFolders(new Dictionary<string, string>
-        {
-            [FileBrowserDialogs.CopyFolderPickerSettingsIdentifier] = folder
-        });
-
-        Assert.Equal(folder, viewModel.GetFolderPickerStartFolder(FileBrowserDialogs.CopyFolderPickerSettingsIdentifier));
-        Assert.Equal(folder, viewModel.FolderPickerStartFolders[FileBrowserDialogs.CopyFolderPickerSettingsIdentifier]);
     }
 
     [Fact]

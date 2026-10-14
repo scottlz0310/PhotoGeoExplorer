@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.Models;
@@ -32,7 +31,6 @@ internal sealed class AppSettings
     internal const PaneViewType DefaultPaneRegion3View = PaneViewType.Map;
 
     public string? LastFolderPath { get; set; }
-    public IReadOnlyDictionary<string, string>? FolderPickerStartFolders { get; set; }
     public bool ShowImagesOnly { get; set; } = true;
     public FileViewMode FileViewMode { get; set; } = FileViewMode.Details;
     public bool ShowDetailsModifiedColumn { get; set; } = true;
