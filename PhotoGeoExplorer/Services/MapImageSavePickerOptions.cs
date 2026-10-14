@@ -19,16 +19,22 @@ internal sealed record MapImageSavePickerOptions
 
     public string SuggestedFileName { get; }
 
-    public static MapImageSavePickerOptions Create(string? imageSourceFolderPath, string suggestedFileName)
+    public static MapImageSavePickerOptions Create(
+        string? lastSavedFolderPath,
+        string? imageSourceFolderPath,
+        string suggestedFileName)
     {
         return Create(
+            lastSavedFolderPath,
             imageSourceFolderPath,
             suggestedFileName,
             Directory.Exists,
             () => Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
     }
 
+    /// <param name="lastSavedFolderPath">アプリ実行中に前回保存したフォルダー。存在確認済みのものを渡す。</param>
     internal static MapImageSavePickerOptions Create(
+        string? lastSavedFolderPath,
         string? imageSourceFolderPath,
         string suggestedFileName,
         Func<string, bool> directoryExists,
@@ -42,8 +48,9 @@ internal sealed record MapImageSavePickerOptions
         ArgumentNullException.ThrowIfNull(directoryExists);
         ArgumentNullException.ThrowIfNull(picturesFolderPathProvider);
 
-        var suggestedStartFolder = !string.IsNullOrWhiteSpace(imageSourceFolderPath)
-            && directoryExists(imageSourceFolderPath)
+        var suggestedStartFolder = !string.IsNullOrWhiteSpace(lastSavedFolderPath)
+            ? lastSavedFolderPath
+            : !string.IsNullOrWhiteSpace(imageSourceFolderPath) && directoryExists(imageSourceFolderPath)
                 ? imageSourceFolderPath
                 : picturesFolderPathProvider();
 

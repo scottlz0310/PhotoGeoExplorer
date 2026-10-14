@@ -5,8 +5,8 @@ using System.IO;
 namespace PhotoGeoExplorer.Services;
 
 /// <summary>
-/// フォルダー選択ダイアログの機能別（開く・移動・コピー）の前回確定フォルダーを、アプリ実行中だけ保持する。
-/// Windows App SDK の FolderPicker は SettingsIdentifier を指定しても前回フォルダーを復元しないため、アプリ側で記憶する。
+/// ファイル・フォルダー選択ダイアログの機能別（開く・移動・コピー・地図画像の保存）の前回確定フォルダーを、アプリ実行中だけ保持する。
+/// Windows App SDK のピッカーは SettingsIdentifier を指定しても前回フォルダーを復元しないため、アプリ側で記憶する。
 /// 再起動後は無関係なフォルダーが開くことを避けるため、保存しない。
 /// </summary>
 internal sealed class FolderPickerHistory
@@ -43,5 +43,21 @@ internal sealed class FolderPickerHistory
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         _folders[key] = path;
+    }
+
+    /// <summary>
+    /// 保存先に確定したファイルの親フォルダーを記録する。
+    /// </summary>
+    public void RecordFileLocation(string key, string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        var folderPath = Path.GetDirectoryName(filePath);
+        if (string.IsNullOrEmpty(folderPath))
+        {
+            throw new ArgumentException("File path must include a parent folder.", nameof(filePath));
+        }
+
+        Record(key, folderPath);
     }
 }

@@ -175,7 +175,7 @@ internal sealed class DialogService : IDialogService
             DefaultFileExtension = MapImageSavePickerOptions.DefaultFileExtension,
             SettingsIdentifier = MapImageSavePickerOptions.SettingsIdentifier,
             SuggestedFileName = options.SuggestedFileName,
-            // OS に保存済みの場所を優先し、履歴がない場合だけ画像保存元または Pictures を使う。
+            // SettingsIdentifier では前回の場所が復元されないため、呼び出し側が実行中の前回保存先を含めて初期位置を決める。
             SuggestedStartFolder = options.SuggestedStartFolder,
             SuggestedStartLocation = AppSdkPickerLocationId.PicturesLibrary
         };

@@ -33,6 +33,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private readonly IMapImageService _mapImageService;
     private readonly WorkspaceState _workspaceState;
     private readonly MapMarkerPresenter _markerPresenter;
+    private readonly FolderPickerHistory _saveFolderHistory = new();
     private readonly Func<DispatcherQueue?> _dispatcherQueueAccessor;
     private Mapsui.Map? _map;
     private TileLayer? _baseTileLayer;
@@ -309,6 +310,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         {
             var suggestedFileName = _mapImageService.CreateDefaultFileName(DateTimeOffset.Now);
             var pickerOptions = MapImageSavePickerOptions.Create(
+                _saveFolderHistory.GetStartFolder(MapImageSavePickerOptions.SettingsIdentifier),
                 _workspaceState.CurrentFolderPath,
                 suggestedFileName);
             var outputPath = await showSavePickerAsync(pickerOptions, cts.Token).ConfigureAwait(true);
@@ -321,6 +323,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
                 return;
             }
 
+            _saveFolderHistory.RecordFileLocation(MapImageSavePickerOptions.SettingsIdentifier, outputPath);
             using var pngStream = await captureSnapshotAsync(cts.Token).ConfigureAwait(true);
             await _mapImageService.SavePngAsync(pngStream, outputPath, cts.Token).ConfigureAwait(true);
             RequestNotification(
