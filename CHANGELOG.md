@@ -9,6 +9,9 @@
   - 提出する `.msixupload` と同じ MSIX の中身（Publisher と署名だけ差し替えたコピー）を検査し、`OVERALL_RESULT=PASS`・`PARTIAL_RUN=FALSE`・`APP_VERSION` がマニフェストの版と一致することを判定
   - 報告書を GitHub Release と artifact `wack-report` に添付。`docs/WACK-TestResults.md` は v1.9.0 までの履歴として凍結
   - 判定ロジックを `scripts/WackGate.psm1` に切り出し、Pester（`scripts/tests/`）の単体テストを CI に追加
+- Release ワークフローで、listingData CSV の `ReleaseNotes` が今回のタグの版のものであることをパッケージのビルド前に検証し、空や前回の文のままでは失敗するようにした (#255)
+  - 提出スクリプトは空の値を上書きしないため、更新漏れがあると前回の Store 文が残る問題への対策。`en-us` / `ja-jp` が空、またはタグの版（`vX.Y.Z`）を含まない場合に失敗し、両言語の問題をまとめて報告
+  - 判定ロジックを `scripts/ListingData.psm1`、入口を `scripts/Test-ListingData.ps1` に置き、Pester の単体テストを追加
 
 ### 修正
 - 非パッケージ実行と E2E に参照 SDK の Windows App Runtime を同梱し、SDK 更新後も bootstrap・CI の固定ランタイム 1.8 に依存しないよう修正 (#231)
