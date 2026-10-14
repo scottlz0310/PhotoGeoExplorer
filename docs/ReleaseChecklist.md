@@ -5,7 +5,7 @@
 - [ ] `PhotoGeoExplorer/PhotoGeoExplorer.csproj` の `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` を更新
 - [ ] `PhotoGeoExplorer/Package.appxmanifest` の `Identity Version` を更新（例: `1.2.3.0`）
 - [ ] `CHANGELOG.md` に該当バージョンのセクションを追加
-- [ ] `PhotoGeoExplorer/Assets/propose/listingData-*.csv` の日英 `ReleaseNotes` を更新
+- [ ] `PhotoGeoExplorer/Assets/propose/listingData-*.csv` の日英 `ReleaseNotes` を更新（タグの版 `vX.Y.Z` を含めること。Release ワークフローが検証する）
 - [ ] リリースノートに含める内容を整理（関連する作業管理文書、docs の要点）
 - [ ] `dotnet format --verify-no-changes PhotoGeoExplorer.sln` を実行
 - [ ] `dotnet build PhotoGeoExplorer.sln -c Release -p:Platform=x64` を実行
@@ -44,6 +44,7 @@ Release ワークフローは、リポジトリ内の `PhotoGeoExplorer/Assets/p
      - `Keywords`: 検索キーワード（SEO対策）
      - `Features`: 主要機能リスト
    - CSV フィールド内の改行と引用符を壊さない
+   - `ReleaseNotes` は、空、またはタグの版（`vX.Y.Z`）を含まないと Release ワークフローの `Validate release version` で失敗する（パッケージのビルド・提出へ進まない。タグだけが残る）。提出は空の値を上書きしないため、更新漏れだと前回の文が Store に残る。内容が正しいかは検査しない
 
 3. **反映確認**
    - タグ push 後、Release ワークフローが CSV を申請データへ反映する

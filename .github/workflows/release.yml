@@ -74,6 +74,9 @@ jobs:
             exit 1
           }
 
+          # 空や前回の ReleaseNotes のまま提出されないよう、パッケージのビルド前に止める。
+          ./scripts/Test-ListingData.ps1 -Directory PhotoGeoExplorer/Assets/propose -Version $version
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
