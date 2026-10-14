@@ -14,14 +14,13 @@
 ## リリース実行
 
 > [!IMPORTANT]
-> **WACK はタグ push・Partner Center 提出より前に実施すること。**
-> リリース後に実行しても審査前の品質保証として意味をなさない。
+> **WACK は Release ワークフローが自動で実行し、合格しなければ Release の作成と Partner Center への提出へ進まない。**
+> 判定は報告書の `OVERALL_RESULT` が `PASS`、`PARTIAL_RUN` が `FALSE`、`APP_VERSION` が `Package.appxmanifest` の版と一致すること。
+> Optional テスト（既知の `[88] Blocked executables`）の失敗は、`OVERALL_RESULT` に影響しない限り許容する。
+> 検査するのは、提出する `.msixupload` と同じ MSIX の中身（Publisher と署名だけ差し替えたコピー）で、提出ファイルそのものではない。
 
-- [ ] `.\scripts\DevInstall.ps1` でローカルビルド＆インストール
-- [ ] `.\scripts\RunWackTests.ps1` で WACK を実行し合格を確認
-- [ ] `docs/WACK-TestResults.md` に結果を追記
 - [ ] `vX.Y.Z` タグを作成して push
-- [ ] Release ワークフローが成功したことを確認
+- [ ] Release ワークフローが成功したことを確認（`WACK gate` ステップが成功し、artifact `wack-report` と GitHub Release に `wack-report-X.Y.Z.0.xml` が添付されている）
 - [ ] GitHub Release に `msixupload` が添付され、CHANGELOG の該当セクションが掲載されていることを確認
 - [ ] Partner Center にパッケージとリスティングが反映されたことを確認
 - [ ] Partner Center の審査ノートに runFullTrust の用途を記載し、認定を手動で開始

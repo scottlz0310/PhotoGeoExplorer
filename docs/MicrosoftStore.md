@@ -23,7 +23,10 @@
 
 ### 2. WACK (Windows App Certification Kit) テスト
 
-提出前にローカルで検証を行います。以下のスクリプトで、最新のバンドルを自動検出してテストを実行・分析します。
+WACK は Release ワークフローが自動で実行し、合格しなければ Release の作成と提出へ進みません（`scripts/Invoke-WackGate.ps1`）。
+報告書は GitHub Release と artifact `wack-report` に残ります。`docs/WACK-TestResults.md` は v1.9.0 までの履歴で、追記は不要です。
+
+手元で事前に確認したい場合は、以下のスクリプトで、最新のバンドルを自動検出してテストを実行・分析できます（任意）。
 
 ```powershell
 .\scripts\RunWackTests.ps1
@@ -33,8 +36,6 @@
 1. 生成された `msixbundle` を検出
 2. `appcert.exe` で Store App プロファイルのテストを実行
 3. 結果 (XML) を `scripts/wack_reports/` に保存し、合否を表示
-
-結果サマリーを `docs/WACK-TestResults.md` に追記してください。
 
 ### 3. Store リスティングの準備 (Assets & Listing Data)
 
@@ -60,12 +61,13 @@ Partner Center から現在の情報をエクスポートし、リポジトリ�
 
 ### 4. Release ワークフローと Partner Center
 
-1. WACK 合格後に `vX.Y.Z` タグを push
+1. `vX.Y.Z` タグを push
 2. `.github/workflows/release.yml` が MSIX Store Upload パッケージを生成
-3. GitHub Release を作成し、`msixupload` を添付
-4. `Submit-ToPartnerCenter.ps1` がパッケージと Listing Data を Partner Center の申請データへ送信
-5. Partner Center でパッケージ、リスティング、審査ノートを確認
-6. runFullTrust の用途を審査ノートに記載し、認定を手動で開始
+3. 同じワークフローが WACK を実行し、合格しなければここで失敗する（Release の作成と提出へ進まない）
+4. GitHub Release を作成し、`msixupload` と WACK の報告書を添付
+5. `Submit-ToPartnerCenter.ps1` がパッケージと Listing Data を Partner Center の申請データへ送信
+6. Partner Center でパッケージ、リスティング、審査ノートを確認
+7. runFullTrust の用途を審査ノートに記載し、認定を手動で開始
 
 ワークフローは既存の pending submission を自動削除しません。pending submission がある場合は失敗するため、内容を確認してから Partner Center で手動削除します。
 
@@ -186,9 +188,7 @@ dotnet publish .\PhotoGeoExplorer\PhotoGeoExplorer.csproj -c Release -p:Platform
 
 #### WACK テスト実行
 
-Windows App Cert Kit を起動し、生成された `msixbundle` を選択してテストを実行します。
-
-結果サマリーは `docs/WACK-TestResults.md` に記録します。
+Release ワークフローが自動で実行します（上記「2. WACK」）。手元で確認する場合は `.\scripts\RunWackTests.ps1` を使います。
 
 #### ローカル動作確認用（任意）
 

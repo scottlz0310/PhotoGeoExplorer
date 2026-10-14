@@ -98,6 +98,21 @@ jobs:
             Copy-Item $package.FullName -Destination artifacts -Force
           }
 
+      # 提出する .msixupload と同じ中身の MSIX（Publisher と署名だけ差し替えたコピー）で WACK を実行する。
+      # OVERALL_RESULT が PASS でなければここで失敗し、GitHub Release の作成と Partner Center への提出へ進まない。
+      - name: WACK gate
+        shell: pwsh
+        run: ./scripts/Invoke-WackGate.ps1 -PackagesDir PhotoGeoExplorer\AppPackages -ManifestPath PhotoGeoExplorer/Package.appxmanifest -OutputDir wack-report
+
+      # 不合格のときも、原因を読めるよう報告書を保存する。
+      - name: Upload WACK report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: wack-report
+          path: wack-report/
+          if-no-files-found: warn
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -121,7 +136,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          files: artifacts/*
+          files: |
+            artifacts/*
+            wack-report/*
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body: ${{ steps.changelog.outputs.NOTES }}
