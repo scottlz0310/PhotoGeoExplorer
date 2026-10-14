@@ -10,8 +10,9 @@
 
     MSI/EXE 向けの api.store.microsoft.com 系 (/submission/v1/product/...) とは別物。
 
-    自動化の終点は CommitStarted 状態への commit 送信まで。
-    Certification（認定依頼・公開）は Partner Center UI でユーザーが手動実施する。
+    自動化の終点は commit の送信まで。commit を受け付けると、Partner Center 側で
+    CommitStarted → PreProcessing → Certification へ自動で進むため、認定の手動開始は不要。
+    進行状況は Partner Center で確認する。
 
 .PARAMETER MsixUpload
     アップロードする .msixupload ファイルのパス。
@@ -301,7 +302,7 @@ function Submit-Commit {
     $result = Invoke-StoreApi -Method POST -Path "applications/$AppId/submissions/$SubmissionId/commit"
     Write-Ok "status: $($result.status)"
     Write-Info "Partner Center: https://partner.microsoft.com/dashboard/products/$AppId/submissions/$SubmissionId"
-    Write-Info '以降の認定依頼は Partner Center UI でユーザーが手動実施してください。'
+    Write-Info 'commit 後は認定プロセスへ自動で進みます（手動での認定開始は不要）。進行状況は上記の Partner Center で確認できます。'
 }
 
 # ── DryRun プレビュー ────────────────────────────────────────────────────────
@@ -421,5 +422,5 @@ catch {
 Write-Host ''
 Write-Host '━━━  完了  ━━━' -ForegroundColor Green
 Write-Host "  申請 ID : $($submission.id)"
-Write-Host "  次のステップ: Partner Center で認定依頼を実施してください"
+Write-Host "  次のステップ: 認定は自動で進みます。進行状況を Partner Center で確認してください"
 Write-Host ''

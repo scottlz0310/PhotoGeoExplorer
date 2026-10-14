@@ -66,8 +66,10 @@ Partner Center から現在の情報をエクスポートし、リポジトリ�
 3. 同じワークフローが WACK を実行し、合格しなければここで失敗する（Release の作成と提出へ進まない）
 4. GitHub Release を作成し、`msixupload` と WACK の報告書を添付
 5. `Submit-ToPartnerCenter.ps1` がパッケージと Listing Data を Partner Center の申請データへ送信
-6. Partner Center でパッケージ、リスティング、審査ノートを確認
-7. runFullTrust の用途を審査ノートに記載し、認定を手動で開始
+6. 同じスクリプトが commit まで行い、申請は認定（`PreProcessing` → `Certification`）へ自動で進む。認定を手動で開始する必要はない
+7. Partner Center でパッケージとリスティングの反映、認定の進行状況を確認
+
+審査ノート（runFullTrust の用途）は初回の submission で設定済みで、以降の submission へ引き継がれる。新しい capability を追加したとき、審査ノートがクリアされたとき、差し戻しで説明を求められたときだけ見直す。
 
 ワークフローは既存の pending submission を自動削除しません。pending submission がある場合は失敗するため、内容を確認してから Partner Center で手動削除します。
 
@@ -205,7 +207,7 @@ Store提出用のパッケージをローカルでサイドローディングし
 
 - [x] GitHub Actions での MSIX ビルドと GitHub Release 作成
 - [x] Partner Center へのパッケージ・Listing Data 送信
-- [ ] Partner Center での内容確認と認定開始（手動）
+- [x] commit 後の認定への自動遷移（v1.9.0 で確認。Partner Center では進行状況の確認のみ）
 
 ## Store 申請準備
 

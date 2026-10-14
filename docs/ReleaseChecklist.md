@@ -22,8 +22,16 @@
 - [ ] `vX.Y.Z` タグを作成して push
 - [ ] Release ワークフローが成功したことを確認（`WACK gate` ステップが成功し、artifact `wack-report` と GitHub Release に `wack-report-X.Y.Z.0.xml` が添付されている）
 - [ ] GitHub Release に `msixupload` が添付され、CHANGELOG の該当セクションが掲載されていることを確認
-- [ ] Partner Center にパッケージとリスティングが反映されたことを確認
-- [ ] Partner Center の審査ノートに runFullTrust の用途を記載し、認定を手動で開始
+- [ ] `Submit to Partner Center` ステップが成功したことを確認（commit 後は認定へ自動で進む。**認定を手動で開始する必要はない**）
+- [ ] Partner Center で申請が認定へ進行していること（`PreProcessing` → `Certification`）と、パッケージ・リスティングが反映されていることを確認
+
+### 審査ノートの確認（変更時のみ）
+
+`runFullTrust` の用途を記載した審査ノートは、初回の submission で設定済みで、以降の submission へ引き継がれる。毎回の作業ではなく、次のときに見直す。
+
+- 新しい capability を追加したとき
+- Partner Center 側で審査ノートがクリアされたとき
+- 審査で差し戻され、説明の追記を求められたとき
 
 ## Microsoft Store リスティング更新
 
@@ -47,8 +55,8 @@ Release ワークフローは、リポジトリ内の `PhotoGeoExplorer/Assets/p
    - `ReleaseNotes` は、空、またはタグの版（`vX.Y.Z`）を含まないと Release ワークフローの `Validate release version` で失敗する（パッケージのビルド・提出へ進まない。タグだけが残る）。提出は空の値を上書きしないため、更新漏れだと前回の文が Store に残る。内容が正しいかは検査しない
 
 3. **反映確認**
-   - タグ push 後、Release ワークフローが CSV を申請データへ反映する
-   - Partner Center のプレビューで内容を確認してから認定を開始
+   - タグ push 後、Release ワークフローが CSV を申請データへ反映し、commit まで自動で行う（commit 後は認定へ自動で進む）
+   - 内容の確認は、タグを push する前に済ませる。push 後に Partner Center で確認できるのは反映結果と認定の進行状況
 
 4. **スクリーンショット更新**（必要に応じて）
    - UI に変更がある場合は新しいスクリーンショットを用意
