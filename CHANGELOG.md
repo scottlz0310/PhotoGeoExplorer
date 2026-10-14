@@ -5,6 +5,9 @@
 ## [Unreleased]
 
 ### 変更
+- PowerShell（Pester）のテストを、カバレッジとして Codecov に集計するようにした (#256)
+  - CI の Pester 実行でコードカバレッジ（JaCoCo。ランナーの Pester 5.9.0 と 6.x の両方で選べる形式）を出力し、`scripts/*.psm1`（テスト可能なロジック。現状は `WackGate.psm1` / `ListingData.psm1`）だけを計測。環境依存の手順スクリプト（`*.ps1`）は計測しない。Codecov へはフラグ `powershell` で送り、`unittests`（.NET）と分ける
+  - `codecov.yml` にフラグごとのパスを追加。`codecov/patch` は従来どおり .NET（`unittests`）だけを対象にし、PowerShell は情報提供（informational）の `codecov/patch/powershell` として始める。しきい値で判定に含めるかは、数値が安定してから判断する
 - Windows App SDK の更新などの PR で WACK を実行し、不合格となる変更をタグを打つ前に検出するようにした (#261)
   - 新しい `WACK` ワークフロー（`.github/workflows/wack.yml`）を追加。WACK の結果に影響しうる変更（`Package.appxmanifest`・`PhotoGeoExplorer.csproj`・`app.manifest`・`Assets/`（`Assets/propose/` を除く）・`Directory.Build.props`・`global.json`・WACK 関連スクリプト）の PR だけで実行し、対象外の PR では実行しない。`workflow_dispatch` でも実行可能
   - Release の `dotnet publish`（Release / x64 / StoreUpload）を `scripts/Build-MsixUpload.ps1` に切り出し、Release と PR 時の WACK で共有。判定は #234 の `Invoke-WackGate.ps1` / `WackGate.psm1` を再利用。報告書は artifact `wack-report` に保存。失敗を無視する手段はない
