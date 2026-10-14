@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-10-14
+
 ### 変更
 - PowerShell（Pester）のテストを、カバレッジとして Codecov に集計するようにした (#256)
   - CI の Pester 実行でコードカバレッジ（JaCoCo。ランナーの Pester 5.9.0 と 6.x の両方で選べる形式）を出力し、`scripts/*.psm1`（テスト可能なロジック。現状は `WackGate.psm1` / `ListingData.psm1`）だけを計測。環境依存の手順スクリプト（`*.ps1`）は計測しない。Codecov へはフラグ `powershell` で送り、`unittests`（.NET）と分ける
