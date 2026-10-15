@@ -81,7 +81,7 @@ MSIX 版（`.\scripts\DevInstall.ps1` で導入）で、JPG の既定アプリ�
 - 短時間（約 100ms 間隔）に複数の JPG を連続して開いても、クラッシュせず、最後に開いたファイルが選択される
 - 初回の JPG ダブルクリックによる起動で、対象フォルダーへの遷移とファイル選択が行われる
 - イベントビューアー（Windows ログ > アプリケーション）に `PhotoGeoExplorer.exe` / `CoreMessagingXP.dll` の「アプリケーション エラー」（イベント ID 1000）が記録されない
-- `app.log` にリダイレクトの経過（`Redirecting activation...` / `Activation redirect completed.` / `Redirected activation received` / `Startup file selected`）が残り、`ERROR` がない
+- `app.log` にリダイレクトの経過（`Redirecting activation...` / `Activation redirect completed.` / `Redirected activation received` / `Startup file selected`）が残り、`ERROR` がない（`app.log` は起動時に削除されず過去のセッションも残るため、確認は今回の起動の `SessionId` の行に限る）
 
 起動直後の連続起動を PowerShell で再現する例（`<フォルダー>` に JPG を置く）:
 
@@ -94,4 +94,4 @@ Start-Process "<フォルダー>\c.jpg"
 
 ## 期待されるログ
 
-- `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` にエラーが出ない
+- `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` に、今回の起動の `SessionId` のエラーが出ない（過去のセッションのログは残っているため、`SessionId` で絞る）
