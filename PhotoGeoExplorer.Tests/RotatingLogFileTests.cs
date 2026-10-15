@@ -110,7 +110,7 @@ public sealed class RotatingLogFileTests
         var fileSystem = new FakeLogFileSystem();
         var log = new RotatingLogFile(fileSystem, NullLogLock.Instance, LogPath, maxBytes: 10, maxFiles: 3);
         log.Append("aaaaaaaaaa");
-        fileSystem.MoveFailure = path => path == LogPath ? (Exception)Activator.CreateInstance(exceptionType)! : null;
+        fileSystem.MoveFailure = (source, _) => source == LogPath ? (Exception)Activator.CreateInstance(exceptionType)! : null;
 
         var exception = Record.Exception(() => log.Append("bbbbbbbbbb"));
 
@@ -125,20 +125,112 @@ public sealed class RotatingLogFileTests
         Assert.Equal("aaaaaaaaaabbbbbbbbbb", fileSystem.Files[log.GetGenerationPath(1)]);
     }
 
-    [Fact]
-    public void AppendKeepsCurrentLogWhenShiftingOlderGenerationFails()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AppendKeepsStagedLogAndRecoversAfterLockIsReleased(bool blockOnlyPlacement)
     {
         var fileSystem = new FakeLogFileSystem();
         var log = new RotatingLogFile(fileSystem, NullLogLock.Instance, LogPath, maxBytes: 10, maxFiles: 3);
-        log.Append("aaaaaaaaaa");
-        log.Append("bbbbbbbbbb");
-        fileSystem.MoveFailure = path => path == log.GetGenerationPath(1) ? new IOException("locked") : null;
+        foreach (var payload in new[] { "aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc" })
+        {
+            log.Append(payload);
+        }
 
-        var exception = Record.Exception(() => log.Append("cccccccccc"));
+        // 世代 1 が他プロセスに（Delete 共有なしで）開かれている状態。繰り下げ（blockOnlyPlacement=false）と
+        // 上書き（true では app.1.log への配置だけ）に失敗する。
+        var generation1 = log.GetGenerationPath(1);
+        fileSystem.MoveFailure = (source, destination) => blockOnlyPlacement
+            ? (destination == generation1 ? new IOException("locked") : null)
+            : (source == generation1 || destination == generation1 ? new IOException("locked") : null);
 
-        Assert.Null(exception);
-        Assert.Equal("cccccccccc", fileSystem.Files[LogPath]);
-        Assert.Contains("bbbbbbbbbb", fileSystem.Files.Values);
+        foreach (var payload in new[] { "dddddddddd", "eeeeeeeeee", "ffffffffff", "gggggggggg" })
+        {
+            var exception = Record.Exception(() => log.Append(payload));
+            Assert.Null(exception);
+        }
+
+        // 失敗が続いても、退避ログは固定名の 1 ファイルに収まり、増えない。世代名以外のファイルも増えない。
+        Assert.True(fileSystem.Files.Count <= 4, string.Join(", ", fileSystem.Files.Keys));
+        Assert.All(fileSystem.Files.Keys, path => Assert.True(
+            path == LogPath || path == log.StagingPath || path == log.GetGenerationPath(1) || path == log.GetGenerationPath(2),
+            $"想定外のファイル: {path}"));
+        Assert.Contains(fileSystem.Files.Values, content => content.Contains("cccccccccc", StringComparison.Ordinal));
+
+        fileSystem.MoveFailure = null;
+        log.Append("hhhhhhhhhh");
+        log.Append("iiiiiiiiii");
+
+        // 解除後は、退避ログが回収されて世代管理に戻り、固定名のファイルは残らない。
+        Assert.DoesNotContain(log.StagingPath, fileSystem.Files.Keys);
+        Assert.True(fileSystem.Files.Count <= 3, string.Join(", ", fileSystem.Files.Keys));
+        Assert.Contains(fileSystem.Files.Values, content => content.Contains("gggggggggg", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AppendDoesNotRetryRotationOnEveryWriteWhileGenerationIsLocked()
+    {
+        var fileSystem = new FakeLogFileSystem();
+        var log = new RotatingLogFile(fileSystem, NullLogLock.Instance, LogPath, maxBytes: 800, maxFiles: 3);
+        for (var i = 0; i < 80; i++)
+        {
+            log.Append(new string('a', 10));
+        }
+
+        var generation1 = log.GetGenerationPath(1);
+        fileSystem.MoveFailure = (source, destination) => source == generation1 || destination == generation1 ? new IOException("locked") : null;
+        fileSystem.MoveAttempts = 0;
+
+        // 退避後のログは固定名に残り、現行ログが maxBytes / 8（= 100 バイト）増えるごとにしか再試行しない。
+        for (var i = 0; i < 200; i++)
+        {
+            log.Append(new string('b', 10));
+        }
+
+        Assert.InRange(fileSystem.MoveAttempts, 1, 40);
+    }
+
+    [Fact]
+    public void PhysicalFileSystemKeepsStagedLogBoundedAndRecoversWhenGenerationIsHeldOpen()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"PhotoGeoExplorerTests_{Guid.NewGuid():N}");
+        try
+        {
+            var path = Path.Combine(directory, "app.log");
+            var log = new RotatingLogFile(new PhysicalLogFileSystem(), NullLogLock.Instance, path, maxBytes: 10, maxFiles: 3);
+            log.Append("aaaaaaaaaa");
+            log.Append("bbbbbbbbbb");
+            log.Append("cccccccccc");
+
+            // ログビューアーなどが app.1.log を Delete 共有なしで開いている状態を再現する。
+            using (new FileStream(log.GetGenerationPath(1), FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                foreach (var payload in new[] { "dddddddddd", "eeeeeeeeee", "ffffffffff", "gggggggggg" })
+                {
+                    Assert.Null(Record.Exception(() => log.Append(payload)));
+                }
+
+                var files = Directory.GetFiles(directory).Select(Path.GetFileName).OrderBy(name => name, StringComparer.Ordinal).ToArray();
+                Assert.True(files.Length <= 4, string.Join(", ", files));
+                Assert.True(File.Exists(log.StagingPath), "ロック中は退避ログが固定名で残る（失敗経路を通っている）");
+                Assert.All(files, name => Assert.Matches(@"^app(\.(1|2|rotating))?\.log$", name!));
+            }
+
+            log.Append("hhhhhhhhhh");
+            log.Append("iiiiiiiiii");
+
+            var recovered = Directory.GetFiles(directory);
+            Assert.True(recovered.Length <= 3, string.Join(", ", recovered.Select(Path.GetFileName)));
+            Assert.False(File.Exists(log.StagingPath));
+            Assert.Contains(recovered, file => File.ReadAllText(file).Contains("gggggggggg", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -243,10 +335,12 @@ public sealed class RotatingLogFileTests
     {
         public Dictionary<string, string> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-        // 移動元のパスごとに例外を注入する（null なら成功）。
-        public Func<string, Exception?>? MoveFailure { get; set; }
+        // 移動元・移動先のパスに応じて例外を注入する（null なら成功）。
+        public Func<string, string, Exception?>? MoveFailure { get; set; }
 
         public Exception? AppendFailure { get; set; }
+
+        public int MoveAttempts { get; set; }
 
         public long GetLength(string path)
         {
@@ -269,7 +363,8 @@ public sealed class RotatingLogFileTests
 
         public void Move(string sourcePath, string destinationPath, bool overwrite)
         {
-            var failure = MoveFailure?.Invoke(sourcePath);
+            MoveAttempts++;
+            var failure = MoveFailure?.Invoke(sourcePath, destinationPath);
             if (failure is not null)
             {
                 throw failure;

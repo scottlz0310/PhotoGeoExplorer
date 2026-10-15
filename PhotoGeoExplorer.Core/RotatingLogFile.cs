@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 
 namespace PhotoGeoExplorer;
@@ -10,11 +11,15 @@ namespace PhotoGeoExplorer;
 /// </summary>
 internal sealed class RotatingLogFile
 {
+    private const int RetryDivisor = 8;
+
     private readonly ILogFileSystem _fileSystem;
     private readonly ILogLock _lock;
     private readonly string _path;
+    private readonly string _stagingPath;
     private readonly long _maxBytes;
     private readonly int _maxFiles;
+    private long _retryAfterLength;
 
     public RotatingLogFile(ILogFileSystem fileSystem, ILogLock logLock, string path, long maxBytes, int maxFiles)
     {
@@ -27,6 +32,7 @@ internal sealed class RotatingLogFile
         _fileSystem = fileSystem;
         _lock = logLock;
         _path = path;
+        _stagingPath = GetSiblingPath("rotating");
         _maxBytes = maxBytes;
         _maxFiles = maxFiles;
     }
@@ -54,8 +60,16 @@ internal sealed class RotatingLogFile
 
     internal string GetGenerationPath(int generation)
     {
+        return GetSiblingPath(generation.ToString(CultureInfo.InvariantCulture));
+    }
+
+    // 繰り下げ中に現行ログを退避する固定名。1 つしか存在し得ないため蓄積せず、app*.log の回収対象にも含まれる。
+    internal string StagingPath => _stagingPath;
+
+    private string GetSiblingPath(string suffix)
+    {
         var directory = Path.GetDirectoryName(_path);
-        var name = $"{Path.GetFileNameWithoutExtension(_path)}.{generation}{Path.GetExtension(_path)}";
+        var name = $"{Path.GetFileNameWithoutExtension(_path)}.{suffix}{Path.GetExtension(_path)}";
         return string.IsNullOrEmpty(directory) ? name : Path.Combine(directory, name);
     }
 
@@ -63,17 +77,30 @@ internal sealed class RotatingLogFile
     {
         try
         {
-            if (_fileSystem.GetLength(_path) < _maxBytes)
+            var length = _fileSystem.GetLength(_path);
+            // 前回の繰り下げが退避ログを配置できなかった場合は、上限に達していなくても先に回収する。
+            var recovering = _fileSystem.GetLength(_stagingPath) > 0;
+            if ((!recovering && length < _maxBytes) || length < _retryAfterLength)
             {
                 return;
             }
 
-            // 現行ログを先に退避する。他プロセスが書き込み中で退避できない場合は何も変更せず、次回に持ち越す。
-            var stagingPath = $"{_path}.{Guid.NewGuid():N}.rotating";
-            _fileSystem.Move(_path, stagingPath, overwrite: false);
+            if (!recovering)
+            {
+                // 現行ログを先に退避する。他プロセスが書き込み中で退避できない場合は何も変更せず、次回に持ち越す。
+                _fileSystem.Move(_path, _stagingPath, overwrite: false);
+                length = 0;
+            }
 
-            ShiftGenerations();
-            _fileSystem.Move(stagingPath, GetGenerationPath(1), overwrite: true);
+            if (TryPlaceStagedLog())
+            {
+                _retryAfterLength = 0;
+                return;
+            }
+
+            // 配置できなかった退避ログは固定名のまま残し、次回以降に回収する（ファイルは増えない）。
+            // 失敗が続く間に毎回の書き込みで繰り下げを試みないよう、一定量増えるまで間隔を空ける。
+            _retryAfterLength = length + Math.Max(_maxBytes / RetryDivisor, 1);
         }
         catch (IOException)
         {
@@ -83,10 +110,11 @@ internal sealed class RotatingLogFile
         }
     }
 
-    private void ShiftGenerations()
+    // 最古の世代を捨てて古い順に 1 つずつ繰り下げ、空いた app.1.log へ退避ログを置く。
+    // 世代の移動に失敗した場合は、そこで中断する（退避ログは失わない。繰り下げ済みの世代も失われない）。
+    // 失敗が続くと、試行のたびに最古の世代が 1 つ捨てられる。診断用ログなので許容する。
+    private bool TryPlaceStagedLog()
     {
-        // 最古の世代を捨てて、古い順に 1 つずつ繰り下げる。退避済みの現行ログを失わないことを優先し、
-        // 個々の世代の繰り下げに失敗しても続行する（その場合、古い世代 1 つが上書きされ得る。診断用ログなので許容する）。
         TryDelete(GetGenerationPath(_maxFiles - 1));
         for (var generation = _maxFiles - 2; generation >= 1; generation--)
         {
@@ -94,12 +122,32 @@ internal sealed class RotatingLogFile
             {
                 _fileSystem.Move(GetGenerationPath(generation), GetGenerationPath(generation + 1), overwrite: true);
             }
+            catch (FileNotFoundException)
+            {
+                // その世代がまだ無いだけ（空きスロット）。
+            }
             catch (IOException)
             {
+                return false;
             }
             catch (UnauthorizedAccessException)
             {
+                return false;
             }
+        }
+
+        try
+        {
+            _fileSystem.Move(_stagingPath, GetGenerationPath(1), overwrite: false);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
