@@ -4,15 +4,11 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.9.1)
-- Fixed: Opening a JPG file from File Explorer while PhotoGeoExplorer is already running no longer crashes the running app
-- Fixed: Move, Copy, and Open folder no longer get stuck with a disabled confirm button when you pick the same folder as last time
-- Changed: The Move, Copy, and Open folder dialogs now start from the folder you last confirmed for that action, or the current folder if there is none (remembered only while the app is running)
-- Fixed: The map image save dialog now starts from the folder you last saved to, or the current folder if there is none (remembered only while the app is running)","リリースノート（v1.9.1）
-- 修正: 起動中の PhotoGeoExplorer で、エクスプローラーから別の JPG を開くとアプリがクラッシュする問題を修正
-- 修正: 移動・コピー・フォルダーを開くで、前回と同じフォルダーを選ぶと決定ボタンが無効になり選択できない問題を修正
-- 変更: 移動・コピー・フォルダーを開くのダイアログが、機能ごとに前回確定したフォルダー（無ければ表示中のフォルダー）から開くように変更（アプリの実行中のみ記憶）
-- 修正: 地図画像の保存ダイアログが、前回保存したフォルダー（無ければ表示中のフォルダー）から開くように修正（アプリの実行中のみ記憶）"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.9.2)
+- Changed: The diagnostic log (app.log) is no longer deleted at every launch. Logs from previous launches are now kept (up to 5 files, about 5 MB in total), so you can check the log of a session that ended abnormally
+- Fixed: Opening several photos in quick succession no longer records a false error in the log while thumbnails are generated","リリースノート（v1.9.2）
+- 変更: 診断ログ（app.log）を起動のたびに削除せず、過去の起動分も最大 5 ファイル（合計約 5 MB）まで保持するように変更。異常終了したセッションのログも確認可能
+- 修正: 写真を続けて開いたときに、サムネイル生成の競合で誤検知のエラーがログに記録される問題を修正"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
