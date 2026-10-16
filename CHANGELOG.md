@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### 修正
+- 写真の選択を続けて変更すると、地図ペインが `COMException 0x8001010E`（`RPC_E_WRONG_THREAD`）でクラッシュすることがある問題を修正 (#277)
+  - `MapPaneViewModel.UpdateMarkersFromSelectionAsync` が直前の更新をキャンセルする `await` を `ConfigureAwait(false)` にしていたため、キャンセル時に登録済みコールバックが走ると継続がスレッドプールへ移り、その後のステータス更新（`PropertyChanged`）が UI スレッド外で発火していた。`ConfigureAwait(true)` にして UI スレッドで継続させた
+  - 直前の更新が読み込み中の状態で再実行しても、`PropertyChanged` が呼び出し元の同期コンテキストで発火することを検証する回帰テストを追加（修正前のコードでは失敗することを確認済み）
+
 ## [1.9.2] - 2026-10-15
 
 ### 変更

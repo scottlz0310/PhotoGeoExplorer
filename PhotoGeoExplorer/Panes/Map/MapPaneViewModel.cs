@@ -373,7 +373,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _mapUpdateCts = null;
         if (previousCts is not null)
         {
-            await previousCts.CancelAsync().ConfigureAwait(false);
+            // ConfigureAwait(false) にすると、登録済みコールバックの実行でスレッドプールへ移った後、
+            // ShowStatus / HideStatus が UI スレッド外で PropertyChanged を発火して RPC_E_WRONG_THREAD になる (#277)
+            await previousCts.CancelAsync().ConfigureAwait(true);
             previousCts.Dispose();
         }
 
@@ -424,8 +426,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
 
         // Presenter 呼び出し直前で現在のフィールドを再取得する。
-        // ConfigureAwait(false) を挟んでいるため継続スレッドは保証されず、
-        // 他スレッドの Cleanup() と真に並行し得るため、都度チェックが必要。
+        // await 中に Cleanup() が走り得るため、都度チェックが必要。
         if (points.Count == 0)
         {
             if (_map is { } mapForClear && _markerLayer is { } markerLayerForClear)
