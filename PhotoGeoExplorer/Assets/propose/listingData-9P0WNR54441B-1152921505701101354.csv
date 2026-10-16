@@ -4,11 +4,11 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.9.2)
-- Changed: The diagnostic log (app.log) is no longer deleted at every launch. Logs from previous launches are now kept (up to 5 files, about 5 MB in total), so you can check the log of a session that ended abnormally
-- Fixed: Opening several photos in quick succession no longer records a false error in the log while thumbnails are generated","リリースノート（v1.9.2）
-- 変更: 診断ログ（app.log）を起動のたびに削除せず、過去の起動分も最大 5 ファイル（合計約 5 MB）まで保持するように変更。異常終了したセッションのログも確認可能
-- 修正: 写真を続けて開いたときに、サムネイル生成の競合で誤検知のエラーがログに記録される問題を修正"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.9.3)
+- Fixed: The app no longer crashes when you change the selected photos in quick succession
+- Fixed: After you change the pane layout in Settings, the map keeps following the selected photo, and the Save map image button is no longer left disabled","リリースノート（v1.9.3）
+- 修正: 写真の選択を続けて切り替えると、アプリがクラッシュすることがある問題を修正
+- 修正: 設定でペインの配置を変更した後、地図が選択した写真に追従せず、地図画像の保存ボタンが無効のままになる問題を修正"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
