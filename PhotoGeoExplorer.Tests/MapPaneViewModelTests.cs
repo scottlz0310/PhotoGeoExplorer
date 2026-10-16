@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -458,6 +459,65 @@ public class MapPaneViewModelTests
         Assert.Null(viewModel.Map);
     }
 
+    [Fact]
+    public async Task UpdateMarkersFromSelectionAsyncRaisesStatusChangesOnCallerContextAfterCancelingPreviousUpdate()
+    {
+        // Arrange: 直前の更新が読み込み中で、キャンセル時に登録済みコールバックが走る状態にする
+        var service = new PendingLoadMapPaneService();
+        var viewModel = new MapPaneViewModel(service);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+
+        var photo = new PhotoListItem(
+            new PhotoItem(@"C:\Photos\selected.jpg", 1, DateTimeOffset.UtcNow, isFolder: false),
+            thumbnail: null);
+        var folder = new PhotoListItem(
+            new PhotoItem(@"C:\Photos\folder", 0, DateTimeOffset.UtcNow, isFolder: true),
+            thumbnail: null);
+
+        var statusThreadIds = new List<int>();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MapPaneViewModel.StatusVisibility))
+            {
+                lock (statusThreadIds)
+                {
+                    statusThreadIds.Add(Environment.CurrentManagedThreadId);
+                }
+            }
+        };
+
+        using var context = new SingleThreadSynchronizationContext();
+
+        try
+        {
+            // Act
+            var run = context.RunAsync(async () =>
+            {
+                var first = viewModel.UpdateMarkersFromSelectionAsync(new[] { photo });
+                await service.LoadStarted.ConfigureAwait(true);
+                await viewModel.UpdateMarkersFromSelectionAsync(new[] { folder }).ConfigureAwait(true);
+                await first.ConfigureAwait(true);
+            });
+
+            var completed = await Task.WhenAny(run, Task.Delay(5000)).ConfigureAwait(true);
+            Assert.Same(run, completed);
+            await run.ConfigureAwait(true);
+
+            // Assert: UI スレッド相当のスレッド以外で PropertyChanged が発火していないこと
+            lock (statusThreadIds)
+            {
+                Assert.NotEmpty(statusThreadIds);
+                Assert.All(statusThreadIds, id => Assert.Equal(context.ThreadId, id));
+            }
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
     private static MemoryLayer SetMapInitializedForTest(MapPaneViewModel viewModel)
     {
         var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -609,6 +669,110 @@ public class MapPaneViewModelTests
 
         public bool FileExistsAtPath(string path)
             => false;
+    }
+
+    private sealed class PendingLoadMapPaneService : IMapPaneService
+    {
+        private readonly TaskCompletionSource _loadStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task LoadStarted => _loadStarted.Task;
+
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
+            MapTileSourceType tileSource,
+            string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
+            IReadOnlyList<PhotoListItem> items,
+            CancellationToken cancellationToken)
+        {
+            var completion = new TaskCompletionSource<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // キャンセル時に CancelAsync が実行する登録済みコールバックを再現する
+            cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+            _loadStarted.TrySetResult();
+            return completion.Task;
+        }
+
+        public string GetTileCacheRootDirectory()
+            => Path.GetTempPath();
+
+        public string GetPinImagePath(PhotoMetadata metadata)
+            => Path.Combine(Path.GetTempPath(), "red_pin.png");
+
+        public bool FileExistsAtPath(string path)
+            => false;
+    }
+
+    // WinUI の DispatcherQueue と同様に、単一スレッドで Post されたコールバックを順に実行する
+    private sealed class SingleThreadSynchronizationContext : SynchronizationContext, IDisposable
+    {
+        private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = new();
+        private readonly Thread _thread;
+
+        public SingleThreadSynchronizationContext()
+        {
+            _thread = new Thread(Run) { IsBackground = true };
+            _thread.Start();
+            ThreadId = _thread.ManagedThreadId;
+        }
+
+        public int ThreadId { get; }
+
+        public override void Post(SendOrPostCallback d, object? state)
+            => _queue.Add((d, state));
+
+        public Task RunAsync(Func<Task> action)
+        {
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Post(
+                _ =>
+                {
+                    action().ContinueWith(
+                        task =>
+                        {
+                            if (task.IsFaulted)
+                            {
+                                completion.TrySetException(task.Exception!.InnerExceptions);
+                            }
+                            else if (task.IsCanceled)
+                            {
+                                completion.TrySetCanceled();
+                            }
+                            else
+                            {
+                                completion.TrySetResult();
+                            }
+                        },
+                        TaskScheduler.Default);
+                },
+                null);
+            return completion.Task;
+        }
+
+        public void Dispose()
+        {
+            _queue.CompleteAdding();
+            _thread.Join();
+            _queue.Dispose();
+        }
+
+        private void Run()
+        {
+            SetSynchronizationContext(this);
+            foreach (var (callback, state) in _queue.GetConsumingEnumerable())
+            {
+                callback(state);
+            }
+        }
     }
 
     private sealed class CleanupAfterLoadMapPaneService : IMapPaneService
