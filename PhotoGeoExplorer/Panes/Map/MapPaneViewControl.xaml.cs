@@ -44,7 +44,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private MemoryLayer? _rectangleSelectionLayer;
     private bool _mapPanLockBeforeSelection;
     private bool _mapPanLockActive;
-    private readonly MapPaneViewLifecycle _lifecycle = new();
+    private readonly MapPaneViewLifecycle _lifecycle = new(AppLog.Info);
 
     public MapPaneViewControl()
     {
@@ -65,14 +65,16 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        AppLog.Info($"MapPaneViewControl.Loaded: wasViewLoaded={_lifecycle.IsViewLoaded}, hasViewModel={_viewModel is not null}, hasMap={_map is not null}");
-        _lifecycle.NotifyLoaded();
+        _lifecycle.NotifyLoaded(DescribeState());
         AttachViewModel(DataContext as MapPaneViewModel);
         // Loaded 前に受信した PropertyChanged を取りこぼした場合に備えて UI を再同期する
         ApplyMapFromViewModel();
         UpdateMapStatusFromViewModel();
         UpdateMapImageSaveState();
     }
+
+    private string DescribeState()
+        => $"hasViewModel={_viewModel is not null}, hasMap={_map is not null}";
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
     {
@@ -82,13 +84,11 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         // 同じインスタンスの再追加では Loaded が先に届くことがある。古い Unloaded は無視する (#278)
-        if (!_lifecycle.TryNotifyUnloaded(IsLoaded))
+        if (!_lifecycle.TryNotifyUnloaded(IsLoaded, DescribeState()))
         {
-            AppLog.Info("MapPaneViewControl.Unloaded ignored: the control is already loaded again.");
             return;
         }
 
-        AppLog.Info($"MapPaneViewControl.Unloaded: hasViewModel={_viewModel is not null}, hasMap={_map is not null}");
         _exifLocationPicker.Cancel();
         UnsubscribeFromMapState(_map);
         _viewModel?.UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);

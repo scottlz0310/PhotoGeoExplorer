@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using PhotoGeoExplorer.Panes.Map;
 using Xunit;
 
@@ -23,7 +24,8 @@ public sealed class MapPaneViewLifecycleTests
     {
         ArgumentNullException.ThrowIfNull(steps);
 
-        var lifecycle = new MapPaneViewLifecycle();
+        var logs = new List<string>();
+        var lifecycle = new MapPaneViewLifecycle(logs.Add);
         var decisions = new List<char>();
 
         foreach (var step in steps)
@@ -31,13 +33,13 @@ public sealed class MapPaneViewLifecycleTests
             switch (step)
             {
                 case 'L':
-                    lifecycle.NotifyLoaded();
+                    lifecycle.NotifyLoaded("state");
                     break;
                 case 'U':
-                    decisions.Add(lifecycle.TryNotifyUnloaded(isLoadedNow: false) ? 'T' : '-');
+                    decisions.Add(lifecycle.TryNotifyUnloaded(isLoadedNow: false, viewState: "state") ? 'T' : '-');
                     break;
                 case 'u':
-                    decisions.Add(lifecycle.TryNotifyUnloaded(isLoadedNow: true) ? 'T' : '-');
+                    decisions.Add(lifecycle.TryNotifyUnloaded(isLoadedNow: true, viewState: "state") ? 'T' : '-');
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(steps), step, "Unknown step.");
@@ -46,5 +48,16 @@ public sealed class MapPaneViewLifecycleTests
 
         Assert.Equal(expectedDecisions, new string([.. decisions]));
         Assert.Equal(expectedLoaded, lifecycle.IsViewLoaded);
+
+        // 通知ごとに 1 件ずつ記録され、無視した Unloaded は無視したと分かること
+        Assert.Equal(steps.Length, logs.Count);
+        Assert.Equal(expectedDecisions.Count(d => d == '-'), logs.Count(l => l.Contains("ignored", StringComparison.Ordinal)));
+        Assert.All(logs, l => Assert.Contains("state", l, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ConstructorThrowsWhenLogIsNull()
+    {
+        Assert.Throws<ArgumentNullException>(() => new MapPaneViewLifecycle(null!));
     }
 }
