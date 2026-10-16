@@ -31,11 +31,6 @@ ignore:
   - "PhotoGeoExplorer.Tests/**"
   - "PhotoGeoExplorer.E2E/**"
   - "PhotoGeoExplorer/Panes/**/*View.xaml.cs"
-  # Same View-layer policy for the *ViewControl.xaml.cs code-behinds
-  # (MapPaneViewControl / PreviewPaneViewControl), which the pattern above
-  # does not match. Their Loaded/Unloaded lifecycle depends on WinUI event
-  # ordering and cannot be reproduced in xUnit. Logic stays in ViewModels. (#278)
-  - "PhotoGeoExplorer/Panes/**/*ViewControl.xaml.cs"
   # View-layer UI construction helpers (create WinRT types directly;
   # not unit-testable; View responsibility per MVVM guardrails).
   # Split out from *View.xaml.cs, so exclude them too. Testable pure

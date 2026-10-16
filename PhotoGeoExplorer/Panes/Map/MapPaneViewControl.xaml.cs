@@ -44,7 +44,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private MemoryLayer? _rectangleSelectionLayer;
     private bool _mapPanLockBeforeSelection;
     private bool _mapPanLockActive;
-    private bool _isViewLoaded;
+    private readonly MapPaneViewLifecycle _lifecycle = new();
 
     public MapPaneViewControl()
     {
@@ -65,8 +65,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        AppLog.Info($"MapPaneViewControl.Loaded: wasViewLoaded={_isViewLoaded}, hasViewModel={_viewModel is not null}, hasMap={_map is not null}");
-        _isViewLoaded = true;
+        AppLog.Info($"MapPaneViewControl.Loaded: wasViewLoaded={_lifecycle.IsViewLoaded}, hasViewModel={_viewModel is not null}, hasMap={_map is not null}");
+        _lifecycle.NotifyLoaded();
         AttachViewModel(DataContext as MapPaneViewModel);
         // Loaded 前に受信した PropertyChanged を取りこぼした場合に備えて UI を再同期する
         ApplyMapFromViewModel();
@@ -81,17 +81,14 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        // レイアウト変更でホストの Children.Clear() 後に同じインスタンスを再追加すると、
-        // Loaded が Unloaded より先に届くことがある。既にツリーへ戻っている場合の Unloaded は
-        // 古いイベントであり、処理すると ViewModel から切り離されたまま復帰できない (#278)
-        if (IsLoaded)
+        // 同じインスタンスの再追加では Loaded が先に届くことがある。古い Unloaded は無視する (#278)
+        if (!_lifecycle.TryNotifyUnloaded(IsLoaded))
         {
             AppLog.Info("MapPaneViewControl.Unloaded ignored: the control is already loaded again.");
             return;
         }
 
         AppLog.Info($"MapPaneViewControl.Unloaded: hasViewModel={_viewModel is not null}, hasMap={_map is not null}");
-        _isViewLoaded = false;
         _exifLocationPicker.Cancel();
         UnsubscribeFromMapState(_map);
         _viewModel?.UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);
@@ -104,7 +101,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     {
         if (ReferenceEquals(_viewModel, viewModel))
         {
-            if (_isViewLoaded)
+            if (_lifecycle.IsViewLoaded)
             {
                 ApplyMapFromViewModel();
                 UpdateMapStatusFromViewModel();
@@ -148,7 +145,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void HandleViewModelPropertyChanged(string? propertyName)
     {
-        if (!_isViewLoaded || _viewModel is null)
+        if (!_lifecycle.IsViewLoaded || _viewModel is null)
         {
             return;
         }
