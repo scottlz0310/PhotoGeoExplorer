@@ -44,7 +44,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private MemoryLayer? _rectangleSelectionLayer;
     private bool _mapPanLockBeforeSelection;
     private bool _mapPanLockActive;
-    private bool _isViewLoaded;
+    private readonly MapPaneViewLifecycle _lifecycle = new(AppLog.Info);
 
     public MapPaneViewControl()
     {
@@ -65,13 +65,16 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        _isViewLoaded = true;
+        _lifecycle.NotifyLoaded(DescribeState());
         AttachViewModel(DataContext as MapPaneViewModel);
         // Loaded 前に受信した PropertyChanged を取りこぼした場合に備えて UI を再同期する
         ApplyMapFromViewModel();
         UpdateMapStatusFromViewModel();
         UpdateMapImageSaveState();
     }
+
+    private string DescribeState()
+        => $"hasViewModel={_viewModel is not null}, hasMap={_map is not null}";
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
     {
@@ -80,7 +83,12 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        _isViewLoaded = false;
+        // 同じインスタンスの再追加では Loaded が先に届くことがある。古い Unloaded は無視する (#278)
+        if (!_lifecycle.TryNotifyUnloaded(IsLoaded, DescribeState()))
+        {
+            return;
+        }
+
         _exifLocationPicker.Cancel();
         UnsubscribeFromMapState(_map);
         _viewModel?.UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);
@@ -93,7 +101,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     {
         if (ReferenceEquals(_viewModel, viewModel))
         {
-            if (_isViewLoaded)
+            if (_lifecycle.IsViewLoaded)
             {
                 ApplyMapFromViewModel();
                 UpdateMapStatusFromViewModel();
@@ -137,7 +145,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void HandleViewModelPropertyChanged(string? propertyName)
     {
-        if (!_isViewLoaded || _viewModel is null)
+        if (!_lifecycle.IsViewLoaded || _viewModel is null)
         {
             return;
         }

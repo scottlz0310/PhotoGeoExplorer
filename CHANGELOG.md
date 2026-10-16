@@ -5,6 +5,11 @@
 ## [Unreleased]
 
 ### 修正
+- 実行中に設定でペインの配置を入れ替えると、地図ペインが写真の選択に追従しなくなり、地図画像の保存ボタンもグレーアウトしたままになる問題を修正 (#278)
+  - 配置変更はホストの `Children.Clear()` の後に同じ `MapPaneViewControl` を再追加するため、`Loaded` が `Unloaded` より先に届くことがある。後から届いた古い `Unloaded` で ViewModel から切り離され（購読解除・`_map` の破棄・保存可否の無効化）、復帰できなかった。`Unloaded` の時点で既に `IsLoaded` の場合は古いイベントとして無視する。この判断は View に置かず、`MapPaneViewLifecycle` へ切り出して View は委譲のみにした（MVVM 責務ガードレール）
+  - `Loaded` / `Unloaded`（無視した場合を含む）を `app.log` に記録するようにした。レイアウト変更で起きた問題を事後に追えるようにするため
+  - 配置変更の入れ替え（左下=Map ↔ 右=Map）を両方向とも開発ビルドで実機確認し、マーカー表示・保存ボタンの有効化・`Unloaded ignored` の記録を確認した
+  - `MapPaneViewLifecycle` の判断を、イベント順序（通常の `Unloaded` → `Loaded`、今回の `Loaded` → 古い `Unloaded`、本当に外された場合など）を入力にしたパラメータ化テストで検証（判断を壊すと失敗することを確認済み）
 - 写真の選択を続けて変更すると、地図ペインが `COMException 0x8001010E`（`RPC_E_WRONG_THREAD`）でクラッシュすることがある問題を修正 (#277)
   - `MapPaneViewModel.UpdateMarkersFromSelectionAsync` が直前の更新をキャンセルする `await` を `ConfigureAwait(false)` にしていたため、キャンセル時に登録済みコールバックが走ると継続がスレッドプールへ移り、その後のステータス更新（`PropertyChanged`）が UI スレッド外で発火していた。`ConfigureAwait(true)` にして UI スレッドで継続させた
   - 直前の更新が読み込み中の状態で再実行しても、`PropertyChanged` が呼び出し元の同期コンテキストで発火することを検証する回帰テストを追加（修正前のコードでは失敗することを確認済み）
