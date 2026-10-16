@@ -9,6 +9,7 @@
   - 配置変更はホストの `Children.Clear()` の後に同じ `MapPaneViewControl` を再追加するため、`Loaded` が `Unloaded` より先に届くことがある。後から届いた古い `Unloaded` で ViewModel から切り離され（購読解除・`_map` の破棄・保存可否の無効化）、復帰できなかった。`Unloaded` の時点で既に `IsLoaded` の場合は古いイベントとして無視する
   - `Loaded` / `Unloaded`（無視した場合を含む）を `app.log` に記録するようにした。レイアウト変更で起きた問題を事後に追えるようにするため
   - 配置変更の入れ替え（左下=Map ↔ 右=Map）を両方向とも開発ビルドで実機確認し、マーカー表示・保存ボタンの有効化・`Unloaded ignored` の記録を確認した。WinUI のイベント順序は xUnit で再現できないため、自動テストは追加していない
+  - `codecov.yml` の View 層の計測除外が `*View.xaml.cs` のみで、同じ View 層の `*ViewControl.xaml.cs`（`MapPaneViewControl` / `PreviewPaneViewControl`）に一致しておらず、View の変更が `codecov/patch` を構造的に失敗させていた。`*ViewControl.xaml.cs` を既存の View 層の除外方針に沿って追加した（しきい値は変更なし）
 - 写真の選択を続けて変更すると、地図ペインが `COMException 0x8001010E`（`RPC_E_WRONG_THREAD`）でクラッシュすることがある問題を修正 (#277)
   - `MapPaneViewModel.UpdateMarkersFromSelectionAsync` が直前の更新をキャンセルする `await` を `ConfigureAwait(false)` にしていたため、キャンセル時に登録済みコールバックが走ると継続がスレッドプールへ移り、その後のステータス更新（`PropertyChanged`）が UI スレッド外で発火していた。`ConfigureAwait(true)` にして UI スレッドで継続させた
   - 直前の更新が読み込み中の状態で再実行しても、`PropertyChanged` が呼び出し元の同期コンテキストで発火することを検証する回帰テストを追加（修正前のコードでは失敗することを確認済み）
