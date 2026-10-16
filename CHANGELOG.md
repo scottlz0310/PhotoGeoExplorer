@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.9.3] - 2026-10-16
+
 ### 修正
 - 実行中に設定でペインの配置を入れ替えると、地図ペインが写真の選択に追従しなくなり、地図画像の保存ボタンもグレーアウトしたままになる問題を修正 (#278)
   - 配置変更はホストの `Children.Clear()` の後に同じ `MapPaneViewControl` を再追加するため、`Loaded` が `Unloaded` より先に届くことがある。後から届いた古い `Unloaded` で ViewModel から切り離され（購読解除・`_map` の破棄・保存可否の無効化）、復帰できなかった。`Unloaded` の時点で既に `IsLoaded` の場合は古いイベントとして無視する。この判断は View に置かず、`MapPaneViewLifecycle` へ切り出して View は委譲のみにした（MVVM 責務ガードレール）
