@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 変更
+- Playwright MCP の実行時一時フォルダー（`.playwright-mcp/`）を `.gitignore` に追加
+
 ## [1.9.3] - 2026-10-16
 
 ### 修正
