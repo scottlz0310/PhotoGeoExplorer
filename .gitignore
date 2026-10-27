@@ -109,6 +109,7 @@ project.fragment.lock.json
 project.lock.json
 publish/
 .claude/
+.playwright-mcp/
 
 # WACK (Windows App Certification Kit) test files
 wack/wack-report.xml
