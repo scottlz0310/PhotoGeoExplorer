@@ -5,6 +5,8 @@
 ## [Unreleased]
 
 ### 修正
+- クリップボードの Cut 操作完了時における状態変化通知（`PropertyChanged`）がバックグラウンドスレッドで発火し、WinUI 3 で例外が発生してフォルダー再読み込み（`RefreshAsync`）が中断される問題を修正
+  - `FileOperationCoordinator.PasteAsync` での `_onClipboardChanged` 呼び出しおよび `FileBrowserPaneViewModel.OnClipboardChanged` での `PropertyChanged` 発火を `_uiDispatcher.RunAsync` で UI スレッドへマーシャリングするようにした
 - E2E テストで項目追加・描画の過渡状態に UI オートメーション要素（`list.Items`）を取得した際、COM 例外（`0x80040201` や `0x8000FFFF`）で即座にテストが失敗する問題を修正
   - `WaitForListItemByName` および `WaitForListItems` などの `Retry` 呼び出しに `ignoreException: true` と `SafeGet` を追加し、一時的な COM 例外を無視して安定するまでリトライするようにした
 

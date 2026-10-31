@@ -1118,8 +1118,11 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
     private void OnClipboardChanged()
     {
-        OnPropertyChanged(nameof(CanPasteSelection));
-        OnPropertyChanged(nameof(IsCutClipboard));
+        _ = _uiDispatcher.RunAsync(() =>
+        {
+            OnPropertyChanged(nameof(CanPasteSelection));
+            OnPropertyChanged(nameof(IsCutClipboard));
+        });
     }
 
     private void OnWorkspacePhotoFocusRequested(object? sender, WorkspacePhotoFocusRequestedEventArgs e)

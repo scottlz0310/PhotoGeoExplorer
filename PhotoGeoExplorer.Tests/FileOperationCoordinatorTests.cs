@@ -243,6 +243,7 @@ public sealed class FileOperationCoordinatorTests
         Assert.False(harness.Coordinator.HasClipboardItems);
         Assert.False(harness.Coordinator.IsCutClipboard);
         Assert.Equal(2, harness.ClipboardChangedCount); // SetClipboard + クリア
+        Assert.True(harness.Dispatcher.RunAsyncCallCount > 0);
     }
 
     [Theory]
@@ -522,11 +523,13 @@ public sealed class FileOperationCoordinatorTests
     {
         public RecordingUiDispatcherTimer? LastTimer { get; private set; }
         public int EnqueueAsyncCallCount { get; private set; }
+        public int RunAsyncCallCount { get; private set; }
 
         public bool IsAvailable => true;
 
         public Task RunAsync(Action action)
         {
+            RunAsyncCallCount++;
             action();
             return Task.CompletedTask;
         }
