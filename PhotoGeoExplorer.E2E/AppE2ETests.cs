@@ -108,9 +108,10 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
 
                 var list = WaitForList(app, automation, window, _output);
                 Retry.WhileTrue(
-                    () => list.Items.Length == 0,
+                    () => SafeGet(() => list.Items.Length, 0) == 0,
                     timeout: TimeSpan.FromSeconds(20),
-                    interval: TimeSpan.FromMilliseconds(200));
+                    interval: TimeSpan.FromMilliseconds(200),
+                    ignoreException: true);
 
                 list.Focus();
                 var imageItem = WaitForListItemByName(list, "sample.jpg");
@@ -896,15 +897,16 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
     private static void WaitForListItems(ListBox list, int minimumCount)
     {
         Retry.WhileTrue(
-            () => list.Items.Length < minimumCount,
+            () => SafeGet(() => list.Items.Length, 0) < minimumCount,
             timeout: TimeSpan.FromSeconds(20),
-            interval: TimeSpan.FromMilliseconds(200));
+            interval: TimeSpan.FromMilliseconds(200),
+            ignoreException: true);
 
         // 先頭アイテムだけでなく minimumCount 件すべての描画完了を待つ（CI ランナーの描画遅延対策）
         Retry.WhileTrue(
             () =>
             {
-                var items = list.Items;
+                var items = SafeGet(() => list.Items, Array.Empty<ListBoxItem>());
                 if (items.Length < minimumCount)
                 {
                     return true;
@@ -919,7 +921,8 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
             },
             timeout: TimeSpan.FromSeconds(8),
             interval: TimeSpan.FromMilliseconds(100),
-            throwOnTimeout: false);
+            throwOnTimeout: false,
+            ignoreException: true);
     }
 
     private static void TerminateApp(Application? app)
@@ -962,10 +965,12 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
     private static ListBoxItem WaitForListItemByName(ListBox list, string expectedName)
     {
         var result = Retry.WhileNull(
-            () => list.Items.FirstOrDefault(item =>
-                ListItemMatches(item, expectedName)),
+            () => SafeGet(
+                () => list.Items.FirstOrDefault(item => ListItemMatches(item, expectedName)),
+                null),
             timeout: TimeSpan.FromSeconds(20),
-            interval: TimeSpan.FromMilliseconds(200));
+            interval: TimeSpan.FromMilliseconds(200),
+            ignoreException: true);
 
         Assert.NotNull(result.Result);
         return result.Result!;
@@ -1153,7 +1158,7 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
     {
         try
         {
-            var names = list.Items
+            var names = SafeGet(() => list.Items, Array.Empty<ListBoxItem>())
                 .Select(DescribeListItem)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Take(8)

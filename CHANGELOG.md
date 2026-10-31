@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 修正
+- E2E テストで項目追加・描画の過渡状態に UI オートメーション要素（`list.Items`）を取得した際、COM 例外（`0x80040201` や `0x8000FFFF`）で即座にテストが失敗する問題を修正
+  - `WaitForListItemByName` および `WaitForListItems` などの `Retry` 呼び出しに `ignoreException: true` と `SafeGet` を追加し、一時的な COM 例外を無視して安定するまでリトライするようにした
+
 ### 変更
 - Playwright MCP の実行時一時フォルダー（`.playwright-mcp/`）を `.gitignore` に追加
 
