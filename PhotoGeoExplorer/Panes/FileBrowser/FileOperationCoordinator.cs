@@ -174,7 +174,7 @@ internal sealed class FileOperationCoordinator : IDisposable
         {
             _clipboardItems = Array.Empty<PhotoListItem>();
             _clipboardOperation = ClipboardOperation.None;
-            _onClipboardChanged();
+            await _uiDispatcher.RunAsync(_onClipboardChanged).ConfigureAwait(false);
         }
 
         return (moveResult, operation);
