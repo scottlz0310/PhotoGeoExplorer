@@ -10,6 +10,10 @@
 - E2E テストで項目追加・描画の過渡状態に UI オートメーション要素（`list.Items`）を取得した際、COM 例外（`0x80040201` や `0x8000FFFF`）で即座にテストが失敗する問題を修正
   - `WaitForListItemByName` および `WaitForListItems` などの `Retry` 呼び出しに `ignoreException: true` と `SafeGet` を追加し、一時的な COM 例外を無視して安定するまでリトライするようにした
 
+### ドキュメント
+- 地図機能拡充の設計ドキュメントを `docs/Architecture/MapEnhancement/` に追加 (#290)
+  - Mapbox 航空写真（BYO Token）、ベクター地図レンダラーの統合と PoC 計画、撮影位置の字地名・道路名の判定と地図ヘッダー表示の 3 テーマについて、方針・設計判断・Issue の依存関係を整理した（実装は未着手。#291〜#299 で追跡）
+
 ### 変更
 - Playwright MCP の実行時一時フォルダー（`.playwright-mcp/`）を `.gitignore` に追加
 - `renovate.json` の `extends` から、中央プリセットで解除済みの非推奨プリセット（`options/automerge`・`options/schedule`・`options/security`）への参照を削除した。スケジュール・待機期間・自動マージ等は中央側で既に解除されているため更新の挙動は変わらず、Dependency Dashboard の警告表示が消える。
