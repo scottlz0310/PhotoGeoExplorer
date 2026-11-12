@@ -1022,4 +1022,46 @@
   <data name="MapStatus.MapboxAuthFailed" xml:space="preserve">
     <value>The Mapbox token is invalid or lacks permission</value>
   </data>
+  <data name="MapHeaderRoadLabel.Text" xml:space="preserve">
+    <value>Road:</value>
+  </data>
+  <data name="MapHeaderCoordinatesButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Click to copy the latitude and longitude</value>
+  </data>
+  <data name="MapHeaderMenuShowAddress.Text" xml:space="preserve">
+    <value>Show address (census small area)</value>
+  </data>
+  <data name="MapHeaderMenuShowRoadName.Text" xml:space="preserve">
+    <value>Show nearest road name (suggestion)</value>
+  </data>
+  <data name="MapHeaderMenuShowCoordinates.Text" xml:space="preserve">
+    <value>Show latitude and longitude</value>
+  </data>
+  <data name="MapHeaderMenuIncludePrefecture.Text" xml:space="preserve">
+    <value>Include prefecture in address</value>
+  </data>
+  <data name="SettingsPaneMapHeaderCaption.Text" xml:space="preserve">
+    <value>Map header items</value>
+  </data>
+  <data name="SettingsPaneMapHeaderShowAddress.Content" xml:space="preserve">
+    <value>Show address (census small area)</value>
+  </data>
+  <data name="SettingsPaneMapHeaderShowRoadName.Content" xml:space="preserve">
+    <value>Show nearest road name (suggestion)</value>
+  </data>
+  <data name="SettingsPaneMapHeaderShowCoordinates.Content" xml:space="preserve">
+    <value>Show latitude and longitude</value>
+  </data>
+  <data name="SettingsPaneMapHeaderIncludePrefecture.Content" xml:space="preserve">
+    <value>Include prefecture in address</value>
+  </data>
+  <data name="SettingsPaneMapHeaderDescription.Text" xml:space="preserve">
+    <value>Shows where the selected photo (single selection) was taken in the header of the map pane. You can also switch these from the context menu of the map header.</value>
+  </data>
+  <data name="Message.CoordinatesCopied" xml:space="preserve">
+    <value>Copied the latitude and longitude:</value>
+  </data>
+  <data name="Message.CoordinatesCopyFailed" xml:space="preserve">
+    <value>Could not copy the latitude and longitude to the clipboard.</value>
+  </data>
 </root>

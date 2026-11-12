@@ -608,6 +608,50 @@ public class MapPaneViewModelTests
         }
     }
 
+    [Theory]
+    [InlineData(1, 0, "35.681236, 139.767125")]
+    [InlineData(2, 0, "")]
+    [InlineData(1, 1, "")]
+    [InlineData(0, 1, "")]
+    [InlineData(0, 0, "")]
+    public async Task UpdateMarkersFromSelectionAsyncShowsLocationInfoOnlyForSingleSelection(
+        int photoCount,
+        int folderCount,
+        string expectedCoordinates)
+    {
+        // Arrange: 直前に 1 枚選択して、撮影位置情報が出ている状態にする
+        var viewModel = new MapPaneViewModel(new WorkspaceSelectionMapPaneService());
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        var selection = Enumerable.Range(0, photoCount)
+            .Select(index => CreateListItem($@"C:\Photos\photo{index}.jpg", isFolder: false))
+            .Concat(Enumerable.Range(0, folderCount)
+                .Select(index => CreateListItem($@"C:\Photos\folder{index}", isFolder: true)))
+            .ToArray();
+
+        try
+        {
+            await viewModel.UpdateMarkersFromSelectionAsync(new[] { CreateListItem(@"C:\Photos\previous.jpg", isFolder: false) }).ConfigureAwait(true);
+            Assert.Equal("35.681236, 139.767125", viewModel.LocationInfo.CoordinatesText);
+
+            // Act
+            await viewModel.UpdateMarkersFromSelectionAsync(selection).ConfigureAwait(true);
+
+            // Assert
+            Assert.Equal(expectedCoordinates, viewModel.LocationInfo.CoordinatesText);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+
+        Assert.Equal(string.Empty, viewModel.LocationInfo.CoordinatesText);
+    }
+
+    private static PhotoListItem CreateListItem(string path, bool isFolder)
+        => new(new PhotoItem(path, isFolder ? 0 : 1, DateTimeOffset.UtcNow, isFolder), thumbnail: null);
+
     private static MapPaneViewModel CreateViewModelWithSecretStore(ISecretStore secretStore)
         => new(new MapPaneService(), new WorkspaceState(), new MapImageService(), static () => null, secretStore);
 
@@ -804,69 +848,6 @@ public class MapPaneViewModelTests
 
         public bool FileExistsAtPath(string path)
             => false;
-    }
-
-    // WinUI の DispatcherQueue と同様に、単一スレッドで Post されたコールバックを順に実行する
-    private sealed class SingleThreadSynchronizationContext : SynchronizationContext, IDisposable
-    {
-        private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = new();
-        private readonly Thread _thread;
-
-        public SingleThreadSynchronizationContext()
-        {
-            _thread = new Thread(Run) { IsBackground = true };
-            _thread.Start();
-            ThreadId = _thread.ManagedThreadId;
-        }
-
-        public int ThreadId { get; }
-
-        public override void Post(SendOrPostCallback d, object? state)
-            => _queue.Add((d, state));
-
-        public Task RunAsync(Func<Task> action)
-        {
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            Post(
-                _ =>
-                {
-                    action().ContinueWith(
-                        task =>
-                        {
-                            if (task.IsFaulted)
-                            {
-                                completion.TrySetException(task.Exception!.InnerExceptions);
-                            }
-                            else if (task.IsCanceled)
-                            {
-                                completion.TrySetCanceled();
-                            }
-                            else
-                            {
-                                completion.TrySetResult();
-                            }
-                        },
-                        TaskScheduler.Default);
-                },
-                null);
-            return completion.Task;
-        }
-
-        public void Dispose()
-        {
-            _queue.CompleteAdding();
-            _thread.Join();
-            _queue.Dispose();
-        }
-
-        private void Run()
-        {
-            SetSynchronizationContext(this);
-            foreach (var (callback, state) in _queue.GetConsumingEnumerable())
-            {
-                callback(state);
-            }
-        }
     }
 
     private sealed class CleanupAfterLoadMapPaneService : IMapPaneService

@@ -44,6 +44,10 @@ internal sealed class AppSettings
     public bool AutoCheckUpdates { get; set; } = true;
     public int MapDefaultZoomLevel { get; set; } = 14;
     public MapTileSourceType MapTileSource { get; set; } = MapTileSourceType.OpenStreetMap;
+    public bool ShowMapHeaderAddress { get; set; } = true;
+    public bool ShowMapHeaderRoadName { get; set; } = true;
+    public bool ShowMapHeaderCoordinates { get; set; } = true;
+    public bool MapHeaderIncludePrefecture { get; set; }
     public bool ShowQuickStartOnStartup { get; set; }
     public string? ExternalContentBaseUrl { get; set; } = DefaultExternalContentBaseUrl;
     public PaneLayoutPreset PaneLayoutPreset { get; set; } = DefaultPaneLayoutPreset;

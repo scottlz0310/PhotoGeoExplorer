@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.State;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -186,6 +187,8 @@ public sealed class SettingsPaneLayoutSectionViewModelTests
         public void ChangeMapTileSource(MapTileSourceType sourceType)
         {
         }
+
+        public MapHeaderDisplaySettings MapHeaderDisplay { get; } = new();
 
         public void RefreshMapBackground()
         {

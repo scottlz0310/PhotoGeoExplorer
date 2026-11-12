@@ -110,6 +110,62 @@ public sealed class SettingsCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsyncAppliesMapHeaderDisplaySettings()
+    {
+        using var context = CreateContext();
+        var persisted = new AppSettings
+        {
+            ShowMapHeaderAddress = false,
+            ShowMapHeaderRoadName = false,
+            ShowMapHeaderCoordinates = false,
+            MapHeaderIncludePrefecture = true
+        };
+        await context.SettingsService.SaveAsync(persisted).ConfigureAwait(true);
+
+        await context.Coordinator.LoadAsync().ConfigureAwait(true);
+
+        var display = context.MapPaneViewModel.LocationInfo.DisplaySettings;
+        Assert.Same(display, context.Coordinator.MapHeaderDisplay);
+        Assert.False(display.ShowAddress);
+        Assert.False(display.ShowRoadName);
+        Assert.False(display.ShowCoordinates);
+        Assert.True(display.IncludePrefecture);
+    }
+
+    [Fact]
+    public async Task MapHeaderDisplayDefaultsMatchAppSettingsDefaults()
+    {
+        using var context = CreateContext();
+
+        await context.Coordinator.SaveAsync().ConfigureAwait(true);
+        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+
+        Assert.True(saved.ShowMapHeaderAddress);
+        Assert.True(saved.ShowMapHeaderRoadName);
+        Assert.True(saved.ShowMapHeaderCoordinates);
+        Assert.False(saved.MapHeaderIncludePrefecture);
+    }
+
+    [Fact]
+    public async Task MapHeaderDisplayChangesAreDebouncedAndPersisted()
+    {
+        using var context = CreateContext();
+
+        context.Coordinator.MapHeaderDisplay.ShowAddress = false;
+        context.Coordinator.MapHeaderDisplay.ShowRoadName = false;
+        context.Coordinator.MapHeaderDisplay.ShowCoordinates = false;
+        context.Coordinator.MapHeaderDisplay.IncludePrefecture = true;
+
+        await Task.Delay(450).ConfigureAwait(true);
+        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+
+        Assert.False(saved.ShowMapHeaderAddress);
+        Assert.False(saved.ShowMapHeaderRoadName);
+        Assert.False(saved.ShowMapHeaderCoordinates);
+        Assert.True(saved.MapHeaderIncludePrefecture);
+    }
+
+    [Fact]
     public async Task ChangeThemeDebouncesAndPersistsLatestValue()
     {
         using var context = CreateContext();

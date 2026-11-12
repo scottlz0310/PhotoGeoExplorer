@@ -205,6 +205,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     internal string AttributionText => _attributionPresenter.Text;
 
     /// <summary>
+    /// 地図ヘッダーに表示する撮影位置情報
+    /// </summary>
+    public MapLocationInfoViewModel LocationInfo { get; } = new();
+
+    /// <summary>
     /// 地図のデフォルトズームレベル
     /// </summary>
     public int MapDefaultZoomLevel
@@ -294,6 +299,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _mapUpdateCts?.Cancel();
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
+        LocationInfo.Clear();
 
         _markerLayer?.Dispose();
         _markerLayer = null;
@@ -421,6 +427,8 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
                 MapMarkerPresenter.ClearMarkers(mapAfterCancel, markerLayerAfterCancel);
             }
 
+            LocationInfo.Clear();
+
             ShowStatus(
                 LocalizationService.GetString("MapStatus.SelectPhotoTitle"),
                 LocalizationService.GetString("MapStatus.SelectPhotoDetail"),
@@ -458,6 +466,21 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             points.Add((latitude, longitude, metadata, item.Item));
         }
 
+        ApplyMarkers(points);
+
+        // 撮影位置情報は単一選択の写真だけを対象にする。await 中に Cleanup() が走った場合は設定しない
+        if (selectedItems.Count == 1 && points.Count == 1 && _map is not null)
+        {
+            await LocationInfo.SetLocationAsync(points[0].Latitude, points[0].Longitude).ConfigureAwait(true);
+        }
+        else
+        {
+            LocationInfo.Clear();
+        }
+    }
+
+    private void ApplyMarkers(List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)> points)
+    {
         // Presenter 呼び出し直前で現在のフィールドを再取得する。
         // await 中に Cleanup() が走り得るため、都度チェックが必要。
         if (points.Count == 0)

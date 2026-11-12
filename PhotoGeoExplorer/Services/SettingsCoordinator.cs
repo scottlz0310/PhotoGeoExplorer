@@ -9,6 +9,7 @@ using Microsoft.Windows.Globalization;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Storage.Pickers;
 
@@ -62,6 +63,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         SettingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         UpdateShellSettingsState();
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
+        MapHeaderDisplay.PropertyChanged += OnMapHeaderDisplayPropertyChanged;
     }
 
     public bool SettingsFileExistsAtStartup { get; }
@@ -83,6 +85,8 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     public PaneViewType PaneRegion2View => _paneRegion2View;
 
     public PaneViewType PaneRegion3View => _paneRegion3View;
+
+    public MapHeaderDisplaySettings MapHeaderDisplay => _mapPaneViewModel.LocationInfo.DisplaySettings;
 
     public event EventHandler<PaneLayoutChangedEventArgs>? PaneLayoutChanged;
 
@@ -233,6 +237,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
 
         _disposed = true;
         _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
+        MapHeaderDisplay.PropertyChanged -= OnMapHeaderDisplayPropertyChanged;
         _settingsCts?.Cancel();
         _settingsCts?.Dispose();
         _settingsCts = null;
@@ -250,6 +255,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _mapPaneViewModel.MapDefaultZoomLevel = _mapDefaultZoomLevel;
         _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
         _externalContentBaseUrl = SettingsNormalization.NormalizeExternalContentBaseUrl(settings.ExternalContentBaseUrl);
+        MapHeaderDisplay.Apply(settings);
 
         var savedTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
         if (savedTileSource != _mapTileSource)
@@ -406,6 +412,9 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         }
     }
 
+    private void OnMapHeaderDisplayPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        => ScheduleSave();
+
     private static void ApplyLanguageOverride(string? normalized)
     {
         if (string.IsNullOrWhiteSpace(normalized))
@@ -464,6 +473,10 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             Theme = _themePreference,
             MapDefaultZoomLevel = _mapDefaultZoomLevel,
             MapTileSource = _mapTileSource,
+            ShowMapHeaderAddress = MapHeaderDisplay.ShowAddress,
+            ShowMapHeaderRoadName = MapHeaderDisplay.ShowRoadName,
+            ShowMapHeaderCoordinates = MapHeaderDisplay.ShowCoordinates,
+            MapHeaderIncludePrefecture = MapHeaderDisplay.IncludePrefecture,
             ShowQuickStartOnStartup = _showQuickStartOnStartup,
             ExternalContentBaseUrl = _externalContentBaseUrl,
             PaneLayoutPreset = _paneLayoutPreset,

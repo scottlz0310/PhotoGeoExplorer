@@ -167,6 +167,38 @@
                             Content="Mapbox でアクセストークンを発行する"
                             NavigateUri="https://account.mapbox.com/access-tokens/"
                             Padding="0" />
+
+                        <!-- 地図ヘッダーの表示項目 -->
+                        <TextBlock
+                            x:Uid="SettingsPaneMapHeaderCaption"
+                            Text="地図ヘッダーの表示項目"
+                            Margin="0,8,0,0" />
+                        <CheckBox
+                            x:Uid="SettingsPaneMapHeaderShowAddress"
+                            Content="住所（国勢調査 字地名）を表示"
+                            IsChecked="{Binding MapHeader.ShowAddress, Mode=TwoWay}"
+                            AutomationProperties.AutomationId="SettingsMapHeaderShowAddress" />
+                        <CheckBox
+                            x:Uid="SettingsPaneMapHeaderShowRoadName"
+                            Content="最寄り道路名（候補）を表示"
+                            IsChecked="{Binding MapHeader.ShowRoadName, Mode=TwoWay}"
+                            AutomationProperties.AutomationId="SettingsMapHeaderShowRoadName" />
+                        <CheckBox
+                            x:Uid="SettingsPaneMapHeaderShowCoordinates"
+                            Content="緯度・経度を表示"
+                            IsChecked="{Binding MapHeader.ShowCoordinates, Mode=TwoWay}"
+                            AutomationProperties.AutomationId="SettingsMapHeaderShowCoordinates" />
+                        <CheckBox
+                            x:Uid="SettingsPaneMapHeaderIncludePrefecture"
+                            Content="住所表記に都道府県名を含める"
+                            IsChecked="{Binding MapHeader.IncludePrefecture, Mode=TwoWay}"
+                            AutomationProperties.AutomationId="SettingsMapHeaderIncludePrefecture" />
+                        <TextBlock
+                            x:Uid="SettingsPaneMapHeaderDescription"
+                            Text="選択した写真（1 枚）の撮影位置を、地図ペインのヘッダーに表示します。地図ヘッダーの右クリックメニューからも切り替えられます。"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Opacity="0.7"
+                            TextWrapping="Wrap" />
                     </StackPanel>
 
                     <!-- 表示設定 -->

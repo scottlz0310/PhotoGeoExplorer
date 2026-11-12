@@ -1,4 +1,5 @@
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using PhotoGeoExplorer.Models;
 using Xunit;
@@ -219,6 +220,8 @@ public sealed class MainViewModelTests
             ChangeMapTileSourceCallCount++;
             LastMapTileSource = sourceType;
         }
+
+        public MapHeaderDisplaySettings MapHeaderDisplay { get; } = new();
 
         public void RefreshMapBackground()
         {

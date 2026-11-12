@@ -3,6 +3,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:PhotoGeoExplorer.Panes.Map"
     xmlns:mapsui="using:Mapsui.UI.WinUI"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     DataContextChanged="OnDataContextChanged"
@@ -11,6 +12,29 @@
     mc:Ignorable="d">
     <Grid>
         <Grid.Resources>
+            <MenuFlyout x:Name="MapHeaderMenu" Opening="OnMapHeaderMenuOpening">
+                <ToggleMenuFlyoutItem
+                    x:Name="MapHeaderMenuShowAddress"
+                    x:Uid="MapHeaderMenuShowAddress"
+                    Text="Show address"
+                    Click="OnMapHeaderMenuItemClicked" />
+                <ToggleMenuFlyoutItem
+                    x:Name="MapHeaderMenuShowRoadName"
+                    x:Uid="MapHeaderMenuShowRoadName"
+                    Text="Show nearest road name"
+                    Click="OnMapHeaderMenuItemClicked" />
+                <ToggleMenuFlyoutItem
+                    x:Name="MapHeaderMenuShowCoordinates"
+                    x:Uid="MapHeaderMenuShowCoordinates"
+                    Text="Show latitude and longitude"
+                    Click="OnMapHeaderMenuItemClicked" />
+                <MenuFlyoutSeparator />
+                <ToggleMenuFlyoutItem
+                    x:Name="MapHeaderMenuIncludePrefecture"
+                    x:Uid="MapHeaderMenuIncludePrefecture"
+                    Text="Include prefecture in address"
+                    Click="OnMapHeaderMenuItemClicked" />
+            </MenuFlyout>
             <Flyout x:Name="MarkerFlyout" Placement="Top">
                 <StackPanel Spacing="8" MinWidth="280" MaxWidth="320" Padding="12">
                     <StackPanel Spacing="4">
@@ -72,8 +96,14 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid>
+        <!-- Background がないと、余白で RightTapped が発生しない -->
+        <Grid
+            x:Name="MapHeaderBar"
+            Background="Transparent"
+            ColumnSpacing="12"
+            RightTapped="OnMapHeaderRightTapped">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
@@ -83,8 +113,63 @@
                 FontWeight="SemiBold"
                 VerticalAlignment="Center"
                 x:Uid="MapHeader" />
-            <Button
+            <!-- 幅が足りないときの省略順は、コードビハインド（ConfigureMapHeaderCollapse）で指定する -->
+            <local:PriorityCollapsePanel
                 Grid.Column="1"
+                Spacing="8"
+                VerticalAlignment="Center"
+                AutomationProperties.AutomationId="MapHeaderLocationInfo">
+                <TextBlock
+                    x:Name="MapHeaderAreaName"
+                    VerticalAlignment="Center"
+                    Text="{Binding LocationInfo.AreaNameText, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
+                    Visibility="{Binding LocationInfo.AreaNameVisibility, Mode=OneWay}"
+                    AutomationProperties.AutomationId="MapHeaderAreaName" />
+                <TextBlock
+                    x:Name="MapHeaderAreaSeparator"
+                    VerticalAlignment="Center"
+                    Opacity="0.4"
+                    Text="│" />
+                <Grid
+                    x:Name="MapHeaderRoad"
+                    VerticalAlignment="Center"
+                    ColumnSpacing="4"
+                    Visibility="{Binding LocationInfo.RoadNameVisibility, Mode=OneWay}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        x:Uid="MapHeaderRoadLabel"
+                        Opacity="0.7"
+                        Text="Road:" />
+                    <TextBlock
+                        Grid.Column="1"
+                        Text="{Binding LocationInfo.RoadNameText, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis"
+                        AutomationProperties.AutomationId="MapHeaderRoadName" />
+                </Grid>
+                <TextBlock
+                    x:Name="MapHeaderRoadSeparator"
+                    VerticalAlignment="Center"
+                    Opacity="0.4"
+                    Text="│" />
+                <Button
+                    x:Name="MapHeaderCoordinatesButton"
+                    x:Uid="MapHeaderCoordinatesButton"
+                    Padding="6,2"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Click="OnCopyCoordinatesClicked"
+                    Content="{Binding LocationInfo.CoordinatesText, Mode=OneWay}"
+                    Visibility="{Binding LocationInfo.CoordinatesVisibility, Mode=OneWay}"
+                    ToolTipService.ToolTip="Click to copy the latitude and longitude"
+                    AutomationProperties.AutomationId="MapHeaderCoordinates" />
+            </local:PriorityCollapsePanel>
+            <Button
+                Grid.Column="2"
                 Width="32"
                 Height="32"
                 Padding="0"
