@@ -95,8 +95,9 @@ public sealed class MapboxSatelliteTileSourceTests
         presenter.Attach(map, MapTileSourceType.OpenStreetMap);
         presenter.Update(sourceType);
 
-        Assert.Equal(widgetsBefore + 1, map.Widgets.Count);
+        Assert.Equal(widgetsBefore + 2, map.Widgets.Count);
         Assert.Equal(expectedText, presenter.Text);
         Assert.Equal(expectedUrl, presenter.Url);
+        Assert.Equal(sourceType == MapTileSourceType.MapboxSatellite, presenter.IsMapboxLogoVisible);
     }
 }

@@ -48,6 +48,35 @@ public sealed class MapsuiMapImageRendererTests
         Assert.Equal(0, CountDifferentPixels(plainImage, attributedImage, 0, 0, 200, 100));
     }
 
+    [Theory]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatellite, true)]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.OpenStreetMap, false)]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.EsriWorldImagery, false)]
+    internal async System.Threading.Tasks.Task RenderPngDrawsMapboxLogoOnlyForMapbox(PhotoGeoExplorer.Models.MapTileSourceType sourceType, bool expectLogo)
+    {
+        Assert.True(System.IO.File.Exists(PhotoGeoExplorer.Panes.Map.MapAttribution.MapboxLogoPath));
+        var renderer = new MapsuiMapImageRenderer();
+        // 右下の帰属文言（Esri は長い）が左下のロゴ領域へ届かない幅にする
+        var viewport = new Viewport(0, 0, 1, 0, 800, 200);
+
+        using var map = new Map { BackColor = Mapsui.Styles.Color.Black };
+        using var plainDarkStream = renderer.RenderPng(map, viewport, pixelDensity: 1f);
+        using var plainDarkImage = await SixLabors.ImageSharp.Image
+            .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(plainDarkStream)
+            .ConfigureAwait(true);
+        var presenter = new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter();
+        presenter.Attach(map, sourceType);
+        Assert.True(await presenter.LoadImagesAsync(map).ConfigureAwait(true));
+        using var stream = renderer.RenderPng(map, viewport, pixelDensity: 1f);
+        using var image = await SixLabors.ImageSharp.Image
+            .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(stream)
+            .ConfigureAwait(true);
+
+        // ロゴは左下（88×23）に描かれる
+        var logoPixels = CountDifferentPixels(plainDarkImage, image, 0, 165, 100, 200);
+        Assert.Equal(expectLogo, logoPixels > 100);
+    }
+
     private static int CountDifferentPixels(
         SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32> left,
         SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32> right,

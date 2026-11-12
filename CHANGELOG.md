@@ -16,6 +16,7 @@
   - `app.log` とクラッシュレポートで `access_token=` の値を `***` に伏せる（書き込み直前に一律で適用）
 - 背景地図の帰属表示を地図の右下に表示し、保存した地図画像（PNG）にも含めるようにした (#291)
   - Mapsui のウィジェットとして描くため、画面と PNG 保存が同じ経路になる。OpenStreetMap・Esri・Mapbox の 3 つとも同じ仕組みに乗せた
+  - Mapbox の背景を表示している間は、Mapbox の帰属要件に従って地図の左下に Mapbox のロゴも表示する。ロゴは Mapbox 公式の帰属表示用 SVG を加工せずに同梱した（出所は `PhotoGeoExplorer/Assets/MapAttribution/README.md`）
 
 ### 修正
 - クリップボードの Cut 操作完了時における状態変化通知（`PropertyChanged`）がバックグラウンドスレッドで発火し、WinUI 3 で例外が発生してフォルダー再読み込み（`RefreshAsync`）が中断される問題を修正

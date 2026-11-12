@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using PhotoGeoExplorer.Models;
 
 namespace PhotoGeoExplorer.Panes.Map;
@@ -13,6 +15,15 @@ internal static class MapAttribution
     internal const string EsriUrl = "https://www.esri.com/";
     internal const string MapboxText = "© Mapbox © OpenStreetMap Improve this map";
     internal const string MapboxUrl = "https://www.mapbox.com/about/maps";
+
+    /// <summary>
+    /// Mapbox のロゴ（帰属表示用の公式 SVG）。Mapbox の背景を表示するときは文言とあわせて表示が必須。
+    /// </summary>
+    internal static string MapboxLogoPath { get; } = Path.Combine(
+        AppContext.BaseDirectory,
+        "Assets",
+        "MapAttribution",
+        "mapbox-logo.svg");
 
     internal static (string Text, string Url) Get(MapTileSourceType sourceType)
     {

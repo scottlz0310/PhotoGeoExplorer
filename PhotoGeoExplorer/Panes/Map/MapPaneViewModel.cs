@@ -571,12 +571,31 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _baseTileLayer = tileLayer;
         _markerLayer = markerLayer;
         _attributionPresenter.Attach(map, background.SourceType);
+        _ = LoadAttributionImagesAsync(map);
         BackgroundNotice = notice;
 
         // Map プロパティ経由で _map を更新し、PropertyChanged を発火させる
         Map = map;
         HideStatus();
         AppLog.Info("Map initialized in MapPaneViewModel.");
+    }
+
+    private async Task LoadAttributionImagesAsync(Mapsui.Map map)
+    {
+        try
+        {
+            if (!await _attributionPresenter.LoadImagesAsync(map).ConfigureAwait(true))
+            {
+                AppLog.Error($"Failed to load the map attribution logo: {MapAttribution.MapboxLogoPath}");
+                return;
+            }
+
+            map.RefreshGraphics();
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            AppLog.Error("Failed to load the map attribution logo.", ex);
+        }
     }
 
     // 設定は Mapbox でもトークンがなければ OSM で表示する。保存済みの設定値（CurrentTileSource）は書き換えない。
