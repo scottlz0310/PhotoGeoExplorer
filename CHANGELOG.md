@@ -36,6 +36,10 @@
   - Mapbox 航空写真（BYO Token）、ベクター地図レンダラーの統合と PoC 計画、撮影位置の字地名・道路名の判定と地図ヘッダー表示の 3 テーマについて、方針・設計判断・Issue の依存関係を整理した（実装は未着手。#291〜#299 で追跡）
 
 ### 変更
+- カバレッジ計測の除外対象を固定するラチェットを追加し、View 層の除外範囲を方針にそろえた (#303)
+  - `CoverageExclusionRatchetTests` が、`codecov.yml` の `ignore`、`coverlet.runsettings` の除外設定、`[ExcludeFromCodeCoverage]` の付いた型・メンバーを、理由つきの許可リストと照合する。除外を増やす・変えるには、許可リストの更新が必要になる
+  - `codecov.yml` の glob を `Panes/**/*View.xaml.cs` から `Panes/**/*.xaml.cs` に広げた。従来の glob は名前が `*ViewControl.xaml.cs` の地図・プレビューのコードビハインドに一致していなかった
+  - `PriorityCollapsePanel.cs`（WinUI の `Panel`。測定・配置のみ）を除外対象に加えた。幅の割り当て（`PriorityCollapseLayout`）は計測対象のまま
 - `IMapPaneService.InitializeMap` / `CreateTileLayer` の引数を `MapBackgroundRequest` にまとめた (#291)。背景ごとの追加パラメータ（Mapbox のトークン等）を渡せるようにするため
 - Playwright MCP の実行時一時フォルダー（`.playwright-mcp/`）を `.gitignore` に追加
 - `renovate.json` の `extends` から、中央プリセットで解除済みの非推奨プリセット（`options/automerge`・`options/schedule`・`options/security`）への参照を削除した。スケジュール・待機期間・自動マージ等は中央側で既に解除されているため更新の挙動は変わらず、Dependency Dashboard の警告表示が消える。
