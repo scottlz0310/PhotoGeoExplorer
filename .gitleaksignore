@@ -1,0 +1,7 @@
+# gitleaks で検出された項目のうち、確認のうえ除外するもの（fingerprint 単位。検査全体は無効化しない）。
+#
+# PhotoGeoExplorer.Tests/LogSanitizerTests.cs の旧テスト定数（"pk.eyJ1IjoiZXhhbXBsZSJ9.abc-DEF_123"）。
+# ログのマスクを検証するための作り物の値で、実在の Mapbox トークンではない
+# （中央部は {"u":"example"} を base64 にしただけ）。現在の定数は検出されない値へ置き換え済みだが、
+# gitleaks は履歴も検査するため、検出元のコミットだけを除外する。
+693cdffc6569b1cfcedbaed2366fe860a974aa72:PhotoGeoExplorer.Tests/LogSanitizerTests.cs:generic-api-key:10

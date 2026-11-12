@@ -18,20 +18,16 @@ internal interface IMapPaneService
     /// <summary>
     /// 地図オブジェクトを初期化する
     /// </summary>
-    /// <param name="tileSource">タイルソースの種類</param>
-    /// <param name="userAgent">HTTPリクエストのUser-Agent</param>
+    /// <param name="background">背景地図レイヤーの生成要求</param>
     /// <returns>初期化された地図オブジェクト、タイルレイヤー、マーカーレイヤー</returns>
-    (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
-        MapTileSourceType tileSource,
-        string userAgent);
+    (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background);
 
     /// <summary>
     /// タイルレイヤーを作成する
     /// </summary>
-    /// <param name="sourceType">タイルソースの種類</param>
-    /// <param name="userAgent">HTTPリクエストのUser-Agent</param>
+    /// <param name="background">背景地図レイヤーの生成要求</param>
     /// <returns>新しいタイルレイヤー</returns>
-    TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent);
+    TileLayer CreateTileLayer(MapBackgroundRequest background);
 
     /// <summary>
     /// 選択された写真のメタデータを読み込む

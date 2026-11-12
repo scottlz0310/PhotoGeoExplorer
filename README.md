@@ -38,6 +38,7 @@ winget install --exact PhotoGeoExplorer --source msstore
 - **地図上での矩形選択**: Ctrl + ドラッグで複数の写真を一括選択
 - 地図マーカークリック時のツールチップ（撮影日時、カメラ、ファイル名、解像度、Google Maps リンク）
 - 衛星地図タイル（Esri WorldImagery）と OpenStreetMap の切り替え
+- Mapbox Satellite（利用者自身のアクセストークンを設定した場合）
 - 画像プレビュー（ズーム/パン/最大化、前後ナビ）
 - Mapsui による地図表示とオフラインタイルキャッシュ
 - 設定の永続化、言語/テーマ切替、設定のエクスポート/インポート

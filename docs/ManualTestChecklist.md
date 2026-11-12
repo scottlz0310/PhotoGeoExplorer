@@ -42,6 +42,26 @@ GPS 付きの検証用 JPEG を表示した状態で、地図ペインの保存�
 - アプリを終了して再起動した後は、B ではなく、いま表示しているフォルダーから開く（記憶はアプリ実行中だけ）
 - Windows App SDK の保存ダイアログは `SettingsIdentifier` を指定しても前回の保存先を復元しないため、アプリ側で記憶している
 
+## Mapbox 航空写真（#291）
+
+実トークンでの確認は、自分の Mapbox アカウントで発行した公開トークン（`pk.`）を使う。
+
+- トークン未設定のとき、設定の「Mapbox Satellite」は選べない（無効表示）
+- `sk.` で始まるトークンは保存できず、理由が表示される
+- 公開トークンを保存すると「トークン: 設定済み」になり、「Mapbox Satellite」を選べる
+- 「接続テスト」が、有効なトークンで成功、無効なトークンで「トークンが無効、または権限がありません」になる
+- Mapbox Satellite に切り替えると航空写真が表示され、写真ピンの位置が OpenStreetMap / Esri のときと一致する
+- 地図の右下の帰属表示が、背景ごとに切り替わる（OpenStreetMap / Esri / Mapbox）
+- Mapbox Satellite の帰属表示は 3 つのリンクに分かれ、`© Mapbox` は Mapbox、`© OpenStreetMap` は OpenStreetMap の著作権ページ、`Improve this map` は表示中の位置の修正依頼ページを、それぞれブラウザーで開く
+- Mapbox Satellite を表示している間だけ、地図の左下に Mapbox のロゴが表示される
+- 地図画像を保存すると、PNG の右下にも同じ帰属表示が入る（Mapbox Satellite のときは左下のロゴも入る）
+- Mapbox Satellite を選んだままトークンを「削除」すると、OpenStreetMap の表示になり、地図の左上に注意書きが出る。設定の選択は Mapbox Satellite のまま
+- 無効なトークン（形式は正しいが失効済みなど）で Mapbox Satellite を表示すると、地図の左上に「トークンが無効、または権限がありません」と出る
+- `%LocalAppData%\PhotoGeoExplorer\settings.json` と、設定のエクスポート結果にトークンが含まれない
+- `%LocalAppData%\PhotoGeoExplorer\Logs\app.log` にトークンが含まれない（`access_token=***` になる）
+- `%LocalAppData%\PhotoGeoExplorer\Cache\Tiles` に `MapboxSatellite` フォルダーが作られない
+- アプリを再起動しても、トークンと Mapbox Satellite の選択が保持される
+
 ## マルチモニター (異なるDPIスケーリング)
 
 - 100%と150%など異なるスケーリングのモニター間でウィンドウを移動しても画像プレビューのサイズが一貫している

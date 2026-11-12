@@ -33,8 +33,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private readonly IMapImageService _mapImageService;
     private readonly WorkspaceState _workspaceState;
     private readonly MapMarkerPresenter _markerPresenter;
+    private readonly MapAttributionPresenter _attributionPresenter = new();
+    private readonly ISecretStore _secretStore;
     private readonly FolderPickerHistory _saveFolderHistory = new();
     private readonly Func<DispatcherQueue?> _dispatcherQueueAccessor;
+    private DispatcherQueue? _dispatcherQueue;
+    private int _backgroundGeneration;
+    private string _backgroundNotice = string.Empty;
     private Mapsui.Map? _map;
     private TileLayer? _baseTileLayer;
     private MemoryLayer? _markerLayer;
@@ -70,8 +75,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         IMapPaneService service,
         WorkspaceState workspaceState,
         IMapImageService mapImageService,
-        Func<DispatcherQueue?>? dispatcherQueueAccessor = null)
+        Func<DispatcherQueue?>? dispatcherQueueAccessor = null,
+        ISecretStore? secretStore = null)
     {
+        _secretStore = secretStore ?? new PasswordVaultSecretStore();
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         _mapImageService = mapImageService ?? throw new ArgumentNullException(nameof(mapImageService));
@@ -174,6 +181,30 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     }
 
     /// <summary>
+    /// 背景地図についての注意書き（トークン未設定で代替表示中、認証エラーなど）。なければ空
+    /// </summary>
+    public string BackgroundNotice
+    {
+        get => _backgroundNotice;
+        private set
+        {
+            if (SetProperty(ref _backgroundNotice, value))
+            {
+                OnPropertyChanged(nameof(BackgroundNoticeVisibility));
+            }
+        }
+    }
+
+    public Visibility BackgroundNoticeVisibility => string.IsNullOrEmpty(_backgroundNotice)
+        ? Visibility.Collapsed
+        : Visibility.Visible;
+
+    /// <summary>
+    /// 地図に表示中の帰属表示の文言
+    /// </summary>
+    internal string AttributionText => _attributionPresenter.Text;
+
+    /// <summary>
     /// 地図のデフォルトズームレベル
     /// </summary>
     public int MapDefaultZoomLevel
@@ -211,6 +242,8 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
                 IsMapInitialized = true;
                 return;
             }
+
+            _dispatcherQueue = dispatcherQueue;
 
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var enqueued = dispatcherQueue.TryEnqueue(() =>
@@ -475,7 +508,8 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         try
         {
-            var newTileLayer = _service.CreateTileLayer(newSource, UserAgentProvider.UserAgent);
+            var background = CreateBackgroundRequest(newSource, out var notice);
+            var newTileLayer = _service.CreateTileLayer(background);
 
             if (_baseTileLayer is not null)
             {
@@ -486,9 +520,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             _map.Layers.Insert(0, newTileLayer);
             _baseTileLayer = newTileLayer;
             CurrentTileSource = newSource;
+            _attributionPresenter.Update(background.SourceType);
+            BackgroundNotice = notice;
 
             _map.Refresh();
-            AppLog.Info($"Switched map tile source to {newSource}");
+            AppLog.Info($"Switched map tile source to {newSource} (displaying {background.SourceType})");
         }
         catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
         {
@@ -529,15 +565,96 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
-        var (map, tileLayer, markerLayer) = _service.InitializeMap(_currentTileSource, UserAgentProvider.UserAgent);
+        var background = CreateBackgroundRequest(_currentTileSource, out var notice);
+        var (map, tileLayer, markerLayer) = _service.InitializeMap(background);
 
         _baseTileLayer = tileLayer;
         _markerLayer = markerLayer;
+        _attributionPresenter.Attach(map, background.SourceType);
+        _ = LoadAttributionImagesAsync(map);
+        BackgroundNotice = notice;
 
         // Map プロパティ経由で _map を更新し、PropertyChanged を発火させる
         Map = map;
         HideStatus();
         AppLog.Info("Map initialized in MapPaneViewModel.");
+    }
+
+    private async Task LoadAttributionImagesAsync(Mapsui.Map map)
+    {
+        try
+        {
+            if (!await _attributionPresenter.LoadImagesAsync(map).ConfigureAwait(true))
+            {
+                AppLog.Error($"Failed to load the map attribution logo: {MapAttribution.MapboxLogoPath}");
+                return;
+            }
+
+            map.RefreshGraphics();
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            AppLog.Error("Failed to load the map attribution logo.", ex);
+        }
+    }
+
+    // 設定は Mapbox でもトークンがなければ OSM で表示する。保存済みの設定値（CurrentTileSource）は書き換えない。
+    private MapBackgroundRequest CreateBackgroundRequest(MapTileSourceType requested, out string notice)
+    {
+        var generation = ++_backgroundGeneration;
+        notice = string.Empty;
+        if (requested != MapTileSourceType.MapboxSatellite)
+        {
+            return new MapBackgroundRequest(requested, UserAgentProvider.UserAgent);
+        }
+
+        var token = ReadMapboxAccessToken();
+        if (token is null)
+        {
+            notice = LocalizationService.GetString("MapStatus.MapboxTokenMissing");
+            return new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, UserAgentProvider.UserAgent);
+        }
+
+        return new MapBackgroundRequest(
+            requested,
+            UserAgentProvider.UserAgent,
+            token,
+            () => OnMapboxAuthenticationFailed(generation));
+    }
+
+    private string? ReadMapboxAccessToken()
+    {
+        try
+        {
+            var token = _secretStore.Get(SecretKeys.MapboxAccessToken);
+            return string.IsNullOrWhiteSpace(token) ? null : token;
+        }
+        catch (COMException ex)
+        {
+            AppLog.Error("Failed to read the Mapbox access token from the credential locker.", ex);
+            return null;
+        }
+    }
+
+    // タイル取得スレッドから呼ばれる。切り替え済みの古い背景からの通知は捨てる。
+    private void OnMapboxAuthenticationFailed(int generation)
+    {
+        void Apply()
+        {
+            if (generation == _backgroundGeneration)
+            {
+                BackgroundNotice = LocalizationService.GetString("MapStatus.MapboxAuthFailed");
+            }
+        }
+
+        var dispatcherQueue = _dispatcherQueue;
+        if (dispatcherQueue is null || dispatcherQueue.HasThreadAccess)
+        {
+            Apply();
+            return;
+        }
+
+        _ = dispatcherQueue.TryEnqueue(Apply);
     }
 
     private static bool TryGetValidLocation(PhotoMetadata metadata, out double latitude, out double longitude)

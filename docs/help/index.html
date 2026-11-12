@@ -233,8 +233,13 @@
         <li>ピンをクリックすると撮影日時/カメラ/ファイル名/解像度を確認できます。</li>
         <li>ピンをクリックすると対応する写真が一覧で選択されます。</li>
         <li>ピンの詳細から Google Maps で位置を開くことができます。</li>
-        <li>地図タイルは OpenStreetMap / Esri WorldImagery（衛星画像）を切り替えできます。</li>
-        <li>地図タイルはローカルキャッシュされ、再表示が高速化されます。</li>
+        <li>地図タイルは OpenStreetMap / Esri WorldImagery（衛星画像）/ Mapbox Satellite（衛星画像）を切り替えできます。</li>
+        <li>OpenStreetMap と Esri の地図タイルはローカルキャッシュされ、再表示が高速化されます。Mapbox のタイルは端末に保存しません。</li>
+        <li>Mapbox Satellite を使うには、ご自身の Mapbox アカウントで発行した公開アクセストークン（<code>pk.</code> で始まるもの）が必要です。設定の「地図」で入力して「保存」すると選べるようになります。「接続テスト」でトークンが使えるか確認できます。</li>
+        <li>トークンは Windows の資格情報マネージャーに保存され、設定ファイルやエクスポートには含まれません。シークレットトークン（<code>sk.</code>）は保存できません。</li>
+        <li>Mapbox の利用量と料金は、トークンを発行したアカウントに計上されます。無料枠と料金は <a href="https://www.mapbox.com/pricing" target="_blank" rel="noopener noreferrer">Mapbox の料金ページ</a>（Raster Tiles API）でご確認ください。URL 制限つきのトークンはデスクトップアプリから使えないことがあります。</li>
+        <li>トークンを設定していない状態で Mapbox Satellite が選ばれている場合は OpenStreetMap を表示し、地図の左上にその旨を表示します。</li>
+        <li>地図の右下に背景地図の提供元（帰属表示）を表示します。Mapbox Satellite の表示中は左下に Mapbox のロゴも表示します。保存した地図画像にも同じ表示が入ります。</li>
       </ul>
     </section>
 
@@ -288,7 +293,7 @@
       <h2>プライバシー</h2>
       <ul>
         <li>写真や設定は端末内で処理され、外部に送信されません。</li>
-        <li>地図タイルは OpenStreetMap / Esri のサーバーから取得します。</li>
+        <li>地図タイルは OpenStreetMap / Esri のサーバーから取得します。Mapbox Satellite を選んだ場合は Mapbox のサーバーから取得します。</li>
         <li>詳細はプライバシーポリシーをご確認ください。</li>
       </ul>
       <p class="note">プライバシーポリシー: <a href="https://photogeoexplorer.pages.dev/privacy-policy">https://photogeoexplorer.pages.dev/privacy-policy</a></p>

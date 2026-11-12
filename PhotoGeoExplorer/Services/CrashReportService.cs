@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using PhotoGeoExplorer.Security;
 
 namespace PhotoGeoExplorer.Services;
 
@@ -136,7 +137,7 @@ internal sealed class CrashReportService : ICrashReportService
             RegexOptions.None,
             TimeSpan.FromSeconds(1));
 
-        return text;
+        return LogSanitizer.MaskSecrets(text);
     }
 
     private void PruneOldCrashLogs()

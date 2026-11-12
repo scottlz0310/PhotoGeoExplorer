@@ -31,6 +31,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
+    private readonly PasswordVaultSecretStore _secretStore = new();
     private Services.ICrashReportService? _crashReportService;
     private bool _mapInitialized;
     private bool _disposed;
@@ -71,7 +72,8 @@ public sealed partial class MainWindow : Window, IDisposable
         _mapPaneViewModel = new MapPaneViewModel(
             new MapPaneService(),
             _viewModel.WorkspaceState,
-            mapImageService);
+            mapImageService,
+            secretStore: _secretStore);
         _settingsCoordinator = new SettingsCoordinator(
             new SettingsService(),
             dialogService,
@@ -400,7 +402,9 @@ public sealed partial class MainWindow : Window, IDisposable
         var viewModel = new SettingsPaneViewModel(
             _settingsCoordinator,
             _fileBrowserPaneViewModel,
-            _viewModel);
+            _viewModel,
+            _secretStore,
+            new MapboxConnectionTester());
         await viewModel.InitializeAsync().ConfigureAwait(true);
         viewModel.IsActive = true;
 

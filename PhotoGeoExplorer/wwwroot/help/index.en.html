@@ -219,8 +219,13 @@
         <li>Click pins to view shooting time, camera, file name, and resolution.</li>
         <li>Clicking a pin selects the corresponding photo in the list.</li>
         <li>Open the location in Google Maps from the pin details.</li>
-        <li>Switch map tiles between OpenStreetMap and Esri WorldImagery (satellite imagery).</li>
-        <li>Map tiles are cached locally for faster reloading.</li>
+        <li>Switch map tiles between OpenStreetMap, Esri WorldImagery (satellite imagery), and Mapbox Satellite (satellite imagery).</li>
+        <li>OpenStreetMap and Esri tiles are cached locally for faster reloading. Mapbox tiles are not stored on the device.</li>
+        <li>Mapbox Satellite requires a public access token (starting with <code>pk.</code>) issued from your own Mapbox account. Enter it under Map in Settings and choose Save to enable the option. Use Test connection to check that the token works.</li>
+        <li>The token is stored in Windows Credential Manager and is never written to the settings file or exports. Secret tokens (<code>sk.</code>) cannot be saved.</li>
+        <li>Mapbox usage and charges are billed to the account that issued the token. See the <a href="https://www.mapbox.com/pricing" target="_blank" rel="noopener noreferrer">Mapbox pricing page</a> (Raster Tiles API) for the free tier and rates. URL-restricted tokens may not work from a desktop app.</li>
+        <li>If Mapbox Satellite is selected but no token is set, OpenStreetMap is shown and a notice appears at the top left of the map.</li>
+        <li>The map provider attribution is shown at the bottom right of the map. While Mapbox Satellite is displayed, the Mapbox logo is also shown at the bottom left. Both are included in saved map images.</li>
       </ul>
     </section>
 
@@ -274,7 +279,7 @@
       <h2>Privacy</h2>
       <ul>
         <li>Photos and settings are processed locally and not uploaded.</li>
-        <li>Map tiles are fetched from OpenStreetMap and Esri servers.</li>
+        <li>Map tiles are fetched from OpenStreetMap and Esri servers. When Mapbox Satellite is selected, tiles are fetched from Mapbox servers.</li>
         <li>See the privacy policy for details.</li>
       </ul>
       <p class="note">Privacy policy: <a href="https://photogeoexplorer.pages.dev/privacy-policy">https://photogeoexplorer.pages.dev/privacy-policy</a></p>

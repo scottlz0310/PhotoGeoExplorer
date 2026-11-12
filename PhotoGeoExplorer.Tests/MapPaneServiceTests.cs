@@ -25,7 +25,7 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var (map, tileLayer, markerLayer) = service.InitializeMap(MapTileSourceType.OpenStreetMap, userAgent);
+            var (map, tileLayer, markerLayer) = service.InitializeMap(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
 
             // Assert
             Assert.NotNull(map);
@@ -50,7 +50,7 @@ public class MapPaneServiceTests
         var service = new MapPaneService();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => service.CreateTileLayer(MapTileSourceType.OpenStreetMap, null!));
+        Assert.Throws<ArgumentNullException>(() => service.CreateTileLayer(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, null!)));
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var layer = service.CreateTileLayer(MapTileSourceType.OpenStreetMap, userAgent);
+            var layer = service.CreateTileLayer(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
 
             // Assert
             Assert.NotNull(layer);
@@ -91,7 +91,7 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var layer = service.CreateTileLayer(MapTileSourceType.EsriWorldImagery, userAgent);
+            var layer = service.CreateTileLayer(new MapBackgroundRequest(MapTileSourceType.EsriWorldImagery, userAgent));
 
             // Assert
             Assert.NotNull(layer);
@@ -122,7 +122,7 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var layer = service.CreateTileLayer(MapTileSourceType.OpenStreetMap, userAgent);
+            var layer = service.CreateTileLayer(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
 
             // Assert
             Assert.NotNull(layer);

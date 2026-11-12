@@ -111,6 +111,21 @@
                     PointerReleased="OnMapPointerReleased" />
             </Grid>
             <Border
+                Margin="8"
+                Padding="8,4"
+                CornerRadius="4"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                Visibility="{Binding BackgroundNoticeVisibility, Mode=OneWay}"
+                AutomationProperties.AutomationId="MapBackgroundNotice"
+                IsHitTestVisible="False">
+                <TextBlock
+                    Text="{Binding BackgroundNotice, Mode=OneWay}"
+                    FontSize="12"
+                    TextWrapping="Wrap" />
+            </Border>
+            <Border
                 x:Name="MapStatusOverlay"
                 Background="#D0000000"
                 Visibility="Collapsed"

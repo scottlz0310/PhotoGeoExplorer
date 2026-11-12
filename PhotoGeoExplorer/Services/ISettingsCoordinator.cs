@@ -39,6 +39,11 @@ internal interface ISettingsCoordinator : IDisposable
 
     void ChangeMapTileSource(MapTileSourceType sourceType);
 
+    /// <summary>
+    /// 背景地図が参照する機密値（Mapbox トークン等）の変更を、表示中の地図へ反映する
+    /// </summary>
+    void RefreshMapBackground();
+
     void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View);
 
     Task ExportSettingsAsync();

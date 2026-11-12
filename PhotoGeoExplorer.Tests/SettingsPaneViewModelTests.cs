@@ -15,6 +15,8 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     private readonly WorkspaceState _workspaceState = new();
     private readonly MainViewModel _mainViewModel;
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
+    private readonly InMemorySecretStore _secretStore = new();
+    private readonly FakeMapboxConnectionTester _connectionTester = new();
 
     public SettingsPaneViewModelTests()
     {
@@ -44,7 +46,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
             mapTileSource: MapTileSourceType.EsriWorldImagery);
         _fileBrowserPaneViewModel.ShowImagesOnly = false;
 
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         Assert.Equal("ja-JP", viewModel.Language);
@@ -69,17 +71,69 @@ public sealed class SettingsPaneViewModelTests : IDisposable
             mapZoomLevel: 14,
             mapTileSource: MapTileSourceType.OpenStreetMap);
 
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         Assert.Equal("system", viewModel.Language);
+    }
+
+    [Theory]
+    [InlineData(0, MapTileSourceType.OpenStreetMap)]
+    [InlineData(1, MapTileSourceType.EsriWorldImagery)]
+    [InlineData(2, MapTileSourceType.MapboxSatellite)]
+    [InlineData(99, MapTileSourceType.OpenStreetMap)]
+    internal async Task MapTileSourceIndexMapsToSourceType(int index, MapTileSourceType expected)
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+        viewModel.MapTileSource = MapTileSourceType.EsriWorldImagery;
+
+        viewModel.MapTileSourceIndex = index;
+
+        Assert.Equal(expected, viewModel.MapTileSource);
+        Assert.Equal(expected, coordinator.LastMapTileSource);
+        Assert.Equal((int)expected, viewModel.MapTileSourceIndex);
+    }
+
+    [Fact]
+    public async Task MapboxTokenSaveAndRemoveToggleAvailabilityAndRefreshMap()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+        Assert.False(viewModel.Mapbox.HasToken);
+
+        viewModel.Mapbox.TokenInput = "pk.public-token";
+        viewModel.Mapbox.SaveTokenCommand.Execute(null);
+
+        Assert.True(viewModel.Mapbox.HasToken);
+        Assert.Equal(1, coordinator.RefreshMapBackgroundCallCount);
+
+        viewModel.Mapbox.RemoveTokenCommand.Execute(null);
+
+        Assert.False(viewModel.Mapbox.HasToken);
+        Assert.Equal(2, coordinator.RefreshMapBackgroundCallCount);
+    }
+
+    [Fact]
+    public async Task InitializeReflectsStoredMapboxToken()
+    {
+        _secretStore.Set(SecretKeys.MapboxAccessToken, "pk.public-token");
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
+
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        Assert.True(viewModel.Mapbox.HasToken);
+        Assert.Equal(string.Empty, viewModel.Mapbox.TokenInput);
     }
 
     [Fact]
     public async Task SaveCommandPersistsCurrentState()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.Language = "en-US";
@@ -115,7 +169,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task PropertyChangesApplyImmediately()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.ThemeIndex = 2;
@@ -135,7 +189,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task PaneRegionViewSelectionSwapsDuplicateAssignments()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.PaneLayout.PaneRegion1ViewIndex = (int)PaneViewType.Map;
@@ -152,7 +206,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task PaneLayoutPresetIndexMapsKnownAndDefaultValues()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.PaneLayout.PaneLayoutPresetIndex = 0;
@@ -166,7 +220,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task RegionLabelsFollowSelectedLayoutPreset()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         Assert.Equal(LocalizationService.GetString("SettingsPaneLayoutRegionLeft"), viewModel.PaneLayout.Region1Label);
@@ -188,7 +242,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task PaneRegion2SelectionSwapsWithRegion1WhenDuplicate()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.PaneLayout.PaneRegion2ViewIndex = (int)PaneViewType.File;
@@ -202,7 +256,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task PaneRegion2SelectionSwapsWithRegion3WhenDuplicate()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.PaneLayout.PaneRegion2ViewIndex = (int)PaneViewType.Map;
@@ -216,7 +270,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task PaneRegion3SelectionSwapsWithRegion1OrRegion2WhenDuplicate()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.PaneLayout.PaneRegion3ViewIndex = (int)PaneViewType.Preview;
@@ -234,7 +288,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task PaneRegionSelectionAcceptsUnexpectedEnumWithoutSwapping()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.PaneLayout.PaneRegion2View = (PaneViewType)99;
@@ -248,7 +302,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task MapDefaultZoomLevelValueIgnoresNaNAndInfinity()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.MapDefaultZoomLevel = 14;
@@ -267,7 +321,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task SaveIfDirtyAsyncPersistsCurrentState()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.ThemeIndex = 2;
@@ -286,7 +340,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task SaveIfDirtyAsyncSkipsWhenNoChanges()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         await viewModel.SaveIfDirtyAsync().ConfigureAwait(true);
@@ -298,7 +352,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     public async Task ResetCommandAppliesDefaultsImmediately()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.Theme = ThemePreference.Dark;
@@ -326,7 +380,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         {
             ShowQuickStartOnStartup = false
         };
-        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester);
         await viewModel.InitializeAsync().ConfigureAwait(true);
 
         viewModel.Theme = ThemePreference.Dark;
@@ -466,6 +520,13 @@ public sealed class SettingsPaneViewModelTests : IDisposable
             LastMapTileSource = sourceType;
             _mainViewModel.ApplySettingsState(LastLanguageTag, LastTheme, LastMapZoomLevel, LastMapTileSource);
         }
+
+        public void RefreshMapBackground()
+        {
+            RefreshMapBackgroundCallCount++;
+        }
+
+        public int RefreshMapBackgroundCallCount { get; private set; }
 
         public void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
         {
