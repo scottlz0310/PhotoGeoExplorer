@@ -30,7 +30,9 @@ fixes:
 ignore:
   - "PhotoGeoExplorer.Tests/**"
   - "PhotoGeoExplorer.E2E/**"
-  - "PhotoGeoExplorer/Panes/**/*View.xaml.cs"
+  # Pane code-behind (*View.xaml.cs and *ViewControl.xaml.cs). The former
+  # "*View.xaml.cs" glob missed the Map and Preview panes (#303).
+  - "PhotoGeoExplorer/Panes/**/*.xaml.cs"
   # View-layer UI construction helpers (create WinRT types directly;
   # not unit-testable; View responsibility per MVVM guardrails).
   # Split out from *View.xaml.cs, so exclude them too. Testable pure
@@ -41,3 +43,8 @@ ignore:
   - "PhotoGeoExplorer/Panes/FileBrowser/FileBrowserDialogs.cs"
   - "PhotoGeoExplorer/Panes/FileBrowser/FileBrowserDragDropHandler.cs"
   - "PhotoGeoExplorer/Panes/FileBrowser/FileBrowserMenuBuilder.cs"
+  # WinUI Panel (measure/arrange only). The width allocation lives in
+  # PriorityCollapseLayout, which stays tracked (#303).
+  - "PhotoGeoExplorer/Panes/Map/PriorityCollapsePanel.cs"
+  # The ignore list is pinned by CoverageExclusionRatchetTests. Update its
+  # allowlist (with a reason) when changing this list (#303).
