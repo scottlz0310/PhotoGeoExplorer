@@ -19,6 +19,8 @@ namespace PhotoGeoExplorer.Tests;
 /// </summary>
 public partial class CoverageExclusionRatchetTests
 {
+    private const string CoverletTrackerNamespace = "Coverlet.Core.Instrumentation.Tracker";
+
     // codecov.yml の ignore。キーは codecov.yml に書いた文字列そのもの
     private static readonly Dictionary<string, string> AllowedCodecovIgnores = new(StringComparer.Ordinal)
     {
@@ -167,6 +169,13 @@ public partial class CoverageExclusionRatchetTests
 
         foreach (var type in assembly.GetTypes())
         {
+            // カバレッジ計測付きの実行では、Coverlet が計測用の型（名前に実行ごとの GUID を含み、
+            // [ExcludeFromCodeCoverage] 付き）をアセンブリへ挿入する。アプリが宣言した除外ではない
+            if (type.Namespace == CoverletTrackerNamespace)
+            {
+                continue;
+            }
+
             if (type.IsDefined(typeof(ExcludeFromCodeCoverageAttribute), inherit: false))
             {
                 yield return type.FullName!;
