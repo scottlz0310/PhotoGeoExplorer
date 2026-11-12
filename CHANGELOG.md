@@ -24,6 +24,12 @@
   - `MapLocationInfoViewModel`（`MapPaneViewModel` の子）が 3 項目を独立に解決する。選択が変わると、新しい写真のメタデータ読み込みを待たずに表示を消して直前の解決をキャンセルし、古い地点の結果は表示しない。設定でオフにした項目は解決処理も呼ばない
   - 幅が足りないときは「緯度・経度を非表示 → 道路名を末尾省略 → 字地名を末尾省略」の順に省略し、右端の保存ボタンを保つ。幅の判定は View の `PriorityCollapsePanel` が行い、割り当ての計算は UI に依存しない `PriorityCollapseLayout` に分けた
   - 表示項目の設定 4 つ（`ShowMapHeaderAddress`・`ShowMapHeaderRoadName`・`ShowMapHeaderCoordinates`・`MapHeaderIncludePrefecture`）を追加した。設定画面の「地図」と、地図ヘッダーの右クリックメニューの両方から切り替えられ、変更は自動で保存する
+- 国勢調査 小地域のポリゴンから字地名を判定するエンジンを追加（#294 の 1 つ目。この時点では画面から呼ばれず、表示は変わらない）
+  - `AreaShapefileReader` が、e-Stat「国勢調査 小地域（町丁・字等別）境界データ」の Shapefile（世界測地系・緯度経度）を読む。座標系が緯度経度でない・必須属性がない・ポリゴンがない場合は、理由を区別して拒否する
+  - `AreaDataset` が、陸の町丁字への内包を最優先に判定する。どの小地域にも入らない地点は 30m 以内の最近傍へ寄せ、水面の中でも 30m 以内に陸があれば陸を優先する。距離はその地点での局所的なメートル換算で測る
+  - `AreaNameResolver`（`IAreaNameResolver` の実装）が、候補の都道府県のデータを読み込んで保持する（LRU、既定 4 都道府県）。同じ都道府県への同時要求は 1 回の読み込みを共有し、未導入・失敗した読み込みは保持しない
+  - 都道府県の絞り込み（`IPrefectureLocator`）と、端末に導入したデータの読み込み（`IAreaDataSource`）はインターフェースだけで、実装は後続の PR で追加する
+  - `PhotoGeoExplorer.Core` に `NetTopologySuite` 2.6.0（アプリ本体と同じ版）と `NetTopologySuite.IO.Esri.Shapefile` 1.2.0 を追加した
 
 ### 修正
 - クリップボードの Cut 操作完了時における状態変化通知（`PropertyChanged`）がバックグラウンドスレッドで発火し、WinUI 3 で例外が発生してフォルダー再読み込み（`RefreshAsync`）が中断される問題を修正
