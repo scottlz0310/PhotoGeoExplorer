@@ -76,9 +76,12 @@ sequenceDiagram
 ### 3.2 実行制御（`ViewExtentRenderCoordinator`）
 
 - 同時に走る描画は 1 つ。待ち行列は持たず、**未着手の要求は最新の 1 件で置き換える**。
-- 新しい要求が来たら実行中の描画をキャンセルする。描画の主要ループ（レイヤー・フィーチャー単位）でキャンセルを確認する。
+- **実行中の描画は、原則として最後まで走らせる。** 新しい要求のたびにキャンセルすると、連続したパン・ズームの間は確定描画が一度も完了せず、直前画像が表示範囲から外れて背景が白紙になる。完了した画像は最新の要求とは少しずれるが、地理範囲に合わせて配置するので位置は正しく、直前画像として使える。
+- 実行中の描画をキャンセルするのは、結果が使えないと分かっている場合だけにする: ソース・スタイルの切り替え、レイヤーの破棄、実行中の描画範囲が現在の表示範囲と重ならなくなった場合、取得ズームが変わった場合。描画の主要ループ（レイヤー・フィーチャー単位）でキャンセルを確認する。
+- この方針（完走させる／キャンセルする条件）は P2 で連続操作の計測をして確定する。
 - 完了した画像は世代番号を照合し、最新でなければ破棄する（古い画像への巻き戻りを防ぐ）。
-- 画像の交換は `IUiDispatcher` で UI スレッドへ移す。交換で不要になった `SKImage` は直ちに `Dispose` する。
+- 画像の交換は `IUiDispatcher` で UI スレッドへ移す。
+- **画像の所有権**: `SKImage` は参照カウントつきのホルダーで持つ。描画する側（Mapsui のスタイルレンダラー、PNG 保存）は描画の間だけ参照を取得し、終わったら返す。交換で外れた画像は、参照がすべて返ってから `Dispose` する。Mapsui の描画が UI スレッド以外で走る構成でも、解放済みの画像を描かないようにするため。交換の直後に無条件で `Dispose` しない。
 - このクラスは Mapsui にも WinUI にも依存させず、単体テストで順序・キャンセル・世代を検証できるようにする。
 
 ### 3.3 Mapsui への注入（`ViewExtentImageLayer`）
@@ -108,7 +111,12 @@ sequenceDiagram
 
 ### 3.7 PNG 保存
 
-保存時のビューポートと `pixelDensity` で確定描画を 1 回行い、その画像をレイヤーに設定してから `RenderToBitmapStream` を呼ぶ。操作中の変形表示（低解像度）のまま保存しない。`IMapImageRenderer` の呼び出し側（`MapImageService`）に「背景の確定を待つ」段を足す。
+保存時のビューポートと `pixelDensity` で確定描画を 1 回行い、**保存専用のレイヤー**に入れて `RenderToBitmapStream` へ渡す。操作中の変形表示（低解像度）のまま保存しない。
+
+- 表示中のレイヤーには触らない。保存用の画像を表示中のレイヤーへ設定すると、画面が一瞬ずれた表示になり、コーディネーターの交換・解放と競合する。
+- `MapsuiMapImageRenderer` は現在 `map.Layers` をそのまま描いている。これを「保存用の背景レイヤー（`IMapBackground.CreateExportLayersAsync` の戻り値）＋写真マーカーのレイヤー」のリストを受け取る形に変える。ラスタの背景は表示中のレイヤーをそのまま返す。
+- 保存用のレイヤーと画像は、保存が終わったら破棄する。
+- 背景とピンは同じビューポートのスナップショットから描くので、古い背景と新しいピンが混在しない。
 
 ### 3.8 型契約の整理
 
@@ -117,11 +125,15 @@ sequenceDiagram
 ```csharp
 internal interface IMapBackground : IDisposable
 {
-    ILayer Layer { get; }
+    IReadOnlyList<ILayer> Layers { get; }   // 下から順。ラスタ・ベクター単体は 1 要素
     string AttributionText { get; }
-    Task EnsureRenderedAsync(Viewport viewport, float pixelDensity, CancellationToken ct); // ラスタは即完了
+
+    // PNG 保存用。ラスタは Layers をそのまま返す。ベクターは保存用に確定描画した別レイヤーを返す。
+    Task<IMapExportLayers> CreateExportLayersAsync(Viewport viewport, float pixelDensity, CancellationToken ct);
 }
 ```
+
+レイヤーは最初から複数を前提にする。航空写真＋道路オーバーレイ（§9）は 2 層になるため、単一レイヤーの契約で始めると `MapPaneViewModel`・PNG 保存・破棄処理を後で作り直すことになる。
 
 この整理は [01](01-mapbox-satellite.md) の `MapBackgroundRequest` と合わせて行い、`MapPaneViewModel` はラスタ／ベクターの違いを知らない状態にする。
 
@@ -136,11 +148,12 @@ internal interface IMapBackground : IDisposable
 
 ## 5. 実装の共有方法
 
-- **PoC（#293）**: スパイクブランチで PhotoMapStudio の `Tiles/Vector` を一時的に取り込む。このブランチは `main` へマージしない。
+- **PoC（#293）**: スパイクブランチで PhotoMapStudio の `Tiles/Vector` を一時的に取り込む。このブランチは `main` へマージしない。手順書・基準値・計測結果などの成果物（`docs/Architecture/MapEnhancement/poc/`）は、取り込んだコードを含まない別ブランチの PR で `main` へ入れる。
 - **製品統合（#295）**: PhotoMapStudio 側でライブラリを切り出して NuGet パッケージにし、PhotoGeoExplorer は `PackageReference` で使う。共有の形は操作 PoC が成立してから確定する（PoC の前に抽出作業を始めない）。
   - 取得・デコード層（SkiaSharp 非依存）と描画層（SkiaSharp 依存）を別パッケージにする。最寄り道路名（[03](03-location-info.md)）は前者だけで足りる。
   - コピーでの二重保守、サブモジュール（Core 全体と不要な依存を引き込む）は採らない。
-  - パッケージ化の Issue は、#293 の採否が「採用」になった時点で photo-map-studio に起票する。
+  - **取得・デコード層のパッケージ化は、描画の採否と独立に進める。** #296（最寄り道路名）の着手時に photo-map-studio へ起票する。#293 が「不採用」でも行う。
+  - 描画層のパッケージ化は、#293 の採否が「採用」になった時点で photo-map-studio に起票する。
 
 ## 6. 依存関係の方針
 
@@ -195,7 +208,7 @@ PoC の主題は、**見た目と操作性能をほぼ変えずに、描画内�
 - Mapsui への接続方式と制約
 - 次の実装単位の提案
 
-結果は #293 に記録し、「採用／条件つき採用／不採用」を決める。不採用の場合、#295・#297 は閉じる。取得・デコード層の共有（道路名サジェスト用）は、描画の採否と切り離して進められる。
+結果は #293 に記録し、「採用／条件つき採用／不採用」を決める。不採用の場合、#295・#297 は閉じる。取得・デコード層の共有（道路名サジェスト用）は、描画の採否と切り離して進める（§5）。
 
 ## 8. 製品統合（#295）の範囲
 
@@ -212,7 +225,7 @@ PoC の主題は、**見た目と操作性能をほぼ変えずに、描画内�
 
 - 背景を透過でクリアし、面ポリゴンを描かず、道路線とラベルだけを描くスタイルプロファイルを足す。
 - 航空写真と同じビューポート・倍率・DPI で描き、PNG 保存でも両方を合成する。
-- 構成は「ラスタの `TileLayer` ＋ `ViewExtentImageLayer`」の 2 層になる。§3.8 の `IMapBackground` を複数レイヤーに対応させる。
+- 構成は「ラスタの `TileLayer` ＋ `ViewExtentImageLayer`」の 2 層になる。§3.8 の `IMapBackground.Layers` に 2 要素を入れる。
 
 ## 10. リスク
 
