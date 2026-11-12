@@ -518,6 +518,106 @@ public class MapPaneViewModelTests
         }
     }
 
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("   ", false)]
+    [InlineData("pk.stored-token", true)]
+    public void SwitchTileSourceFallsBackToOpenStreetMapWhenMapboxTokenIsUnavailable(string? storedToken, bool storeFails)
+    {
+        // Arrange
+        var secretStore = new InMemorySecretStore();
+        if (storedToken is not null)
+        {
+            secretStore.Set(SecretKeys.MapboxAccessToken, storedToken);
+        }
+
+        if (storeFails)
+        {
+            secretStore.FailWithVaultError();
+        }
+
+        var viewModel = CreateViewModelWithSecretStore(secretStore);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+
+        try
+        {
+            // Act
+            viewModel.SwitchTileSource(MapTileSourceType.MapboxSatellite);
+
+            // Assert: 表示は OSM に落とすが、選択されている設定値は書き換えない
+            Assert.Equal(MapTileSourceType.MapboxSatellite, viewModel.CurrentTileSource);
+            Assert.Equal("OpenStreetMap", GetBaseTileLayer(viewModel).Name);
+            Assert.Equal(MapAttribution.OpenStreetMapText, viewModel.AttributionText);
+            Assert.Equal(LocalizationService.GetString("MapStatus.MapboxTokenMissing"), viewModel.BackgroundNotice);
+            Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, viewModel.BackgroundNoticeVisibility);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    [Fact]
+    public async Task SwitchTileSourceUsesMapboxWhenTokenIsStoredAndReportsAuthenticationFailure()
+    {
+        // Arrange
+        var secretStore = new InMemorySecretStore();
+        secretStore.Set(SecretKeys.MapboxAccessToken, "pk.stored-token");
+        var viewModel = CreateViewModelWithSecretStore(secretStore);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        using var handler = new StubHttpMessageHandler(System.Net.HttpStatusCode.Unauthorized);
+        using var client = new System.Net.Http.HttpClient(handler);
+        var tile = new BruTile.TileInfo { Index = new BruTile.TileIndex(0, 0, 0) };
+
+        try
+        {
+            // Act
+            viewModel.SwitchTileSource(MapTileSourceType.MapboxSatellite);
+
+            // Assert
+            var mapboxSource = Assert.IsType<MapboxSatelliteTileSource>(GetBaseTileLayer(viewModel).TileSource);
+            Assert.Equal(MapTileSourceType.MapboxSatellite, viewModel.CurrentTileSource);
+            Assert.Equal(MapAttribution.MapboxText, viewModel.AttributionText);
+            Assert.Equal(string.Empty, viewModel.BackgroundNotice);
+            Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, viewModel.BackgroundNoticeVisibility);
+
+            // Act: 認証エラー
+            await Assert.ThrowsAsync<System.Net.Http.HttpRequestException>(
+                () => mapboxSource.GetTileAsync(client, tile, CancellationToken.None)).ConfigureAwait(true);
+
+            // Assert: 自動で他の背景へ切り替えず、注意書きだけ出す
+            Assert.Equal(LocalizationService.GetString("MapStatus.MapboxAuthFailed"), viewModel.BackgroundNotice);
+            Assert.IsType<MapboxSatelliteTileSource>(GetBaseTileLayer(viewModel).TileSource);
+
+            // Act: 別の背景へ切り替えた後に、古い背景から遅れて届いた通知
+            viewModel.SwitchTileSource(MapTileSourceType.OpenStreetMap);
+            await Assert.ThrowsAsync<System.Net.Http.HttpRequestException>(
+                () => mapboxSource.GetTileAsync(client, tile, CancellationToken.None)).ConfigureAwait(true);
+
+            // Assert
+            Assert.Equal(string.Empty, viewModel.BackgroundNotice);
+            Assert.Equal(MapAttribution.OpenStreetMapText, viewModel.AttributionText);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    private static MapPaneViewModel CreateViewModelWithSecretStore(ISecretStore secretStore)
+        => new(new MapPaneService(), new WorkspaceState(), new MapImageService(), static () => null, secretStore);
+
+    private static TileLayer GetBaseTileLayer(MapPaneViewModel viewModel)
+    {
+        var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
+        var map = Assert.IsType<Mapsui.Map>(mapField!.GetValue(viewModel));
+        return Assert.IsType<TileLayer>(map.Layers.First());
+    }
+
     private static MemoryLayer SetMapInitializedForTest(MapPaneViewModel viewModel)
     {
         var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -567,14 +667,12 @@ public class MapPaneViewModelTests
 
         public Task LoadCalled => _loadCalled.Task;
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
-            MapTileSourceType tileSource,
-            string userAgent)
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
 
-        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        public TileLayer CreateTileLayer(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -640,14 +738,12 @@ public class MapPaneViewModelTests
 
         public void CompleteLoad(PhotoMetadata? metadata) => _loadCompletion.TrySetResult(metadata);
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
-            MapTileSourceType tileSource,
-            string userAgent)
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
 
-        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        public TileLayer CreateTileLayer(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -677,14 +773,12 @@ public class MapPaneViewModelTests
 
         public Task LoadStarted => _loadStarted.Task;
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
-            MapTileSourceType tileSource,
-            string userAgent)
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
 
-        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        public TileLayer CreateTileLayer(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -784,14 +878,12 @@ public class MapPaneViewModelTests
             _onLoadCompleting = onLoadCompleting;
         }
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
-            MapTileSourceType tileSource,
-            string userAgent)
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
 
-        public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+        public TileLayer CreateTileLayer(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }

@@ -187,6 +187,13 @@ public sealed class SettingsPaneLayoutSectionViewModelTests
         {
         }
 
+        public void RefreshMapBackground()
+        {
+            RefreshMapBackgroundCallCount++;
+        }
+
+        public int RefreshMapBackgroundCallCount { get; private set; }
+
         public void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
         {
             ChangePaneLayoutCallCount++;

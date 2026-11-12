@@ -45,14 +45,13 @@ internal sealed class MapPaneService : IMapPaneService
     }
 
     /// <inheritdoc/>
-    public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(
-        MapTileSourceType tileSource,
-        string userAgent)
+    public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
     {
-        ArgumentNullException.ThrowIfNull(userAgent);
+        ArgumentNullException.ThrowIfNull(background);
 
+        // レイヤー生成が失敗したときに Map を取り残さないよう、先にレイヤーを作る。
+        var tileLayer = CreateTileLayer(background);
         var map = new Mapsui.Map();
-        var tileLayer = CreateTileLayer(tileSource, userAgent);
         map.Layers.Add(tileLayer);
 
         var markerLayer = new MemoryLayer
@@ -67,16 +66,20 @@ internal sealed class MapPaneService : IMapPaneService
     }
 
     /// <inheritdoc/>
-    public TileLayer CreateTileLayer(MapTileSourceType sourceType, string userAgent)
+    public TileLayer CreateTileLayer(MapBackgroundRequest background)
     {
-        ArgumentNullException.ThrowIfNull(userAgent);
+        ArgumentNullException.ThrowIfNull(background);
+        ArgumentNullException.ThrowIfNull(background.UserAgent);
 
-        var persistentCache = CreatePersistentCache(sourceType);
-
-        return sourceType switch
+        return background.SourceType switch
         {
-            MapTileSourceType.EsriWorldImagery => CreateEsriWorldImageryLayer(userAgent, persistentCache),
-            _ => CreateOpenStreetMapLayer(userAgent, persistentCache)
+            MapTileSourceType.MapboxSatellite => CreateMapboxSatelliteLayer(background),
+            MapTileSourceType.EsriWorldImagery => CreateEsriWorldImageryLayer(
+                background.UserAgent,
+                CreatePersistentCache(background.SourceType)),
+            _ => CreateOpenStreetMapLayer(
+                background.UserAgent,
+                CreatePersistentCache(background.SourceType))
         };
     }
 
@@ -219,7 +222,7 @@ internal sealed class MapPaneService : IMapPaneService
             new BruTile.Predefined.GlobalSphericalMercator(),
             "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             name: "OpenStreetMap",
-            attribution: new BruTile.Attribution("© OpenStreetMap contributors", "https://www.openstreetmap.org/copyright"),
+            attribution: new BruTile.Attribution(MapAttribution.OpenStreetMapText, MapAttribution.OpenStreetMapUrl),
             configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
             persistentCache: persistentCache);
 
@@ -232,10 +235,25 @@ internal sealed class MapPaneService : IMapPaneService
             new BruTile.Predefined.GlobalSphericalMercator(),
             "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             name: "Esri WorldImagery",
-            attribution: new BruTile.Attribution("Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community"),
+            attribution: new BruTile.Attribution(MapAttribution.EsriText, MapAttribution.EsriUrl),
             configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
             persistentCache: persistentCache);
 
         return new TileLayer(tileSource) { Name = "Esri WorldImagery" };
+    }
+
+    private static TileLayer CreateMapboxSatelliteLayer(MapBackgroundRequest background)
+    {
+        if (string.IsNullOrWhiteSpace(background.MapboxAccessToken))
+        {
+            throw new ArgumentException("Mapbox access token is required for the Mapbox Satellite background.", nameof(background));
+        }
+
+        var tileSource = new MapboxSatelliteTileSource(
+            background.MapboxAccessToken,
+            background.UserAgent,
+            background.AuthenticationFailed);
+
+        return new TileLayer(tileSource) { Name = MapboxSatelliteTileSource.SourceName };
     }
 }

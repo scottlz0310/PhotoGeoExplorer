@@ -956,4 +956,70 @@
   <data name="Message.MapImageSaveFailed" xml:space="preserve">
     <value>Failed to save the map image:</value>
   </data>
+  <data name="SettingsPaneMapTileSourceMapbox.Content" xml:space="preserve">
+    <value>Mapbox Satellite (access token required)</value>
+  </data>
+  <data name="SettingsPaneMapboxTokenBox.Header" xml:space="preserve">
+    <value>Mapbox access token</value>
+  </data>
+  <data name="SettingsPaneMapboxTokenBox.PlaceholderText" xml:space="preserve">
+    <value>Public token starting with pk.</value>
+  </data>
+  <data name="SettingsPaneMapboxSaveButton.Content" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="SettingsPaneMapboxTestButton.Content" xml:space="preserve">
+    <value>Test connection</value>
+  </data>
+  <data name="SettingsPaneMapboxRemoveButton.Content" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="SettingsPaneMapboxDescription.Text" xml:space="preserve">
+    <value>The token is stored in Windows Credential Manager and is never written to the settings file or exports. Mapbox usage and charges are billed to the account that issued the token.</value>
+  </data>
+  <data name="SettingsPaneMapboxTokenLink.Content" xml:space="preserve">
+    <value>Create an access token at Mapbox</value>
+  </data>
+  <data name="Mapbox.TokenStateSaved" xml:space="preserve">
+    <value>Token: saved</value>
+  </data>
+  <data name="Mapbox.TokenStateNone" xml:space="preserve">
+    <value>Token: not set</value>
+  </data>
+  <data name="Mapbox.TokenSaved" xml:space="preserve">
+    <value>The token was saved.</value>
+  </data>
+  <data name="Mapbox.TokenRemoved" xml:space="preserve">
+    <value>The token was removed.</value>
+  </data>
+  <data name="Mapbox.TokenEmpty" xml:space="preserve">
+    <value>Enter a token.</value>
+  </data>
+  <data name="Mapbox.TokenSecretRejected" xml:space="preserve">
+    <value>Secret tokens (sk.) cannot be saved. Use a public token (pk.) so that a high-privilege token is not kept in the app.</value>
+  </data>
+  <data name="Mapbox.TokenInvalidFormat" xml:space="preserve">
+    <value>The token format is invalid. Enter a public token starting with pk.</value>
+  </data>
+  <data name="Mapbox.TokenStoreFailed" xml:space="preserve">
+    <value>Could not access Credential Manager. See the log for details.</value>
+  </data>
+  <data name="Mapbox.TestRunning" xml:space="preserve">
+    <value>Checking the connection...</value>
+  </data>
+  <data name="Mapbox.TestSucceeded" xml:space="preserve">
+    <value>Connection succeeded.</value>
+  </data>
+  <data name="Mapbox.TestAuthFailed" xml:space="preserve">
+    <value>The token is invalid or lacks permission.</value>
+  </data>
+  <data name="Mapbox.TestNetworkError" xml:space="preserve">
+    <value>Could not connect to Mapbox. Check your network.</value>
+  </data>
+  <data name="MapStatus.MapboxTokenMissing" xml:space="preserve">
+    <value>Showing OpenStreetMap because no Mapbox token is set</value>
+  </data>
+  <data name="MapStatus.MapboxAuthFailed" xml:space="preserve">
+    <value>The Mapbox token is invalid or lacks permission</value>
+  </data>
 </root>

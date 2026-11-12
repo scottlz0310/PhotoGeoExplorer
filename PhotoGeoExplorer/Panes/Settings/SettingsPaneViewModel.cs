@@ -34,7 +34,9 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
     internal SettingsPaneViewModel(
         ISettingsCoordinator settingsCoordinator,
         FileBrowserPaneViewModel fileBrowserPaneViewModel,
-        MainViewModel shellViewModel)
+        MainViewModel shellViewModel,
+        ISecretStore secretStore,
+        IMapboxConnectionTester mapboxConnectionTester)
     {
         _settingsCoordinator = settingsCoordinator ?? throw new ArgumentNullException(nameof(settingsCoordinator));
         _fileBrowserPaneViewModel = fileBrowserPaneViewModel ?? throw new ArgumentNullException(nameof(fileBrowserPaneViewModel));
@@ -43,6 +45,10 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         PaneLayout = new SettingsPaneLayoutSectionViewModel(
             _settingsCoordinator,
             notifyChanged: () => _hasPendingChanges = true);
+        Mapbox = new SettingsPaneMapboxSectionViewModel(
+            secretStore,
+            mapboxConnectionTester,
+            tokenChanged: _settingsCoordinator.RefreshMapBackground);
 
         SaveCommand = new RelayCommand(() => SaveAsync());
         ResetCommand = new RelayCommand(() => ResetAsync());
@@ -139,16 +145,26 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
     public int MapTileSourceIndex
     {
-        get => _mapTileSource == MapTileSourceType.EsriWorldImagery ? 1 : 0;
+        get => _mapTileSource switch
+        {
+            MapTileSourceType.EsriWorldImagery => 1,
+            MapTileSourceType.MapboxSatellite => 2,
+            _ => 0
+        };
         set
         {
-            MapTileSource = value == 1
-                ? MapTileSourceType.EsriWorldImagery
-                : MapTileSourceType.OpenStreetMap;
+            MapTileSource = value switch
+            {
+                1 => MapTileSourceType.EsriWorldImagery,
+                2 => MapTileSourceType.MapboxSatellite,
+                _ => MapTileSourceType.OpenStreetMap
+            };
         }
     }
 
     public SettingsPaneLayoutSectionViewModel PaneLayout { get; }
+
+    public SettingsPaneMapboxSectionViewModel Mapbox { get; }
 
     public bool ShowImagesOnly
     {
@@ -306,6 +322,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             ShowImagesOnly = _fileBrowserPaneViewModel.ShowImagesOnly;
             ShowQuickStartOnStartup = _settingsCoordinator.ShowQuickStartOnStartup;
             PaneLayout.RefreshFromCoordinator();
+            Mapbox.Refresh();
             LastFolderPath = _fileBrowserPaneViewModel.CurrentFolderPath;
         }
         finally

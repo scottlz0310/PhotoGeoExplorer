@@ -956,4 +956,70 @@
   <data name="Message.MapImageSaveFailed" xml:space="preserve">
     <value>地図画像の保存に失敗しました:</value>
   </data>
+  <data name="SettingsPaneMapTileSourceMapbox.Content" xml:space="preserve">
+    <value>Mapbox Satellite (衛星・要アクセストークン)</value>
+  </data>
+  <data name="SettingsPaneMapboxTokenBox.Header" xml:space="preserve">
+    <value>Mapbox アクセストークン</value>
+  </data>
+  <data name="SettingsPaneMapboxTokenBox.PlaceholderText" xml:space="preserve">
+    <value>pk. で始まる公開トークン</value>
+  </data>
+  <data name="SettingsPaneMapboxSaveButton.Content" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="SettingsPaneMapboxTestButton.Content" xml:space="preserve">
+    <value>接続テスト</value>
+  </data>
+  <data name="SettingsPaneMapboxRemoveButton.Content" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="SettingsPaneMapboxDescription.Text" xml:space="preserve">
+    <value>トークンは Windows の資格情報マネージャーに保存され、設定ファイルやエクスポートには含まれません。Mapbox の利用量と料金は、トークンを発行したアカウントに計上されます。</value>
+  </data>
+  <data name="SettingsPaneMapboxTokenLink.Content" xml:space="preserve">
+    <value>Mapbox でアクセストークンを発行する</value>
+  </data>
+  <data name="Mapbox.TokenStateSaved" xml:space="preserve">
+    <value>トークン: 設定済み</value>
+  </data>
+  <data name="Mapbox.TokenStateNone" xml:space="preserve">
+    <value>トークン: 未設定</value>
+  </data>
+  <data name="Mapbox.TokenSaved" xml:space="preserve">
+    <value>トークンを保存しました。</value>
+  </data>
+  <data name="Mapbox.TokenRemoved" xml:space="preserve">
+    <value>トークンを削除しました。</value>
+  </data>
+  <data name="Mapbox.TokenEmpty" xml:space="preserve">
+    <value>トークンを入力してください。</value>
+  </data>
+  <data name="Mapbox.TokenSecretRejected" xml:space="preserve">
+    <value>シークレットトークン（sk.）は保存できません。権限の強いトークンをアプリに置かないため、公開トークン（pk.）を使ってください。</value>
+  </data>
+  <data name="Mapbox.TokenInvalidFormat" xml:space="preserve">
+    <value>トークンの形式が正しくありません。pk. で始まる公開トークンを入力してください。</value>
+  </data>
+  <data name="Mapbox.TokenStoreFailed" xml:space="preserve">
+    <value>資格情報マネージャーへアクセスできませんでした。詳細はログを確認してください。</value>
+  </data>
+  <data name="Mapbox.TestRunning" xml:space="preserve">
+    <value>接続を確認しています...</value>
+  </data>
+  <data name="Mapbox.TestSucceeded" xml:space="preserve">
+    <value>接続に成功しました。</value>
+  </data>
+  <data name="Mapbox.TestAuthFailed" xml:space="preserve">
+    <value>トークンが無効、または権限がありません。</value>
+  </data>
+  <data name="Mapbox.TestNetworkError" xml:space="preserve">
+    <value>Mapbox に接続できませんでした。ネットワークを確認してください。</value>
+  </data>
+  <data name="MapStatus.MapboxTokenMissing" xml:space="preserve">
+    <value>Mapbox のトークンが未設定のため OpenStreetMap を表示しています</value>
+  </data>
+  <data name="MapStatus.MapboxAuthFailed" xml:space="preserve">
+    <value>Mapbox のトークンが無効、または権限がありません</value>
+  </data>
 </root>

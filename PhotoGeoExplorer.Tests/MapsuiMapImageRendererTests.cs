@@ -26,6 +26,51 @@ public sealed class MapsuiMapImageRendererTests
         Assert.Equal(120, BinaryPrimitives.ReadInt32BigEndian(header[20..24]));
     }
 
+    [Fact]
+    public void RenderPngIncludesAttributionWidget()
+    {
+        var renderer = new MapsuiMapImageRenderer();
+        var viewport = new Viewport(0, 0, 1, 0, 400, 200);
+
+        using var plainMap = new Map();
+        using var plainStream = renderer.RenderPng(plainMap, viewport, pixelDensity: 1f);
+        using var plainImage = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(plainStream);
+
+        using var attributedMap = new Map();
+        new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter().Attach(
+            attributedMap,
+            PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatellite);
+        using var attributedStream = renderer.RenderPng(attributedMap, viewport, pixelDensity: 1f);
+        using var attributedImage = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(attributedStream);
+
+        // 帰属表示は右下に描かれる。右下の領域だけが変わり、左上は変わらないこと
+        Assert.True(CountDifferentPixels(plainImage, attributedImage, 200, 150, 400, 200) > 50);
+        Assert.Equal(0, CountDifferentPixels(plainImage, attributedImage, 0, 0, 200, 100));
+    }
+
+    private static int CountDifferentPixels(
+        SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32> left,
+        SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32> right,
+        int fromX,
+        int fromY,
+        int toX,
+        int toY)
+    {
+        var count = 0;
+        for (var y = fromY; y < toY; y++)
+        {
+            for (var x = fromX; x < toX; x++)
+            {
+                if (left[x, y] != right[x, y])
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

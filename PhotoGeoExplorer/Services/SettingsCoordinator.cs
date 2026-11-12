@@ -165,6 +165,11 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         }
     }
 
+    public void RefreshMapBackground()
+    {
+        _mapPaneViewModel.SwitchTileSource(_mapTileSource);
+    }
+
     public void ChangePaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
     {
         var normalizedPreset = SettingsNormalization.NormalizePaneLayoutPreset(preset);

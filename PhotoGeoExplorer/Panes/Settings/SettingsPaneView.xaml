@@ -117,7 +117,56 @@
                             <RadioButton
                                 x:Uid="SettingsPaneMapTileSourceEsri"
                                 Content="Esri World Imagery (衛星)" />
+                            <RadioButton
+                                x:Uid="SettingsPaneMapTileSourceMapbox"
+                                Content="Mapbox Satellite (衛星・要アクセストークン)"
+                                IsEnabled="{Binding Mapbox.HasToken, Mode=OneWay}" />
                         </RadioButtons>
+
+                        <!-- Mapbox アクセストークン -->
+                        <PasswordBox
+                            x:Uid="SettingsPaneMapboxTokenBox"
+                            Header="Mapbox アクセストークン"
+                            PlaceholderText="pk. で始まる公開トークン"
+                            Password="{Binding Mapbox.TokenInput, Mode=TwoWay}"
+                            AutomationProperties.AutomationId="SettingsMapboxTokenBox"
+                            MinWidth="320"
+                            HorizontalAlignment="Left" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Uid="SettingsPaneMapboxSaveButton"
+                                Content="保存"
+                                Command="{Binding Mapbox.SaveTokenCommand}" />
+                            <Button
+                                x:Uid="SettingsPaneMapboxTestButton"
+                                Content="接続テスト"
+                                Command="{Binding Mapbox.TestConnectionCommand}" />
+                            <Button
+                                x:Uid="SettingsPaneMapboxRemoveButton"
+                                Content="削除"
+                                IsEnabled="{Binding Mapbox.HasToken, Mode=OneWay}"
+                                Command="{Binding Mapbox.RemoveTokenCommand}" />
+                            <TextBlock
+                                Text="{Binding Mapbox.TokenStateText, Mode=OneWay}"
+                                VerticalAlignment="Center"
+                                Opacity="0.7" />
+                        </StackPanel>
+                        <TextBlock
+                            Text="{Binding Mapbox.StatusMessage, Mode=OneWay}"
+                            AutomationProperties.AutomationId="SettingsMapboxStatus"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Uid="SettingsPaneMapboxDescription"
+                            Text="トークンは Windows の資格情報マネージャーに保存され、設定ファイルやエクスポートには含まれません。Mapbox の利用量と料金は、トークンを発行したアカウントに計上されます。"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Opacity="0.7"
+                            TextWrapping="Wrap" />
+                        <HyperlinkButton
+                            x:Uid="SettingsPaneMapboxTokenLink"
+                            Content="Mapbox でアクセストークンを発行する"
+                            NavigateUri="https://account.mapbox.com/access-tokens/"
+                            Padding="0" />
                     </StackPanel>
 
                     <!-- 表示設定 -->

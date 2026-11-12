@@ -5,7 +5,8 @@ namespace PhotoGeoExplorer.Models;
 internal enum MapTileSourceType
 {
     OpenStreetMap = 0,
-    EsriWorldImagery = 1
+    EsriWorldImagery = 1,
+    MapboxSatellite = 2
 }
 
 internal enum PaneLayoutPreset

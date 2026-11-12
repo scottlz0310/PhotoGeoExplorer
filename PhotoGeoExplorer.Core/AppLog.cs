@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Globalization;
 using System.Threading;
+using PhotoGeoExplorer.Security;
 
 namespace PhotoGeoExplorer;
 
@@ -98,7 +99,8 @@ internal static class AppLog
 
         builder.AppendLine();
 
-        var payload = builder.ToString();
+        // トークンを含む URL は例外メッセージ経由で紛れ込むため、呼び出し側に頼らず書き込み直前で伏せる。
+        var payload = LogSanitizer.MaskSecrets(builder.ToString());
 
         if (TryWrite(PrimaryLog, payload))
         {

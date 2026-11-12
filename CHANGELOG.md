@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### 追加
+- 背景地図に Mapbox Satellite（航空写真）を追加 (#291)
+  - 利用者が自分の Mapbox アカウントで発行した公開アクセストークンを設定画面で入力する方式（BYO Token）。アプリにトークンを埋め込まない
+  - トークンは Windows 資格情報ロッカー（`PasswordVault`）に保存し、`settings.json` と設定のエクスポートには含めない。`ISecretStore` で抽象化した
+  - 受け付けるのは公開トークン（`pk.`）だけで、シークレットトークン（`sk.`）は理由を表示して拒否する。形式検証は `MapboxAccessToken.TryParse`（Core）に置いた
+  - 設定画面に、トークンの入力（`PasswordBox`）・保存・削除・接続テスト・発行ページへのリンクを追加。トークン未設定の間は「Mapbox Satellite」を選べない
+  - Raster Tiles API（`/v4/mapbox.satellite/{z}/{x}/{y}.jpg90`）を使う。Mapbox のタイルは端末へ永続キャッシュしない（メモリキャッシュのみ）
+  - 設定は Mapbox でもトークンがない場合は OpenStreetMap を表示し、地図の左上に注意書きを出す。保存済みの設定値は書き換えない
+  - タイル取得が認証エラー（401・403）になった場合は、他の背景へ自動で切り替えず、地図の左上に注意書きを出す
+  - `app.log` とクラッシュレポートで `access_token=` の値を `***` に伏せる（書き込み直前に一律で適用）
+- 背景地図の帰属表示を地図の右下に表示し、保存した地図画像（PNG）にも含めるようにした (#291)
+  - Mapsui のウィジェットとして描くため、画面と PNG 保存が同じ経路になる。OpenStreetMap・Esri・Mapbox の 3 つとも同じ仕組みに乗せた
+
 ### 修正
 - クリップボードの Cut 操作完了時における状態変化通知（`PropertyChanged`）がバックグラウンドスレッドで発火し、WinUI 3 で例外が発生してフォルダー再読み込み（`RefreshAsync`）が中断される問題を修正
   - `FileOperationCoordinator.PasteAsync` での `_onClipboardChanged` 呼び出しおよび `FileBrowserPaneViewModel.OnClipboardChanged` での `PropertyChanged` 発火を `_uiDispatcher.RunAsync` で UI スレッドへマーシャリングするようにした
@@ -15,6 +28,7 @@
   - Mapbox 航空写真（BYO Token）、ベクター地図レンダラーの統合と PoC 計画、撮影位置の字地名・道路名の判定と地図ヘッダー表示の 3 テーマについて、方針・設計判断・Issue の依存関係を整理した（実装は未着手。#291〜#299 で追跡）
 
 ### 変更
+- `IMapPaneService.InitializeMap` / `CreateTileLayer` の引数を `MapBackgroundRequest` にまとめた (#291)。背景ごとの追加パラメータ（Mapbox のトークン等）を渡せるようにするため
 - Playwright MCP の実行時一時フォルダー（`.playwright-mcp/`）を `.gitignore` に追加
 - `renovate.json` の `extends` から、中央プリセットで解除済みの非推奨プリセット（`options/automerge`・`options/schedule`・`options/security`）への参照を削除した。スケジュール・待機期間・自動マージ等は中央側で既に解除されているため更新の挙動は変わらず、Dependency Dashboard の警告表示が消える。
 
