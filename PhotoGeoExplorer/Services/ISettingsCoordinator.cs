@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.Services;
@@ -22,6 +23,11 @@ internal interface ISettingsCoordinator : IDisposable
     PaneViewType PaneRegion2View { get; }
 
     PaneViewType PaneRegion3View { get; }
+
+    /// <summary>
+    /// 地図ヘッダーの表示項目。変更は自動的に保存される
+    /// </summary>
+    MapHeaderDisplaySettings MapHeaderDisplay { get; }
 
     event EventHandler<PaneLayoutChangedEventArgs>? PaneLayoutChanged;
 

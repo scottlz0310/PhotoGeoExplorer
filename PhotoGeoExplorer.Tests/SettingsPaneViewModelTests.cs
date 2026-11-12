@@ -357,6 +357,8 @@ public sealed class SettingsPaneViewModelTests : IDisposable
 
         viewModel.Theme = ThemePreference.Dark;
         viewModel.MapDefaultZoomLevel = 16;
+        viewModel.MapHeader.ShowCoordinates = false;
+        viewModel.MapHeader.IncludePrefecture = true;
 
         viewModel.ResetCommand.Execute(null);
         await WaitForAsync(() => coordinator.SaveCallCount == 1).ConfigureAwait(true);
@@ -371,6 +373,11 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.Equal((int)AppSettings.DefaultPaneRegion1View, viewModel.PaneLayout.PaneRegion1ViewIndex);
         Assert.Equal((int)AppSettings.DefaultPaneRegion2View, viewModel.PaneLayout.PaneRegion2ViewIndex);
         Assert.Equal((int)AppSettings.DefaultPaneRegion3View, viewModel.PaneLayout.PaneRegion3ViewIndex);
+        Assert.Same(coordinator.MapHeaderDisplay, viewModel.MapHeader);
+        Assert.True(viewModel.MapHeader.ShowAddress);
+        Assert.True(viewModel.MapHeader.ShowRoadName);
+        Assert.True(viewModel.MapHeader.ShowCoordinates);
+        Assert.False(viewModel.MapHeader.IncludePrefecture);
     }
 
     [Fact]
@@ -520,6 +527,8 @@ public sealed class SettingsPaneViewModelTests : IDisposable
             LastMapTileSource = sourceType;
             _mainViewModel.ApplySettingsState(LastLanguageTag, LastTheme, LastMapZoomLevel, LastMapTileSource);
         }
+
+        public MapHeaderDisplaySettings MapHeaderDisplay { get; } = new();
 
         public void RefreshMapBackground()
         {

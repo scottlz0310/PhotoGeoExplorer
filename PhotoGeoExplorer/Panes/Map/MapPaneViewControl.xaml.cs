@@ -16,10 +16,12 @@ using Mapsui.UI.WinUI;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -49,6 +51,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     public MapPaneViewControl()
     {
         InitializeComponent();
+        ConfigureMapHeaderCollapse();
         _exifLocationPicker = new MapExifLocationPicker(
             canPick: () => _map is not null,
             hideMapStatus: HideMapStatusForExifPick,
@@ -56,6 +59,17 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     }
 
     internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
+
+    // 幅が足りないときは、緯度経度を非表示 → 道路名を末尾省略 → 字地名を末尾省略の順に省略する。
+    // XAML では指定できないため、ここで設定する（理由は PriorityCollapsePanel を参照）
+    private void ConfigureMapHeaderCollapse()
+    {
+        MapHeaderLocationPanel.SetOverflow(MapHeaderAreaName, PriorityCollapseMode.Trim, priority: 1);
+        MapHeaderLocationPanel.SetSeparator(MapHeaderAreaSeparator);
+        MapHeaderLocationPanel.SetOverflow(MapHeaderRoad, PriorityCollapseMode.Trim, priority: 2);
+        MapHeaderLocationPanel.SetSeparator(MapHeaderRoadSeparator);
+        MapHeaderLocationPanel.SetOverflow(MapHeaderCoordinatesButton, PriorityCollapseMode.Hide, priority: 3);
+    }
 
     internal void ConfigureMapImageExport(IDialogService dialogService, IMapImageService mapImageService)
     {
@@ -312,6 +326,66 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         var pixelDensity = ((IMapControl)MapControl).GetPixelDensity()
             ?? throw new InvalidOperationException("Map pixel density is not available.");
         return Task.FromResult(_mapImageService.RenderPng(map, viewport, pixelDensity));
+    }
+
+    private void OnMapHeaderRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        MapHeaderMenu.ShowAt(MapHeaderBar, new FlyoutShowOptions { Position = e.GetPosition(MapHeaderBar) });
+        e.Handled = true;
+    }
+
+    private void OnMapHeaderMenuOpening(object? sender, object e)
+    {
+        if (_viewModel?.LocationInfo.DisplaySettings is not { } settings)
+        {
+            return;
+        }
+
+        MapHeaderMenuShowAddress.IsChecked = settings.ShowAddress;
+        MapHeaderMenuShowRoadName.IsChecked = settings.ShowRoadName;
+        MapHeaderMenuShowCoordinates.IsChecked = settings.ShowCoordinates;
+        MapHeaderMenuIncludePrefecture.IsChecked = settings.IncludePrefecture;
+    }
+
+    private void OnMapHeaderMenuItemClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel?.LocationInfo.DisplaySettings is not { } settings)
+        {
+            return;
+        }
+
+        settings.ShowAddress = MapHeaderMenuShowAddress.IsChecked;
+        settings.ShowRoadName = MapHeaderMenuShowRoadName.IsChecked;
+        settings.ShowCoordinates = MapHeaderMenuShowCoordinates.IsChecked;
+        settings.IncludePrefecture = MapHeaderMenuIncludePrefecture.IsChecked;
+    }
+
+    private void OnCopyCoordinatesClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not { } viewModel || viewModel.LocationInfo.CoordinatesText is not { Length: > 0 } coordinates)
+        {
+            return;
+        }
+
+        try
+        {
+            var dataPackage = new DataPackage();
+            dataPackage.SetText(coordinates);
+            Clipboard.SetContent(dataPackage);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            // 他のアプリがクリップボードを開いている間は失敗する
+            AppLog.Error("Failed to copy the coordinates to the clipboard.", ex);
+            viewModel.RequestNotification(
+                LocalizationService.GetString("Message.CoordinatesCopyFailed"),
+                InfoBarSeverity.Error);
+            return;
+        }
+
+        viewModel.RequestNotification(
+            $"{LocalizationService.GetString("Message.CoordinatesCopied")} {coordinates}",
+            InfoBarSeverity.Success);
     }
 
     private void UpdateMapStatusFromViewModel()

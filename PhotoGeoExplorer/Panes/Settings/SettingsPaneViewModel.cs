@@ -5,6 +5,7 @@ using System.Windows.Input;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 
 namespace PhotoGeoExplorer.Panes.Settings;
@@ -166,6 +167,8 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
     public SettingsPaneMapboxSectionViewModel Mapbox { get; }
 
+    public MapHeaderDisplaySettings MapHeader => _settingsCoordinator.MapHeaderDisplay;
+
     public bool ShowImagesOnly
     {
         get => _showImagesOnly;
@@ -265,6 +268,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             Theme = ThemePreference.System;
             MapDefaultZoomLevel = MapZoomLevelCatalog.Default;
             MapTileSource = MapTileSourceType.OpenStreetMap;
+            MapHeader.ResetToDefaults();
             ShowImagesOnly = true;
             ShowQuickStartOnStartup = false;
             PaneLayout.ResetToDefaults();

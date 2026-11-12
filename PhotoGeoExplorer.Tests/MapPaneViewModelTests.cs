@@ -608,6 +608,92 @@ public class MapPaneViewModelTests
         }
     }
 
+    [Theory]
+    [InlineData(1, 0, "35.681236, 139.767125")]
+    [InlineData(2, 0, "")]
+    [InlineData(1, 1, "")]
+    [InlineData(0, 1, "")]
+    [InlineData(0, 0, "")]
+    public async Task UpdateMarkersFromSelectionAsyncShowsLocationInfoOnlyForSingleSelection(
+        int photoCount,
+        int folderCount,
+        string expectedCoordinates)
+    {
+        // Arrange: 直前に 1 枚選択して、撮影位置情報が出ている状態にする
+        var viewModel = new MapPaneViewModel(new WorkspaceSelectionMapPaneService());
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        var selection = Enumerable.Range(0, photoCount)
+            .Select(index => CreateListItem($@"C:\Photos\photo{index}.jpg", isFolder: false))
+            .Concat(Enumerable.Range(0, folderCount)
+                .Select(index => CreateListItem($@"C:\Photos\folder{index}", isFolder: true)))
+            .ToArray();
+
+        try
+        {
+            await viewModel.UpdateMarkersFromSelectionAsync(new[] { CreateListItem(@"C:\Photos\previous.jpg", isFolder: false) }).ConfigureAwait(true);
+            Assert.Equal("35.681236, 139.767125", viewModel.LocationInfo.CoordinatesText);
+
+            // Act
+            await viewModel.UpdateMarkersFromSelectionAsync(selection).ConfigureAwait(true);
+
+            // Assert
+            Assert.Equal(expectedCoordinates, viewModel.LocationInfo.CoordinatesText);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+
+        Assert.Equal(string.Empty, viewModel.LocationInfo.CoordinatesText);
+    }
+
+    [Theory]
+    [InlineData(1, "35.681236, 139.767125")]
+    [InlineData(2, "")]
+    public async Task UpdateMarkersFromSelectionAsyncClearsPreviousLocationInfoBeforeMetadataLoadCompletes(
+        int photoCount,
+        string expectedCoordinatesAfterLoad)
+    {
+        // Arrange: 写真 A の撮影位置情報が出ている状態にする
+        var service = new ControlledLoadMapPaneService();
+        var viewModel = new MapPaneViewModel(service);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        var selection = Enumerable.Range(0, photoCount)
+            .Select(index => CreateListItem($@"C:\Photos\next{index}.jpg", isFolder: false))
+            .ToArray();
+
+        try
+        {
+            var first = viewModel.UpdateMarkersFromSelectionAsync(new[] { CreateListItem(@"C:\Photos\a.jpg", isFolder: false) });
+            service.CompleteLoad(0, latitude: 43.468212, longitude: 142.482015);
+            await first.ConfigureAwait(true);
+            Assert.Equal("43.468212, 142.482015", viewModel.LocationInfo.CoordinatesText);
+
+            // Act: 次の選択のメタデータ読み込みを保留する
+            var second = viewModel.UpdateMarkersFromSelectionAsync(selection);
+            await service.WaitForLoadAsync(1).ConfigureAwait(true);
+
+            // Assert: 読み込みの完了を待たずに、写真 A の座標が消えている
+            Assert.Equal(string.Empty, viewModel.LocationInfo.CoordinatesText);
+            Assert.Equal(Microsoft.UI.Xaml.Visibility.Collapsed, viewModel.LocationInfo.CoordinatesVisibility);
+
+            service.CompleteLoad(1, latitude: 35.681236, longitude: 139.767125);
+            await second.ConfigureAwait(true);
+            Assert.Equal(expectedCoordinatesAfterLoad, viewModel.LocationInfo.CoordinatesText);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    private static PhotoListItem CreateListItem(string path, bool isFolder)
+        => new(new PhotoItem(path, isFolder ? 0 : 1, DateTimeOffset.UtcNow, isFolder), thumbnail: null);
+
     private static MapPaneViewModel CreateViewModelWithSecretStore(ISecretStore secretStore)
         => new(new MapPaneService(), new WorkspaceState(), new MapImageService(), static () => null, secretStore);
 
@@ -806,66 +892,77 @@ public class MapPaneViewModelTests
             => false;
     }
 
-    // WinUI の DispatcherQueue と同様に、単一スレッドで Post されたコールバックを順に実行する
-    private sealed class SingleThreadSynchronizationContext : SynchronizationContext, IDisposable
+    // メタデータ読み込みを呼び出しごとに保留し、テストから任意のタイミングで完了させる
+    private sealed class ControlledLoadMapPaneService : IMapPaneService
     {
-        private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = new();
-        private readonly Thread _thread;
+        private readonly object _gate = new();
+        private readonly List<PendingLoad> _loads = new();
 
-        public SingleThreadSynchronizationContext()
+        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+            => throw new NotSupportedException();
+
+        public TileLayer CreateTileLayer(MapBackgroundRequest background)
+            => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
+            IReadOnlyList<PhotoListItem> items,
+            CancellationToken cancellationToken)
         {
-            _thread = new Thread(Run) { IsBackground = true };
-            _thread.Start();
-            ThreadId = _thread.ManagedThreadId;
+            var load = GetLoad(GetNextIndex());
+            load.Items = items;
+            load.Started.TrySetResult();
+            return load.Completion.Task;
         }
 
-        public int ThreadId { get; }
+        public Task WaitForLoadAsync(int index) => GetLoad(index).Started.Task;
 
-        public override void Post(SendOrPostCallback d, object? state)
-            => _queue.Add((d, state));
-
-        public Task RunAsync(Func<Task> action)
+        public void CompleteLoad(int index, double latitude, double longitude)
         {
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            Post(
-                _ =>
-                {
-                    action().ContinueWith(
-                        task =>
-                        {
-                            if (task.IsFaulted)
-                            {
-                                completion.TrySetException(task.Exception!.InnerExceptions);
-                            }
-                            else if (task.IsCanceled)
-                            {
-                                completion.TrySetCanceled();
-                            }
-                            else
-                            {
-                                completion.TrySetResult();
-                            }
-                        },
-                        TaskScheduler.Default);
-                },
-                null);
-            return completion.Task;
+            var load = GetLoad(index);
+            var metadata = new PhotoMetadata(DateTimeOffset.UtcNow, null, null, latitude, longitude);
+            load.Completion.TrySetResult(load.Items!.Select(item => (item, (PhotoMetadata?)metadata)).ToArray());
         }
 
-        public void Dispose()
-        {
-            _queue.CompleteAdding();
-            _thread.Join();
-            _queue.Dispose();
-        }
+        public string GetTileCacheRootDirectory()
+            => Path.GetTempPath();
 
-        private void Run()
+        public string GetPinImagePath(PhotoMetadata metadata)
+            => Path.Combine(Path.GetTempPath(), "red_pin.png");
+
+        public bool FileExistsAtPath(string path)
+            => false;
+
+        private int _started;
+
+        private int GetNextIndex()
         {
-            SetSynchronizationContext(this);
-            foreach (var (callback, state) in _queue.GetConsumingEnumerable())
+            lock (_gate)
             {
-                callback(state);
+                return _started++;
             }
+        }
+
+        private PendingLoad GetLoad(int index)
+        {
+            lock (_gate)
+            {
+                while (_loads.Count <= index)
+                {
+                    _loads.Add(new PendingLoad());
+                }
+
+                return _loads[index];
+            }
+        }
+
+        private sealed class PendingLoad
+        {
+            public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public IReadOnlyList<PhotoListItem>? Items { get; set; }
         }
     }
 

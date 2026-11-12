@@ -18,6 +18,12 @@
   - Mapsui のウィジェットとして描くため、画面と PNG 保存が同じ経路になる。OpenStreetMap・Esri・Mapbox の 3 つとも同じ仕組みに乗せた
   - Mapbox の背景では、Mapbox の帰属要件に従って `© Mapbox`・`© OpenStreetMap`・`Improve this map` を別々のリンクにした。`Improve this map` は、表示中の位置と倍率つきで Mapbox の修正依頼ページを開く
   - Mapbox の背景を表示している間は、Mapbox の帰属要件に従って地図の左下に Mapbox のロゴも表示する。ロゴは Mapbox 公式の帰属表示用 SVG を加工せずに同梱した（出所は `PhotoGeoExplorer/Assets/MapAttribution/README.md`）
+- 地図ヘッダーに、選択した写真の撮影位置情報を表示する枠組みを追加 (#292)
+  - 写真を 1 枚選ぶと、「地図」の右に緯度・経度を小数 6 桁で表示する。クリックするとクリップボードへコピーする。未選択・複数選択・GPS なしでは表示しない
+  - 字地名と最寄り道路名の表示枠と、解決器のインターフェース（`IAreaNameResolver`・`IRoadNameSuggester`）を用意した。判定の実装は #294・#296 で追加するため、この時点では表示されない
+  - `MapLocationInfoViewModel`（`MapPaneViewModel` の子）が 3 項目を独立に解決する。選択が変わると、新しい写真のメタデータ読み込みを待たずに表示を消して直前の解決をキャンセルし、古い地点の結果は表示しない。設定でオフにした項目は解決処理も呼ばない
+  - 幅が足りないときは「緯度・経度を非表示 → 道路名を末尾省略 → 字地名を末尾省略」の順に省略し、右端の保存ボタンを保つ。幅の判定は View の `PriorityCollapsePanel` が行い、割り当ての計算は UI に依存しない `PriorityCollapseLayout` に分けた
+  - 表示項目の設定 4 つ（`ShowMapHeaderAddress`・`ShowMapHeaderRoadName`・`ShowMapHeaderCoordinates`・`MapHeaderIncludePrefecture`）を追加した。設定画面の「地図」と、地図ヘッダーの右クリックメニューの両方から切り替えられ、変更は自動で保存する
 
 ### 修正
 - クリップボードの Cut 操作完了時における状態変化通知（`PropertyChanged`）がバックグラウンドスレッドで発火し、WinUI 3 で例外が発生してフォルダー再読み込み（`RefreshAsync`）が中断される問題を修正

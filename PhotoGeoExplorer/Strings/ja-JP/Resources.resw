@@ -1022,4 +1022,46 @@
   <data name="MapStatus.MapboxAuthFailed" xml:space="preserve">
     <value>Mapbox のトークンが無効、または権限がありません</value>
   </data>
+  <data name="MapHeaderRoadLabel.Text" xml:space="preserve">
+    <value>道路:</value>
+  </data>
+  <data name="MapHeaderCoordinatesButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>クリックで緯度・経度をコピー</value>
+  </data>
+  <data name="MapHeaderMenuShowAddress.Text" xml:space="preserve">
+    <value>住所（国勢調査 字地名）を表示</value>
+  </data>
+  <data name="MapHeaderMenuShowRoadName.Text" xml:space="preserve">
+    <value>最寄り道路名（候補）を表示</value>
+  </data>
+  <data name="MapHeaderMenuShowCoordinates.Text" xml:space="preserve">
+    <value>緯度・経度を表示</value>
+  </data>
+  <data name="MapHeaderMenuIncludePrefecture.Text" xml:space="preserve">
+    <value>住所表記に都道府県名を含める</value>
+  </data>
+  <data name="SettingsPaneMapHeaderCaption.Text" xml:space="preserve">
+    <value>地図ヘッダーの表示項目</value>
+  </data>
+  <data name="SettingsPaneMapHeaderShowAddress.Content" xml:space="preserve">
+    <value>住所（国勢調査 字地名）を表示</value>
+  </data>
+  <data name="SettingsPaneMapHeaderShowRoadName.Content" xml:space="preserve">
+    <value>最寄り道路名（候補）を表示</value>
+  </data>
+  <data name="SettingsPaneMapHeaderShowCoordinates.Content" xml:space="preserve">
+    <value>緯度・経度を表示</value>
+  </data>
+  <data name="SettingsPaneMapHeaderIncludePrefecture.Content" xml:space="preserve">
+    <value>住所表記に都道府県名を含める</value>
+  </data>
+  <data name="SettingsPaneMapHeaderDescription.Text" xml:space="preserve">
+    <value>選択した写真（1 枚）の撮影位置を、地図ペインのヘッダーに表示します。地図ヘッダーの右クリックメニューからも切り替えられます。</value>
+  </data>
+  <data name="Message.CoordinatesCopied" xml:space="preserve">
+    <value>緯度・経度をコピーしました:</value>
+  </data>
+  <data name="Message.CoordinatesCopyFailed" xml:space="preserve">
+    <value>緯度・経度をクリップボードへコピーできませんでした。</value>
+  </data>
 </root>
