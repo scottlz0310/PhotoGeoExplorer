@@ -52,6 +52,7 @@ GPS 付きの検証用 JPEG を表示した状態で、地図ペインの保存�
 - 「接続テスト」が、有効なトークンで成功、無効なトークンで「トークンが無効、または権限がありません」になる
 - Mapbox Satellite に切り替えると航空写真が表示され、写真ピンの位置が OpenStreetMap / Esri のときと一致する
 - 地図の右下の帰属表示が、背景ごとに切り替わる（OpenStreetMap / Esri / Mapbox）
+- Mapbox Satellite の帰属表示は 3 つのリンクに分かれ、`© Mapbox` は Mapbox、`© OpenStreetMap` は OpenStreetMap の著作権ページ、`Improve this map` は表示中の位置の修正依頼ページを、それぞれブラウザーで開く
 - Mapbox Satellite を表示している間だけ、地図の左下に Mapbox のロゴが表示される
 - 地図画像を保存すると、PNG の右下にも同じ帰属表示が入る（Mapbox Satellite のときは左下のロゴも入る）
 - Mapbox Satellite を選んだままトークンを「削除」すると、OpenStreetMap の表示になり、地図の左上に注意書きが出る。設定の選択は Mapbox Satellite のまま

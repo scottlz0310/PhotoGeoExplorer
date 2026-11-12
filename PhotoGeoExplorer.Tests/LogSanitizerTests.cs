@@ -7,7 +7,8 @@ namespace PhotoGeoExplorer.Tests;
 
 public sealed class LogSanitizerTests
 {
-    private const string Token = "pk.eyJ1IjoiZXhhbXBsZSJ9.abc-DEF_123";
+    // 実在のトークンに似せた値はシークレットスキャナーに検出されるため、明らかな偽値を使う。
+    private const string Token = "pk.test-token";
 
     [Theory]
     [InlineData(

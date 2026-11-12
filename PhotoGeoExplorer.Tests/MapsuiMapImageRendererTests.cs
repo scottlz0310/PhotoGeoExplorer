@@ -77,6 +77,45 @@ public sealed class MapsuiMapImageRendererTests
         Assert.Equal(expectLogo, logoPixels > 100);
     }
 
+    [Theory]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatellite)]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.OpenStreetMap)]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.EsriWorldImagery)]
+    internal async System.Threading.Tasks.Task RenderPngDrawsAttributionLinksAsOneContiguousStrip(PhotoGeoExplorer.Models.MapTileSourceType sourceType)
+    {
+        var renderer = new MapsuiMapImageRenderer();
+        const int width = 800;
+        const int height = 200;
+        using var map = new Map { BackColor = Mapsui.Styles.Color.Black };
+        new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter().Attach(map, sourceType);
+
+        using var stream = renderer.RenderPng(map, new Viewport(0, 0, 1, 0, width, height), pixelDensity: 1f);
+        using var image = await SixLabors.ImageSharp.Image
+            .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(stream)
+            .ConfigureAwait(true);
+        // 帰属項目は個別のウィジェットだが、右下に隙間も重なりもなく並ぶこと。
+        // 背景（黒）に対して、項目の下地（半透明の白）が載った列を右半分で調べる。
+        var litColumns = new System.Collections.Generic.List<int>();
+        for (var x = width / 4; x < width; x++)
+        {
+            var lit = false;
+            for (var y = height - 20; y < height && !lit; y++)
+            {
+                lit = image[x, y].R > 100;
+            }
+
+            if (lit)
+            {
+                litColumns.Add(x);
+            }
+        }
+
+        Assert.NotEmpty(litColumns);
+        Assert.Equal(litColumns[^1] - litColumns[0] + 1, litColumns.Count);
+        Assert.InRange(litColumns[^1], width - 6, width - 4);
+        Assert.True(litColumns.Count > 100);
+    }
+
     private static int CountDifferentPixels(
         SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32> left,
         SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32> right,
