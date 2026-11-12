@@ -407,6 +407,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
+        // 前の選択の撮影位置情報を、新しい選択のメタデータ読み込みを待つ前に消す。
+        // 読み込み中に前の写真の座標が表示・コピーできる状態を残さない
+        LocationInfo.Clear();
+
         // 既存の更新をキャンセル
         var previousCts = _mapUpdateCts;
         _mapUpdateCts = null;
@@ -426,8 +430,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             {
                 MapMarkerPresenter.ClearMarkers(mapAfterCancel, markerLayerAfterCancel);
             }
-
-            LocationInfo.Clear();
 
             ShowStatus(
                 LocalizationService.GetString("MapStatus.SelectPhotoTitle"),
@@ -472,10 +474,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         if (selectedItems.Count == 1 && points.Count == 1 && _map is not null)
         {
             await LocationInfo.SetLocationAsync(points[0].Latitude, points[0].Longitude).ConfigureAwait(true);
-        }
-        else
-        {
-            LocationInfo.Clear();
         }
     }
 
