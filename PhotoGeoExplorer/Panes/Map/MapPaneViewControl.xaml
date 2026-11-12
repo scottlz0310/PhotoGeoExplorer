@@ -115,6 +115,7 @@
                 x:Uid="MapHeader" />
             <!-- 幅が足りないときの省略順は、コードビハインド（ConfigureMapHeaderCollapse）で指定する -->
             <local:PriorityCollapsePanel
+                x:Name="MapHeaderLocationPanel"
                 Grid.Column="1"
                 Spacing="8"
                 VerticalAlignment="Center"

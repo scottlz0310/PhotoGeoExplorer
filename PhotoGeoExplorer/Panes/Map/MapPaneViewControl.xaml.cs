@@ -61,17 +61,14 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
 
     // 幅が足りないときは、緯度経度を非表示 → 道路名を末尾省略 → 字地名を末尾省略の順に省略する。
-    // PriorityCollapsePanel の添付プロパティは XAML では指定できない（理由は PriorityCollapsePanel を参照）
+    // XAML では指定できないため、ここで設定する（理由は PriorityCollapsePanel を参照）
     private void ConfigureMapHeaderCollapse()
     {
-        PriorityCollapsePanel.SetTrimOnOverflow(MapHeaderAreaName, true);
-        PriorityCollapsePanel.SetPriority(MapHeaderAreaName, 1);
-        PriorityCollapsePanel.SetIsSeparator(MapHeaderAreaSeparator, true);
-        PriorityCollapsePanel.SetTrimOnOverflow(MapHeaderRoad, true);
-        PriorityCollapsePanel.SetPriority(MapHeaderRoad, 2);
-        PriorityCollapsePanel.SetIsSeparator(MapHeaderRoadSeparator, true);
-        PriorityCollapsePanel.SetHideOnOverflow(MapHeaderCoordinatesButton, true);
-        PriorityCollapsePanel.SetPriority(MapHeaderCoordinatesButton, 3);
+        MapHeaderLocationPanel.SetOverflow(MapHeaderAreaName, PriorityCollapseMode.Trim, priority: 1);
+        MapHeaderLocationPanel.SetSeparator(MapHeaderAreaSeparator);
+        MapHeaderLocationPanel.SetOverflow(MapHeaderRoad, PriorityCollapseMode.Trim, priority: 2);
+        MapHeaderLocationPanel.SetSeparator(MapHeaderRoadSeparator);
+        MapHeaderLocationPanel.SetOverflow(MapHeaderCoordinatesButton, PriorityCollapseMode.Hide, priority: 3);
     }
 
     internal void ConfigureMapImageExport(IDialogService dialogService, IMapImageService mapImageService)

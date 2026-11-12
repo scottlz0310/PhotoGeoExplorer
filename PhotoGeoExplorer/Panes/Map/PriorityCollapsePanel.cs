@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
@@ -12,98 +13,38 @@ namespace PhotoGeoExplorer.Panes.Map;
 /// 幅の割り当ては <see cref="PriorityCollapseLayout"/> が決める
 /// </summary>
 /// <remarks>
-/// 添付プロパティは XAML ではなくコードから設定する。XAML コンパイラは internal 型の添付プロパティに
-/// アクセサーを生成しないため、XAML で指定すると実行時に XamlParseException になる
+/// 子要素ごとの扱いは、添付プロパティではなく <see cref="SetOverflow"/>・<see cref="SetSeparator"/> で指定する。
+/// XAML コンパイラは internal 型の添付プロパティにアクセサーを生成しないため、
+/// XAML で指定すると実行時に XamlParseException になる
 /// </remarks>
 internal sealed partial class PriorityCollapsePanel : Panel
 {
     private const double MinTrimmedWidth = 32;
 
-    public static readonly DependencyProperty SpacingProperty = DependencyProperty.Register(
-        nameof(Spacing),
-        typeof(double),
-        typeof(PriorityCollapsePanel),
-        new PropertyMetadata(0.0, OnLayoutPropertyChanged));
-
-    public static readonly DependencyProperty PriorityProperty = DependencyProperty.RegisterAttached(
-        "Priority",
-        typeof(int),
-        typeof(PriorityCollapsePanel),
-        new PropertyMetadata(0));
-
-    public static readonly DependencyProperty HideOnOverflowProperty = DependencyProperty.RegisterAttached(
-        "HideOnOverflow",
-        typeof(bool),
-        typeof(PriorityCollapsePanel),
-        new PropertyMetadata(false));
-
-    public static readonly DependencyProperty TrimOnOverflowProperty = DependencyProperty.RegisterAttached(
-        "TrimOnOverflow",
-        typeof(bool),
-        typeof(PriorityCollapsePanel),
-        new PropertyMetadata(false));
-
-    public static readonly DependencyProperty IsSeparatorProperty = DependencyProperty.RegisterAttached(
-        "IsSeparator",
-        typeof(bool),
-        typeof(PriorityCollapsePanel),
-        new PropertyMetadata(false));
-
+    private readonly Dictionary<UIElement, PriorityCollapseItem> _roles = new();
     private double?[] _widths = Array.Empty<double?>();
     private OverflowState?[] _overflowStates = Array.Empty<OverflowState?>();
 
-    public double Spacing
+    public double Spacing { get; set; }
+
+    /// <summary>
+    /// 幅が足りないときの子要素の扱いを指定する。<paramref name="priority"/> が大きいほど先に省略する
+    /// </summary>
+    public void SetOverflow(UIElement child, PriorityCollapseMode mode, int priority)
     {
-        get => (double)GetValue(SpacingProperty);
-        set => SetValue(SpacingProperty, value);
+        ArgumentNullException.ThrowIfNull(child);
+        _roles[child] = new PriorityCollapseItem(0, priority, mode);
+        InvalidateMeasure();
     }
 
-    public static int GetPriority(DependencyObject element)
+    /// <summary>
+    /// 子要素を、前後の両方に表示中の項目があるときだけ表示する区切りにする
+    /// </summary>
+    public void SetSeparator(UIElement child)
     {
-        ArgumentNullException.ThrowIfNull(element);
-        return (int)element.GetValue(PriorityProperty);
-    }
-
-    public static void SetPriority(DependencyObject element, int value)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        element.SetValue(PriorityProperty, value);
-    }
-
-    public static bool GetHideOnOverflow(DependencyObject element)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        return (bool)element.GetValue(HideOnOverflowProperty);
-    }
-
-    public static void SetHideOnOverflow(DependencyObject element, bool value)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        element.SetValue(HideOnOverflowProperty, value);
-    }
-
-    public static bool GetTrimOnOverflow(DependencyObject element)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        return (bool)element.GetValue(TrimOnOverflowProperty);
-    }
-
-    public static void SetTrimOnOverflow(DependencyObject element, bool value)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        element.SetValue(TrimOnOverflowProperty, value);
-    }
-
-    public static bool GetIsSeparator(DependencyObject element)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        return (bool)element.GetValue(IsSeparatorProperty);
-    }
-
-    public static void SetIsSeparator(DependencyObject element, bool value)
-    {
-        ArgumentNullException.ThrowIfNull(element);
-        element.SetValue(IsSeparatorProperty, value);
+        ArgumentNullException.ThrowIfNull(child);
+        _roles[child] = new PriorityCollapseItem(0, IsSeparator: true);
+        InvalidateMeasure();
     }
 
     protected override Size MeasureOverride(Size availableSize)
@@ -115,12 +56,11 @@ internal sealed partial class PriorityCollapsePanel : Panel
         {
             var child = Children[i];
             child.Measure(unconstrained);
-            items[i] = new PriorityCollapseItem(
-                child.DesiredSize.Width,
-                GetPriority(child),
-                GetMode(child),
-                GetIsSeparator(child),
-                IsPresent: child.Visibility == Visibility.Visible);
+            items[i] = _roles.GetValueOrDefault(child, new PriorityCollapseItem(0)) with
+            {
+                DesiredWidth = child.DesiredSize.Width,
+                IsPresent = child.Visibility == Visibility.Visible
+            };
         }
 
         _widths = PriorityCollapseLayout.Compute(items, availableSize.Width, Spacing, MinTrimmedWidth);
@@ -176,19 +116,6 @@ internal sealed partial class PriorityCollapsePanel : Panel
 
         return finalSize;
     }
-
-    private static PriorityCollapseMode GetMode(UIElement child)
-    {
-        if (GetHideOnOverflow(child))
-        {
-            return PriorityCollapseMode.Hide;
-        }
-
-        return GetTrimOnOverflow(child) ? PriorityCollapseMode.Trim : PriorityCollapseMode.Keep;
-    }
-
-    private static void OnLayoutPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        => ((PriorityCollapsePanel)d).InvalidateMeasure();
 
     // 幅 0 に配置しただけでは、フォーカス移動と UI オートメーションからは見えたままになる。
     // 再表示のときに戻せるよう、隠す前の値を控えておく
