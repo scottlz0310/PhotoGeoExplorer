@@ -30,6 +30,7 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     private (double Latitude, double Longitude)? _location;
     private PhotoIdentity? _photo;
     private RoadNameResult? _roadResult;
+    private Task _confirmationQueue = Task.CompletedTask;
     private AreaName? _areaName;
     private string _areaNameText = string.Empty;
     private string? _areaNameToolTip;
@@ -226,12 +227,38 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     }
 
     /// <summary>
-    /// 候補の道路を、選択中の写真の道路名として確定する。保存できなかったときは、確定した表示にしない
+    /// 候補の道路を、選択中の写真の道路名として確定する。保存できなかったときは、確定した表示にしない。
+    /// 確定・解除は 1 つずつ順に行う（前の操作の保存が終わってから始める）
     /// </summary>
-    public async Task ConfirmRoadAsync(RoadCandidateItem item)
+    public Task ConfirmRoadAsync(RoadCandidateItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        if (_photo is not { } photo || _confirmationStore is not { } store || _roadResult is not { } result)
+        return RunInOrderAsync(() => ConfirmCoreAsync(item));
+    }
+
+    /// <summary>
+    /// 選択中の写真の道路名の確定を解除する。解除できなかったときは、確定した表示のままにする
+    /// </summary>
+    public Task UnconfirmRoadAsync() => RunInOrderAsync(UnconfirmCoreAsync);
+
+    // 操作が重なると、保存した値と表示が食い違う（A・B を続けて確定したとき、B の保存が後でも、表示が A になる）
+    private Task RunInOrderAsync(Func<Task> operation)
+    {
+        var task = RunAfterAsync(_confirmationQueue, operation);
+        _confirmationQueue = task;
+        return task;
+    }
+
+    // 前の操作の失敗は、その呼び出し元へ伝わる。ここでは、前の操作が終わるのだけを待つ
+    private static async Task RunAfterAsync(Task previous, Func<Task> operation)
+    {
+        await Task.WhenAny(previous).ConfigureAwait(true);
+        await operation().ConfigureAwait(true);
+    }
+
+    private async Task ConfirmCoreAsync(RoadCandidateItem item)
+    {
+        if (_photo is not { } photo || _confirmationStore is not { } store || _roadResult is null)
         {
             return;
         }
@@ -247,18 +274,15 @@ internal sealed class MapLocationInfoViewModel : BindableBase
         }
 
         // 保存の間に別の写真へ移っていたら、その写真の表示は変えない
-        if (_photo == photo && ReferenceEquals(_roadResult, result))
+        if (_photo == photo && _roadResult is { } current)
         {
-            ApplyRoadNames(result with { Confirmed = item.Road });
+            ApplyRoadNames(current with { Confirmed = item.Road });
         }
     }
 
-    /// <summary>
-    /// 選択中の写真の道路名の確定を解除する。解除できなかったときは、確定した表示のままにする
-    /// </summary>
-    public async Task UnconfirmRoadAsync()
+    private async Task UnconfirmCoreAsync()
     {
-        if (_photo is not { } photo || _confirmationStore is not { } store || _roadResult is not { } result)
+        if (_photo is not { } photo || _confirmationStore is not { } store || _roadResult is null)
         {
             return;
         }
@@ -273,12 +297,11 @@ internal sealed class MapLocationInfoViewModel : BindableBase
             return;
         }
 
-        if (_photo == photo && ReferenceEquals(_roadResult, result))
+        if (_photo == photo && _roadResult is { } current)
         {
-            ApplyRoadNames(result with { Confirmed = null });
+            ApplyRoadNames(current with { Confirmed = null });
         }
     }
-
     private void ApplyAreaName(AreaName? areaName)
     {
         _areaName = areaName;

@@ -670,6 +670,95 @@ public class MapLocationInfoViewModelTests
     }
 
     [Fact]
+    public async Task OverlappingConfirmationsAreSavedInOrderAndTheLastOneIsShown()
+    {
+        var store = new FakeConfirmationStore { HoldSaves = true };
+        var roadSuggester = new FakeRoadNameSuggester { CompleteImmediatelyWith = new[] { new RoadNameCandidate("山の手通り", "203", 12.4), new RoadNameCandidate("丸山通", null, 20) } };
+        var viewModel = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester, roadNameConfirmationStore: store);
+        await viewModel.SetLocationAsync(35.5036, 134.2381, Photo).ConfigureAwait(true);
+
+        // A の保存が終わる前に、B も確定する
+        var first = viewModel.ConfirmRoadAsync(viewModel.RoadCandidates[0]);
+        var second = viewModel.ConfirmRoadAsync(viewModel.RoadCandidates[1]);
+
+        // B の保存は、A が終わってから始まる
+        Assert.Single(store.PendingSaves);
+        store.PendingSaves[0].SetResult();
+        await first.ConfigureAwait(true);
+        await WaitForAsync(() => store.PendingSaves.Count == 2).ConfigureAwait(true);
+        store.PendingSaves[1].SetResult();
+        await second.ConfigureAwait(true);
+
+        // 最後に保存した値と、表示が一致する
+        Assert.Equal(new ConfirmedRoadName("丸山通", null), store.Items[Photo.FilePath].Road);
+        Assert.Equal("\u2713 丸山通", viewModel.RoadNameText);
+        bool[] expectedMarks = [false, true];
+        Assert.Equal(expectedMarks, viewModel.RoadCandidates.Select(item => item.IsConfirmed));
+    }
+
+    [Fact]
+    public async Task AnUnconfirmationThatOverlapsAConfirmationRunsAfterIt()
+    {
+        var store = new FakeConfirmationStore { HoldSaves = true };
+        var roadSuggester = new FakeRoadNameSuggester { CompleteImmediatelyWith = new[] { new RoadNameCandidate("山の手通り", "203", 12.4) } };
+        var viewModel = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester, roadNameConfirmationStore: store);
+        await viewModel.SetLocationAsync(35.5036, 134.2381, Photo).ConfigureAwait(true);
+
+        var confirm = viewModel.ConfirmRoadAsync(viewModel.RoadCandidates[0]);
+        var unconfirm = viewModel.UnconfirmRoadAsync();
+        store.PendingSaves[0].SetResult();
+        await confirm.ConfigureAwait(true);
+        await unconfirm.ConfigureAwait(true);
+
+        Assert.Empty(store.Items);
+        Assert.Equal("山の手通り", viewModel.RoadNameText);
+        Assert.False(viewModel.RoadCandidates[0].IsConfirmed);
+    }
+
+    [Fact]
+    public async Task AFailedOperationDoesNotStopTheOperationsAfterIt()
+    {
+        // 想定外の例外（IO 以外）で失敗した操作は、呼び出し元へ伝わる。その後ろの操作は、それでも実行される
+        var store = new FakeConfirmationStore { SaveFailure = new InvalidOperationException("unexpected") };
+        var roadSuggester = new FakeRoadNameSuggester { CompleteImmediatelyWith = new[] { new RoadNameCandidate("山の手通り", "203", 12.4) } };
+        var viewModel = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester, roadNameConfirmationStore: store);
+        await viewModel.SetLocationAsync(35.5036, 134.2381, Photo).ConfigureAwait(true);
+        store.Items[Photo.FilePath] = (Photo, new ConfirmedRoadName("山の手通り", "203"));
+
+        var failing = viewModel.ConfirmRoadAsync(viewModel.RoadCandidates[0]);
+        var unconfirm = viewModel.UnconfirmRoadAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => failing).ConfigureAwait(true);
+        await unconfirm.ConfigureAwait(true);
+
+        Assert.Empty(store.Items);
+    }
+
+    [Fact]
+    public async Task UnconfirmRoadAsyncDoesNothingWithoutAPhotoOrAStore()
+    {
+        var roadSuggester = new FakeRoadNameSuggester { CompleteImmediatelyWith = new[] { new RoadNameCandidate("山の手通り", "203", 12.4) } };
+        var store = new FakeConfirmationStore();
+        store.Items[Photo.FilePath] = (Photo, new ConfirmedRoadName("山の手通り", "203"));
+        var withoutPhoto = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester, roadNameConfirmationStore: store);
+        await withoutPhoto.SetLocationAsync(35.5036, 134.2381).ConfigureAwait(true);
+        var withoutStore = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester);
+        await withoutStore.SetLocationAsync(35.5036, 134.2381, Photo).ConfigureAwait(true);
+
+        await withoutPhoto.UnconfirmRoadAsync().ConfigureAwait(true);
+        await withoutStore.UnconfirmRoadAsync().ConfigureAwait(true);
+
+        Assert.Single(store.Items);
+    }
+
+    [Fact]
+    public async Task ConfirmRoadAsyncRejectsANullItem()
+    {
+        var viewModel = new MapLocationInfoViewModel();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => viewModel.ConfirmRoadAsync(null!)).ConfigureAwait(true);
+    }
+
+    [Fact]
     public async Task ConfirmRoadAsyncDoesNothingWithoutAPhotoOrAStore()
     {
         var roadSuggester = new FakeRoadNameSuggester { CompleteImmediatelyWith = new[] { new RoadNameCandidate("山の手通り", "203", 12.4) } };
@@ -760,6 +849,11 @@ public class MapLocationInfoViewModelTests
 
         public Exception? RemoveFailure { get; init; }
 
+        // 保存を、Release されるまで終わらせない（保存の途中で別の操作が重なる状況を作る）
+        public bool HoldSaves { get; init; }
+
+        public List<TaskCompletionSource> PendingSaves { get; } = new();
+
         public int FindCount { get; private set; }
 
         public Task<ConfirmedRoadName?> FindAsync(PhotoIdentity photo, CancellationToken cancellationToken)
@@ -768,15 +862,21 @@ public class MapLocationInfoViewModelTests
             return Task.FromResult(Items.TryGetValue(photo.FilePath, out var item) && item.Photo == photo ? item.Road : null);
         }
 
-        public Task SaveAsync(PhotoIdentity photo, ConfirmedRoadName road, CancellationToken cancellationToken)
+        public async Task SaveAsync(PhotoIdentity photo, ConfirmedRoadName road, CancellationToken cancellationToken)
         {
             if (SaveFailure is not null)
             {
-                return Task.FromException(SaveFailure);
+                throw SaveFailure;
+            }
+
+            if (HoldSaves)
+            {
+                var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                PendingSaves.Add(gate);
+                await gate.Task.ConfigureAwait(false);
             }
 
             Items[photo.FilePath] = (photo, road);
-            return Task.CompletedTask;
         }
 
         public Task RemoveAsync(string filePath, CancellationToken cancellationToken)

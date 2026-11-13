@@ -135,12 +135,17 @@ internal sealed class JsonRoadNameConfirmationStore : IRoadNameConfirmationStore
             return entries;
         }
 
-        foreach (var entry in file.Items ?? [])
+        // null の要素・パスのない要素・名称も路線番号もない要素は、このアプリが書いた内容ではない。読めない内容と同じに扱う
+        var items = file.Items ?? [];
+        if (items.Any(entry => entry is not { Path: { } path } || string.IsNullOrWhiteSpace(path) || (entry.Name is null && entry.Ref is null)))
         {
-            if (!string.IsNullOrWhiteSpace(entry.Path) && (entry.Name is not null || entry.Ref is not null))
-            {
-                entries[entry.Path] = entry;
-            }
+            MoveAsideBrokenFile(new JsonException("The items contain an invalid entry."));
+            return entries;
+        }
+
+        foreach (var entry in items)
+        {
+            entries[entry.Path] = entry;
         }
 
         return entries;

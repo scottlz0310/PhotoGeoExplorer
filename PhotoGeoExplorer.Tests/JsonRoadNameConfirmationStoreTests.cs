@@ -148,6 +148,10 @@ public sealed class JsonRoadNameConfirmationStoreTests : IDisposable
     [InlineData("{ this is not json")]
     [InlineData("{\"version\": 2, \"items\": []}")]
     [InlineData("null")]
+    [InlineData("{\"version\":1,\"items\":[null]}")]
+    [InlineData("{\"version\":1,\"items\":[{\"size\":1,\"name\":\"x\"}]}")]
+    [InlineData("{\"version\":1,\"items\":[{\"path\":\" \",\"size\":1,\"name\":\"x\"}]}")]
+    [InlineData("{\"version\":1,\"items\":[{\"path\":\"C:\\\\photos\\\\a.jpg\",\"size\":1}]}")]
     public async Task AnUnreadableFileIsMovedAsideAndTheStoreStartsEmpty(string content)
     {
         Directory.CreateDirectory(_directory);
@@ -174,6 +178,40 @@ public sealed class JsonRoadNameConfirmationStoreTests : IDisposable
 
         Assert.Null(await store.FindAsync(Photo, CancellationToken.None).ConfigureAwait(true));
         Assert.Empty(Directory.GetFiles(_directory, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task AFileWithAnEmptyListOfItemsIsKept()
+    {
+        Directory.CreateDirectory(_directory);
+        await File.WriteAllTextAsync(StorePath, "{\"version\":1,\"items\":[]}").ConfigureAwait(true);
+        var store = new JsonRoadNameConfirmationStore(StorePath);
+
+        Assert.Null(await store.FindAsync(Photo, CancellationToken.None).ConfigureAwait(true));
+        Assert.Empty(Directory.GetFiles(_directory, "*.broken-*"));
+    }
+
+    [Fact]
+    public async Task MethodsRejectMissingArguments()
+    {
+        var store = new JsonRoadNameConfirmationStore(StorePath);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.FindAsync(null!, CancellationToken.None)).ConfigureAwait(true);
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.SaveAsync(null!, Road, CancellationToken.None)).ConfigureAwait(true);
+        await Assert.ThrowsAsync<ArgumentNullException>(() => store.SaveAsync(Photo, null!, CancellationToken.None)).ConfigureAwait(true);
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => store.RemoveAsync(" ", CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task ACancelledCallDoesNotTouchTheStore()
+    {
+        var store = new JsonRoadNameConfirmationStore(StorePath);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync().ConfigureAwait(true);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => store.SaveAsync(Photo, Road, cts.Token)).ConfigureAwait(true);
+
+        Assert.False(File.Exists(StorePath));
     }
 
     [Fact]
