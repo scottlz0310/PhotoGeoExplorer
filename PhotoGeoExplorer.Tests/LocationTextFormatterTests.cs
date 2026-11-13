@@ -63,6 +63,31 @@ public class LocationTextFormatterTests
             .Select(index => new RoadNameCandidate($"道路{index}", Ref: null, DistanceMeters: index * 10))
             .ToArray();
 
-        Assert.Equal(expected, LocationTextFormatter.FormatRoadName(candidates));
+        Assert.Equal(expected, LocationTextFormatter.FormatRoadName(candidates, route => $"路線番号 {route}"));
+    }
+
+    [Theory]
+    [InlineData("国道53号", "53・373", "国道53号")]
+    [InlineData("山の手通り", "203", "山の手通り")]
+    [InlineData("丸山通", null, "丸山通")]
+    [InlineData(null, "203", "路線番号 203")]
+    [InlineData(null, "53・373", "路線番号 53・373")]
+    public void FormatRoadCandidateUsesTheNameAndFallsBackToTheRouteNumber(string? name, string? route, string expected)
+    {
+        var candidate = new RoadNameCandidate(name, route, DistanceMeters: 12);
+
+        Assert.Equal(expected, LocationTextFormatter.FormatRoadCandidate(candidate, number => $"路線番号 {number}"));
+    }
+
+    [Fact]
+    public void FormatRoadNameShowsTheRouteNumberOfARoadWithoutAName()
+    {
+        var candidates = new[]
+        {
+            new RoadNameCandidate(Name: null, Ref: "203", DistanceMeters: 5),
+            new RoadNameCandidate("丸山通", Ref: null, DistanceMeters: 20),
+        };
+
+        Assert.Equal("路線番号 203 (+1)", LocationTextFormatter.FormatRoadName(candidates, route => $"路線番号 {route}"));
     }
 }

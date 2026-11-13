@@ -5,6 +5,13 @@
 ## [Unreleased]
 
 ### 追加
+- 最寄り道路名の判定ロジックを追加 (#296 の 1 つ目。画面への表示は 2 つ目の PR)
+  - `RoadNameSuggester`（Core）が、撮影地点の最寄りの道路名の候補を求める。OpenFreeMap（OpenMapTiles スキーマ）の `transportation_name`（z14）を使い、地点が縁に近いときは隣のタイルも読む。**50 m 以内**の道路を、名称ごとに最短距離でまとめ、近い順に最大 3 件返す
+  - 候補にする道路は、`motorway`・`trunk`・`primary`・`secondary`・`tertiary`・`minor`・`service`。歩行者用の経路（`path`。駅のホームなど）と農林道（`track`）は含めない
+  - **種別（国道・都道府県道など）は推定しない**。国道は名称が「国道53号」の形で入っているのでそのまま名称になり、名称のない道路は「路線番号 203」と番号だけを出す。実データ（OpenFreeMap の 5 地点・48 本）で、`network` はすべて `road` で、`class` からの推定は `primary`（実際は都道府県道）と `tertiary`（実際は市区町村道等）で外れたため
+  - 取得・キャッシュ・デコードは、NuGet パッケージ `PhotoMapStudio.Tiles`（0.1.0。photo-map-studio #109）を使う。`VectorRoadTileSource` が、取得の失敗を `HttpRequestException`、タイルとして読めない内容を `IOException` で報告する
+  - `RoadNameCandidate.Name` を null にできるようにし（名称のない路線）、`LocationTextFormatter.FormatRoadName` が、路線番号から言語ごとの表記（「路線番号 203」／「Route 203」）を作る
+  - 設計書（`03-location-info.md` §5）を、実データの結果と決定事項に合わせて更新した
 - 背景地図に Mapbox Satellite（航空写真）を追加 (#291)
   - 利用者が自分の Mapbox アカウントで発行した公開アクセストークンを設定画面で入力する方式（BYO Token）。アプリにトークンを埋め込まない
   - トークンは Windows 資格情報ロッカー（`PasswordVault`）に保存し、`settings.json` と設定のエクスポートには含めない。`ISecretStore` で抽象化した
