@@ -14,7 +14,25 @@ internal enum AreaDataFormatError
     MissingAttribute,
 
     /// <summary>小地域のポリゴンが 1 件もない</summary>
-    NoRegions
+    NoRegions,
+
+    /// <summary>ファイルが壊れている、または Shapefile として読めない</summary>
+    CorruptData,
+
+    /// <summary>KEY_CODE から都道府県を判別できない</summary>
+    InvalidKeyCode,
+
+    /// <summary>1 つのデータに複数の都道府県が含まれる</summary>
+    MixedPrefectures,
+
+    /// <summary>ZIP として読めない、または Shapefile の構成ファイルがそろっていない</summary>
+    InvalidArchive,
+
+    /// <summary>ファイル名から調査年を判別できない</summary>
+    UnsupportedFileName,
+
+    /// <summary>展開後のサイズが上限を超える</summary>
+    TooLarge
 }
 
 /// <summary>
@@ -38,6 +56,12 @@ internal sealed class AreaDataFormatException : IOException
 
     public AreaDataFormatException(AreaDataFormatError error, string message)
         : base(message)
+    {
+        Error = error;
+    }
+
+    public AreaDataFormatException(AreaDataFormatError error, string message, Exception innerException)
+        : base(message, innerException)
     {
         Error = error;
     }

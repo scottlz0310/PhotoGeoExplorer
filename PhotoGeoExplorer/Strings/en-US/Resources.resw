@@ -1064,4 +1064,76 @@
   <data name="Message.CoordinatesCopyFailed" xml:space="preserve">
     <value>Could not copy the latitude and longitude to the clipboard.</value>
   </data>
+  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
+    <value>Area data (address names)</value>
+  </data>
+  <data name="SettingsPaneAreaDataDescription.Text" xml:space="preserve">
+    <value>Data used to determine the address (town) name shown in the map header. Add the per-prefecture ZIP files downloaded from e-Stat. The data is stored only on this device, and the lookup is done on this device.</value>
+  </data>
+  <data name="SettingsPaneAreaDataEmpty.Text" xml:space="preserve">
+    <value>No area data has been imported.</value>
+  </data>
+  <data name="SettingsPaneAreaDataDeleteButton.Content" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="SettingsPaneAreaDataAddButton.Content" xml:space="preserve">
+    <value>Add ZIP...</value>
+  </data>
+  <data name="SettingsPaneAreaDataAttribution.Text" xml:space="preserve">
+    <value>Source: Portal Site of Official Statistics of Japan (e-Stat) (https://www.e-stat.go.jp/), &quot;Census small area (town/block) boundary data&quot; (Statistics Bureau, Ministry of Internal Affairs and Communications), processed by this app. This data was not created by the national government or the Ministry.</value>
+  </data>
+  <data name="SettingsPaneAreaDataDownloadLink.Content" xml:space="preserve">
+    <value>Open the e-Stat boundary data download page</value>
+  </data>
+  <data name="AreaData.PackDetail" xml:space="preserve">
+    <value>{0} ・ {1}</value>
+  </data>
+  <data name="AreaData.DeleteAutomationName" xml:space="preserve">
+    <value>Delete the area data of {0}</value>
+  </data>
+  <data name="AreaData.Importing" xml:space="preserve">
+    <value>Importing area data...</value>
+  </data>
+  <data name="AreaData.Imported" xml:space="preserve">
+    <value>Imported the area data of {0} (census {1}).</value>
+  </data>
+  <data name="AreaData.Deleted" xml:space="preserve">
+    <value>Deleted the area data of {0}.</value>
+  </data>
+  <data name="AreaData.Error.Io" xml:space="preserve">
+    <value>Could not read or write the area data files. See the log for details.</value>
+  </data>
+  <data name="AreaData.Error.Unspecified" xml:space="preserve">
+    <value>Could not import this file as area data.</value>
+  </data>
+  <data name="AreaData.Error.MissingProjection" xml:space="preserve">
+    <value>The .prj file (coordinate system information) is missing, so it cannot be imported.</value>
+  </data>
+  <data name="AreaData.Error.UnsupportedProjection" xml:space="preserve">
+    <value>The coordinate system is not latitude/longitude. Download the &quot;JGD latitude/longitude&quot; Shapefile from e-Stat.</value>
+  </data>
+  <data name="AreaData.Error.MissingAttribute" xml:space="preserve">
+    <value>The attributes required for small-area boundary data (KEY_CODE, PREF_NAME, CITY_NAME, S_NAME, HCODE) are missing.</value>
+  </data>
+  <data name="AreaData.Error.NoRegions" xml:space="preserve">
+    <value>The data contains no small-area polygons.</value>
+  </data>
+  <data name="AreaData.Error.InvalidKeyCode" xml:space="preserve">
+    <value>The prefecture cannot be determined from KEY_CODE.</value>
+  </data>
+  <data name="AreaData.Error.MixedPrefectures" xml:space="preserve">
+    <value>The data contains several prefectures. Import one ZIP per prefecture.</value>
+  </data>
+  <data name="AreaData.Error.InvalidArchive" xml:space="preserve">
+    <value>The file is not a readable ZIP, or it does not contain exactly one set of shapefile parts (.shp, .shx, .dbf, .prj).</value>
+  </data>
+  <data name="AreaData.Error.UnsupportedFileName" xml:space="preserve">
+    <value>The census year cannot be determined from the file name. Import the file with the name downloaded from e-Stat (for example r2ka31.shp).</value>
+  </data>
+  <data name="AreaData.Error.TooLarge" xml:space="preserve">
+    <value>The extracted size exceeds the limit (512 MB).</value>
+  </data>
+  <data name="AreaData.Error.CorruptData" xml:space="preserve">
+    <value>The file is corrupt or cannot be read as a shapefile. Download it again.</value>
+  </data>
 </root>

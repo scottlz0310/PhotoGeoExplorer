@@ -2,12 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using NetTopologySuite.Features;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.IO.Esri;
 using PhotoGeoExplorer.Services.AreaNames;
 using Xunit;
+using static PhotoGeoExplorer.Tests.AreaShapefileTestData;
 
 namespace PhotoGeoExplorer.Tests;
 
@@ -16,22 +15,9 @@ namespace PhotoGeoExplorer.Tests;
 /// </summary>
 public sealed class AreaShapefileReaderTests : IDisposable
 {
-    // e-Stat の令和 2 年 小地域境界データ（世界測地系・緯度経度）の .prj と同じ内容
-    private const string GeographicProjection =
-        "GEOGCS[\"GCS_JGD_2011\",DATUM[\"D_JGD_2011\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]]";
-
-    private const string ProjectedProjection =
-        "PROJCS[\"JGD_2011_Japan_Zone_5\",GEOGCS[\"GCS_JGD_2011\",DATUM[\"D_JGD_2011\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],UNIT[\"Meter\",1.0]]";
-
     private static readonly GeometryFactory Factory = new();
-    private static readonly string[] AllAttributes = ["KEY_CODE", "PREF_NAME", "CITY_NAME", "S_NAME", "HCODE"];
 
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorer_AreaShapefileReaderTests_" + Guid.NewGuid().ToString("N"));
-
-    static AreaShapefileReaderTests()
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-    }
 
     public AreaShapefileReaderTests()
     {
@@ -75,6 +61,58 @@ public sealed class AreaShapefileReaderTests : IDisposable
         Assert.NotNull(nearLand);
         Assert.Equal("東品治町", nearLand.Name.Town);
         Assert.True(nearLand.Name.SnappedToNearest);
+    }
+
+    [Fact]
+    public void ReadDeterminesThePrefectureFromTheKeyCodes()
+    {
+        var path = WriteShapefile(
+            GeographicProjection,
+            AllAttributes,
+            CreateFeature("31201005001", "東町一丁目", hcode: 8101, west: 134.0),
+            CreateFeature("312010870", "東品治町", hcode: 8101, west: 134.1));
+
+        var dataset = AreaShapefileReader.Read(path, 2020);
+
+        Assert.Equal("31", dataset.PrefectureCode);
+        Assert.Equal(2020, dataset.CensusYear);
+    }
+
+    [Theory]
+    // 県の異なるレコードが混ざっている
+    [InlineData("31201005001", "32201005001", "MixedPrefectures")]
+    // 先頭 2 桁が都道府県コード（01〜47）ではない
+    [InlineData("31201005001", "99201005001", "InvalidKeyCode")]
+    [InlineData("31201005001", "00201005001", "InvalidKeyCode")]
+    [InlineData("31201005001", "48201005001", "InvalidKeyCode")]
+    [InlineData("31201005001", "AB201005001", "InvalidKeyCode")]
+    [InlineData("31201005001", "3", "InvalidKeyCode")]
+    [InlineData("31201005001", "", "InvalidKeyCode")]
+    public void ReadRejectsKeyCodesThatDoNotIdentifyASinglePrefecture(string firstKeyCode, string secondKeyCode, string expectedError)
+    {
+        var path = WriteShapefile(
+            GeographicProjection,
+            AllAttributes,
+            CreateFeature(firstKeyCode, "東町一丁目", hcode: 8101, west: 134.0),
+            CreateFeature(secondKeyCode, "東品治町", hcode: 8101, west: 134.1));
+
+        var exception = Assert.Throws<AreaDataFormatException>(() => AreaShapefileReader.Read(path, 2020));
+
+        Assert.Equal(expectedError, exception.Error.ToString());
+    }
+
+    [Fact]
+    public void ReadRejectsDataOfADifferentPrefectureThanExpected()
+    {
+        var path = WriteShapefile(
+            GeographicProjection,
+            AllAttributes,
+            CreateFeature("31201005001", "東町一丁目", hcode: 8101, west: 134.0));
+
+        var exception = Assert.Throws<AreaDataFormatException>(() => AreaShapefileReader.Read(path, "32", 2020));
+
+        Assert.Equal(AreaDataFormatError.MixedPrefectures, exception.Error);
+        Assert.Contains("(32)", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -125,63 +163,47 @@ public sealed class AreaShapefileReaderTests : IDisposable
         Assert.Equal(AreaDataFormatError.NoRegions, exception.Error);
     }
 
+    [Theory]
+    // 壊れたファイルは、ライブラリの例外ではなく AreaDataFormatException（IOException）で報告する
+    [InlineData("r2ka31.dbf", "broken")]
+    [InlineData("r2ka31.dbf", "")]
+    [InlineData("r2ka31.shp", "broken")]
+    [InlineData("r2ka31.shp", "")]
+    public void ReadReportsACorruptFileAsAnAreaDataFormatException(string fileName, string content)
+    {
+        var path = WriteShapefile(
+            GeographicProjection,
+            AllAttributes,
+            CreateFeature("31201005001", "東町一丁目", hcode: 8101, west: 134.0));
+        File.WriteAllText(Path.Combine(_directory, fileName), content);
+
+        var exception = Assert.Throws<AreaDataFormatException>(() => AreaShapefileReader.Read(path, "31", 2020));
+
+        Assert.Equal(AreaDataFormatError.CorruptData, exception.Error);
+        Assert.IsAssignableFrom<IOException>(exception);
+    }
+
+    [Fact]
+    public void ReadReportsAShapefileWithATruncatedAttributeTableAsCorrupt()
+    {
+        var path = WriteShapefile(
+            GeographicProjection,
+            AllAttributes,
+            CreateFeature("31201005001", "東町一丁目", hcode: 8101, west: 134.0));
+        var dbf = Path.Combine(_directory, "r2ka31.dbf");
+        File.WriteAllBytes(dbf, File.ReadAllBytes(dbf)[..100]);
+
+        var exception = Assert.Throws<AreaDataFormatException>(() => AreaShapefileReader.Read(path, "31", 2020));
+
+        Assert.Equal(AreaDataFormatError.CorruptData, exception.Error);
+    }
+
     [Fact]
     public void ReadThrowsAnIOExceptionWhenTheFileDoesNotExist()
     {
         Assert.ThrowsAny<IOException>(() => AreaShapefileReader.Read(Path.Combine(_directory, "missing.shp"), "31", 2020));
     }
 
-    private static Feature CreateFeature(string keyCode, string town, int hcode, double west)
-    {
-        // 東西 0.1 度、南北 0.1 度の区画を西から並べる
-        var polygon = Factory.CreatePolygon(new[]
-        {
-            new Coordinate(west, 35.0),
-            new Coordinate(west, 35.1),
-            new Coordinate(west + 0.1, 35.1),
-            new Coordinate(west + 0.1, 35.0),
-            new Coordinate(west, 35.0)
-        });
-        return new Feature(polygon, CreateAttributes(keyCode, town, hcode));
-    }
-
-    private static AttributesTable CreateAttributes(string keyCode, string town, int hcode)
-        => new()
-        {
-            { "KEY_CODE", keyCode },
-            { "PREF_NAME", "鳥取県" },
-            { "CITY_NAME", "鳥取市" },
-            { "S_NAME", town },
-            { "HCODE", hcode }
-        };
-
     private string WriteShapefile(string? projection, IReadOnlyCollection<string> attributeNames, params Feature[] features)
-    {
-        var path = Path.Combine(_directory, "r2ka31.shp");
-        var filtered = features.Select(feature =>
-        {
-            var attributes = new AttributesTable();
-            foreach (var name in attributeNames)
-            {
-                attributes.Add(name, feature.Attributes[name]);
-            }
-
-            return (IFeature)new Feature(feature.Geometry, attributes);
-        });
-
-        Shapefile.WriteAllFeatures(filtered, path, projection, Encoding.GetEncoding(932));
-
-        // e-Stat の配布物には .cpg がない（文字コードは .dbf のヘッダーから判定される）
-        File.Delete(Path.ChangeExtension(path, ".cpg"));
-        if (string.IsNullOrWhiteSpace(projection))
-        {
-            File.Delete(Path.ChangeExtension(path, ".prj"));
-            if (projection is not null)
-            {
-                File.WriteAllText(Path.ChangeExtension(path, ".prj"), projection);
-            }
-        }
-
-        return path;
-    }
+        => AreaShapefileTestData.WriteShapefile(_directory, "r2ka31", projection, attributeNames, features);
 }

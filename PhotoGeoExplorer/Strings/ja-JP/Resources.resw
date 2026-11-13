@@ -1064,4 +1064,76 @@
   <data name="Message.CoordinatesCopyFailed" xml:space="preserve">
     <value>緯度・経度をクリップボードへコピーできませんでした。</value>
   </data>
+  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
+    <value>地域データ（字地名）</value>
+  </data>
+  <data name="SettingsPaneAreaDataDescription.Text" xml:space="preserve">
+    <value>地図ヘッダーに表示する住所（字地名）の判定に使うデータです。e-Stat からダウンロードした都道府県ごとの ZIP を追加してください。データは端末内にだけ保存し、判定も端末内で行います。</value>
+  </data>
+  <data name="SettingsPaneAreaDataEmpty.Text" xml:space="preserve">
+    <value>取り込み済みの地域データはありません。</value>
+  </data>
+  <data name="SettingsPaneAreaDataDeleteButton.Content" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="SettingsPaneAreaDataAddButton.Content" xml:space="preserve">
+    <value>ZIP を追加...</value>
+  </data>
+  <data name="SettingsPaneAreaDataAttribution.Text" xml:space="preserve">
+    <value>出典: 政府統計の総合窓口(e-Stat)（https://www.e-stat.go.jp/）「国勢調査 小地域（町丁・字等別）境界データ」（総務省統計局）を加工して作成。このデータは国・総務省が作成したものではありません。</value>
+  </data>
+  <data name="SettingsPaneAreaDataDownloadLink.Content" xml:space="preserve">
+    <value>e-Stat の境界データのダウンロードページを開く</value>
+  </data>
+  <data name="AreaData.PackDetail" xml:space="preserve">
+    <value>{0}年 ・ {1}</value>
+  </data>
+  <data name="AreaData.DeleteAutomationName" xml:space="preserve">
+    <value>{0}の地域データを削除</value>
+  </data>
+  <data name="AreaData.Importing" xml:space="preserve">
+    <value>地域データを取り込んでいます...</value>
+  </data>
+  <data name="AreaData.Imported" xml:space="preserve">
+    <value>{0}（{1}年）の地域データを取り込みました。</value>
+  </data>
+  <data name="AreaData.Deleted" xml:space="preserve">
+    <value>{0}の地域データを削除しました。</value>
+  </data>
+  <data name="AreaData.Error.Io" xml:space="preserve">
+    <value>地域データのファイルを読み書きできませんでした。詳細はログを確認してください。</value>
+  </data>
+  <data name="AreaData.Error.Unspecified" xml:space="preserve">
+    <value>地域データとして取り込めませんでした。</value>
+  </data>
+  <data name="AreaData.Error.MissingProjection" xml:space="preserve">
+    <value>.prj ファイル（座標系の情報）がないため取り込めません。</value>
+  </data>
+  <data name="AreaData.Error.UnsupportedProjection" xml:space="preserve">
+    <value>座標系が緯度経度ではありません。e-Stat で「世界測地系緯度経度」の Shapefile を選んでダウンロードしてください。</value>
+  </data>
+  <data name="AreaData.Error.MissingAttribute" xml:space="preserve">
+    <value>小地域の境界データに必要な属性（KEY_CODE・PREF_NAME・CITY_NAME・S_NAME・HCODE）が不足しています。</value>
+  </data>
+  <data name="AreaData.Error.NoRegions" xml:space="preserve">
+    <value>小地域のポリゴンが含まれていません。</value>
+  </data>
+  <data name="AreaData.Error.InvalidKeyCode" xml:space="preserve">
+    <value>KEY_CODE から都道府県を判別できません。</value>
+  </data>
+  <data name="AreaData.Error.MixedPrefectures" xml:space="preserve">
+    <value>複数の都道府県が含まれています。都道府県ごとの ZIP を取り込んでください。</value>
+  </data>
+  <data name="AreaData.Error.InvalidArchive" xml:space="preserve">
+    <value>ZIP として読めないか、Shapefile の構成ファイル（.shp・.shx・.dbf・.prj）が 1 組そろっていません。</value>
+  </data>
+  <data name="AreaData.Error.UnsupportedFileName" xml:space="preserve">
+    <value>ファイル名から調査年を判別できません。e-Stat からダウンロードした名前（例: r2ka31.shp）のまま取り込んでください。</value>
+  </data>
+  <data name="AreaData.Error.TooLarge" xml:space="preserve">
+    <value>展開後のサイズが上限（512 MB）を超えています。</value>
+  </data>
+  <data name="AreaData.Error.CorruptData" xml:space="preserve">
+    <value>ファイルが壊れているか、Shapefile として読めません。ダウンロードし直してください。</value>
+  </data>
 </root>

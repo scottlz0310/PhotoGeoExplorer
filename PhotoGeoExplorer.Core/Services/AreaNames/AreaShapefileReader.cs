@@ -33,11 +33,50 @@ internal static class AreaShapefileReader
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     }
 
+    /// <summary>
+    /// 都道府県を KEY_CODE（先頭 2 桁）から判別して読む。全レコードが同じ都道府県でなければ拒否する
+    /// </summary>
+    /// <exception cref="AreaDataFormatException">小地域の境界データとして読める形式ではない</exception>
+    /// <exception cref="IOException">ファイルを読めなかった</exception>
+    public static AreaDataset Read(string shapefilePath, int censusYear)
+        => ReadCore(shapefilePath, expectedPrefectureCode: null, censusYear);
+
+    /// <summary>
+    /// 指定した都道府県のデータとして読む。KEY_CODE が別の都道府県を示すレコードがあれば拒否する
+    /// </summary>
     /// <exception cref="AreaDataFormatException">小地域の境界データとして読める形式ではない</exception>
     /// <exception cref="IOException">ファイルを読めなかった</exception>
     public static AreaDataset Read(string shapefilePath, string prefectureCode, int censusYear)
     {
+        ArgumentException.ThrowIfNullOrEmpty(prefectureCode);
+        return ReadCore(shapefilePath, prefectureCode, censusYear);
+    }
+
+    private static AreaDataset ReadCore(string shapefilePath, string? expectedPrefectureCode, int censusYear)
+    {
         ArgumentException.ThrowIfNullOrEmpty(shapefilePath);
+
+        try
+        {
+            return ReadRegions(shapefilePath, expectedPrefectureCode, censusYear);
+        }
+        catch (Exception ex) when (ex is ShapefileException or NotSupportedException or InvalidDataException
+            or ArgumentException or FormatException)
+        {
+            // 壊れたファイルを読むと、ライブラリは IOException ではなくこれらを投げる（ArgumentOutOfRangeException を含む）。
+            // 破損データで実際に出た型を、ランダムにバイトを壊す実験で洗い出して並べている。
+            // 呼び出し元が IOException だけを扱えば足りるよう、AreaDataFormatException（IOException）に揃える
+            throw new AreaDataFormatException(
+                AreaDataFormatError.CorruptData,
+                $"The shapefile is corrupt or in an unsupported format: {shapefilePath}",
+                ex);
+        }
+    }
+
+    private static AreaDataset ReadRegions(string shapefilePath, string? expectedPrefectureCode, int censusYear)
+    {
+        // ライブラリは、ファイル内の点数やレコード数をもとに配列を確保する。破損データでメモリを使い果たさないよう、先に検査する
+        ShapefileStructureGuard.Validate(shapefilePath);
 
         // 壊れた図形は読み飛ばさずに修復する（1 件の不正で都道府県全体を読めなくしない）
         var options = new ShapefileReaderOptions { GeometryBuilderMode = GeometryBuilderMode.FixInvalidShapes };
@@ -45,7 +84,7 @@ internal static class AreaShapefileReader
         ValidateProjection(reader.Projection, shapefilePath);
         ValidateAttributes(reader, shapefilePath);
 
-        var regions = new List<AreaRegion>(reader.RecordCount);
+        var regions = new List<AreaRegion>();
         while (reader.Read(out var deleted, out Feature feature))
         {
             if (deleted || feature.Geometry is not (Polygon or MultiPolygon) || feature.Geometry.IsEmpty)
@@ -69,7 +108,33 @@ internal static class AreaShapefileReader
                 $"The shapefile contains no area polygons: {shapefilePath}");
         }
 
+        var prefectureCode = DeterminePrefectureCode(regions, expectedPrefectureCode, shapefilePath);
         return new AreaDataset(prefectureCode, censusYear, regions);
+    }
+
+    // KEY_CODE は「都道府県 2 桁 + 市区町村 3 桁 + 町丁字」。先頭 2 桁を都道府県コードとして使う
+    private static string DeterminePrefectureCode(List<AreaRegion> regions, string? expected, string shapefilePath)
+    {
+        var codes = regions
+            .Select(region => region.KeyCode.Length >= 2 ? region.KeyCode[..2] : string.Empty)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (codes.Exists(code => !PrefectureCatalog.IsValidCode(code)))
+        {
+            throw new AreaDataFormatException(
+                AreaDataFormatError.InvalidKeyCode,
+                $"The shapefile has a KEY_CODE that does not start with a prefecture code (01-47): {shapefilePath}");
+        }
+
+        if (codes.Count > 1 || (expected is not null && codes[0] != expected))
+        {
+            var expectation = expected is null ? string.Empty : $" ({expected})";
+            throw new AreaDataFormatException(
+                AreaDataFormatError.MixedPrefectures,
+                $"The shapefile does not consist of a single prefecture{expectation}: {shapefilePath}");
+        }
+
+        return codes[0];
     }
 
     private static void ValidateProjection(string? projection, string shapefilePath)

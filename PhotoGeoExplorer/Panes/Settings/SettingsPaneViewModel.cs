@@ -37,7 +37,8 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         FileBrowserPaneViewModel fileBrowserPaneViewModel,
         MainViewModel shellViewModel,
         ISecretStore secretStore,
-        IMapboxConnectionTester mapboxConnectionTester)
+        IMapboxConnectionTester mapboxConnectionTester,
+        SettingsPaneAreaDataSectionViewModel areaData)
     {
         _settingsCoordinator = settingsCoordinator ?? throw new ArgumentNullException(nameof(settingsCoordinator));
         _fileBrowserPaneViewModel = fileBrowserPaneViewModel ?? throw new ArgumentNullException(nameof(fileBrowserPaneViewModel));
@@ -50,6 +51,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             secretStore,
             mapboxConnectionTester,
             tokenChanged: _settingsCoordinator.RefreshMapBackground);
+        AreaData = areaData ?? throw new ArgumentNullException(nameof(areaData));
 
         SaveCommand = new RelayCommand(() => SaveAsync());
         ResetCommand = new RelayCommand(() => ResetAsync());
@@ -167,6 +169,8 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
     public SettingsPaneMapboxSectionViewModel Mapbox { get; }
 
+    public SettingsPaneAreaDataSectionViewModel AreaData { get; }
+
     public MapHeaderDisplaySettings MapHeader => _settingsCoordinator.MapHeaderDisplay;
 
     public bool ShowImagesOnly
@@ -212,11 +216,11 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         return _hasPendingChanges ? SaveAsync() : Task.CompletedTask;
     }
 
-    protected override Task OnInitializeAsync()
+    protected override async Task OnInitializeAsync()
     {
         RefreshFromCurrentState();
         _hasPendingChanges = false;
-        return Task.CompletedTask;
+        await AreaData.RefreshAsync().ConfigureAwait(true);
     }
 
     private async Task SaveAsync()

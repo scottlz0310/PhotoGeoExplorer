@@ -13,6 +13,7 @@ using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Preview;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.AreaNames;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Graphics;
@@ -32,6 +33,8 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
     private readonly PasswordVaultSecretStore _secretStore = new();
+    private readonly AreaDataStore _areaDataStore = new(AreaDataStore.DefaultRootDirectory);
+    private readonly AreaDataArchivePicker _areaDataArchivePicker;
     private Services.ICrashReportService? _crashReportService;
     private bool _mapInitialized;
     private bool _disposed;
@@ -53,6 +56,7 @@ public sealed partial class MainWindow : Window, IDisposable
         InitializeComponent();
         _viewModel = new MainViewModel();
         var dialogService = new DialogService(RootGrid, this);
+        _areaDataArchivePicker = new AreaDataArchivePicker(dialogService);
         var exifEditorService = new ExifEditorService(
             dialogService,
             new ExifMetadataService(),
@@ -404,7 +408,8 @@ public sealed partial class MainWindow : Window, IDisposable
             _fileBrowserPaneViewModel,
             _viewModel,
             _secretStore,
-            new MapboxConnectionTester());
+            new MapboxConnectionTester(),
+            new SettingsPaneAreaDataSectionViewModel(_areaDataStore, _areaDataArchivePicker.PickAsync));
         await viewModel.InitializeAsync().ConfigureAwait(true);
         viewModel.IsActive = true;
 
