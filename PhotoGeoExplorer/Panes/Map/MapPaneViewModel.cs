@@ -76,8 +76,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         WorkspaceState workspaceState,
         IMapImageService mapImageService,
         Func<DispatcherQueue?>? dispatcherQueueAccessor = null,
-        ISecretStore? secretStore = null)
+        ISecretStore? secretStore = null,
+        IAreaNameResolver? areaNameResolver = null)
     {
+        LocationInfo = new MapLocationInfoViewModel(areaNameResolver);
         _secretStore = secretStore ?? new PasswordVaultSecretStore();
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
@@ -207,7 +209,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     /// <summary>
     /// 地図ヘッダーに表示する撮影位置情報
     /// </summary>
-    public MapLocationInfoViewModel LocationInfo { get; } = new();
+    public MapLocationInfoViewModel LocationInfo { get; }
 
     /// <summary>
     /// 地図のデフォルトズームレベル

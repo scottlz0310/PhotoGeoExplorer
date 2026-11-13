@@ -240,6 +240,8 @@
         <li>Mapbox の利用量と料金は、トークンを発行したアカウントに計上されます。無料枠と料金は <a href="https://www.mapbox.com/pricing" target="_blank" rel="noopener noreferrer">Mapbox の料金ページ</a>（Raster Tiles API）でご確認ください。URL 制限つきのトークンはデスクトップアプリから使えないことがあります。</li>
         <li>トークンを設定していない状態で Mapbox Satellite が選ばれている場合は OpenStreetMap を表示し、地図の左上にその旨を表示します。</li>
         <li>地図の右下に背景地図の提供元（帰属表示）を表示します。Mapbox Satellite の表示中は左下に Mapbox のロゴも表示します。保存した地図画像にも同じ表示が入ります。</li>
+        <li>写真を 1 枚選ぶと、地図の見出しの右に撮影位置の住所（字地名）と緯度・経度を表示します。緯度・経度をクリックするとコピーできます。表示する項目は、見出しの右クリックまたは設定の「地図」で切り替えできます。</li>
+        <li>住所は、設定の「地域データ（字地名）」で該当する都道府県のデータを取り込むと表示されます（取り込み方法は「設定」を参照）。住所にポインターを合わせると、小地域コードと調査年を確認できます。撮影位置が小地域の境界の外にあるときは、30 m 以内の最寄りの小地域に補正して表示し、その旨も表示します。海や湖などの水面では住所を表示しません。
       </ul>
     </section>
 
@@ -268,7 +270,16 @@
         <li>言語/テーマの切り替えが可能です (変更後は再起動が必要です)。</li>
         <li>地図の初期倍率、タイルソースを変更できます。</li>
         <li>設定のエクスポート/インポートに対応しています。</li>
+        <li>「地域データ（字地名）」で、地図の見出しに表示する住所の判定に使うデータを取り込み・削除できます（下記）。</li>
       </ul>
+      <h3>地域データ（字地名）の取り込み</h3>
+      <ol>
+        <li><a href="https://www.e-stat.go.jp/gis/statmap-search?type=2" target="_blank" rel="noopener noreferrer">政府統計の総合窓口（e-Stat）の境界データのダウンロードページ</a>で、「国勢調査」「小地域（町丁・字等別）」「2020 年」「世界測地系緯度経度・Shape 形式」を選び、取り込みたい都道府県の ZIP をダウンロードします。</li>
+        <li>設定の「地域データ（字地名）」で「ZIP を追加...」を選び、ダウンロードした ZIP を指定します。同じ都道府県のデータがあれば置き換えます。</li>
+        <li>不要になったデータは、一覧の「削除」で消せます。</li>
+      </ol>
+      <p>取り込んだデータは端末の <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code> に保存し、住所の判定も端末内で行います。本アプリはこのデータをダウンロードしません。</p>
+      <p class="note">出典: 政府統計の総合窓口(e-Stat)（<a href="https://www.e-stat.go.jp/" target="_blank" rel="noopener noreferrer">https://www.e-stat.go.jp/</a>）「国勢調査 小地域（町丁・字等別）境界データ」（総務省統計局）を加工して作成。このデータは国・総務省が作成したものではありません。</p>
     </section>
 
     <section id="support">
@@ -294,6 +305,7 @@
       <ul>
         <li>写真や設定は端末内で処理され、外部に送信されません。</li>
         <li>地図タイルは OpenStreetMap / Esri のサーバーから取得します。Mapbox Satellite を選んだ場合は Mapbox のサーバーから取得します。</li>
+        <li>住所（字地名）の判定は、取り込んだ地域データを使って端末内で行い、撮影位置は送信しません。</li>
         <li>詳細はプライバシーポリシーをご確認ください。</li>
       </ul>
       <p class="note">プライバシーポリシー: <a href="https://photogeoexplorer.pages.dev/privacy-policy">https://photogeoexplorer.pages.dev/privacy-policy</a></p>

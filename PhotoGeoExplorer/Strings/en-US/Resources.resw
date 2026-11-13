@@ -1028,6 +1028,12 @@
   <data name="MapHeaderCoordinatesButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>Click to copy the latitude and longitude</value>
   </data>
+  <data name="AreaName.ToolTip.Source" xml:space="preserve">
+    <value>Small-area code: {0} ({1} Census)</value>
+  </data>
+  <data name="AreaName.ToolTip.Snapped" xml:space="preserve">
+    <value>The photo location is outside every small-area boundary, so the nearest area within 30 m is shown.</value>
+  </data>
   <data name="MapHeaderMenuShowAddress.Text" xml:space="preserve">
     <value>Show address (census small area)</value>
   </data>

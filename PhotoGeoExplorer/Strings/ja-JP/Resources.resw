@@ -1028,6 +1028,12 @@
   <data name="MapHeaderCoordinatesButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>クリックで緯度・経度をコピー</value>
   </data>
+  <data name="AreaName.ToolTip.Source" xml:space="preserve">
+    <value>小地域コード: {0}（{1} 年 国勢調査）</value>
+  </data>
+  <data name="AreaName.ToolTip.Snapped" xml:space="preserve">
+    <value>撮影位置が小地域の境界の外にあるため、30 m 以内の最寄りの小地域に補正しています</value>
+  </data>
   <data name="MapHeaderMenuShowAddress.Text" xml:space="preserve">
     <value>住所（国勢調査 字地名）を表示</value>
   </data>

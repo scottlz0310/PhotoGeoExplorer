@@ -126,6 +126,7 @@
                     Text="{Binding LocationInfo.AreaNameText, Mode=OneWay}"
                     TextTrimming="CharacterEllipsis"
                     Visibility="{Binding LocationInfo.AreaNameVisibility, Mode=OneWay}"
+                    ToolTipService.ToolTip="{Binding LocationInfo.AreaNameToolTip, Mode=OneWay}"
                     AutomationProperties.AutomationId="MapHeaderAreaName" />
                 <TextBlock
                     x:Name="MapHeaderAreaSeparator"

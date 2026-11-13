@@ -240,6 +240,8 @@
         <li>Mapbox usage and charges are billed to the account that issued the token. See the <a href="https://www.mapbox.com/pricing" target="_blank" rel="noopener noreferrer">Mapbox pricing page</a> (Raster Tiles API) for the free tier and rates. URL-restricted tokens may not work from a desktop app.</li>
         <li>If Mapbox Satellite is selected but no token is set, OpenStreetMap is shown and a notice appears at the top left of the map.</li>
         <li>The map provider attribution is shown at the bottom right of the map. While Mapbox Satellite is displayed, the Mapbox logo is also shown at the bottom left. Both are included in saved map images.</li>
+        <li>When you select a single photo, the address (town name) and the latitude/longitude of its location are shown to the right of the map title. Click the latitude/longitude to copy it. Choose the items to show from the right-click menu of the header or under Map in Settings.</li>
+        <li>The address appears once you import the data for the prefecture under Area data (town names) in Settings (see Settings below). Point at the address to see the small-area code and the census year. When the photo location is outside every small-area boundary, the nearest area within 30 m is shown and the tooltip says so. No address is shown over water such as the sea or lakes.</li>
       </ul>
     </section>
 
@@ -268,7 +270,16 @@
         <li>Switch language and theme (restart required after change).</li>
         <li>Change the default map zoom level and tile source.</li>
         <li>Export and import settings.</li>
+        <li>Under Area data (town names), import or delete the data used to determine the address shown in the map header (see below).</li>
       </ul>
+      <h3>Importing area data (town names)</h3>
+      <ol>
+        <li>On the <a href="https://www.e-stat.go.jp/gis/statmap-search?type=2" target="_blank" rel="noopener noreferrer">boundary data download page of e-Stat (Portal Site of Official Statistics of Japan)</a>, choose Census, small area (town/block), 2020, JGD2011 latitude/longitude, Shape format, and download the ZIP of each prefecture you want.</li>
+        <li>Under Area data (town names) in Settings, choose Add ZIP... and select the downloaded ZIP. Data for the same prefecture is replaced.</li>
+        <li>Choose Delete in the list to remove data you no longer need.</li>
+      </ol>
+      <p>Imported data is stored at <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code>, and the address lookup runs on this device. The app does not download this data itself.</p>
+      <p class="note">Source: Portal Site of Official Statistics of Japan (e-Stat) (<a href="https://www.e-stat.go.jp/" target="_blank" rel="noopener noreferrer">https://www.e-stat.go.jp/</a>), "Census small area (town/block) boundary data" (Statistics Bureau, Ministry of Internal Affairs and Communications), processed by this app. This data was not created by the national government or the Ministry.</p>
     </section>
 
     <section id="support">
@@ -294,6 +305,7 @@
       <ul>
         <li>Photos and settings are processed locally and not uploaded.</li>
         <li>Map tiles are fetched from OpenStreetMap and Esri servers. When Mapbox Satellite is selected, tiles are fetched from Mapbox servers.</li>
+        <li>The address lookup uses the area data you imported, runs on this device, and does not send the photo location.</li>
         <li>See the privacy policy for details.</li>
       </ul>
       <p class="note">Privacy policy: <a href="https://photogeoexplorer.pages.dev/privacy-policy">https://photogeoexplorer.pages.dev/privacy-policy</a></p>
