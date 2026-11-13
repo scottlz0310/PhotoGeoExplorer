@@ -15,6 +15,7 @@ public sealed class SettingsPaneLayoutSectionViewModelTests
     [InlineData((int)PaneViewType.File, 0)]
     [InlineData((int)PaneViewType.Preview, 1)]
     [InlineData((int)PaneViewType.Map, 2)]
+    [InlineData((int)PaneViewType.Places, 3)]
     [InlineData(99, 0)]
     public void ToPaneViewIndexMapsViewTypes(int value, int expected)
     {
@@ -25,6 +26,7 @@ public sealed class SettingsPaneLayoutSectionViewModelTests
     [InlineData(0, (int)PaneViewType.File)]
     [InlineData(1, (int)PaneViewType.Preview)]
     [InlineData(2, (int)PaneViewType.Map)]
+    [InlineData(3, (int)PaneViewType.Places)]
     [InlineData(-1, (int)PaneViewType.File)]
     [InlineData(99, (int)PaneViewType.File)]
     public void FromPaneViewIndexMapsIndexes(int value, int expected)
@@ -56,6 +58,41 @@ public sealed class SettingsPaneLayoutSectionViewModelTests
     public void GetRegionLabelKeyFollowsPresetAndRegion(int preset, int regionIndex, string expectedKey)
     {
         Assert.Equal(expectedKey, SettingsPaneLayoutSectionViewModel.GetRegionLabelKey((PaneLayoutPreset)preset, regionIndex));
+    }
+
+    [Fact]
+    public void ChoosingTheHiddenPlacesViewReplacesTheViewOfTheRegionOnly()
+    {
+        using var coordinator = new StubSettingsCoordinator();
+        var section = new SettingsPaneLayoutSectionViewModel(coordinator, () => { });
+        section.RefreshFromCoordinator();
+
+        // 既定は ファイル・プレビュー・地図。字地名はどの領域にも出ていないので、入れ替わる相手がなく、選んだ領域のビューだけが外れる
+        section.PaneRegion2View = PaneViewType.Places;
+
+        Assert.Equal(PaneViewType.File, section.PaneRegion1View);
+        Assert.Equal(PaneViewType.Places, section.PaneRegion2View);
+        Assert.Equal(PaneViewType.Map, section.PaneRegion3View);
+        Assert.Equal(PaneViewType.Places, coordinator.PaneRegion2View);
+    }
+
+    [Fact]
+    public void ChoosingAViewShownInAnotherRegionSwapsWithAShownPlacesView()
+    {
+        using var coordinator = new StubSettingsCoordinator
+        {
+            PaneRegion1View = PaneViewType.File,
+            PaneRegion2View = PaneViewType.Places,
+            PaneRegion3View = PaneViewType.Map
+        };
+        var section = new SettingsPaneLayoutSectionViewModel(coordinator, () => { });
+        section.RefreshFromCoordinator();
+
+        section.PaneRegion1View = PaneViewType.Places;
+
+        Assert.Equal(PaneViewType.Places, section.PaneRegion1View);
+        Assert.Equal(PaneViewType.File, section.PaneRegion2View);
+        Assert.Equal(PaneViewType.Map, section.PaneRegion3View);
     }
 
     [Fact]

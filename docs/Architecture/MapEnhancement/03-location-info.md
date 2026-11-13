@@ -184,7 +184,13 @@ internal sealed record RoadNameCandidate(string Name, string? Ref, double Distan
   - 対象は現在のフォルダーのみ（サブフォルダーは含めない）
 - 実装の分割: 1 つ目の PR は Core のロジック（`AreaTreeBuilder`・`PhotoAreaClassifier`）、2 つ目の PR はペインの UI と、レイアウト・設定への組み込み。
 - 結果のモデル: `AreaTreeNode`（種類・キー・表示名・子孫を含む写真のパス・子）。特別なノード（水面・地域データなし・位置情報なし）の表示名は、表示側が持つ。
-## 7. エクスポート（#299）
+- ペインの実装（2 つ目の PR）:
+  - `PaneViewType.Places` を足し、`PaneLayoutHostService`・設定のレイアウト（選択肢と入れ替え）・設定の正規化が 4 つのビューに対応する。ビューの入れ替えは、割り当てが 3 つに限られるため「選んだビューが別の領域に出ていれば入れ替え、出ていなければ、その領域のビューだけが外れる」になる
+  - 現在のフォルダーの写真は `WorkspaceState.PhotoItems` で受け取る。`FileBrowserPaneViewModel` が、フォルダーの読み込みのたびに公開する（並べ替えでは公開しない）
+  - `PlacesPaneViewModel`（`PaneViewModelBase`）が、`PhotoAreaClassifier` を背景で実行して、`AreaTreeBuilder` のツリーを `PlacesNodeViewModel` で見せる。位置情報を全写真から読むため、ペインが表示されている間（`IsActive`）だけ判定する。`MainWindowLayoutCoordinator` が、いずれかの領域が字地名で、プレビューが最大化されていないときに `IsActive` を立てる
+  - 進捗は、背景の判定が集めた結果を、UI スレッドで一度にまとめてツリーへ反映する（一定の枚数ごと）。完了時は集めた全結果で作り直す。判定の世代で、古い結果を受け付けない。展開状態はキーで保ち、作り直しても開いたままにする
+  - ノードの選択は View（`ItemInvoked`）から VM へ委譲し、`WorkspaceState.RequestPhotoSelection` で一覧の選択にする
+  - 判定は、地域データの取り込み・削除（`IAreaNameResolver.ResultsInvalidated`）で自動でやり直す。字地名を 1 件も判定できなかったときは、地域データの取り込みを案内する## 7. エクスポート（#299）
 
 | 機能 | 内容 |
 |---|---|

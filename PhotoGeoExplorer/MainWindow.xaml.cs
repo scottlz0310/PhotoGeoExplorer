@@ -10,10 +10,12 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Places;
 using PhotoGeoExplorer.Panes.Preview;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.AreaNames;
+using PhotoGeoExplorer.Services.AreaTree;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Graphics;
@@ -32,6 +34,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
+    private readonly PlacesPaneViewModel _placesPaneViewModel;
     private readonly PasswordVaultSecretStore _secretStore = new();
     private readonly AreaDataStore _areaDataStore = new(AreaDataStore.DefaultRootDirectory);
     private readonly AreaNameResolver _areaNameResolver;
@@ -81,6 +84,11 @@ public sealed partial class MainWindow : Window, IDisposable
             mapImageService,
             secretStore: _secretStore,
             areaNameResolver: _areaNameResolver);
+        _placesPaneViewModel = new PlacesPaneViewModel(
+            _viewModel.WorkspaceState,
+            new PhotoAreaClassifier(new PhotoCoordinateReader(new ExifMetadataService()).ReadAsync, _areaNameResolver, progressBatchSize: 200),
+            _areaNameResolver,
+            new UiDispatcher());
         _settingsCoordinator = new SettingsCoordinator(
             new SettingsService(),
             dialogService,
@@ -113,6 +121,7 @@ public sealed partial class MainWindow : Window, IDisposable
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         MapPaneControl.DataContext = _mapPaneViewModel;
         MapPaneControl.ConfigureMapImageExport(dialogService, mapImageService);
+        PlacesPaneControl.DataContext = _placesPaneViewModel;
         var paneLayoutHostService = new PaneLayoutHostService(
             FileBrowserPane,
             DetailPane,
@@ -135,7 +144,8 @@ public sealed partial class MainWindow : Window, IDisposable
             PaneStagingArea,
             FileBrowserPaneControl,
             PreviewPaneControl,
-            MapPaneControl);
+            MapPaneControl,
+            PlacesPaneControl);
         _layoutCoordinator = new MainWindowLayoutCoordinator(
             paneLayoutHostService,
             PreviewPaneControl,
@@ -154,7 +164,8 @@ public sealed partial class MainWindow : Window, IDisposable
             RightHorizontalSplitHost,
             RightLeftColumn,
             RightRightColumn,
-            RightSplitterColumn);
+            RightSplitterColumn,
+            shown => _placesPaneViewModel.IsActive = shown);
         _settingsCoordinator.PaneLayoutChanged += OnPaneLayoutChanged;
         _layoutCoordinator.ApplyPaneLayout(
             _settingsCoordinator.PaneLayoutPreset,
@@ -491,6 +502,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
             // MapPaneViewModel のクリーンアップ
             _mapPaneViewModel.Cleanup();
+            _placesPaneViewModel.Cleanup();
 
             if (PreviewPaneControl is not null)
             {
@@ -507,6 +519,11 @@ public sealed partial class MainWindow : Window, IDisposable
             if (MapPaneControl is not null)
             {
                 MapPaneControl.DataContext = null;
+            }
+
+            if (PlacesPaneControl is not null)
+            {
+                PlacesPaneControl.DataContext = null;
             }
 
             _previewPaneViewModel?.Cleanup();

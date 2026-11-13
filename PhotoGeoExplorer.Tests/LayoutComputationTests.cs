@@ -88,6 +88,19 @@ public sealed class LayoutComputationTests
         Assert.Equal(stored, resolved);
     }
 
+    // PaneViewType は internal のため public テストメソッドの引数に使えず（CS0051）、int で受けてキャストする
+    [Theory]
+    [InlineData((int)PaneViewType.File, (int)PaneViewType.Preview, (int)PaneViewType.Map, false)]
+    [InlineData((int)PaneViewType.Places, (int)PaneViewType.Preview, (int)PaneViewType.Map, true)]
+    [InlineData((int)PaneViewType.File, (int)PaneViewType.Places, (int)PaneViewType.Map, true)]
+    [InlineData((int)PaneViewType.File, (int)PaneViewType.Preview, (int)PaneViewType.Places, true)]
+    public void IsPlacesPaneShownIsTrueOnlyWhenARegionHasThePlacesView(int region1, int region2, int region3, bool expected)
+    {
+        Assert.Equal(
+            expected,
+            MainWindowLayoutCoordinator.IsPlacesPaneShown((PaneViewType)region1, (PaneViewType)region2, (PaneViewType)region3));
+    }
+
     [Fact]
     public void ShouldApplyPaneLayoutReturnsExpectedValue()
     {
@@ -286,6 +299,7 @@ public sealed class LayoutComputationTests
         Assert.Equal(PaneLayoutHostService.PaneContentKind.File, PaneLayoutHostService.ResolvePaneContent(PaneViewType.File));
         Assert.Equal(PaneLayoutHostService.PaneContentKind.Map, PaneLayoutHostService.ResolvePaneContent(PaneViewType.Map));
         Assert.Equal(PaneLayoutHostService.PaneContentKind.Preview, PaneLayoutHostService.ResolvePaneContent(PaneViewType.Preview));
+        Assert.Equal(PaneLayoutHostService.PaneContentKind.Places, PaneLayoutHostService.ResolvePaneContent(PaneViewType.Places));
         Assert.Equal(PaneLayoutHostService.PaneContentKind.Preview, PaneLayoutHostService.ResolvePaneContent((PaneViewType)999));
     }
 
@@ -540,6 +554,11 @@ public sealed class LayoutComputationTests
 
     private static object CreatePlaceholder(Type parameterType)
     {
+        if (parameterType == typeof(Action<bool>))
+        {
+            return (Action<bool>)(_ => { });
+        }
+
         var concreteType = parameterType == typeof(FrameworkElement)
             ? typeof(Grid)
             : parameterType;

@@ -270,11 +270,20 @@
   <data name="SettingsPaneLayoutRegion1ViewMapOption.Content" xml:space="preserve">
     <value>Map</value>
   </data>
+  <data name="SettingsPaneLayoutRegion1ViewPlacesOption.Content" xml:space="preserve">
+    <value>Places</value>
+  </data>
   <data name="SettingsPaneLayoutRegion2ViewMapOption.Content" xml:space="preserve">
     <value>Map</value>
   </data>
+  <data name="SettingsPaneLayoutRegion2ViewPlacesOption.Content" xml:space="preserve">
+    <value>Places</value>
+  </data>
   <data name="SettingsPaneLayoutRegion3ViewMapOption.Content" xml:space="preserve">
     <value>Map</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion3ViewPlacesOption.Content" xml:space="preserve">
+    <value>Places</value>
   </data>
   <data name="SettingsPaneLayoutRegionLeft" xml:space="preserve">
     <value>Left</value>
@@ -1070,7 +1079,42 @@
   <data name="Message.CoordinatesCopyFailed" xml:space="preserve">
     <value>Could not copy the latitude and longitude to the clipboard.</value>
   </data>
-  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
+  <data name="PlacesPaneTitle.Text" xml:space="preserve">
+    <value>Places</value>
+  </data>
+  <data name="PlacesPaneCancelButton.Content" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Places.Node.Water" xml:space="preserve">
+    <value>Water (no address)</value>
+  </data>
+  <data name="Places.Node.NoAreaData" xml:space="preserve">
+    <value>No area data</value>
+  </data>
+  <data name="Places.Node.NoLocation" xml:space="preserve">
+    <value>No location</value>
+  </data>
+  <data name="Places.Node.Unnamed" xml:space="preserve">
+    <value>(unnamed)</value>
+  </data>
+  <data name="Places.Status.Progress" xml:space="preserve">
+    <value>Looking up town names… {0} / {1}</value>
+  </data>
+  <data name="Places.Status.Done" xml:space="preserve">
+    <value>{0} photos</value>
+  </data>
+  <data name="Places.Status.DoneNoAreaData" xml:space="preserve">
+    <value>{0} photos. No town name could be determined. Import the area data of the prefectures under Area data (town names) in Settings.</value>
+  </data>
+  <data name="Places.Status.NoPhotos" xml:space="preserve">
+    <value>There are no photos in this folder.</value>
+  </data>
+  <data name="Places.Status.Canceled" xml:space="preserve">
+    <value>Canceled ({0} / {1}).</value>
+  </data>
+  <data name="Places.Status.Error" xml:space="preserve">
+    <value>The area data could not be read. Check Area data (town names) in Settings.</value>
+  </data>  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
     <value>Area data (address names)</value>
   </data>
   <data name="SettingsPaneAreaDataDescription.Text" xml:space="preserve">

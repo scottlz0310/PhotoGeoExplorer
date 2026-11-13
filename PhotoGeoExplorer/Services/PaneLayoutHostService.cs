@@ -24,7 +24,8 @@ internal sealed class PaneLayoutHostService
     {
         File,
         Preview,
-        Map
+        Map,
+        Places
     }
 
     internal readonly record struct PaneLayoutVisibilityState(
@@ -72,6 +73,7 @@ internal sealed class PaneLayoutHostService
     private readonly FrameworkElement _fileBrowserPaneControl;
     private readonly FrameworkElement _previewPaneControl;
     private readonly FrameworkElement _mapPaneControl;
+    private readonly FrameworkElement _placesPaneControl;
 
     public PaneLayoutHostService(
         Grid fileBrowserPane,
@@ -95,7 +97,8 @@ internal sealed class PaneLayoutHostService
         Grid paneStagingArea,
         FrameworkElement fileBrowserPaneControl,
         FrameworkElement previewPaneControl,
-        FrameworkElement mapPaneControl)
+        FrameworkElement mapPaneControl,
+        FrameworkElement placesPaneControl)
     {
         _fileBrowserPane = fileBrowserPane ?? throw new ArgumentNullException(nameof(fileBrowserPane));
         _detailPane = detailPane ?? throw new ArgumentNullException(nameof(detailPane));
@@ -119,6 +122,7 @@ internal sealed class PaneLayoutHostService
         _fileBrowserPaneControl = fileBrowserPaneControl ?? throw new ArgumentNullException(nameof(fileBrowserPaneControl));
         _previewPaneControl = previewPaneControl ?? throw new ArgumentNullException(nameof(previewPaneControl));
         _mapPaneControl = mapPaneControl ?? throw new ArgumentNullException(nameof(mapPaneControl));
+        _placesPaneControl = placesPaneControl ?? throw new ArgumentNullException(nameof(placesPaneControl));
     }
 
     public void ApplyLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
@@ -171,6 +175,7 @@ internal sealed class PaneLayoutHostService
         {
             PaneContentKind.File => _fileBrowserPaneControl,
             PaneContentKind.Map => _mapPaneControl,
+            PaneContentKind.Places => _placesPaneControl,
             _ => _previewPaneControl
         };
     }
@@ -285,6 +290,7 @@ internal sealed class PaneLayoutHostService
         {
             PaneViewType.File => PaneContentKind.File,
             PaneViewType.Map => PaneContentKind.Map,
+            PaneViewType.Places => PaneContentKind.Places,
             _ => PaneContentKind.Preview
         };
     }

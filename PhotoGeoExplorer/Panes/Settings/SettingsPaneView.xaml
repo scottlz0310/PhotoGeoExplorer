@@ -340,6 +340,9 @@
                                 <ComboBoxItem
                                     x:Uid="SettingsPaneLayoutRegion1ViewMapOption"
                                     Content="Map" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion1ViewPlacesOption"
+                                    Content="Places" />
                             </ComboBox>
 
                             <TextBlock
@@ -363,6 +366,9 @@
                                 <ComboBoxItem
                                     x:Uid="SettingsPaneLayoutRegion2ViewMapOption"
                                     Content="Map" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion2ViewPlacesOption"
+                                    Content="Places" />
                             </ComboBox>
 
                             <TextBlock
@@ -386,6 +392,9 @@
                                 <ComboBoxItem
                                     x:Uid="SettingsPaneLayoutRegion3ViewMapOption"
                                     Content="Map" />
+                                <ComboBoxItem
+                                    x:Uid="SettingsPaneLayoutRegion3ViewPlacesOption"
+                                    Content="Places" />
                             </ComboBox>
                         </Grid>
                     </StackPanel>

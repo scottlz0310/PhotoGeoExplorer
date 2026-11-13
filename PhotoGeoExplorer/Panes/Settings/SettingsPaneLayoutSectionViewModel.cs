@@ -279,6 +279,7 @@ internal sealed class SettingsPaneLayoutSectionViewModel : BindableBase
         {
             PaneViewType.Preview => 1,
             PaneViewType.Map => 2,
+            PaneViewType.Places => 3,
             _ => 0
         };
     }
@@ -289,6 +290,7 @@ internal sealed class SettingsPaneLayoutSectionViewModel : BindableBase
         {
             1 => PaneViewType.Preview,
             2 => PaneViewType.Map,
+            3 => PaneViewType.Places,
             _ => PaneViewType.File
         };
     }

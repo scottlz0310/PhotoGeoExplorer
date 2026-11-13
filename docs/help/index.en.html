@@ -133,6 +133,7 @@
       <a href="#search-filter">Search &amp; View</a>
       <a href="#preview">Preview</a>
       <a href="#map">Map</a>
+      <a href="#places">Places</a>
       <a href="#selection">Multi-Select</a>
       <a href="#exif">EXIF Editing</a>
       <a href="#settings">Settings</a>
@@ -186,6 +187,19 @@
         <li><span class="tag">Right Top</span> Preview: inspect the selected photo.</li>
         <li><span class="tag">Right Bottom</span> Map: view and interact with location pins.</li>
         <li><span class="tag">Bottom</span> Status Bar: item counts, selection, and GPS status.</li>
+        <li><span class="tag">Optional</span> Places: a tree that groups the photos of the current folder by the town name where they were taken (not shown by default; see Places).</li>
+      </ul>
+    </section>
+
+    <section id="places">
+      <h2>Browsing by Town Name</h2>
+      <ul>
+        <li>Under Layout in Settings, set the view of any region to Places to show a tree that groups the photos of the current folder by city and town (only three views fit at once, so swap it with the preview or the map).</li>
+        <li>Selecting a node selects the matching photos in the file list, and the map and preview follow that selection. Files and folders are never moved or changed.</li>
+        <li>"Water (no address)" is for places without an address such as the sea or lakes, "No area data" is for photos that have a location but no town name could be determined (a prefecture whose data is not imported, outside Japan, and so on), and "No location" is for photos without GPS.</li>
+        <li>To determine town names, import the area data of the prefectures under Area data (town names) in Settings (see Settings). Importing or deleting the data updates the tree automatically.</li>
+        <li>The locations of the photos have to be read, so a folder with many photos takes a while. Progress is shown while it runs, and Cancel stops it. Nothing is looked up while the Places pane is not shown.</li>
+        <li>Only the photos of the current folder shown in the file list are included (subfolders are not).</li>
       </ul>
     </section>
 
@@ -269,6 +283,7 @@
       <ul>
         <li>Switch language and theme (restart required after change).</li>
         <li>Change the default map zoom level and tile source.</li>
+        <li>Under Layout, choose the view of each region (File, Preview, Map, Places).</li>
         <li>Export and import settings.</li>
         <li>Under Area data (town names), import or delete the data used to determine the address shown in the map header (see below).</li>
       </ul>
