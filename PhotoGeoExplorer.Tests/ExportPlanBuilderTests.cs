@@ -98,6 +98,37 @@ public class ExportPlanBuilderTests
     }
 
     [Fact]
+    public void RenamePlanSharesTheSequenceBetweenAreaNamesThatDifferOnlyInCase()
+    {
+        // Windows は大文字小文字を区別しないので、ABC と abc は同じ字名として連番を振る
+        var takenAt = new DateTimeOffset(2024, 1, 2, 9, 0, 0, TimeSpan.Zero);
+        var plan = ExportPlanBuilder.BuildRenamePlan(
+        [
+            Resolved("/src/a.jpg", Area("312010001", "鳥取県", "鳥取市", "ABC"), takenAt),
+            Resolved("/src/b.JPG", Area("312010002", "鳥取県", "鳥取市", "abc"), takenAt.AddSeconds(1))
+        ],
+        RenameNames);
+
+        Assert.Equal(2, plan.Select(item => item.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(["20240102_ABC_001.jpg", "20240102_abc_002.JPG"], plan.Select(item => item.RelativePath));
+    }
+
+    [Fact]
+    public void RenamePlanNeverProducesTheSameNameTwiceEvenIgnoringCase()
+    {
+        var takenAt = new DateTimeOffset(2024, 1, 2, 9, 0, 0, TimeSpan.Zero);
+        var towns = new[] { "ABC", "abc", "Abc", "あいう", "A BC", "ａｂｃ" };
+        var records = Enumerable.Range(0, 60)
+            .Select(i => Resolved($"/src/{i:D3}{(i % 2 == 0 ? ".jpg" : ".JPG")}", Area("31201" + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture), "鳥取県", "鳥取市", towns[i % towns.Length]), takenAt.AddSeconds(i % 3)))
+            .ToList();
+
+        var plan = ExportPlanBuilder.BuildRenamePlan(records, RenameNames);
+
+        Assert.Equal(records.Count, plan.Count);
+        Assert.Equal(records.Count, plan.Select(item => item.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Fact]
     public void FolderCopyPlanNumbersFilesThatWouldOverlapInTheSameFolder()
     {
         // 別のフォルダーから選んだ同名のファイルは、同じ出力先で重なる（大文字小文字は区別しない）

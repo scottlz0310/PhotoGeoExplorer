@@ -61,11 +61,12 @@ internal static class ExportPlanBuilder
             .OrderBy(item => item.Record.TakenAt ?? DateTimeOffset.MaxValue)
             .ThenBy(item => item.Record.FilePath, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var sequences = new Dictionary<(string Date, string Label), int>();
+        // Windows は大文字小文字を区別しないので、字名が大文字小文字だけ違う写真も、同じ連番を共有する
+        var sequences = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var items = new List<ExportPlanItem>(records.Count);
         foreach (var (record, date, label) in keyed)
         {
-            var key = (date, label);
+            var key = string.Create(CultureInfo.InvariantCulture, $"{date}\u0000{label}");
             var sequence = sequences.GetValueOrDefault(key) + 1;
             sequences[key] = sequence;
             var extension = Path.GetExtension(record.FilePath);
@@ -73,7 +74,8 @@ internal static class ExportPlanBuilder
             items.Add(new ExportPlanItem(record.FilePath, fileName));
         }
 
-        return items;
+        // 連番で重ならないはずだが、最終的な出力先が重ならないことを、フォルダーコピーと同じ手順で保証する
+        return MakeUnique(items);
     }
 
     private static string FormatDate(PhotoGeoRecord record, ExportRenameNames names)

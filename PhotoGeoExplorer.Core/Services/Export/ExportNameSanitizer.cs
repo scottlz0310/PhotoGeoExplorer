@@ -37,7 +37,7 @@ internal static class ExportNameSanitizer
             builder.Append(char.IsControl(character) || Array.IndexOf(invalid, character) >= 0 ? '_' : character);
         }
 
-        var cleaned = Truncate(builder.ToString().Trim().Trim('.').Trim(), maxLength);
+        var cleaned = Truncate(TrimEdges(builder.ToString()), maxLength);
         if (cleaned.Length == 0)
         {
             return Replacement;
@@ -57,6 +57,27 @@ internal static class ExportNameSanitizer
         }
 
         var length = char.IsHighSurrogate(value[maxLength - 1]) ? maxLength - 1 : maxLength;
-        return value[..length].TrimEnd().TrimEnd('.');
+        return TrimEdges(value[..length]);
     }
+
+    // 前後の空白とドットを、交互に並んでいてもまとめて取る（Windows は末尾の空白とドットを正規化するので、
+    // 残すと、末尾のない別の名前と同じ出力先になる）
+    private static string TrimEdges(string value)
+    {
+        var start = 0;
+        var end = value.Length;
+        while (start < end && IsEdgeCharacter(value[start]))
+        {
+            start++;
+        }
+
+        while (end > start && IsEdgeCharacter(value[end - 1]))
+        {
+            end--;
+        }
+
+        return value[start..end];
+    }
+
+    private static bool IsEdgeCharacter(char character) => character == '.' || char.IsWhiteSpace(character);
 }

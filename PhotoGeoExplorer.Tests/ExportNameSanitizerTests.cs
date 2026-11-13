@@ -80,6 +80,30 @@ public class ExportNameSanitizerTests
         Assert.DoesNotContain(sanitized, character => char.IsSurrogate(character));
     }
 
+    [Theory]
+    // 切った末尾が「空白 + ドット」でも、まとめて除く（Windows は末尾の空白とドットを正規化して、別の名前と同じになる）
+    [InlineData("ab .c", 4, "ab")]
+    [InlineData("ab . .c", 6, "ab")]
+    [InlineData("ab. . .", 80, "ab")]
+    [InlineData(" . . ab", 80, "ab")]
+    [InlineData(" . . ", 80, "_")]
+    [InlineData("a . b", 3, "a")]
+    public void SanitizeSegmentRemovesAlternatingSpacesAndDotsAtTheEnds(string name, int maxLength, string expected)
+    {
+        Assert.Equal(expected, ExportNameSanitizer.SanitizeSegment(name, maxLength));
+    }
+
+    [Fact]
+    public void SanitizeSegmentRemovesTheTrailingSpaceLeftByTheDefaultMaximumLength()
+    {
+        // 78 文字の名前の後に「 .c」が続く: 80 文字で切ると「名前 」になる
+        var name = string.Concat(Enumerable.Repeat("あ", ExportNameSanitizer.DefaultMaxLength - 2)) + " .c";
+
+        var sanitized = ExportNameSanitizer.SanitizeSegment(name);
+
+        Assert.Equal(string.Concat(Enumerable.Repeat("あ", ExportNameSanitizer.DefaultMaxLength - 2)), sanitized);
+    }
+
     [Fact]
     public void SanitizeSegmentTrimsAfterTruncating()
     {
