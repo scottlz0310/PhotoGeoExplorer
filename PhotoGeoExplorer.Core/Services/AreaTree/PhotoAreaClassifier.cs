@@ -19,11 +19,10 @@ internal sealed class PhotoAreaClassifier
     private readonly IAreaNameResolver _resolver;
     private readonly int _maxDegreeOfParallelism;
     private readonly int _progressBatchSize;
-    private readonly ConcurrentDictionary<(string FilePath, string Version), PhotoCoordinate?> _coordinates = new();
-    private readonly ConcurrentDictionary<PhotoCoordinate, AreaName?> _areas = new();
+    private readonly GenerationalCache<(string FilePath, string Version), PhotoCoordinate?> _coordinates = new(MaxCachedEntries);
 
-    // 地域データの変更より前に始まった判定の結果を、保持しないための世代
-    private int _generation;
+    // 地域データの変更より前に求め始めた字地名は、変更の後に保存されないようにする（世代の確認と保存・更新と破棄は同じ錠の内側）
+    private readonly GenerationalCache<PhotoCoordinate, AreaName?> _areas = new(MaxCachedEntries);
 
     /// <param name="readCoordinate">写真の位置情報を読む。位置情報がない、または読めなければ null</param>
     /// <param name="resolver">座標から字地名を判定する</param>
@@ -125,47 +124,27 @@ internal sealed class PhotoAreaClassifier
     private async Task<PhotoCoordinate?> GetCoordinateAsync(PhotoRef photo, CancellationToken cancellationToken)
     {
         var key = (photo.FilePath, photo.Version);
-        if (_coordinates.TryGetValue(key, out var cached))
+        if (_coordinates.TryGet(key, out var cached, out var generation))
         {
             return cached;
         }
 
         var coordinate = await _readCoordinate(photo.FilePath, cancellationToken).ConfigureAwait(false);
-        TrimIfTooLarge(_coordinates);
-        _coordinates[key] = coordinate;
+        _coordinates.Store(generation, key, coordinate);
         return coordinate;
     }
 
     private async Task<AreaName?> GetAreaAsync(PhotoCoordinate coordinate, CancellationToken cancellationToken)
     {
-        if (_areas.TryGetValue(coordinate, out var cached))
+        if (_areas.TryGet(coordinate, out var cached, out var generation))
         {
             return cached;
         }
 
-        var generation = Volatile.Read(ref _generation);
         var area = await _resolver.ResolveAsync(coordinate.Latitude, coordinate.Longitude, cancellationToken).ConfigureAwait(false);
-        if (generation == Volatile.Read(ref _generation))
-        {
-            TrimIfTooLarge(_areas);
-            _areas[coordinate] = area;
-        }
-
+        _areas.Store(generation, coordinate, area);
         return area;
     }
 
-    private static void TrimIfTooLarge<TKey, TValue>(ConcurrentDictionary<TKey, TValue> cache)
-        where TKey : notnull
-    {
-        if (cache.Count >= MaxCachedEntries)
-        {
-            cache.Clear();
-        }
-    }
-
-    private void OnResultsInvalidated(object? sender, EventArgs e)
-    {
-        Interlocked.Increment(ref _generation);
-        _areas.Clear();
-    }
+    private void OnResultsInvalidated(object? sender, EventArgs e) => _areas.Invalidate();
 }
