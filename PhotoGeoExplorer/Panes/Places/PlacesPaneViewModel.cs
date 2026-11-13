@@ -186,6 +186,9 @@ internal sealed class PlacesPaneViewModel : PaneViewModelBase
             _entries = new List<PhotoAreaEntry>(photos.Count);
         }
 
+        // 見せるのは、この判定の写真の結果だけ。前のフォルダーのツリーを、最初の結果が出るまで残さない
+        // （残すと、その間に中止したときに、前のフォルダーのノードが残り、選択もできてしまう）
+        Roots.Clear();
         _completed = 0;
         _total = photos.Count;
         NotifyProgressChanged();

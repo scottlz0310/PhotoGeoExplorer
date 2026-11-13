@@ -171,6 +171,27 @@ public class PlacesPaneViewModelTests
     }
 
     [Fact]
+    public async Task CancelingRightAfterTheFolderChangedDoesNotLeaveTheTreeOfThePreviousFolder()
+    {
+        using var fixture = new Fixture();
+        fixture.SetPhotos(("/old/a.jpg", TottoriPoint));
+        fixture.Reader.HoldAfter(1);
+        fixture.ViewModel.IsActive = true;
+        await fixture.WaitUntilIdleAsync().ConfigureAwait(true);
+        Assert.Equal(["/old/a.jpg"], fixture.ViewModel.Roots[0].FilePaths);
+
+        // 別のフォルダーへ移り、最初の結果が出る前に中止した
+        fixture.SetPhotos(("/new/b.jpg", IwamiPoint));
+        await fixture.Reader.WaitForReadsAsync(2).ConfigureAwait(true);
+        fixture.ViewModel.Cancel();
+
+        // 表示するのは、いまのフォルダーの写真だけ。前のフォルダーの写真は、ノードにも選択にも残らない
+        Assert.DoesNotContain(fixture.ViewModel.Roots, node => node.FilePaths.Contains("/old/a.jpg"));
+        Assert.Empty(fixture.ViewModel.Roots);
+        Assert.Equal("Places.Status.Canceled", fixture.ViewModel.StatusText);
+    }
+
+    [Fact]
     public async Task HidingThePaneStopsTheClassification()
     {
         using var fixture = new Fixture { HoldReads = true };
