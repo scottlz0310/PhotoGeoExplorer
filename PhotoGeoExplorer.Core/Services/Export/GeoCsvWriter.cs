@@ -22,7 +22,13 @@ internal sealed record GeoCsvLabels(
     string StatusResolved,
     string StatusWater,
     string StatusNoAreaData,
-    string StatusNoLocation);
+    string StatusNoLocation,
+    string RoadName,
+    string RoadNameStatus,
+    string RoadStatusConfirmed,
+    string RoadStatusCandidate,
+    string RoadStatusNone,
+    Func<string, string> FormatRouteNumber);
 
 /// <summary>
 /// 台帳用の写真のメタデータ（ファイル名・字地名・緯度経度・撮影日時）を CSV に書き出す。
@@ -45,7 +51,8 @@ internal static class GeoCsvWriter
             writer,
             [
                 Text(labels.FileName), Text(labels.Prefecture), Text(labels.City), Text(labels.Town), Text(labels.KeyCode),
-                Text(labels.Latitude), Text(labels.Longitude), Text(labels.TakenAt), Text(labels.Status)
+                Text(labels.Latitude), Text(labels.Longitude), Text(labels.TakenAt), Text(labels.Status),
+                Text(labels.RoadName), Text(labels.RoadNameStatus)
             ]);
         foreach (var record in records)
         {
@@ -61,7 +68,9 @@ internal static class GeoCsvWriter
                     Number(record.Coordinate?.Latitude),
                     Number(record.Coordinate?.Longitude),
                     Text(record.TakenAt?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
-                    Text(GetStatus(record, labels))
+                    Text(GetStatus(record, labels)),
+                    Text(record.Road?.Format(labels.FormatRouteNumber)),
+                    Text(GetRoadStatus(record, labels))
                 ]);
         }
     }
@@ -77,6 +86,14 @@ internal static class GeoCsvWriter
             { Kind: PhotoAreaKind.NoAreaData } => labels.StatusNoAreaData,
             { Area: { IsWater: true } } => labels.StatusWater,
             _ => labels.StatusResolved
+        };
+
+    private static string GetRoadStatus(PhotoGeoRecord record, GeoCsvLabels labels)
+        => record.Road?.Status switch
+        {
+            RoadNameStatus.Confirmed => labels.RoadStatusConfirmed,
+            RoadNameStatus.Candidate => labels.RoadStatusCandidate,
+            _ => labels.RoadStatusNone
         };
 
     // 文字列の列。数式として解釈されうる先頭には、' を足して無効にする

@@ -83,11 +83,6 @@ public sealed partial class MainWindow : Window, IDisposable
             exifEditorService,
             dialogService,
             uiDispatcher: new UiDispatcher());
-        _geoExportViewModel = new GeoExportViewModel(
-            _viewModel.WorkspaceState,
-            new PhotoGeoRecordLoader(new ExifMetadataService().GetMetadataAsync, _areaNameResolver),
-            new GeoExportService(),
-            new GeoExportUi(dialogService, new FileBrowserDialogs(RootGrid, () => this), (message, severity) => _viewModel.ShowNotificationMessage(message, severity)));
         _startupCoordinator = new StartupCoordinator(_fileBrowserPaneViewModel);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         var mapImageService = new MapImageService();
@@ -99,6 +94,16 @@ public sealed partial class MainWindow : Window, IDisposable
             areaNameResolver: _areaNameResolver,
             roadNameSuggester: _roadNameSuggester,
             roadNameConfirmationStore: _roadNameConfirmationStore);
+        // 書き出しは、設定の道路名表示（地図ヘッダーと共通）がオンのときだけ、未確定の写真の道路名の候補を通信して求める
+        var headerSettings = _mapPaneViewModel.LocationInfo.DisplaySettings;
+        _geoExportViewModel = new GeoExportViewModel(
+            _viewModel.WorkspaceState,
+            new PhotoGeoRecordLoader(new ExifMetadataService().GetMetadataAsync, _areaNameResolver),
+            new GeoExportService(),
+            new GeoExportUi(dialogService, new FileBrowserDialogs(RootGrid, () => this), (message, severity) => _viewModel.ShowNotificationMessage(message, severity)),
+            new PhotoRoadNameResolver(_roadNameConfirmationStore, _roadNameSuggester),
+            () => headerSettings.ShowRoadName);
+
         _placesPaneViewModel = new PlacesPaneViewModel(
             _viewModel.WorkspaceState,
             new PhotoAreaClassifier(new PhotoCoordinateReader(new ExifMetadataService()).ReadAsync, _areaNameResolver, progressBatchSize: 200),

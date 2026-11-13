@@ -47,8 +47,9 @@ internal static class ExportPlanBuilder
     }
 
     /// <summary>
-    /// リネーム出力の計画。「{日付}_{字名}_{連番}{拡張子}」。日付は撮影日（yyyyMMdd）、字名は町丁・字の名称。
-    /// 連番は、同じ日付・字名の写真の中で、撮影日時・パスの順に 001 から振る。
+    /// リネーム出力の計画。「{日付}_{字名}_{道路名}_{連番}{拡張子}」。日付は撮影日（yyyyMMdd）、字名は町丁・字の名称、
+    /// 道路名は利用者が確定した道路名（未確定・なしは <see cref="ExportRenameNames.NoRoad"/>。第 1 候補は、確定した値と見分けられないので入れない）。
+    /// 連番は、同じ日付・字名・道路名の写真の中で、撮影日時・パスの順に 001 から振る。
     /// 撮影日時がなければ日付の代わりに <see cref="ExportRenameNames.NoDate"/>、字地名がなければ種類に応じた字名を使う
     /// </summary>
     public static IReadOnlyList<ExportPlanItem> BuildRenamePlan(IReadOnlyList<PhotoGeoRecord> records, ExportRenameNames names)
@@ -57,20 +58,20 @@ internal static class ExportPlanBuilder
         ArgumentNullException.ThrowIfNull(names);
 
         var keyed = records
-            .Select(record => (Record: record, Date: FormatDate(record, names), Label: GetRenameLabel(record, names)))
+            .Select(record => (Record: record, Date: FormatDate(record, names), Label: GetRenameLabel(record, names), Road: GetRoadLabel(record, names)))
             .OrderBy(item => item.Record.TakenAt ?? DateTimeOffset.MaxValue)
             .ThenBy(item => item.Record.FilePath, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        // Windows は大文字小文字を区別しないので、字名が大文字小文字だけ違う写真も、同じ連番を共有する
+        // Windows は大文字小文字を区別しないので、字名・道路名が大文字小文字だけ違う写真も、同じ連番を共有する
         var sequences = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var items = new List<ExportPlanItem>(records.Count);
-        foreach (var (record, date, label) in keyed)
+        foreach (var (record, date, label, road) in keyed)
         {
-            var key = string.Create(CultureInfo.InvariantCulture, $"{date}\u0000{label}");
+            var key = string.Create(CultureInfo.InvariantCulture, $"{date}\u0000{label}\u0000{road}");
             var sequence = sequences.GetValueOrDefault(key) + 1;
             sequences[key] = sequence;
             var extension = Path.GetExtension(record.FilePath);
-            var fileName = string.Create(CultureInfo.InvariantCulture, $"{date}_{label}_{sequence:D3}{extension}");
+            var fileName = string.Create(CultureInfo.InvariantCulture, $"{date}_{label}_{road}_{sequence:D3}{extension}");
             items.Add(new ExportPlanItem(record.FilePath, fileName));
         }
 
@@ -93,6 +94,14 @@ internal static class ExportPlanBuilder
             { Area: { } area } => string.IsNullOrWhiteSpace(area.Town) ? names.Unnamed : area.Town,
             _ => names.NoAreaData
         };
+        return ExportNameSanitizer.SanitizeSegment(label, RenameLabelMaxLength);
+    }
+
+    private static string GetRoadLabel(PhotoGeoRecord record, ExportRenameNames names)
+    {
+        var label = record.Road is { Status: RoadNameStatus.Confirmed } road
+            ? road.Format(names.FormatRouteNumber)
+            : names.NoRoad;
         return ExportNameSanitizer.SanitizeSegment(label, RenameLabelMaxLength);
     }
 

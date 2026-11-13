@@ -11,7 +11,7 @@ namespace PhotoGeoExplorer.Tests;
 public class ExportPlanBuilderTests
 {
     private static readonly ExportFolderNames FolderNames = new("水面", "地域データなし", "位置情報なし", "名称なし");
-    private static readonly ExportRenameNames RenameNames = new("水面", "地域データなし", "位置情報なし", "名称なし", "日付なし");
+    private static readonly ExportRenameNames RenameNames = new("水面", "地域データなし", "位置情報なし", "名称なし", "日付なし", "道路名なし", route => $"路線番号 {route}");
 
     private static readonly AreaName Higashi = Area("312010870", "鳥取県", "鳥取市", "東品治町");
     private static readonly AreaName Fuyo = Area("312010120", "鳥取県", "鳥取市", "扇町");
@@ -110,7 +110,7 @@ public class ExportPlanBuilderTests
         RenameNames);
 
         Assert.Equal(2, plan.Select(item => item.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(["20240102_ABC_001.jpg", "20240102_abc_002.JPG"], plan.Select(item => item.RelativePath));
+        Assert.Equal(["20240102_ABC_道路名なし_001.jpg", "20240102_abc_道路名なし_002.JPG"], plan.Select(item => item.RelativePath));
     }
 
     [Fact]
@@ -170,10 +170,10 @@ public class ExportPlanBuilderTests
         // 連番は、同じ日付・字名の中で、撮影日時の順に 001 から
         Assert.Equal(
             [
-                ("/src/a.jpg", "20240102_東品治町_001.jpg"),
-                ("/src/b.jpg", "20240102_東品治町_002.jpg"),
-                ("/src/d.jpg", "20240102_扇町_001.jpg"),
-                ("/src/c.JPG", "20240103_東品治町_001.JPG")
+                ("/src/a.jpg", "20240102_東品治町_道路名なし_001.jpg"),
+                ("/src/b.jpg", "20240102_東品治町_道路名なし_002.jpg"),
+                ("/src/d.jpg", "20240102_扇町_道路名なし_001.jpg"),
+                ("/src/c.JPG", "20240103_東品治町_道路名なし_001.JPG")
             ],
             plan.Select(item => (item.SourcePath, item.RelativePath)));
     }
@@ -192,10 +192,10 @@ public class ExportPlanBuilderTests
         RenameNames);
 
         var names = plan.ToDictionary(item => item.SourcePath, item => item.RelativePath);
-        Assert.Equal("20240102_位置情報なし_001.jpg", names["/src/nogps.jpg"]);
-        Assert.Equal("20240102_地域データなし_001.jpg", names["/src/nodata.jpg"]);
-        Assert.Equal("20240102_水面_001.jpg", names["/src/sea.jpg"]);
-        Assert.Equal("日付なし_東品治町_001.jpg", names["/src/nodate.jpg"]);
+        Assert.Equal("20240102_位置情報なし_道路名なし_001.jpg", names["/src/nogps.jpg"]);
+        Assert.Equal("20240102_地域データなし_道路名なし_001.jpg", names["/src/nodata.jpg"]);
+        Assert.Equal("20240102_水面_道路名なし_001.jpg", names["/src/sea.jpg"]);
+        Assert.Equal("日付なし_東品治町_道路名なし_001.jpg", names["/src/nodate.jpg"]);
     }
     [Theory]
     [InlineData(1, "001")]
@@ -212,7 +212,7 @@ public class ExportPlanBuilderTests
 
         var plan = ExportPlanBuilder.BuildRenamePlan(records, RenameNames);
 
-        Assert.Equal($"20240102_東品治町_{expectedLast}.jpg", plan[^1].RelativePath);
+        Assert.Equal($"20240102_東品治町_道路名なし_{expectedLast}.jpg", plan[^1].RelativePath);
         Assert.Equal(count, plan.Select(item => item.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
@@ -228,21 +228,93 @@ public class ExportPlanBuilderTests
         ],
         RenameNames);
 
-        Assert.Equal("20240102_A_B_C_001.jpg", plan[0].RelativePath);
-        Assert.Equal("20240102_" + string.Concat(Enumerable.Repeat("あ", 40)) + "_001.jpg", plan[1].RelativePath);
-        Assert.Equal("20240102_名称なし_001.jpg", plan[2].RelativePath);
+        Assert.Equal("20240102_A_B_C_道路名なし_001.jpg", plan[0].RelativePath);
+        Assert.Equal("20240102_" + string.Concat(Enumerable.Repeat("あ", 40)) + "_道路名なし_001.jpg", plan[1].RelativePath);
+        Assert.Equal("20240102_名称なし_道路名なし_001.jpg", plan[2].RelativePath);
+    }
+
+    [Theory]
+    [InlineData(true, "山の手通り", "203", "20240102_東品治町_山の手通り_001.jpg")]
+    [InlineData(true, null, "203", "20240102_東品治町_路線番号 203_001.jpg")]
+    [InlineData(true, "丸山通", null, "20240102_東品治町_丸山通_001.jpg")]
+    [InlineData(false, "山の手通り", "203", "20240102_東品治町_道路名なし_001.jpg")]
+    public void RenamePlanUsesOnlyAConfirmedRoadNameAndNeverACandidate(bool confirmed, string? name, string? route, string expected)
+    {
+        var takenAt = new DateTimeOffset(2024, 1, 2, 9, 0, 0, TimeSpan.Zero);
+
+        var plan = ExportPlanBuilder.BuildRenamePlan(
+            [Resolved("/src/a.jpg", Higashi, takenAt) with { Road = new RoadNameInfo(confirmed ? RoadNameStatus.Confirmed : RoadNameStatus.Candidate, name, route) }],
+            RenameNames);
+
+        Assert.Equal(expected, Assert.Single(plan).RelativePath);
+    }
+
+    [Fact]
+    public void RenamePlanNumbersPhotosSeparatelyByRoadName()
+    {
+        var takenAt = new DateTimeOffset(2024, 1, 2, 9, 0, 0, TimeSpan.Zero);
+        RoadNameInfo yamanote = new(RoadNameStatus.Confirmed, "山の手通り", null);
+        RoadNameInfo maruyama = new(RoadNameStatus.Confirmed, "丸山通", null);
+
+        var plan = ExportPlanBuilder.BuildRenamePlan(
+        [
+            Resolved("/src/a.jpg", Higashi, takenAt) with { Road = yamanote },
+            Resolved("/src/b.jpg", Higashi, takenAt.AddSeconds(1)) with { Road = maruyama },
+            Resolved("/src/c.jpg", Higashi, takenAt.AddSeconds(2)) with { Road = yamanote },
+            Resolved("/src/d.jpg", Higashi, takenAt.AddSeconds(3))
+        ],
+        RenameNames);
+
+        // 連番は、同じ日付・字名・道路名の中で、撮影日時の順に 001 から
+        Assert.Equal(
+            [
+                ("/src/a.jpg", "20240102_東品治町_山の手通り_001.jpg"),
+                ("/src/b.jpg", "20240102_東品治町_丸山通_001.jpg"),
+                ("/src/c.jpg", "20240102_東品治町_山の手通り_002.jpg"),
+                ("/src/d.jpg", "20240102_東品治町_道路名なし_001.jpg")
+            ],
+            plan.Select(item => (item.SourcePath, item.RelativePath)));
+    }
+
+    [Fact]
+    public void RenamePlanSanitizesAndLimitsTheRoadName()
+    {
+        var takenAt = new DateTimeOffset(2024, 1, 2, 9, 0, 0, TimeSpan.Zero);
+        var longName = string.Concat(Enumerable.Repeat("い", 100));
+
+        var plan = ExportPlanBuilder.BuildRenamePlan(
+        [
+            Resolved("/src/a.jpg", Higashi, takenAt) with { Road = new RoadNameInfo(RoadNameStatus.Confirmed, "A/B:C", null) },
+            Resolved("/src/b.jpg", Higashi, takenAt.AddSeconds(1)) with { Road = new RoadNameInfo(RoadNameStatus.Confirmed, longName, null) }
+        ],
+        RenameNames);
+
+        Assert.Equal("20240102_東品治町_A_B_C_001.jpg", plan[0].RelativePath);
+        Assert.Equal("20240102_東品治町_" + string.Concat(Enumerable.Repeat("い", 40)) + "_001.jpg", plan[1].RelativePath);
     }
 
     [Fact]
     public void RenamePlanKeepsTheOriginalExtensionAndDoesNotKeepTheFolder()
     {
         var plan = ExportPlanBuilder.BuildRenamePlan(
-            [Resolved("/very/deep/folder/IMG_0001.HEIC", Higashi, new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero))],
+            [Resolved("/very/deep/folder/IMG_道路名なし_0001.HEIC", Higashi, new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero))],
             RenameNames);
 
         var item = Assert.Single(plan);
-        Assert.Equal("20240102_東品治町_001.HEIC", item.RelativePath);
+        Assert.Equal("20240102_東品治町_道路名なし_001.HEIC", item.RelativePath);
         Assert.Equal(string.Empty, Path.GetDirectoryName(item.RelativePath));
+    }
+
+    [Theory]
+    [InlineData("山の手通り", "203", "山の手通り")]
+    [InlineData(null, "203", "路線番号 203")]
+    [InlineData(null, "53・373", "路線番号 53・373")]
+    public void RoadNameInfoFormatsTheNameOrTheRouteNumber(string? name, string? route, string expected)
+    {
+        var road = new RoadNameInfo(RoadNameStatus.Confirmed, name, route);
+
+        Assert.Equal(expected, road.Format(route => $"路線番号 {route}"));
+        Assert.Throws<ArgumentNullException>(() => road.Format(null!));
     }
 
     [Fact]

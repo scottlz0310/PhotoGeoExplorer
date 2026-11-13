@@ -11,12 +11,14 @@ namespace PhotoGeoExplorer.Services.Export;
 /// <param name="Coordinate">撮影位置。なければ null</param>
 /// <param name="Kind">字地名の判定結果の種類</param>
 /// <param name="Area"><see cref="PhotoAreaKind.Resolved"/> のときの字地名（水面を含む）。それ以外は null</param>
+/// <param name="Road">道路名（利用者が確定した値、または最寄り道路の第 1 候補）。取得していない・ないときは null</param>
 internal sealed record PhotoGeoRecord(
     string FilePath,
     DateTimeOffset? TakenAt,
     PhotoCoordinate? Coordinate,
     PhotoAreaKind Kind,
-    AreaName? Area);
+    AreaName? Area,
+    RoadNameInfo? Road = null);
 
 /// <summary>
 /// 書き出し 1 件の計画（元のファイルと、出力先からの相対パス）
@@ -33,6 +35,16 @@ internal sealed record ExportPlanItem(string SourcePath, string RelativePath);
 internal sealed record ExportFolderNames(string Water, string NoAreaData, string NoLocation, string Unnamed);
 
 /// <summary>
-/// リネーム出力のファイル名に使う、字地名がない写真の字名と、撮影日時がない写真の日付（表示言語に合わせて呼び出し側が与える）
+/// リネーム出力のファイル名に使う、字地名がない写真の字名・撮影日時がない写真の日付・道路名が確定していない写真の道路名・
+/// 路線番号だけの道路の表記（表示言語に合わせて呼び出し側が与える）
 /// </summary>
-internal sealed record ExportRenameNames(string Water, string NoAreaData, string NoLocation, string Unnamed, string NoDate);
+/// <param name="NoRoad">道路名が確定していない（未確定・なし）写真の道路名。候補は、確定した値と見分けられないので、ファイル名には入れない</param>
+/// <param name="FormatRouteNumber">名称のない道路の表記を、路線番号から作る（「路線番号 203」）</param>
+internal sealed record ExportRenameNames(
+    string Water,
+    string NoAreaData,
+    string NoLocation,
+    string Unnamed,
+    string NoDate,
+    string NoRoad,
+    Func<string, string> FormatRouteNumber);

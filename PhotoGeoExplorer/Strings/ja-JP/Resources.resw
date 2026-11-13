@@ -1142,7 +1142,7 @@
     <value>字地名別のフォルダーへコピー...</value>
   </data>
   <data name="MenuFileExportRenamed.Text" xml:space="preserve">
-    <value>日付・字名の名前でコピー...</value>
+    <value>日付・字名・道路名の名前でコピー...</value>
   </data>
   <data name="CancelExportButton.Content" xml:space="preserve">
     <value>中止</value>
@@ -1157,10 +1157,13 @@
     <value>字地名別のフォルダーへコピー...</value>
   </data>
   <data name="Menu.ExportRenamed" xml:space="preserve">
-    <value>日付・字名の名前でコピー...</value>
+    <value>日付・字名・道路名の名前でコピー...</value>
   </data>
   <data name="GeoExport.NoDate" xml:space="preserve">
     <value>日付なし</value>
+  </data>
+  <data name="GeoExport.NoRoad" xml:space="preserve">
+    <value>道路名なし</value>
   </data>
   <data name="GeoExport.Progress.Loading" xml:space="preserve">
     <value>位置情報を読んでいます… {0} / {1}</value>
@@ -1227,6 +1230,24 @@
   </data>
   <data name="GeoExport.Csv.StatusNoLocation" xml:space="preserve">
     <value>位置情報なし</value>
+  </data>
+  <data name="GeoExport.Csv.RoadName" xml:space="preserve">
+    <value>道路名</value>
+  </data>
+  <data name="GeoExport.Csv.RoadNameStatus" xml:space="preserve">
+    <value>道路名の区分</value>
+  </data>
+  <data name="GeoExport.Csv.RoadStatusConfirmed" xml:space="preserve">
+    <value>確定</value>
+  </data>
+  <data name="GeoExport.Csv.RoadStatusCandidate" xml:space="preserve">
+    <value>候補</value>
+  </data>
+  <data name="GeoExport.Csv.RoadStatusNone" xml:space="preserve">
+    <value>なし</value>
+  </data>
+  <data name="GeoExport.Message.RoadNameIncomplete" xml:space="preserve">
+    <value>一部の写真の道路名を取得できなかったため、その道路名は空です（通信できない、または確定した道路名を読めませんでした）。</value>
   </data>
   <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
     <value>地域データ（字地名）</value>

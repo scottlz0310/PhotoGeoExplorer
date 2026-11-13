@@ -1142,7 +1142,7 @@
     <value>Copy to town-name folders...</value>
   </data>
   <data name="MenuFileExportRenamed.Text" xml:space="preserve">
-    <value>Copy with date and town names...</value>
+    <value>Copy with date, town and road names...</value>
   </data>
   <data name="CancelExportButton.Content" xml:space="preserve">
     <value>Cancel</value>
@@ -1157,10 +1157,13 @@
     <value>Copy to town-name folders...</value>
   </data>
   <data name="Menu.ExportRenamed" xml:space="preserve">
-    <value>Copy with date and town names...</value>
+    <value>Copy with date, town and road names...</value>
   </data>
   <data name="GeoExport.NoDate" xml:space="preserve">
     <value>NoDate</value>
+  </data>
+  <data name="GeoExport.NoRoad" xml:space="preserve">
+    <value>NoRoad</value>
   </data>
   <data name="GeoExport.Progress.Loading" xml:space="preserve">
     <value>Reading locations… {0} / {1}</value>
@@ -1227,6 +1230,24 @@
   </data>
   <data name="GeoExport.Csv.StatusNoLocation" xml:space="preserve">
     <value>NoLocation</value>
+  </data>
+  <data name="GeoExport.Csv.RoadName" xml:space="preserve">
+    <value>RoadName</value>
+  </data>
+  <data name="GeoExport.Csv.RoadNameStatus" xml:space="preserve">
+    <value>RoadNameStatus</value>
+  </data>
+  <data name="GeoExport.Csv.RoadStatusConfirmed" xml:space="preserve">
+    <value>Confirmed</value>
+  </data>
+  <data name="GeoExport.Csv.RoadStatusCandidate" xml:space="preserve">
+    <value>Candidate</value>
+  </data>
+  <data name="GeoExport.Csv.RoadStatusNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="GeoExport.Message.RoadNameIncomplete" xml:space="preserve">
+    <value>Road names could not be obtained for some photos, so they are left empty (the connection failed or the confirmed road names could not be read).</value>
   </data>
   <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
     <value>Area data (address names)</value>
