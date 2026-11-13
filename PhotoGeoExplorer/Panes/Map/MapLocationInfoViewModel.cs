@@ -20,11 +20,16 @@ namespace PhotoGeoExplorer.Panes.Map;
 /// </summary>
 internal sealed class MapLocationInfoViewModel : BindableBase
 {
+    private const string ConfirmedMark = "\u2713";
+
     private readonly IAreaNameResolver? _areaNameResolver;
     private readonly IRoadNameSuggester? _roadNameSuggester;
+    private readonly IRoadNameConfirmationStore? _confirmationStore;
     private readonly Resolution _areaNameResolution = new();
     private readonly Resolution _roadNameResolution = new();
     private (double Latitude, double Longitude)? _location;
+    private PhotoIdentity? _photo;
+    private RoadNameResult? _roadResult;
     private AreaName? _areaName;
     private string _areaNameText = string.Empty;
     private string? _areaNameToolTip;
@@ -35,10 +40,12 @@ internal sealed class MapLocationInfoViewModel : BindableBase
 
     internal MapLocationInfoViewModel(
         IAreaNameResolver? areaNameResolver = null,
-        IRoadNameSuggester? roadNameSuggester = null)
+        IRoadNameSuggester? roadNameSuggester = null,
+        IRoadNameConfirmationStore? roadNameConfirmationStore = null)
     {
         _areaNameResolver = areaNameResolver;
         _roadNameSuggester = roadNameSuggester;
+        _confirmationStore = roadNameConfirmationStore;
         DisplaySettings.PropertyChanged += OnDisplaySettingsChanged;
         if (_areaNameResolver is not null)
         {
@@ -82,7 +89,7 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     }
 
     /// <summary>
-    /// 最寄りの道路（第 1 候補）の詳細（「候補」であること・名称・距離・路線番号）。道路名を表示していないときは null
+    /// 最寄りの道路（第 1 候補。確定済みなら確定した道路）の詳細（「候補」「確定」の別・名称・距離・路線番号）。道路名を表示していないときは null
     /// </summary>
     public string? RoadNameToolTip
     {
@@ -91,7 +98,7 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     }
 
     /// <summary>
-    /// 候補の一覧（近い順）。道路名を表示していないときは空
+    /// 候補の一覧（近い順）。確定済みで、今の候補にない道路は先頭に加える。道路名を表示していないときは空
     /// </summary>
     public IReadOnlyList<RoadCandidateItem> RoadCandidates
     {
@@ -120,14 +127,17 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     /// <summary>
     /// 単一選択された写真の撮影位置を設定し、各項目を解決する。直前の解決はキャンセルする
     /// </summary>
-    public Task SetLocationAsync(double latitude, double longitude)
+    /// <param name="photo">写真の識別。道路名の確定の保存と読み出しに使う（null なら確定できない）</param>
+    public Task SetLocationAsync(double latitude, double longitude, PhotoIdentity? photo = null)
     {
-        if (_location == (latitude, longitude))
+        // 同じ座標の別の写真（連写）でも、確定は写真ごとなので解決し直す
+        if (_location == (latitude, longitude) && _photo == photo)
         {
             return Task.CompletedTask;
         }
 
         _location = (latitude, longitude);
+        _photo = photo;
         UpdateCoordinatesText();
         return Task.WhenAll(ResolveAreaNameAsync(), ResolveRoadNameAsync());
     }
@@ -138,6 +148,7 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     public void Clear()
     {
         _location = null;
+        _photo = null;
         UpdateCoordinatesText();
         _areaNameResolution.Restart();
         ApplyAreaName(null);
@@ -185,14 +196,88 @@ internal sealed class MapLocationInfoViewModel : BindableBase
             "area name");
 
     private Task ResolveRoadNameAsync()
-        => ResolveAsync<IReadOnlyList<RoadNameCandidate>>(
+        => ResolveAsync<RoadNameResult>(
             _roadNameResolution,
-            DisplaySettings.ShowRoadName && _roadNameSuggester is { } suggester
-                ? async (latitude, longitude, cancellationToken) =>
-                    await suggester.SuggestAsync(latitude, longitude, cancellationToken).ConfigureAwait(true)
-                : null,
+            DisplaySettings.ShowRoadName ? FindRoadNamesAsync : null,
             ApplyRoadNames,
             "road name");
+
+    // 確定済みの値は端末内の保存から読む。候補は通信が要るので、取れなくても確定済みの値は見せる
+    private async Task<RoadNameResult?> FindRoadNamesAsync(double latitude, double longitude, CancellationToken cancellationToken)
+    {
+        var confirmed = _photo is { } photo && _confirmationStore is { } store
+            ? await store.FindAsync(photo, cancellationToken).ConfigureAwait(true)
+            : null;
+
+        IReadOnlyList<RoadNameCandidate> candidates = Array.Empty<RoadNameCandidate>();
+        if (_roadNameSuggester is { } suggester)
+        {
+            try
+            {
+                candidates = await suggester.SuggestAsync(latitude, longitude, cancellationToken).ConfigureAwait(true);
+            }
+            catch (Exception ex) when (confirmed is not null && (ex is IOException or HttpRequestException))
+            {
+                AppLog.Error("Failed to suggest road names for the confirmed photo location.", ex);
+            }
+        }
+
+        return new RoadNameResult(confirmed, candidates);
+    }
+
+    /// <summary>
+    /// 候補の道路を、選択中の写真の道路名として確定する。保存できなかったときは、確定した表示にしない
+    /// </summary>
+    public async Task ConfirmRoadAsync(RoadCandidateItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (_photo is not { } photo || _confirmationStore is not { } store || _roadResult is not { } result)
+        {
+            return;
+        }
+
+        try
+        {
+            await store.SaveAsync(photo, item.Road, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.Error("Failed to save the confirmed road name.", ex);
+            return;
+        }
+
+        // 保存の間に別の写真へ移っていたら、その写真の表示は変えない
+        if (_photo == photo && ReferenceEquals(_roadResult, result))
+        {
+            ApplyRoadNames(result with { Confirmed = item.Road });
+        }
+    }
+
+    /// <summary>
+    /// 選択中の写真の道路名の確定を解除する。解除できなかったときは、確定した表示のままにする
+    /// </summary>
+    public async Task UnconfirmRoadAsync()
+    {
+        if (_photo is not { } photo || _confirmationStore is not { } store || _roadResult is not { } result)
+        {
+            return;
+        }
+
+        try
+        {
+            await store.RemoveAsync(photo.FilePath, CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.Error("Failed to remove the confirmed road name.", ex);
+            return;
+        }
+
+        if (_photo == photo && ReferenceEquals(_roadResult, result))
+        {
+            ApplyRoadNames(result with { Confirmed = null });
+        }
+    }
 
     private void ApplyAreaName(AreaName? areaName)
     {
@@ -221,40 +306,74 @@ internal sealed class MapLocationInfoViewModel : BindableBase
         return string.Join('\n', lines);
     }
 
-    private void ApplyRoadNames(IReadOnlyList<RoadNameCandidate>? candidates)
+    private void ApplyRoadNames(RoadNameResult? result)
     {
-        RoadNameText = candidates is null
-            ? string.Empty
-            : LocationTextFormatter.FormatRoadName(candidates, FormatRouteNumber);
-        var items = candidates is null
-            ? Array.Empty<RoadCandidateItem>()
-            : candidates.Select(ToRoadCandidateItem).ToArray();
+        _roadResult = result;
+        if (result is null)
+        {
+            RoadNameText = string.Empty;
+            RoadCandidates = Array.Empty<RoadCandidateItem>();
+            RoadNameToolTip = null;
+            return;
+        }
+
+        var canConfirm = _photo is not null && _confirmationStore is not null;
+        var items = BuildRoadCandidateItems(result, canConfirm);
         RoadCandidates = items;
-        RoadNameToolTip = items.Length == 0 ? null : BuildRoadNameToolTip(items[0]);
+        if (items.FirstOrDefault(item => item.IsConfirmed) is { } confirmed)
+        {
+            RoadNameText = $"{ConfirmedMark} {confirmed.Name}";
+            RoadNameToolTip = BuildRoadNameToolTip("RoadName.ToolTip.ConfirmedHeader", confirmed);
+            return;
+        }
+
+        RoadNameText = LocationTextFormatter.FormatRoadName(result.Candidates, FormatRouteNumber);
+        RoadNameToolTip = items.Count == 0 ? null : BuildRoadNameToolTip("RoadName.ToolTip.Header", items[0]);
+    }
+
+    // 確定済みの道路が今の候補にないとき（通信できない・位置が離れている）は、距離なしで先頭に加える
+    private static List<RoadCandidateItem> BuildRoadCandidateItems(RoadNameResult result, bool canConfirm)
+    {
+        var items = result.Candidates
+            .Select(candidate => ToRoadCandidateItem(
+                candidate.Name,
+                candidate.Ref,
+                LocationTextFormatter.FormatDistance(candidate.DistanceMeters),
+                isConfirmed: result.Confirmed is { } confirmed && confirmed.Matches(candidate),
+                canConfirm))
+            .ToList();
+        if (result.Confirmed is { } missing && !items.Any(item => item.IsConfirmed))
+        {
+            items.Insert(0, ToRoadCandidateItem(missing.Name, missing.Ref, string.Empty, isConfirmed: true, canConfirm));
+        }
+
+        return items;
     }
 
     // 名称のない道路は、名称の欄に「路線番号 N」を出す。名称と路線番号が別にあるときだけ、路線番号を別の行にする
-    private static RoadCandidateItem ToRoadCandidateItem(RoadNameCandidate candidate)
+    private static RoadCandidateItem ToRoadCandidateItem(string? name, string? route, string distanceText, bool isConfirmed, bool canConfirm)
         => new(
-            LocationTextFormatter.FormatRoadCandidate(candidate, FormatRouteNumber),
-            candidate.Name is not null && candidate.Ref is { } route ? FormatRouteNumber(route) : null,
-            LocationTextFormatter.FormatDistance(candidate.DistanceMeters));
+            name ?? FormatRouteNumber(route ?? string.Empty),
+            name is not null && route is not null ? FormatRouteNumber(route) : null,
+            distanceText,
+            new ConfirmedRoadName(name, route),
+            isConfirmed,
+            canConfirm);
 
-    private static string BuildRoadNameToolTip(RoadCandidateItem first)
+    private static string BuildRoadNameToolTip(string headerKey, RoadCandidateItem item)
     {
         var lines = new List<string>
         {
-            LocalizationService.GetString("RoadName.ToolTip.Header"),
-            $"{first.Name}  {first.DistanceText}"
+            LocalizationService.GetString(headerKey),
+            item.DistanceText.Length == 0 ? item.Name : $"{item.Name}  {item.DistanceText}"
         };
-        if (first.RouteText is { } route)
+        if (item.RouteText is { } route)
         {
             lines.Add(route);
         }
 
         return string.Join('\n', lines);
     }
-
     private static string FormatRouteNumber(string route)
         => LocalizationService.Format("RoadName.RouteNumber", route);
 
@@ -297,6 +416,9 @@ internal sealed class MapLocationInfoViewModel : BindableBase
             apply(result);
         }
     }
+
+    // 道路名の解決の結果（確定済みの値と、今の位置の候補）
+    private sealed record RoadNameResult(ConfirmedRoadName? Confirmed, IReadOnlyList<RoadNameCandidate> Candidates);
 
     // CancellationTokenSource は Restart() で破棄する。MapPaneViewModel の Cleanup() から Clear() 経由で呼ばれる
     private sealed class Resolution

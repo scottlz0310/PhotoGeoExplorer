@@ -43,6 +43,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly AreaDataStore _areaDataStore = new(AreaDataStore.DefaultRootDirectory);
     private readonly AreaNameResolver _areaNameResolver;
     private readonly OpenFreeMapRoadNameSuggester _roadNameSuggester;
+    private readonly JsonRoadNameConfirmationStore _roadNameConfirmationStore = new();
     private readonly AreaDataArchivePicker _areaDataArchivePicker;
     private Services.ICrashReportService? _crashReportService;
     private bool _mapInitialized;
@@ -96,7 +97,8 @@ public sealed partial class MainWindow : Window, IDisposable
             mapImageService,
             secretStore: _secretStore,
             areaNameResolver: _areaNameResolver,
-            roadNameSuggester: _roadNameSuggester);
+            roadNameSuggester: _roadNameSuggester,
+            roadNameConfirmationStore: _roadNameConfirmationStore);
         _placesPaneViewModel = new PlacesPaneViewModel(
             _viewModel.WorkspaceState,
             new PhotoAreaClassifier(new PhotoCoordinateReader(new ExifMetadataService()).ReadAsync, _areaNameResolver, progressBatchSize: 200),

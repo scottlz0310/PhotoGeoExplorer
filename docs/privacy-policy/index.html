@@ -149,6 +149,8 @@
                 <li><strong>地域データ（字地名）:</strong> 地図ヘッダーに住所（字地名）を表示するために、利用者が選んだ ZIP
                     （e-Stat の国勢調査 小地域境界データ）を読み取り、端末内の <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code>
                     に保存します。住所の判定は端末内で行い、撮影位置は外部へ送信されません。設定から削除できます。</li>
+                <li><strong>確定した道路名:</strong> 地図ヘッダーの候補の一覧で利用者が確定した道路名は、写真のパス・ファイルサイズ・撮影日時とともに、端末内の
+                    <code>%LocalAppData%\PhotoGeoExplorer\road-name-confirmations.json</code> に保存されます。写真のファイルには書き込まず、外部へは送信しません。</li>
                 <li><strong>道路のタイルキャッシュ:</strong> 地図ヘッダーに最寄りの道路名（候補）を表示するために取得した道路のタイルは、端末内の
                     <code>%LocalAppData%\PhotoGeoExplorer\Cache\RoadTiles</code> にキャッシュされます（最大約 200 MB）。道路名の判定は端末内で行います。</li>
             </ul>
@@ -281,6 +283,7 @@
                 <li><strong>Map tile cache:</strong> Tiles are cached at <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> to improve performance and reduce network traffic (Mapbox tiles are not stored on the device).</li>
                 <li><strong>Mapbox access token:</strong> The access token you enter to use Mapbox Satellite is stored in Windows Credential Manager. It is not written to the settings file, logs, or crash reports.</li>
                 <li><strong>Area data (town names):</strong> To show the address (town name) in the map header, the App reads the ZIP you select (e-Stat census small-area boundary data) and stores it at <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code> on your device. The address lookup is done locally and the photo location is not sent externally. You can delete the data from Settings.</li>
+                <li><strong>Confirmed road names:</strong> A road name you confirm in the list of candidates in the map header is saved on your device at <code>%LocalAppData%\PhotoGeoExplorer\road-name-confirmations.json</code>, together with the photo's path, file size, and taken-at time. It is not written to the photo file and is never sent anywhere.</li>
                 <li><strong>Road tile cache:</strong> Road tiles fetched to show the nearest road name (a suggestion) in the map header are cached at <code>%LocalAppData%\PhotoGeoExplorer\Cache\RoadTiles</code> (up to about 200 MB). Road names are determined on your device.</li>
             </ul>
 

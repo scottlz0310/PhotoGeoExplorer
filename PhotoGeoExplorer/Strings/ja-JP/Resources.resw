@@ -1049,8 +1049,17 @@
   <data name="RoadName.ToolTip.Header" xml:space="preserve">
     <value>最寄りの道路（候補）</value>
   </data>
+  <data name="RoadName.ToolTip.ConfirmedHeader" xml:space="preserve">
+    <value>確定した道路</value>
+  </data>
   <data name="RoadCandidatesFlyoutTitle.Text" xml:space="preserve">
     <value>最寄りの道路の候補（近い順）</value>
+  </data>
+  <data name="RoadConfirmButton.Content" xml:space="preserve">
+    <value>確定</value>
+  </data>
+  <data name="RoadUnconfirmButton.Content" xml:space="preserve">
+    <value>確定を解除</value>
   </data>
   <data name="MapHeaderMenuShowAddress.Text" xml:space="preserve">
     <value>住所（国勢調査 字地名）を表示</value>
