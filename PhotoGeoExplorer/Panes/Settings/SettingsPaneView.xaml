@@ -201,6 +201,75 @@
                             TextWrapping="Wrap" />
                     </StackPanel>
 
+                    <!-- 地域データ（字地名） -->
+                    <StackPanel Spacing="8">
+                        <TextBlock
+                            x:Uid="SettingsPaneAreaDataSection"
+                            Text="地域データ（字地名）"
+                            Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <TextBlock
+                            x:Uid="SettingsPaneAreaDataDescription"
+                            Text="地図ヘッダーに表示する住所（字地名）の判定に使うデータです。e-Stat からダウンロードした都道府県ごとの ZIP を追加してください。データは端末内にだけ保存し、判定も端末内で行います。"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Opacity="0.7"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Uid="SettingsPaneAreaDataEmpty"
+                            Text="取り込み済みの地域データはありません。"
+                            Visibility="{Binding AreaData.EmptyVisibility, Mode=OneWay}"
+                            Opacity="0.7" />
+                        <ItemsControl
+                            ItemsSource="{Binding AreaData.Packs}"
+                            AutomationProperties.AutomationId="SettingsAreaDataList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnSpacing="12" Padding="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding PrefectureName}" />
+                                            <TextBlock
+                                                Text="{Binding DetailText}"
+                                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                                Opacity="0.7" />
+                                        </StackPanel>
+                                        <Button
+                                            Grid.Column="1"
+                                            x:Uid="SettingsPaneAreaDataDeleteButton"
+                                            Content="削除"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding DeleteCommand}"
+                                            AutomationProperties.Name="{Binding DeleteAutomationName}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button
+                            x:Uid="SettingsPaneAreaDataAddButton"
+                            Content="ZIP を追加..."
+                            HorizontalAlignment="Left"
+                            Command="{Binding AreaData.AddCommand}"
+                            AutomationProperties.AutomationId="SettingsAreaDataAddButton" />
+                        <TextBlock
+                            Text="{Binding AreaData.StatusMessage, Mode=OneWay}"
+                            AutomationProperties.AutomationId="SettingsAreaDataStatus"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Uid="SettingsPaneAreaDataAttribution"
+                            Text="出典: 政府統計の総合窓口(e-Stat)（https://www.e-stat.go.jp/）「国勢調査 小地域（町丁・字等別）境界データ」（総務省統計局）を加工して作成。このデータは国・総務省が作成したものではありません。"
+                            Style="{ThemeResource CaptionTextBlockStyle}"
+                            Opacity="0.7"
+                            TextWrapping="Wrap" />
+                        <HyperlinkButton
+                            x:Uid="SettingsPaneAreaDataDownloadLink"
+                            Content="e-Stat の境界データのダウンロードページを開く"
+                            NavigateUri="https://www.e-stat.go.jp/gis/statmap-search?type=2"
+                            Padding="0" />
+                    </StackPanel>
+
                     <!-- 表示設定 -->
                     <StackPanel Spacing="8">
                         <TextBlock

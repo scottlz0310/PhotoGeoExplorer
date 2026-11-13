@@ -57,7 +57,7 @@ public partial class CoverageExclusionRatchetTests
     [Fact]
     public void CodecovIgnoreMatchesTheAllowlist()
     {
-        var actual = ReadCodecovIgnores(File.ReadAllLines(Path.Combine(FindRepositoryRoot(), "codecov.yml")));
+        var actual = ReadCodecovIgnores(File.ReadAllLines(Path.Combine(RepositoryPaths.FindRoot(), "codecov.yml")));
 
         AssertSameSet(AllowedCodecovIgnores.Keys, actual, "codecov.yml の ignore");
     }
@@ -75,7 +75,7 @@ public partial class CoverageExclusionRatchetTests
     [Fact]
     public void CoverletExclusionsMatchTheAllowlist()
     {
-        var configuration = XDocument.Load(Path.Combine(FindRepositoryRoot(), "coverlet.runsettings"))
+        var configuration = XDocument.Load(Path.Combine(RepositoryPaths.FindRoot(), "coverlet.runsettings"))
             .Descendants("Configuration")
             .Single();
         var actual = configuration.Elements()
@@ -208,19 +208,6 @@ public partial class CoverageExclusionRatchetTests
             + $" 許可リストにない除外: [{string.Join(", ", notAllowed)}]"
             + $" / 許可リストにあるが使われていない: [{string.Join(", ", stale)}]"
             + $" / 重複: [{string.Join(", ", duplicated)}]");
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "PhotoGeoExplorer.sln")))
-            {
-                return directory.FullName;
-            }
-        }
-
-        throw new InvalidOperationException($"PhotoGeoExplorer.sln が見つかりません（起点: {AppContext.BaseDirectory}）。");
     }
 
     [GeneratedRegex("""^\s+-\s+(?:"(?<value>[^"]+)"|'(?<value>[^']+)'|(?<value>[^\s"'\[\]{}#][^#]*?))\s*$""")]
