@@ -394,10 +394,9 @@ public class MapPaneViewModelTests
             // Act
             workspaceState.SelectedPhotos = new[] { photo };
 
-            var completed = await Task.WhenAny(service.LoadCalled, Task.Delay(1000)).ConfigureAwait(true);
+            await TestTasks.AssertCompletesWithinAsync(service.LoadCalled, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
 
             // Assert
-            Assert.Same(service.LoadCalled, completed);
             Assert.Equal(1, service.LoadPhotoMetadataCallCount);
         }
         finally
@@ -423,16 +422,14 @@ public class MapPaneViewModelTests
         // Act
         var updateTask = viewModel.UpdateMarkersFromSelectionAsync(new[] { photo });
 
-        var loadStarted = await Task.WhenAny(service.LoadStarted, Task.Delay(1000)).ConfigureAwait(true);
-        Assert.Same(service.LoadStarted, loadStarted);
+        await TestTasks.AssertCompletesWithinAsync(service.LoadStarted, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
 
         // await 中に Cleanup() を発生させ、_map/_markerLayer を破棄・null 化する
         viewModel.Cleanup();
         service.CompleteLoad(new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 35.681236, 139.767125));
 
         // Assert: 破棄済みの map/markerLayer へアクセスせず例外なく完了すること
-        var completedTask = await Task.WhenAny(updateTask, Task.Delay(1000)).ConfigureAwait(true);
-        Assert.Same(updateTask, completedTask);
+        await TestTasks.AssertCompletesWithinAsync(updateTask, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
         await updateTask.ConfigureAwait(true);
     }
 
@@ -501,8 +498,7 @@ public class MapPaneViewModelTests
                 await first.ConfigureAwait(true);
             });
 
-            var completed = await Task.WhenAny(run, Task.Delay(5000)).ConfigureAwait(true);
-            Assert.Same(run, completed);
+            await TestTasks.AssertCompletesWithinAsync(run, TimeSpan.FromSeconds(5)).ConfigureAwait(true);
             await run.ConfigureAwait(true);
 
             // Assert: UI スレッド相当のスレッド以外で PropertyChanged が発火していないこと

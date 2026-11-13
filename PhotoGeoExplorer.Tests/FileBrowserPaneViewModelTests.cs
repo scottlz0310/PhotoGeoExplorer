@@ -885,8 +885,7 @@ public class FileBrowserPaneViewModelTests
         viewModel.OpenFolderCommand.Execute(null);
 
         // Assert
-        var completed = await Task.WhenAny(invokedTcs.Task, Task.Delay(TimeSpan.FromSeconds(1))).ConfigureAwait(true);
-        Assert.Same(invokedTcs.Task, completed);
+        await TestTasks.AssertCompletesWithinAsync(invokedTcs.Task, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
     }
 
     [Fact]
