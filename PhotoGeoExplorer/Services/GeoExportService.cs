@@ -51,7 +51,9 @@ internal sealed class GeoExportService : IGeoExportService
         ArgumentException.ThrowIfNullOrEmpty(destinationRoot);
 
         var root = Path.GetFullPath(destinationRoot);
-        var rootPrefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
+
+        // 選択した写真の元のファイル。出力先がこれと重なっても、上書きしない（「元の写真は変更しない」）
+        var originals = plan.Select(item => Path.GetFullPath(item.SourcePath)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var success = 0;
         var skipped = 0;
         var failures = new List<FileOperationFailure>();
@@ -71,7 +73,7 @@ internal sealed class GeoExportService : IGeoExportService
             var fileName = Path.GetFileName(destination);
 
             // 計画の名前は整形済みだが、出力先の外へ出る相対パスは、念のため受け付けない
-            if (!destination.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+            if (!IsPathUnderRoot(destination, root))
             {
                 failures.Add(new FileOperationFailure(item.SourcePath, fileName, FileOperationError.InvalidName));
             }
@@ -79,6 +81,11 @@ internal sealed class GeoExportService : IGeoExportService
             {
                 // 元のファイルへのコピーは、何もしない
                 skipped++;
+            }
+            else if (originals.Contains(destination))
+            {
+                // 別の選択写真の元のファイルへの出力は、上書きの確認も出さずに、失敗にする
+                failures.Add(new FileOperationFailure(item.SourcePath, fileName, FileOperationError.AlreadyExists));
             }
             else
             {
@@ -125,6 +132,16 @@ internal sealed class GeoExportService : IGeoExportService
                 GeoCsvWriter.Write(stream, records, labels);
             },
             cancellationToken);
+    }
+
+    /// <summary>
+    /// <paramref name="fullPath"/> が、出力先 <paramref name="fullRoot"/> の中（出力先そのものは含まない）か。
+    /// ドライブ直下（<c>D:\</c>）は末尾の区切り文字を保つので、区切り文字を二重にしない。名前が前方一致するだけの別のフォルダーは、中とみなさない
+    /// </summary>
+    internal static bool IsPathUnderRoot(string fullPath, string fullRoot)
+    {
+        var prefix = Path.EndsInDirectorySeparator(fullRoot) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && fullPath.Length > prefix.Length;
     }
 
     private static async Task<CopyOutcome> CopyOneAsync(

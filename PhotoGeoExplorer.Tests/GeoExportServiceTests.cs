@@ -294,6 +294,68 @@ public sealed class GeoExportServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CopyAsyncNeverOverwritesTheOriginalOfAnotherSelectedPhoto()
+    {
+        // 元のフォルダーへのリネーム出力で、出力先が別の選択写真の元のファイルと重なった
+        var a = CreateSource("IMG_0001.jpg", "PHOTO_A");
+        var b = CreateSource("20240102_Test_001.jpg", "PHOTO_B");
+
+        var result = await _service.CopyAsync(
+            [new ExportPlanItem(a, "20240102_Test_001.jpg"), new ExportPlanItem(b, "20240102_Test_002.jpg")],
+            Source,
+            _ => Task.FromResult(ConflictResolution.OverwriteAll),
+            progress: null,
+            CancellationToken.None).ConfigureAwait(true);
+
+        // 原本 B は、そのまま残り、002 には B の内容がコピーされる
+        Assert.Equal("PHOTO_B", Read(b));
+        Assert.Equal("PHOTO_A", Read(a));
+        Assert.Equal("PHOTO_B", Read(Path.Combine(Source, "20240102_Test_002.jpg")));
+        Assert.Equal((1, 0, 1), (result.SuccessCount, result.SkipCount, result.FailureCount));
+        Assert.Equal(FileOperationError.AlreadyExists, result.Failures[0].Error);
+        Assert.Equal(a, result.Failures[0].Path);
+    }
+
+    [Fact]
+    public async Task CopyAsyncDoesNotAskAboutAnOriginalItWillNotOverwrite()
+    {
+        var a = CreateSource("a.jpg", "A");
+        var b = CreateSource("b.jpg", "B");
+        var asked = 0;
+
+        await _service.CopyAsync(
+            [new ExportPlanItem(a, "B.JPG"), new ExportPlanItem(b, Path.Combine("sub", "b.jpg"))],
+            Source,
+            _ =>
+            {
+                asked++;
+                return Task.FromResult(ConflictResolution.Overwrite);
+            },
+            progress: null,
+            CancellationToken.None).ConfigureAwait(true);
+
+        // 大文字小文字の違いでも、原本とみなして、上書きするかを尋ねない
+        Assert.Equal(0, asked);
+        Assert.Equal("B", Read(b));
+    }
+
+    [Theory]
+    [InlineData("D:\\", "D:\\20240102_Test_001.jpg", true)]
+    [InlineData("D:\\", "D:\\folder\\a.jpg", true)]
+    [InlineData("D:\\", "E:\\a.jpg", false)]
+    [InlineData("C:\\out", "C:\\out\\a.jpg", true)]
+    [InlineData("C:\\out\\", "C:\\out\\a.jpg", true)]
+    [InlineData("C:\\out", "C:\\OUT\\sub\\a.jpg", true)]
+    // 名前が前方一致するだけの別のフォルダーは、出力先の中ではない
+    [InlineData("C:\\out", "C:\\out2\\a.jpg", false)]
+    [InlineData("C:\\out", "C:\\out", false)]
+    [InlineData("C:\\out", "C:\\a.jpg", false)]
+    public void IsPathUnderRootChecksTheBoundaryOfTheDestination(string root, string path, bool expected)
+    {
+        Assert.Equal(expected, GeoExportService.IsPathUnderRoot(path, root));
+    }
+
+    [Fact]
     public async Task CopyAsyncRejectsInvalidArguments()
     {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _service.CopyAsync(null!, Destination, null, null, CancellationToken.None)).ConfigureAwait(true);
