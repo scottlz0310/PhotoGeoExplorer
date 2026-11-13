@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -28,6 +29,8 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     private string _areaNameText = string.Empty;
     private string? _areaNameToolTip;
     private string _roadNameText = string.Empty;
+    private string? _roadNameToolTip;
+    private IReadOnlyList<RoadCandidateItem> _roadCandidates = Array.Empty<RoadCandidateItem>();
     private string _coordinatesText = string.Empty;
 
     internal MapLocationInfoViewModel(
@@ -76,6 +79,24 @@ internal sealed class MapLocationInfoViewModel : BindableBase
                 OnPropertyChanged(nameof(RoadNameVisibility));
             }
         }
+    }
+
+    /// <summary>
+    /// 最寄りの道路（第 1 候補）の詳細（「候補」であること・名称・距離・路線番号）。道路名を表示していないときは null
+    /// </summary>
+    public string? RoadNameToolTip
+    {
+        get => _roadNameToolTip;
+        private set => SetProperty(ref _roadNameToolTip, value);
+    }
+
+    /// <summary>
+    /// 候補の一覧（近い順）。道路名を表示していないときは空
+    /// </summary>
+    public IReadOnlyList<RoadCandidateItem> RoadCandidates
+    {
+        get => _roadCandidates;
+        private set => SetProperty(ref _roadCandidates, value);
     }
 
     public string CoordinatesText
@@ -205,6 +226,33 @@ internal sealed class MapLocationInfoViewModel : BindableBase
         RoadNameText = candidates is null
             ? string.Empty
             : LocationTextFormatter.FormatRoadName(candidates, FormatRouteNumber);
+        var items = candidates is null
+            ? Array.Empty<RoadCandidateItem>()
+            : candidates.Select(ToRoadCandidateItem).ToArray();
+        RoadCandidates = items;
+        RoadNameToolTip = items.Length == 0 ? null : BuildRoadNameToolTip(items[0]);
+    }
+
+    // 名称のない道路は、名称の欄に「路線番号 N」を出す。名称と路線番号が別にあるときだけ、路線番号を別の行にする
+    private static RoadCandidateItem ToRoadCandidateItem(RoadNameCandidate candidate)
+        => new(
+            LocationTextFormatter.FormatRoadCandidate(candidate, FormatRouteNumber),
+            candidate.Name is not null && candidate.Ref is { } route ? FormatRouteNumber(route) : null,
+            LocationTextFormatter.FormatDistance(candidate.DistanceMeters));
+
+    private static string BuildRoadNameToolTip(RoadCandidateItem first)
+    {
+        var lines = new List<string>
+        {
+            LocalizationService.GetString("RoadName.ToolTip.Header"),
+            $"{first.Name}  {first.DistanceText}"
+        };
+        if (first.RouteText is { } route)
+        {
+            lines.Add(route);
+        }
+
+        return string.Join('\n', lines);
     }
 
     private static string FormatRouteNumber(string route)

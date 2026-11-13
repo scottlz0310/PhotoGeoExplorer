@@ -43,6 +43,12 @@ internal static class LocationTextFormatter
     }
 
     /// <summary>
+    /// 距離の表記（整数のメートル）。言語によらず「12 m」
+    /// </summary>
+    public static string FormatDistance(double meters)
+        => string.Create(CultureInfo.InvariantCulture, $"{Math.Round(meters, MidpointRounding.AwayFromZero):0} m");
+
+    /// <summary>
     /// 候補 1 件の表記。名称があればそれを、なければ路線番号から作る
     /// </summary>
     public static string FormatRoadCandidate(RoadNameCandidate candidate, Func<string, string> formatRouteNumber)

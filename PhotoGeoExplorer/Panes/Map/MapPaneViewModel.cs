@@ -77,9 +77,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         IMapImageService mapImageService,
         Func<DispatcherQueue?>? dispatcherQueueAccessor = null,
         ISecretStore? secretStore = null,
-        IAreaNameResolver? areaNameResolver = null)
+        IAreaNameResolver? areaNameResolver = null,
+        IRoadNameSuggester? roadNameSuggester = null)
     {
-        LocationInfo = new MapLocationInfoViewModel(areaNameResolver);
+        LocationInfo = new MapLocationInfoViewModel(areaNameResolver, roadNameSuggester);
         _secretStore = secretStore ?? new PasswordVaultSecretStore();
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));

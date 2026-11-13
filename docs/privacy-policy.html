@@ -105,7 +105,7 @@
 <body>
     <div class="container">
         <h1>プライバシーポリシー / Privacy Policy</h1>
-        <p class="last-updated">最終更新日: 2026年11月13日 / Last updated: November 13, 2026</p>
+        <p class="last-updated">最終更新日: 2026年11月14日 / Last updated: November 14, 2026</p>
         <p class="lang-switch"><a href="#ja">日本語</a> | <a href="#en">English</a></p>
 
         <section id="ja">
@@ -149,6 +149,8 @@
                 <li><strong>地域データ（字地名）:</strong> 地図ヘッダーに住所（字地名）を表示するために、利用者が選んだ ZIP
                     （e-Stat の国勢調査 小地域境界データ）を読み取り、端末内の <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code>
                     に保存します。住所の判定は端末内で行い、撮影位置は外部へ送信されません。設定から削除できます。</li>
+                <li><strong>道路のタイルキャッシュ:</strong> 地図ヘッダーに最寄りの道路名（候補）を表示するために取得した道路のタイルは、端末内の
+                    <code>%LocalAppData%\PhotoGeoExplorer\Cache\RoadTiles</code> にキャッシュされます（最大約 200 MB）。道路名の判定は端末内で行います。</li>
             </ul>
 
             <h2>4. インターネット通信</h2>
@@ -160,13 +162,17 @@
                     のサーバーから地図タイルを取得します。これらのリクエストに個人情報は含めません。</li>
                 <li><strong>Mapbox Satellite（任意）:</strong> 利用者が自分のアクセストークンを設定して Mapbox Satellite
                     を選んだ場合に限り、Mapbox のサーバーから地図タイルを取得します。リクエストには、表示範囲のタイル座標と利用者のアクセストークンが含まれます。写真データは送信しません。</li>
+                <li><strong>最寄り道路名（既定で有効。オフにできます）:</strong> 地図ヘッダーに最寄りの道路名（候補）を表示するために、OpenFreeMap
+                    のサーバーから道路のタイルを取得します。リクエストに含まれるのは、撮影地点を含むタイルの番号（ズーム 14。約 2 km
+                    四方で、地点が縁に近いときは隣のタイルも）と、本アプリの名称・版・連絡先（User-Agent）です。<strong>写真や緯度経度そのものは送信しません</strong>が、タイルの番号から、撮影地点を含む約
+                    2 km 四方の範囲は分かります。設定の「最寄り道路名（候補）を表示」をオフにすると、この通信は行いません。</li>
                 <li><strong>更新チェック:</strong> 新バージョン確認のため、GitHub Releases を参照します。これらのリクエストに個人情報や写真データは含めません。</li>
             </ul>
             <p>
                 地域データ（字地名）は、本アプリが通信して取得することはありません。e-Stat からのダウンロードは、利用者がブラウザーで行います。
             </p>
             <p>
-                初回の地図タイルがキャッシュされた後は、オフラインでも利用できます（地図の新規取得は除く）。
+                初回の地図タイルがキャッシュされた後は、オフラインでも利用できます（地図の新規取得は除く）。最寄り道路名は、オフラインではキャッシュにあるタイルだけで判定し、なければ表示しません。
             </p>
 
             <h2>5. 第三者サービス</h2>
@@ -178,6 +184,8 @@
                         rel="noopener noreferrer">OpenStreetMap</a> のタイルサーバーから取得します。詳しくは <a
                         href="https://wiki.openstreetmap.org/wiki/Privacy_Policy" target="_blank"
                         rel="noopener noreferrer">Privacy Policy</a> を参照してください。</li>
+                <li><strong>OpenFreeMap（最寄り道路名）:</strong> 道路のタイルを <a href="https://openfreemap.org/" target="_blank"
+                        rel="noopener noreferrer">OpenFreeMap</a> のサーバーから取得します。地図データは OpenStreetMap の貢献者によるものです。</li>
                 <li><strong>Esri WorldImagery:</strong> 衛星画像タイルを <a href="https://www.esri.com/" target="_blank"
                         rel="noopener noreferrer">Esri</a> のサーバーから取得します。詳しくは <a
                         href="https://www.esri.com/en-us/privacy/overview" target="_blank" rel="noopener noreferrer">Privacy
@@ -273,6 +281,7 @@
                 <li><strong>Map tile cache:</strong> Tiles are cached at <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> to improve performance and reduce network traffic (Mapbox tiles are not stored on the device).</li>
                 <li><strong>Mapbox access token:</strong> The access token you enter to use Mapbox Satellite is stored in Windows Credential Manager. It is not written to the settings file, logs, or crash reports.</li>
                 <li><strong>Area data (town names):</strong> To show the address (town name) in the map header, the App reads the ZIP you select (e-Stat census small-area boundary data) and stores it at <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code> on your device. The address lookup is done locally and the photo location is not sent externally. You can delete the data from Settings.</li>
+                <li><strong>Road tile cache:</strong> Road tiles fetched to show the nearest road name (a suggestion) in the map header are cached at <code>%LocalAppData%\PhotoGeoExplorer\Cache\RoadTiles</code> (up to about 200 MB). Road names are determined on your device.</li>
             </ul>
 
             <h2>4. Network Communication</h2>
@@ -282,13 +291,14 @@
             <ul>
                 <li><strong>Map tiles:</strong> Map tiles are fetched from OpenStreetMap or Esri WorldImagery servers. These requests do not include personal information.</li>
                 <li><strong>Mapbox Satellite (optional):</strong> Only when you set your own access token and select Mapbox Satellite, map tiles are fetched from Mapbox servers. These requests include the tile coordinates of the displayed area and your access token. Photo data is not sent.</li>
+                <li><strong>Nearest road name (enabled by default; can be turned off):</strong> To show the nearest road name (a suggestion) in the map header, road tiles are fetched from OpenFreeMap servers. A request contains only the number of the tile that contains the photo location (a zoom-14 tile, about 2 km square; adjacent tiles when the location is near the edge) and the App's name, version, and contact address (User-Agent). <strong>Photos and the latitude and longitude themselves are not sent</strong>, but the tile number reveals the area of about 2 km square around the photo location. Turn off "Show nearest road name (suggestion)" in Settings to stop these requests.</li>
                 <li><strong>Update checks:</strong> GitHub Releases are queried for new versions. These requests do not include personal information or photo data.</li>
             </ul>
             <p>
                 The App never downloads area data (town names) itself. You download it from e-Stat in your browser.
             </p>
             <p>
-                Once map tiles are cached, the App can be used offline (except for fetching new tiles).
+                Once map tiles are cached, the App can be used offline (except for fetching new tiles). Offline, the nearest road name is determined only from cached tiles; if the tiles are not cached, it is not shown.
             </p>
 
             <h2>5. Third-Party Services</h2>
@@ -300,6 +310,8 @@
                         rel="noopener noreferrer">OpenStreetMap</a>. See their <a
                         href="https://wiki.openstreetmap.org/wiki/Privacy_Policy" target="_blank"
                         rel="noopener noreferrer">Privacy Policy</a>.</li>
+                <li><strong>OpenFreeMap (nearest road name):</strong> Road tiles are fetched from <a href="https://openfreemap.org/" target="_blank"
+                        rel="noopener noreferrer">OpenFreeMap</a>. The map data is by OpenStreetMap contributors.</li>
                 <li><strong>Esri WorldImagery:</strong> Satellite tiles are fetched from <a href="https://www.esri.com/" target="_blank"
                         rel="noopener noreferrer">Esri</a>. See their <a
                         href="https://www.esri.com/en-us/privacy/overview" target="_blank" rel="noopener noreferrer">Privacy
