@@ -57,6 +57,7 @@ winget install --exact PhotoGeoExplorer --source msstore
 - Mapsui による地図描画
 - EXIF 抽出に MetadataExtractor
 - サムネイル/画像処理に SixLabors.ImageSharp
+- 字地名の判定（空間インデックス・Shapefile の読み込み）に NetTopologySuite
 
 ## アーキテクチャ
 
