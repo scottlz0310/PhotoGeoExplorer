@@ -20,7 +20,8 @@ internal enum PaneViewType
 {
     File = 0,
     Preview = 1,
-    Map = 2
+    Map = 2,
+    Places = 3
 }
 
 internal sealed class AppSettings

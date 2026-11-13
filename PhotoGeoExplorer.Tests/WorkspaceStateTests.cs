@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.State;
+using PhotoGeoExplorer.ViewModels;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
@@ -97,6 +98,29 @@ public class WorkspaceStateTests
 
         // Assert
         Assert.True(propertyChangedRaised);
+    }
+
+    [Fact]
+    public void PhotoItemsDefaultsToEmptyAndRaisesPropertyChangedWhenSet()
+    {
+        var state = new WorkspaceState();
+        var changed = new List<string?>();
+        state.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Assert.Empty(state.PhotoItems);
+
+        IReadOnlyList<PhotoListItem> items = new List<PhotoListItem>();
+        state.PhotoItems = items;
+
+        Assert.Same(items, state.PhotoItems);
+        Assert.Equal([nameof(WorkspaceState.PhotoItems)], changed);
+    }
+
+    [Fact]
+    public void PhotoItemsRejectsNull()
+    {
+        var state = new WorkspaceState();
+
+        Assert.Throws<ArgumentNullException>(() => state.PhotoItems = null!);
     }
 
     [Fact]

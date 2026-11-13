@@ -432,6 +432,54 @@ public class FileBrowserPaneViewModelTests
     }
 
     [Fact]
+    public async Task LoadFolderAsyncPublishesOnlyThePhotosOfTheFolder()
+    {
+        var tempDir = CreateTempTestDirectory();
+        Directory.CreateDirectory(Path.Combine(tempDir, "sub"));
+        await File.WriteAllBytesAsync(Path.Combine(tempDir, "a.jpg"), [0]).ConfigureAwait(true);
+        await File.WriteAllBytesAsync(Path.Combine(tempDir, "b.jpg"), [0]).ConfigureAwait(true);
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
+
+        try
+        {
+            await viewModel.LoadFolderAsync(tempDir).ConfigureAwait(true);
+
+            Assert.Contains(viewModel.Items, item => item.IsFolder);
+            Assert.Equal(["a.jpg", "b.jpg"], workspaceState.PhotoItems.Select(item => item.FileName).Order());
+        }
+        finally
+        {
+            CleanupTempDirectory(tempDir);
+        }
+    }
+
+    [Fact]
+    public async Task LoadFolderAsyncReplacesThePublishedPhotosWhenAnotherFolderIsLoaded()
+    {
+        var first = CreateTempTestDirectory();
+        var second = CreateTempTestDirectory();
+        await File.WriteAllBytesAsync(Path.Combine(first, "a.jpg"), [0]).ConfigureAwait(true);
+        var workspaceState = new WorkspaceState();
+        using var viewModel = new FileBrowserPaneViewModel(new FileBrowserPaneService(), workspaceState, folderWatcherService: NoOpFolderWatcherService.Shared);
+
+        try
+        {
+            await viewModel.LoadFolderAsync(first).ConfigureAwait(true);
+            Assert.Single(workspaceState.PhotoItems);
+
+            await viewModel.LoadFolderAsync(second).ConfigureAwait(true);
+
+            Assert.Empty(workspaceState.PhotoItems);
+        }
+        finally
+        {
+            CleanupTempDirectory(first);
+            CleanupTempDirectory(second);
+        }
+    }
+
+    [Fact]
     public async Task LoadFolderAsyncCancelledByConcurrentCallDoesNotShowErrorOverlay()
     {
         // 並行する LoadFolderAsync が先行呼び出しの CTS を Cancel + Dispose した後、

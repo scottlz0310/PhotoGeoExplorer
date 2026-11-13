@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:fileBrowser="using:PhotoGeoExplorer.Panes.FileBrowser"
     xmlns:map="using:PhotoGeoExplorer.Panes.Map"
+    xmlns:places="using:PhotoGeoExplorer.Panes.Places"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
     xmlns:preview="using:PhotoGeoExplorer.Panes.Preview"
@@ -159,6 +160,7 @@
                 <fileBrowser:FileBrowserPaneView x:Name="FileBrowserPaneControl" />
                 <preview:PreviewPaneViewControl x:Name="PreviewPaneControl" />
                 <map:MapPaneViewControl x:Name="MapPaneControl" />
+                <places:PlacesPaneView x:Name="PlacesPaneControl" />
             </Grid>
         </Grid>
 

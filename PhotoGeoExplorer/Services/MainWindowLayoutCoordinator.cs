@@ -38,6 +38,7 @@ internal sealed class MainWindowLayoutCoordinator
     private readonly ColumnDefinition _rightLeftColumn;
     private readonly ColumnDefinition _rightRightColumn;
     private readonly ColumnDefinition _rightSplitterColumn;
+    private readonly Action<bool> _placesPaneShownChanged;
     private bool _layoutStored;
     private bool _previewMaximized;
     private PaneLayoutPreset _currentPaneLayoutPreset = AppSettings.DefaultPaneLayoutPreset;
@@ -66,7 +67,8 @@ internal sealed class MainWindowLayoutCoordinator
         Grid rightHorizontalSplitHost,
         ColumnDefinition rightLeftColumn,
         ColumnDefinition rightRightColumn,
-        ColumnDefinition rightSplitterColumn)
+        ColumnDefinition rightSplitterColumn,
+        Action<bool> placesPaneShownChanged)
     {
         _paneLayoutHostService = paneLayoutHostService ?? throw new ArgumentNullException(nameof(paneLayoutHostService));
         _previewPaneControl = previewPaneControl ?? throw new ArgumentNullException(nameof(previewPaneControl));
@@ -86,6 +88,7 @@ internal sealed class MainWindowLayoutCoordinator
         _rightLeftColumn = rightLeftColumn ?? throw new ArgumentNullException(nameof(rightLeftColumn));
         _rightRightColumn = rightRightColumn ?? throw new ArgumentNullException(nameof(rightRightColumn));
         _rightSplitterColumn = rightSplitterColumn ?? throw new ArgumentNullException(nameof(rightSplitterColumn));
+        _placesPaneShownChanged = placesPaneShownChanged ?? throw new ArgumentNullException(nameof(placesPaneShownChanged));
     }
 
     public void ApplyPaneLayout(PaneLayoutPreset preset, PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
@@ -101,6 +104,7 @@ internal sealed class MainWindowLayoutCoordinator
         }
 
         _paneLayoutHostService.ApplyLayout(preset, region1View, region2View, region3View);
+        _placesPaneShownChanged(IsPlacesPaneShown(region1View, region2View, region3View));
         _previewPaneControl.RequestRefitIfNeeded();
     }
 
@@ -136,6 +140,7 @@ internal sealed class MainWindowLayoutCoordinator
         if (plan.ShowPreviewOnly)
         {
             _paneLayoutHostService.ShowPreviewOnly();
+            _placesPaneShownChanged(false);
         }
         else
         {
@@ -236,6 +241,14 @@ internal sealed class MainWindowLayoutCoordinator
 
         _rightLeftColumn.Width = rightLeftWidth;
         _rightRightColumn.Width = rightRightWidth;
+    }
+
+    // 字地名のペインは、いずれかの領域に割り当てられているときだけ表示される（プレビューの最大化中は出ない）
+    internal static bool IsPlacesPaneShown(PaneViewType region1View, PaneViewType region2View, PaneViewType region3View)
+    {
+        return region1View == PaneViewType.Places
+            || region2View == PaneViewType.Places
+            || region3View == PaneViewType.Places;
     }
 
     internal static bool ShouldApplyPaneLayout(bool previewMaximized)

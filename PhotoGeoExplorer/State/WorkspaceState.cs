@@ -15,6 +15,7 @@ internal sealed class WorkspaceState : BindableBase
     private int _selectedPhotoCount;
     private IReadOnlyList<PhotoListItem>? _selectedPhotos;
     private int _photoListCount;
+    private IReadOnlyList<PhotoListItem> _photoItems = [];
     private int _currentPhotoIndex = -1;
 
     /// <summary>
@@ -52,6 +53,16 @@ internal sealed class WorkspaceState : BindableBase
     {
         get => _photoListCount;
         set => SetProperty(ref _photoListCount, value);
+    }
+
+    /// <summary>
+    /// 現在のフォルダーの写真の一覧（フォルダーを除く。ファイル一覧に出ているもの）。
+    /// フォルダーを読み込み直すたびに、新しい一覧で置き換える。字地名のツリーなど、フォルダー全体を見るペインが使う
+    /// </summary>
+    public IReadOnlyList<PhotoListItem> PhotoItems
+    {
+        get => _photoItems;
+        set => SetProperty(ref _photoItems, value ?? throw new ArgumentNullException(nameof(value)));
     }
 
     /// <summary>

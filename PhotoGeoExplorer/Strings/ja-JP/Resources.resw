@@ -270,11 +270,20 @@
   <data name="SettingsPaneLayoutRegion1ViewMapOption.Content" xml:space="preserve">
     <value>Map</value>
   </data>
+  <data name="SettingsPaneLayoutRegion1ViewPlacesOption.Content" xml:space="preserve">
+    <value>字地名</value>
+  </data>
   <data name="SettingsPaneLayoutRegion2ViewMapOption.Content" xml:space="preserve">
     <value>Map</value>
   </data>
+  <data name="SettingsPaneLayoutRegion2ViewPlacesOption.Content" xml:space="preserve">
+    <value>字地名</value>
+  </data>
   <data name="SettingsPaneLayoutRegion3ViewMapOption.Content" xml:space="preserve">
     <value>Map</value>
+  </data>
+  <data name="SettingsPaneLayoutRegion3ViewPlacesOption.Content" xml:space="preserve">
+    <value>字地名</value>
   </data>
   <data name="SettingsPaneLayoutRegionLeft" xml:space="preserve">
     <value>左</value>
@@ -1070,7 +1079,42 @@
   <data name="Message.CoordinatesCopyFailed" xml:space="preserve">
     <value>緯度・経度をクリップボードへコピーできませんでした。</value>
   </data>
-  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
+  <data name="PlacesPaneTitle.Text" xml:space="preserve">
+    <value>字地名</value>
+  </data>
+  <data name="PlacesPaneCancelButton.Content" xml:space="preserve">
+    <value>中止</value>
+  </data>
+  <data name="Places.Node.Water" xml:space="preserve">
+    <value>水面（住所なし）</value>
+  </data>
+  <data name="Places.Node.NoAreaData" xml:space="preserve">
+    <value>地域データなし</value>
+  </data>
+  <data name="Places.Node.NoLocation" xml:space="preserve">
+    <value>位置情報なし</value>
+  </data>
+  <data name="Places.Node.Unnamed" xml:space="preserve">
+    <value>（名称なし）</value>
+  </data>
+  <data name="Places.Status.Progress" xml:space="preserve">
+    <value>字地名を判定しています… {0} / {1}</value>
+  </data>
+  <data name="Places.Status.Done" xml:space="preserve">
+    <value>{0} 枚の写真</value>
+  </data>
+  <data name="Places.Status.DoneNoAreaData" xml:space="preserve">
+    <value>{0} 枚の写真。字地名を判定できませんでした。設定の「地域データ（字地名）」で、該当する都道府県のデータを取り込んでください。</value>
+  </data>
+  <data name="Places.Status.NoPhotos" xml:space="preserve">
+    <value>このフォルダーには写真がありません。</value>
+  </data>
+  <data name="Places.Status.Canceled" xml:space="preserve">
+    <value>判定を中止しました（{0} / {1}）。</value>
+  </data>
+  <data name="Places.Status.Error" xml:space="preserve">
+    <value>地域データを読めませんでした。設定の「地域データ（字地名）」を確認してください。</value>
+  </data>  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
     <value>地域データ（字地名）</value>
   </data>
   <data name="SettingsPaneAreaDataDescription.Text" xml:space="preserve">

@@ -1,0 +1,65 @@
+<UserControl
+    x:Class="PhotoGeoExplorer.Panes.Places.PlacesPaneView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <Grid Padding="12" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                x:Uid="PlacesPaneTitle"
+                Text="Places"
+                FontSize="20"
+                FontWeight="SemiBold"
+                VerticalAlignment="Center" />
+            <Button
+                Grid.Column="1"
+                x:Uid="PlacesPaneCancelButton"
+                Content="Cancel"
+                Command="{Binding CancelCommand}"
+                Visibility="{Binding ProgressVisibility}"
+                AutomationProperties.AutomationId="PlacesCancelButton" />
+        </Grid>
+
+        <StackPanel Grid.Row="1" Spacing="4">
+            <ProgressBar
+                Maximum="{Binding ProgressMaximum}"
+                Value="{Binding ProgressValue}"
+                Visibility="{Binding ProgressVisibility}" />
+            <TextBlock
+                Text="{Binding StatusText}"
+                Visibility="{Binding StatusVisibility}"
+                TextWrapping="Wrap"
+                Opacity="0.7"
+                AutomationProperties.AutomationId="PlacesStatus" />
+        </StackPanel>
+
+        <TreeView
+            Grid.Row="2"
+            x:Name="PlacesTree"
+            ItemsSource="{Binding Roots}"
+            SelectionMode="Single"
+            ItemInvoked="OnItemInvoked"
+            AutomationProperties.AutomationId="PlacesTree">
+            <TreeView.ItemTemplate>
+                <DataTemplate>
+                    <TreeViewItem
+                        ItemsSource="{Binding Children}"
+                        IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+                        Content="{Binding DisplayText}" />
+                </DataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
+    </Grid>
+</UserControl>

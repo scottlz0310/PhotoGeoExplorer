@@ -776,6 +776,8 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
                     Items.Add(item);
                 }
 
+                PublishPhotoItems();
+
                 // 履歴管理（updateHistory が true で、かつ前のパスと異なる場合のみ）
                 if (updateHistory && !string.IsNullOrWhiteSpace(previousPath) && previousPath != folderPath)
                 {
@@ -835,6 +837,7 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
             await _uiDispatcher.RunAsync(() =>
             {
                 Items.Clear();
+                PublishPhotoItems();
                 Status.SetStatus(LocalizationService.GetString("Message.FailedReadFolderSeeLog"), InfoBarSeverity.Error);
             }).ConfigureAwait(false);
         }
@@ -1038,6 +1041,12 @@ internal sealed class FileBrowserPaneViewModel : PaneViewModelBase, IDisposable
 
         UpdatePhotoListInfo();
         UpdateStatusBar();
+    }
+
+    // 並べ替えでは写真の集合は変わらないので、フォルダーの読み込みのときだけ公開する
+    private void PublishPhotoItems()
+    {
+        _workspaceState.PhotoItems = Items.Where(item => !item.IsFolder).ToList();
     }
 
     private void UpdatePhotoListInfo()

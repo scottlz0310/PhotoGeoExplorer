@@ -111,6 +111,19 @@ public sealed class SettingsNormalizationTests
     }
 
     [Fact]
+    public void NormalizePaneRegionViewsKeepsThePlacesView()
+    {
+        var actual = SettingsNormalization.NormalizePaneRegionViews(
+            PaneViewType.Places,
+            PaneViewType.File,
+            PaneViewType.Map);
+
+        Assert.Equal(PaneViewType.Places, actual.Region1View);
+        Assert.Equal(PaneViewType.File, actual.Region2View);
+        Assert.Equal(PaneViewType.Map, actual.Region3View);
+    }
+
+    [Fact]
     public void NormalizePaneRegionViewsReplacesDuplicateWithUnusedValue()
     {
         var actual = SettingsNormalization.NormalizePaneRegionViews(
