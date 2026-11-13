@@ -8,6 +8,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using PhotoGeoExplorer.Panes.Export;
 using PhotoGeoExplorer.Panes.FileBrowser;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Places;
@@ -16,6 +17,7 @@ using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.AreaNames;
 using PhotoGeoExplorer.Services.AreaTree;
+using PhotoGeoExplorer.Services.Export;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Graphics;
@@ -35,6 +37,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly PreviewPaneViewModel _previewPaneViewModel;
     private readonly MapPaneViewModel _mapPaneViewModel;
     private readonly PlacesPaneViewModel _placesPaneViewModel;
+    private readonly GeoExportViewModel _geoExportViewModel;
     private readonly PasswordVaultSecretStore _secretStore = new();
     private readonly AreaDataStore _areaDataStore = new(AreaDataStore.DefaultRootDirectory);
     private readonly AreaNameResolver _areaNameResolver;
@@ -49,6 +52,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly CrashReportDialogService _crashReportDialogService;
     private readonly UpdateCheckDialogService _updateCheckDialogService;
     internal FileBrowserPaneViewModel FileBrowserPaneViewModel => _fileBrowserPaneViewModel;
+    internal GeoExportViewModel GeoExportViewModel => _geoExportViewModel;
 
     internal void SetCrashReportService(Services.ICrashReportService crashReportService)
     {
@@ -75,6 +79,11 @@ public sealed partial class MainWindow : Window, IDisposable
             exifEditorService,
             dialogService,
             uiDispatcher: new UiDispatcher());
+        _geoExportViewModel = new GeoExportViewModel(
+            _viewModel.WorkspaceState,
+            new PhotoGeoRecordLoader(new ExifMetadataService().GetMetadataAsync, _areaNameResolver),
+            new GeoExportService(),
+            new GeoExportUi(dialogService, new FileBrowserDialogs(RootGrid, () => this), (message, severity) => _viewModel.ShowNotificationMessage(message, severity)));
         _startupCoordinator = new StartupCoordinator(_fileBrowserPaneViewModel);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         var mapImageService = new MapImageService();
@@ -117,6 +126,7 @@ public sealed partial class MainWindow : Window, IDisposable
         RootGrid.DataContext = _viewModel;
         FileBrowserPaneControl.DataContext = _fileBrowserPaneViewModel;
         FileBrowserPaneControl.HostWindow = this;
+        FileBrowserPaneControl.GeoExport = _geoExportViewModel;
         PreviewPaneControl.DataContext = _previewPaneViewModel;
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         MapPaneControl.DataContext = _mapPaneViewModel;
@@ -503,6 +513,7 @@ public sealed partial class MainWindow : Window, IDisposable
             // MapPaneViewModel のクリーンアップ
             _mapPaneViewModel.Cleanup();
             _placesPaneViewModel.Cleanup();
+            _geoExportViewModel.Dispose();
 
             if (PreviewPaneControl is not null)
             {
@@ -514,6 +525,7 @@ public sealed partial class MainWindow : Window, IDisposable
             {
                 FileBrowserPaneControl.DataContext = null;
                 FileBrowserPaneControl.HostWindow = null;
+                FileBrowserPaneControl.GeoExport = null;
             }
 
             if (MapPaneControl is not null)

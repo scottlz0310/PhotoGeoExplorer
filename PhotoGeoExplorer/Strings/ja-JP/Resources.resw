@@ -1114,7 +1114,103 @@
   </data>
   <data name="Places.Status.Error" xml:space="preserve">
     <value>地域データを読めませんでした。設定の「地域データ（字地名）」を確認してください。</value>
-  </data>  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
+  </data>  <data name="MenuFileExport.Text" xml:space="preserve">
+    <value>エクスポート</value>
+  </data>
+  <data name="MenuFileExportCsv.Text" xml:space="preserve">
+    <value>位置情報つきの一覧（CSV）...</value>
+  </data>
+  <data name="MenuFileExportByArea.Text" xml:space="preserve">
+    <value>字地名別のフォルダーへコピー...</value>
+  </data>
+  <data name="MenuFileExportRenamed.Text" xml:space="preserve">
+    <value>日付・字名の名前でコピー...</value>
+  </data>
+  <data name="CancelExportButton.Content" xml:space="preserve">
+    <value>中止</value>
+  </data>
+  <data name="Menu.Export" xml:space="preserve">
+    <value>エクスポート</value>
+  </data>
+  <data name="Menu.ExportCsv" xml:space="preserve">
+    <value>位置情報つきの一覧（CSV）...</value>
+  </data>
+  <data name="Menu.ExportByArea" xml:space="preserve">
+    <value>字地名別のフォルダーへコピー...</value>
+  </data>
+  <data name="Menu.ExportRenamed" xml:space="preserve">
+    <value>日付・字名の名前でコピー...</value>
+  </data>
+  <data name="GeoExport.NoDate" xml:space="preserve">
+    <value>日付なし</value>
+  </data>
+  <data name="GeoExport.Progress.Loading" xml:space="preserve">
+    <value>位置情報を読んでいます… {0} / {1}</value>
+  </data>
+  <data name="GeoExport.Progress.Copying" xml:space="preserve">
+    <value>コピーしています… {0} / {1}</value>
+  </data>
+  <data name="GeoExport.Message.CsvDone" xml:space="preserve">
+    <value>{0} 枚の写真の情報を「{1}」に書き出しました。</value>
+  </data>
+  <data name="GeoExport.Message.CsvFailed" xml:space="preserve">
+    <value>「{0}」を書き出せませんでした。保存先を確認してください。</value>
+  </data>
+  <data name="GeoExport.Message.CopyDone" xml:space="preserve">
+    <value>{0} 枚をコピーしました（スキップ {1} 枚）。</value>
+  </data>
+  <data name="GeoExport.Message.CopyFailed" xml:space="preserve">
+    <value>{0} 枚をコピーしました（スキップ {1} 枚、失敗 {2} 枚）。失敗の詳細は、ログを確認してください。</value>
+  </data>
+  <data name="GeoExport.Message.CopyCanceled" xml:space="preserve">
+    <value>中止しました。コピー {0} 枚、スキップ {1} 枚、失敗 {2} 枚。</value>
+  </data>
+  <data name="GeoExport.Message.Canceled" xml:space="preserve">
+    <value>中止しました。</value>
+  </data>
+  <data name="GeoExport.Message.AreaDataFailed" xml:space="preserve">
+    <value>地域データを読めませんでした。設定の「地域データ（字地名）」を確認してください。</value>
+  </data>
+  <data name="GeoExport.Csv.FileName" xml:space="preserve">
+    <value>ファイル名</value>
+  </data>
+  <data name="GeoExport.Csv.Prefecture" xml:space="preserve">
+    <value>都道府県</value>
+  </data>
+  <data name="GeoExport.Csv.City" xml:space="preserve">
+    <value>市区町村</value>
+  </data>
+  <data name="GeoExport.Csv.Town" xml:space="preserve">
+    <value>町丁字</value>
+  </data>
+  <data name="GeoExport.Csv.KeyCode" xml:space="preserve">
+    <value>キーコード</value>
+  </data>
+  <data name="GeoExport.Csv.Latitude" xml:space="preserve">
+    <value>緯度</value>
+  </data>
+  <data name="GeoExport.Csv.Longitude" xml:space="preserve">
+    <value>経度</value>
+  </data>
+  <data name="GeoExport.Csv.TakenAt" xml:space="preserve">
+    <value>撮影日時</value>
+  </data>
+  <data name="GeoExport.Csv.Status" xml:space="preserve">
+    <value>判定</value>
+  </data>
+  <data name="GeoExport.Csv.StatusResolved" xml:space="preserve">
+    <value>判定済み</value>
+  </data>
+  <data name="GeoExport.Csv.StatusWater" xml:space="preserve">
+    <value>水面</value>
+  </data>
+  <data name="GeoExport.Csv.StatusNoAreaData" xml:space="preserve">
+    <value>地域データなし</value>
+  </data>
+  <data name="GeoExport.Csv.StatusNoLocation" xml:space="preserve">
+    <value>位置情報なし</value>
+  </data>
+  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
     <value>地域データ（字地名）</value>
   </data>
   <data name="SettingsPaneAreaDataDescription.Text" xml:space="preserve">

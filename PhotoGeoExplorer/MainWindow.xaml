@@ -29,6 +29,12 @@
                 <MenuFlyoutItem Text="Move to parent" Command="{x:Bind FileBrowserPaneViewModel.MoveSelectionToParentCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanMoveToParentSelection, Mode=OneWay}" x:Uid="MenuFileMoveToParent" />
                 <MenuFlyoutItem Text="Delete" Command="{x:Bind FileBrowserPaneViewModel.DeleteSelectionCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanModifySelection, Mode=OneWay}" x:Uid="MenuFileDelete" />
                 <MenuFlyoutSeparator />
+                <MenuFlyoutSubItem Text="Export" x:Uid="MenuFileExport">
+                    <MenuFlyoutItem Text="Location data (CSV)..." Command="{x:Bind GeoExportViewModel.ExportCsvCommand, Mode=OneWay}" x:Uid="MenuFileExportCsv" />
+                    <MenuFlyoutItem Text="Copy to town folders..." Command="{x:Bind GeoExportViewModel.CopyByAreaCommand, Mode=OneWay}" x:Uid="MenuFileExportByArea" />
+                    <MenuFlyoutItem Text="Copy with new names..." Command="{x:Bind GeoExportViewModel.ExportRenamedCommand, Mode=OneWay}" x:Uid="MenuFileExportRenamed" />
+                </MenuFlyoutSubItem>
+                <MenuFlyoutSeparator />
                 <MenuFlyoutItem Text="Refresh" Command="{x:Bind FileBrowserPaneViewModel.RefreshCommand, Mode=OneWay}" x:Uid="MenuFileRefresh" />
                 <MenuFlyoutItem Text="Go home" Command="{x:Bind FileBrowserPaneViewModel.NavigateHomeCommand, Mode=OneWay}" x:Uid="MenuFileGoHome" />
                 <MenuFlyoutItem Text="Go up" Command="{x:Bind FileBrowserPaneViewModel.NavigateUpCommand, Mode=OneWay}" IsEnabled="{x:Bind FileBrowserPaneViewModel.CanNavigateUp, Mode=OneWay}" x:Uid="MenuFileGoUp" />
@@ -207,6 +213,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <SymbolIcon
@@ -234,6 +241,23 @@
                         Visibility="{Binding ElementName=FileBrowserPaneControl, Path=DataContext.CancelCopyVisibility}"
                         Padding="8,2"
                         VerticalAlignment="Center" />
+                    <StackPanel
+                        Grid.Column="3"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        VerticalAlignment="Center"
+                        Visibility="{x:Bind GeoExportViewModel.ProgressVisibility, Mode=OneWay}">
+                        <TextBlock
+                            Text="{x:Bind GeoExportViewModel.ProgressText, Mode=OneWay}"
+                            AutomationProperties.AutomationId="GeoExportProgress"
+                            VerticalAlignment="Center" />
+                        <Button
+                            x:Uid="CancelExportButton"
+                            Command="{x:Bind GeoExportViewModel.CancelCommand, Mode=OneWay}"
+                            AutomationProperties.AutomationId="GeoExportCancelButton"
+                            Padding="8,2"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

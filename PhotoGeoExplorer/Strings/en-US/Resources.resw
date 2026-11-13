@@ -1114,7 +1114,103 @@
   </data>
   <data name="Places.Status.Error" xml:space="preserve">
     <value>The area data could not be read. Check Area data (town names) in Settings.</value>
-  </data>  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
+  </data>  <data name="MenuFileExport.Text" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="MenuFileExportCsv.Text" xml:space="preserve">
+    <value>List with locations (CSV)...</value>
+  </data>
+  <data name="MenuFileExportByArea.Text" xml:space="preserve">
+    <value>Copy to town-name folders...</value>
+  </data>
+  <data name="MenuFileExportRenamed.Text" xml:space="preserve">
+    <value>Copy with date and town names...</value>
+  </data>
+  <data name="CancelExportButton.Content" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Menu.Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="Menu.ExportCsv" xml:space="preserve">
+    <value>List with locations (CSV)...</value>
+  </data>
+  <data name="Menu.ExportByArea" xml:space="preserve">
+    <value>Copy to town-name folders...</value>
+  </data>
+  <data name="Menu.ExportRenamed" xml:space="preserve">
+    <value>Copy with date and town names...</value>
+  </data>
+  <data name="GeoExport.NoDate" xml:space="preserve">
+    <value>NoDate</value>
+  </data>
+  <data name="GeoExport.Progress.Loading" xml:space="preserve">
+    <value>Reading locations… {0} / {1}</value>
+  </data>
+  <data name="GeoExport.Progress.Copying" xml:space="preserve">
+    <value>Copying… {0} / {1}</value>
+  </data>
+  <data name="GeoExport.Message.CsvDone" xml:space="preserve">
+    <value>Wrote the information of {0} photos to "{1}".</value>
+  </data>
+  <data name="GeoExport.Message.CsvFailed" xml:space="preserve">
+    <value>Could not write "{0}". Check the destination.</value>
+  </data>
+  <data name="GeoExport.Message.CopyDone" xml:space="preserve">
+    <value>Copied {0} photos ({1} skipped).</value>
+  </data>
+  <data name="GeoExport.Message.CopyFailed" xml:space="preserve">
+    <value>Copied {0} photos ({1} skipped, {2} failed). See the log for the details of the failures.</value>
+  </data>
+  <data name="GeoExport.Message.CopyCanceled" xml:space="preserve">
+    <value>Canceled. {0} copied, {1} skipped, {2} failed.</value>
+  </data>
+  <data name="GeoExport.Message.Canceled" xml:space="preserve">
+    <value>Canceled.</value>
+  </data>
+  <data name="GeoExport.Message.AreaDataFailed" xml:space="preserve">
+    <value>The area data could not be read. Check Area data (town names) in Settings.</value>
+  </data>
+  <data name="GeoExport.Csv.FileName" xml:space="preserve">
+    <value>FileName</value>
+  </data>
+  <data name="GeoExport.Csv.Prefecture" xml:space="preserve">
+    <value>Prefecture</value>
+  </data>
+  <data name="GeoExport.Csv.City" xml:space="preserve">
+    <value>City</value>
+  </data>
+  <data name="GeoExport.Csv.Town" xml:space="preserve">
+    <value>Town</value>
+  </data>
+  <data name="GeoExport.Csv.KeyCode" xml:space="preserve">
+    <value>KeyCode</value>
+  </data>
+  <data name="GeoExport.Csv.Latitude" xml:space="preserve">
+    <value>Latitude</value>
+  </data>
+  <data name="GeoExport.Csv.Longitude" xml:space="preserve">
+    <value>Longitude</value>
+  </data>
+  <data name="GeoExport.Csv.TakenAt" xml:space="preserve">
+    <value>TakenAt</value>
+  </data>
+  <data name="GeoExport.Csv.Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="GeoExport.Csv.StatusResolved" xml:space="preserve">
+    <value>Resolved</value>
+  </data>
+  <data name="GeoExport.Csv.StatusWater" xml:space="preserve">
+    <value>Water</value>
+  </data>
+  <data name="GeoExport.Csv.StatusNoAreaData" xml:space="preserve">
+    <value>NoAreaData</value>
+  </data>
+  <data name="GeoExport.Csv.StatusNoLocation" xml:space="preserve">
+    <value>NoLocation</value>
+  </data>
+  <data name="SettingsPaneAreaDataSection.Text" xml:space="preserve">
     <value>Area data (address names)</value>
   </data>
   <data name="SettingsPaneAreaDataDescription.Text" xml:space="preserve">
