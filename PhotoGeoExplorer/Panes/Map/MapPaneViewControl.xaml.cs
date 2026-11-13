@@ -371,6 +371,28 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         RoadCandidatesFlyout.ShowAt((FrameworkElement)sender);
     }
 
+    private void OnConfirmRoadClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not { } viewModel || sender is not FrameworkElement { DataContext: RoadCandidateItem item })
+        {
+            return;
+        }
+
+        RoadCandidatesFlyout.Hide();
+        _ = viewModel.LocationInfo.ConfirmRoadAsync(item);
+    }
+
+    private void OnUnconfirmRoadClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not { } viewModel)
+        {
+            return;
+        }
+
+        RoadCandidatesFlyout.Hide();
+        _ = viewModel.LocationInfo.UnconfirmRoadAsync();
+    }
+
     private void OnCopyCoordinatesClicked(object sender, RoutedEventArgs e)
     {
         if (_viewModel is not { } viewModel || viewModel.LocationInfo.CoordinatesText is not { Length: > 0 } coordinates)

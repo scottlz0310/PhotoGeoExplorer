@@ -52,18 +52,40 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
-                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="&#x2713;" Visibility="{x:Bind ConfirmedMarkVisibility}" />
+                                            <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" />
+                                        </StackPanel>
                                         <TextBlock
                                             Text="{x:Bind RouteText}"
                                             FontSize="12"
                                             Opacity="0.7"
                                             Visibility="{x:Bind RouteVisibility}" />
                                     </StackPanel>
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        VerticalAlignment="Top"
-                                        Opacity="0.7"
-                                        Text="{x:Bind DistanceText}" />
+                                    <StackPanel Grid.Column="1" Spacing="4" HorizontalAlignment="Right">
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            Opacity="0.7"
+                                            Text="{x:Bind DistanceText}" />
+                                        <Button
+                                            x:Uid="RoadConfirmButton"
+                                            Padding="8,2"
+                                            FontSize="12"
+                                            HorizontalAlignment="Right"
+                                            AutomationProperties.AutomationId="MapHeaderRoadConfirm"
+                                            Click="OnConfirmRoadClicked"
+                                            Content="Confirm"
+                                            Visibility="{x:Bind ConfirmVisibility}" />
+                                        <Button
+                                            x:Uid="RoadUnconfirmButton"
+                                            Padding="8,2"
+                                            FontSize="12"
+                                            HorizontalAlignment="Right"
+                                            AutomationProperties.AutomationId="MapHeaderRoadUnconfirm"
+                                            Click="OnUnconfirmRoadClicked"
+                                            Content="Clear"
+                                            Visibility="{x:Bind UnconfirmVisibility}" />
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

@@ -78,9 +78,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         Func<DispatcherQueue?>? dispatcherQueueAccessor = null,
         ISecretStore? secretStore = null,
         IAreaNameResolver? areaNameResolver = null,
-        IRoadNameSuggester? roadNameSuggester = null)
+        IRoadNameSuggester? roadNameSuggester = null,
+        IRoadNameConfirmationStore? roadNameConfirmationStore = null)
     {
-        LocationInfo = new MapLocationInfoViewModel(areaNameResolver, roadNameSuggester);
+        LocationInfo = new MapLocationInfoViewModel(areaNameResolver, roadNameSuggester, roadNameConfirmationStore);
         _secretStore = secretStore ?? new PasswordVaultSecretStore();
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
@@ -476,7 +477,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         // 撮影位置情報は単一選択の写真だけを対象にする。await 中に Cleanup() が走った場合は設定しない
         if (selectedItems.Count == 1 && points.Count == 1 && _map is not null)
         {
-            await LocationInfo.SetLocationAsync(points[0].Latitude, points[0].Longitude).ConfigureAwait(true);
+            var selected = points[0];
+            var photo = new PhotoIdentity(selected.Item.FilePath, selected.Item.SizeBytes, selected.Metadata.TakenAt);
+            await LocationInfo.SetLocationAsync(selected.Latitude, selected.Longitude, photo).ConfigureAwait(true);
         }
     }
 
