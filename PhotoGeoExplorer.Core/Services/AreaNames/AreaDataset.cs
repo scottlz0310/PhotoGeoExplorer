@@ -62,7 +62,7 @@ internal sealed class AreaDataset
         var land = containing.Find(region => !region.IsWater);
         if (land is not null)
         {
-            return new AreaMatch(land.ToAreaName(snappedToNearest: false, CensusYear), 0);
+            return new AreaMatch(land.ToAreaName(snappedToNearest: false, CensusYear), 0, IsWater: false);
         }
 
         // 経度方向を縮めて、その地点での局所的なメートル換算で距離を測る
@@ -83,14 +83,14 @@ internal sealed class AreaDataset
 
         if (containing.Count > 0)
         {
-            return new AreaMatch(containing[0].ToAreaName(snappedToNearest: false, CensusYear), 0);
+            return new AreaMatch(containing[0].ToAreaName(snappedToNearest: false, CensusYear), 0, containing[0].IsWater);
         }
 
         return nearby.Count > 0 ? ToSnappedMatch(nearby[0]) : null;
     }
 
     private AreaMatch ToSnappedMatch(AreaMatchCandidate candidate)
-        => new(candidate.Region.ToAreaName(snappedToNearest: true, CensusYear), candidate.DistanceMeters);
+        => new(candidate.Region.ToAreaName(snappedToNearest: true, CensusYear), candidate.DistanceMeters, candidate.Region.IsWater);
 
     private sealed record AreaMatchCandidate(AreaRegion Region, double DistanceMeters);
 }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NetTopologySuite.Geometries;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services.AreaNames;
 using Xunit;
 
@@ -95,6 +96,76 @@ public class AreaNameResolverTests
         Assert.NotNull(areaName);
         Assert.Equal("丸の内", areaName.Town);
         Assert.True(areaName.SnappedToNearest);
+    }
+
+    [Theory]
+    [InlineData("13,14")]
+    [InlineData("14,13")]
+    public async Task ResolveAsyncPrefersLandInANeighboringPrefectureOverWaterContainingThePoint(string candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        // 東京側は水面。地点は水面の中で、神奈川側の陸まで約 14m（経度 0.00015 度）
+        var source = new FakeAreaDataSource
+        {
+            ["13"] = CreateDataset("13", "東京都", "千代田区", "水面", west: 139.0, east: 140.0, isWater: true),
+            ["14"] = CreateDataset("14", "神奈川県", "横浜市", "中区", west: 140.00015, east: 141.0)
+        };
+        var resolver = new AreaNameResolver(new FakePrefectureLocator(candidates.Split(',')), source);
+
+        var areaName = await resolver.ResolveAsync(35.5, 140.0, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.NotNull(areaName);
+        Assert.Equal("中区", areaName.Town);
+        Assert.True(areaName.SnappedToNearest);
+    }
+
+    [Theory]
+    [InlineData("13,14")]
+    [InlineData("14,13")]
+    public async Task ResolveAsyncKeepsWaterWhenNoLandIsWithinTheSnapDistanceInAnyPrefecture(string candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        // 神奈川側の陸まで約 45m（経度 0.0005 度）
+        var source = new FakeAreaDataSource
+        {
+            ["13"] = CreateDataset("13", "東京都", "千代田区", "水面", west: 139.0, east: 140.0, isWater: true),
+            ["14"] = CreateDataset("14", "神奈川県", "横浜市", "中区", west: 140.0005, east: 141.0)
+        };
+        var resolver = new AreaNameResolver(new FakePrefectureLocator(candidates.Split(',')), source);
+
+        var areaName = await resolver.ResolveAsync(35.5, 140.0, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.NotNull(areaName);
+        Assert.Equal("水面", areaName.Town);
+        Assert.False(areaName.SnappedToNearest);
+    }
+
+    [Fact]
+    public async Task ResolveAsyncSharesAnInFlightLoadEvenWhenMorePrefecturesThanTheCapacityAreRequested()
+    {
+        var source = new FakeAreaDataSource { HoldLoads = true };
+        source["01"] = CreateDataset("01", "A県", "A市", "A町", west: 139.0, east: 140.0);
+        source["02"] = CreateDataset("02", "B県", "B市", "B町", west: 139.0, east: 140.0);
+        var locator = new FakePrefectureLocator();
+        var resolver = new AreaNameResolver(locator, source, cacheCapacity: 1);
+
+        // 読み込みが終わらないうちに、容量（1）を超える A → B → A を要求する
+        var pending = new List<Task<AreaName?>>();
+        foreach (var code in new[] { "01", "02", "01" })
+        {
+            locator.Candidates = new[] { code };
+            pending.Add(resolver.ResolveAsync(35.5, 139.5, CancellationToken.None));
+        }
+
+        Assert.Equal("01,02", string.Join(',', source.LoadedCodes));
+
+        source.ReleaseLoads();
+        var results = await Task.WhenAll(pending).ConfigureAwait(true);
+
+        Assert.Equal("A町,B町,A町", string.Join(',', results.Select(result => result?.Town)));
+        Assert.Equal("01,02", string.Join(',', source.LoadedCodes));
     }
 
     [Fact]
@@ -210,7 +281,14 @@ public class AreaNameResolverTests
             () => new AreaNameResolver(new FakePrefectureLocator(), new FakeAreaDataSource(), capacity));
     }
 
-    private static AreaDataset CreateDataset(string code, string prefecture, string city, string town, double west, double east)
+    private static AreaDataset CreateDataset(
+        string code,
+        string prefecture,
+        string city,
+        string town,
+        double west,
+        double east,
+        bool isWater = false)
     {
         var polygon = Factory.CreatePolygon(new[]
         {
@@ -220,7 +298,7 @@ public class AreaNameResolverTests
             new Coordinate(west, 36.0),
             new Coordinate(west, 35.0)
         });
-        return new AreaDataset(code, 2020, new[] { new AreaRegion($"{code}000000", prefecture, city, town, isWater: false, polygon) });
+        return new AreaDataset(code, 2020, new[] { new AreaRegion($"{code}000000", prefecture, city, town, isWater, polygon) });
     }
 
     private sealed class FakePrefectureLocator : IPrefectureLocator

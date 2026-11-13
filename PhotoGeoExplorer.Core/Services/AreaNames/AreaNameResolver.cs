@@ -13,8 +13,12 @@ internal sealed class AreaNameResolver : IAreaNameResolver
     private readonly IAreaDataSource _dataSource;
     private readonly int _cacheCapacity;
     private readonly object _cacheLock = new();
-    private readonly Dictionary<string, Task<AreaDataset?>> _cache = new(StringComparer.Ordinal);
+
+    // 読み込み済みのデータ（LRU）と、進行中の読み込みは分けて持つ。
+    // 進行中の読み込みを LRU の追い出しの対象にすると、同じ都道府県を二重に読むことになる
+    private readonly Dictionary<string, AreaDataset> _loaded = new(StringComparer.Ordinal);
     private readonly LinkedList<string> _recentlyUsed = new();
+    private readonly Dictionary<string, Task<AreaDataset?>> _loading = new(StringComparer.Ordinal);
 
     public AreaNameResolver(
         IPrefectureLocator prefectureLocator,
@@ -42,12 +46,13 @@ internal sealed class AreaNameResolver : IAreaNameResolver
                 continue;
             }
 
-            if (!match.Name.SnappedToNearest)
+            // 陸の町丁字への内包は、他の都道府県の結果で覆らない
+            if (!match.IsWater && !match.Name.SnappedToNearest)
             {
                 return match.Name;
             }
 
-            if (best is null || match.DistanceMeters < best.DistanceMeters)
+            if (best is null || IsBetter(match, best))
             {
                 best = match;
             }
@@ -56,60 +61,65 @@ internal sealed class AreaNameResolver : IAreaNameResolver
         return best?.Name;
     }
 
-    // 読み込みは Task のまま保持して、同じ都道府県への同時要求で二重に読まない。
-    // 導入されていない（null）・失敗した読み込みは保持しない（後から導入されたデータを読めるようにするため）
+    // 候補の都道府県をまたいでも、AreaDataset.Find と同じ優先順位にする:
+    // 30m 以内の陸（近い順）→ 内包する水面 → 30m 以内の水面（近い順）
+    private static bool IsBetter(AreaMatch candidate, AreaMatch current)
+        => candidate.IsWater != current.IsWater
+            ? !candidate.IsWater
+            : candidate.DistanceMeters < current.DistanceMeters;
+
     private async Task<AreaDataset?> GetDatasetAsync(string prefectureCode, CancellationToken cancellationToken)
     {
         Task<AreaDataset?> loading;
         lock (_cacheLock)
         {
-            if (_cache.TryGetValue(prefectureCode, out var cached))
+            if (_loaded.TryGetValue(prefectureCode, out var loaded))
             {
                 _recentlyUsed.Remove(prefectureCode);
-                loading = cached;
+                _recentlyUsed.AddFirst(prefectureCode);
+                return loaded;
             }
-            else
+
+            if (!_loading.TryGetValue(prefectureCode, out loading!))
             {
-                // 呼び出し元のキャンセルで、他の呼び出しと共有する読み込みを止めない
-                loading = _dataSource.LoadAsync(prefectureCode, CancellationToken.None);
-                _cache[prefectureCode] = loading;
-            }
+                loading = LoadAndStoreAsync(prefectureCode);
 
-            _recentlyUsed.AddFirst(prefectureCode);
-            while (_recentlyUsed.Count > _cacheCapacity)
-            {
-                _cache.Remove(_recentlyUsed.Last!.Value);
-                _recentlyUsed.RemoveLast();
+                // 同期的に完了した読み込みは、この時点で結果の保存まで済んでいる
+                if (!loading.IsCompleted)
+                {
+                    _loading[prefectureCode] = loading;
+                }
             }
         }
 
-        AreaDataset? dataset;
-        try
-        {
-            dataset = await loading.WaitAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-            Forget(prefectureCode, loading);
-            throw;
-        }
-
-        if (dataset is null)
-        {
-            Forget(prefectureCode, loading);
-        }
-
-        return dataset;
+        return await loading.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private void Forget(string prefectureCode, Task<AreaDataset?> loading)
+    // 呼び出し元のキャンセルでは止めない（他の呼び出しと共有するため）。
+    // 導入されていない（null）・失敗した読み込みは保持しない（後から導入されたデータを読めるようにするため）
+    private async Task<AreaDataset?> LoadAndStoreAsync(string prefectureCode)
     {
-        lock (_cacheLock)
+        AreaDataset? dataset = null;
+        try
         {
-            if (_cache.TryGetValue(prefectureCode, out var cached) && ReferenceEquals(cached, loading))
+            dataset = await _dataSource.LoadAsync(prefectureCode, CancellationToken.None).ConfigureAwait(false);
+            return dataset;
+        }
+        finally
+        {
+            lock (_cacheLock)
             {
-                _cache.Remove(prefectureCode);
-                _recentlyUsed.Remove(prefectureCode);
+                _loading.Remove(prefectureCode);
+                if (dataset is not null)
+                {
+                    _loaded[prefectureCode] = dataset;
+                    _recentlyUsed.AddFirst(prefectureCode);
+                    while (_recentlyUsed.Count > _cacheCapacity)
+                    {
+                        _loaded.Remove(_recentlyUsed.Last!.Value);
+                        _recentlyUsed.RemoveLast();
+                    }
+                }
             }
         }
     }
