@@ -204,8 +204,11 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     {
         RoadNameText = candidates is null
             ? string.Empty
-            : LocationTextFormatter.FormatRoadName(candidates);
+            : LocationTextFormatter.FormatRoadName(candidates, FormatRouteNumber);
     }
+
+    private static string FormatRouteNumber(string route)
+        => LocalizationService.Format("RoadName.RouteNumber", route);
 
     // resolve が null のとき（設定でオフ・解決器なし）は解決処理を走らせず、表示だけ消す。
     private async Task ResolveAsync<T>(

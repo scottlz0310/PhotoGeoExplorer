@@ -1043,6 +1043,9 @@
   <data name="AreaName.ToolTip.Snapped" xml:space="preserve">
     <value>The photo location is outside every small-area boundary, so the nearest area within 30 m is shown.</value>
   </data>
+  <data name="RoadName.RouteNumber" xml:space="preserve">
+    <value>Route {0}</value>
+  </data>
   <data name="MapHeaderMenuShowAddress.Text" xml:space="preserve">
     <value>Show address (census small area)</value>
   </data>
