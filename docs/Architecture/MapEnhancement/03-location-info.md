@@ -184,6 +184,7 @@ internal sealed record RoadNameCandidate(string? Name, string? Ref, double Dista
 - 実装の分割: 1 つ目の PR（#315）は Core（判定・モデル・整形・文字列・テスト）。2 つ目の PR は UI（配線、候補の一覧、プライバシーポリシーとヘルプ）。
 - 2 つ目の PR の構成:
   - `OpenFreeMapRoadNameSuggester`（Core）が、OpenFreeMap のタイル取得（`OpenFreeMapTileSource`）・キャッシュ（`FileSystemTileCache`）・判定（`RoadNameSuggester`）を組み立てる。`MainWindow` が 1 つ作り、`MapPaneViewModel` → `MapLocationInfoViewModel` へ渡し、ウィンドウを閉じるときに破棄する
+  - 破棄（Dispose）は進行中の判定へキャンセルを要求するだけで、通信・キャッシュの破棄は進行中の判定がすべて終わってから行う（キャンセルの完了前に破棄すると、タイル取得の終了処理が破棄済みの資源に触れて ObjectDisposedException になるため）。UI スレッドは待たせない
   - 配信元へ表明する User-Agent は、アプリの `UserAgentProvider`（アプリ名・版・連絡先）。応答のない通信で待ち続けないよう、通信のタイムアウトは 15 秒
   - キャッシュは `%LocalAppData%\PhotoGeoExplorer\Cache\RoadTiles`（地図タイルの `Cache\Tiles` とは別）。容量の上限は約 200 MB（都市部のタイルは 1 枚で 1 MB 近いため、パッケージの既定の 1 GB より小さくする）
   - 表示: ヘッダーの道路名はボタンで、第 1 候補の名称と、残りの件数（`(+N)`）を出す。名称がなく路線番号だけの道路は「路線番号 N」。クリックで候補の一覧（名称・路線番号・距離。近い順）、ツールチップに「最寄りの道路（候補）」・名称・距離・路線番号。名称と路線番号の両方がある道路は、ヘッダーには名称だけを出し、路線番号は一覧とツールチップに出す（市町村道の `ref` は市の内部の路線コードのことがあり、ヘッダーに出すと分かりにくいため）
