@@ -360,6 +360,17 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         settings.IncludePrefecture = MapHeaderMenuIncludePrefecture.IsChecked;
     }
 
+    private void OnRoadNameClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not { } viewModel || viewModel.LocationInfo.RoadCandidates.Count == 0)
+        {
+            return;
+        }
+
+        RoadCandidatesList.ItemsSource = viewModel.LocationInfo.RoadCandidates;
+        RoadCandidatesFlyout.ShowAt((FrameworkElement)sender);
+    }
+
     private void OnCopyCoordinatesClicked(object sender, RoutedEventArgs e)
     {
         if (_viewModel is not { } viewModel || viewModel.LocationInfo.CoordinatesText is not { Length: > 0 } coordinates)

@@ -35,6 +35,41 @@
                     Text="Include prefecture in address"
                     Click="OnMapHeaderMenuItemClicked" />
             </MenuFlyout>
+            <Flyout x:Name="RoadCandidatesFlyout" Placement="Bottom">
+                <StackPanel Spacing="8" MinWidth="240" MaxWidth="360" Padding="12">
+                    <TextBlock
+                        x:Uid="RoadCandidatesFlyoutTitle"
+                        FontWeight="SemiBold"
+                        FontSize="12"
+                        Opacity="0.7"
+                        Text="Nearby road candidates (nearest first)" />
+                    <ItemsControl x:Name="RoadCandidatesList" AutomationProperties.AutomationId="MapHeaderRoadCandidates">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="local:RoadCandidateItem">
+                                <Grid ColumnSpacing="16" Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" />
+                                        <TextBlock
+                                            Text="{x:Bind RouteText}"
+                                            FontSize="12"
+                                            Opacity="0.7"
+                                            Visibility="{x:Bind RouteVisibility}" />
+                                    </StackPanel>
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        VerticalAlignment="Top"
+                                        Opacity="0.7"
+                                        Text="{x:Bind DistanceText}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Flyout>
             <Flyout x:Name="MarkerFlyout" Placement="Top">
                 <StackPanel Spacing="8" MinWidth="280" MaxWidth="320" Padding="12">
                     <StackPanel Spacing="4">
@@ -146,11 +181,19 @@
                         x:Uid="MapHeaderRoadLabel"
                         Opacity="0.7"
                         Text="Road:" />
-                    <TextBlock
+                    <Button
+                        x:Name="MapHeaderRoadButton"
                         Grid.Column="1"
-                        Text="{Binding LocationInfo.RoadNameText, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis"
-                        AutomationProperties.AutomationId="MapHeaderRoadName" />
+                        Padding="6,2"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Click="OnRoadNameClicked"
+                        ToolTipService.ToolTip="{Binding LocationInfo.RoadNameToolTip, Mode=OneWay}"
+                        AutomationProperties.AutomationId="MapHeaderRoadName">
+                        <TextBlock
+                            Text="{Binding LocationInfo.RoadNameText, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
+                    </Button>
                 </Grid>
                 <TextBlock
                     x:Name="MapHeaderRoadSeparator"

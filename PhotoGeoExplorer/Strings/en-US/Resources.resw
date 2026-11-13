@@ -1046,6 +1046,12 @@
   <data name="RoadName.RouteNumber" xml:space="preserve">
     <value>Route {0}</value>
   </data>
+  <data name="RoadName.ToolTip.Header" xml:space="preserve">
+    <value>Nearest road (candidate)</value>
+  </data>
+  <data name="RoadCandidatesFlyoutTitle.Text" xml:space="preserve">
+    <value>Nearby road candidates (nearest first)</value>
+  </data>
   <data name="MapHeaderMenuShowAddress.Text" xml:space="preserve">
     <value>Show address (census small area)</value>
   </data>

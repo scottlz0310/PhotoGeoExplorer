@@ -79,6 +79,34 @@ public class LocationTextFormatterTests
         Assert.Equal(expected, LocationTextFormatter.FormatRoadCandidate(candidate, number => $"路線番号 {number}"));
     }
 
+    [Theory]
+    [InlineData(0d, "0 m")]
+    [InlineData(0.4d, "0 m")]
+    [InlineData(0.5d, "1 m")]
+    [InlineData(12.4d, "12 m")]
+    [InlineData(49.5d, "50 m")]
+    [InlineData(1234.6d, "1235 m")]
+    public void FormatDistanceRoundsToWholeMeters(double meters, string expected)
+    {
+        Assert.Equal(expected, LocationTextFormatter.FormatDistance(meters));
+    }
+
+    [Fact]
+    public void FormatDistanceIgnoresCurrentCulture()
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+
+            Assert.Equal("1235 m", LocationTextFormatter.FormatDistance(1234.6d));
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
     [Fact]
     public void FormatRoadNameShowsTheRouteNumberOfARoadWithoutAName()
     {
