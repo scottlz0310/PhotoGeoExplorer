@@ -120,6 +120,29 @@ public sealed class AreaDataStoreTests : IDisposable
     }
 
     [Theory]
+    [InlineData("../..")]
+    [InlineData("..")]
+    [InlineData("a/../../b")]
+    [InlineData("/absolute")]
+    public async Task ImportAsyncNeverUsesThePathsInsideTheArchive(string folderInArchive)
+    {
+        var store = new AreaDataStore(Root);
+        var archive = CreateArchive("r2ka31", GeographicProjection, AllAttributes, TottoriFeatures(), folderInArchive: folderInArchive);
+
+        var info = await store.ImportAsync(archive, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal("31", info.PrefectureCode);
+
+        // 取り込み先のフォルダーの外（ルートの親を含む）に、構成ファイルが書かれていない
+        var outside = Directory.GetFiles(_directory, "r2ka31.*", SearchOption.AllDirectories)
+            .Where(path => !path.StartsWith(Path.Combine(Root, "31") + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                && !Path.GetDirectoryName(path)!.Contains("src-", StringComparison.Ordinal))
+            .ToList();
+        Assert.Empty(outside);
+        Assert.Equal(ShapefileFileNames, Directory.GetFiles(Path.Combine(Root, "31")).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray());
+    }
+
+    [Theory]
     [InlineData(".prj")]
     [InlineData(".dbf")]
     [InlineData(".shx")]
