@@ -30,6 +30,10 @@
   - `AreaNameResolver`（`IAreaNameResolver` の実装）が、候補の都道府県のデータを読み込んで保持する（LRU、既定 4 都道府県）。同じ都道府県への同時要求は 1 回の読み込みを共有し、未導入・失敗した読み込みは保持しない
   - 都道府県の絞り込み（`IPrefectureLocator`）と、端末に導入したデータの読み込み（`IAreaDataSource`）はインターフェースだけで、実装は後続の PR で追加する
   - `PhotoGeoExplorer.Core` に `NetTopologySuite` 2.6.0（アプリ本体と同じ版）と `NetTopologySuite.IO.Esri.Shapefile` 1.2.0 を追加した
+- 座標から候補の都道府県を絞り込む処理と、そのための簡略化した都道府県ポリゴンを追加（#294 の 2 つ目。この時点でも画面から呼ばれず、表示は変わらない）
+  - `PrefectureLocator`（`IPrefectureLocator` の実装）が、同梱データ `PhotoGeoExplorer.Core/Resources/prefecture-polygons.tsv`（約 260KB、47 都道府県）を最初の検索時に読み込む
+  - 同梱データは、e-Stat「令和 2 年国勢調査 小地域（町丁・字等別）境界データ」を都道府県ごとに融合し、外側へ約 1km 膨らませて簡略化したもの。元の小地域をすべて覆うため、県境からおよそ 1km 以内の地点は隣接する都道府県の両方が候補になる
+  - 作り直すスクリプト `scripts/Build-PrefecturePolygons.cs` と、出典・加工内容・手順を記した `PhotoGeoExplorer.Core/Resources/README.md` を追加した
 
 ### 修正
 - クリップボードの Cut 操作完了時における状態変化通知（`PropertyChanged`）がバックグラウンドスレッドで発火し、WinUI 3 で例外が発生してフォルダー再読み込み（`RefreshAsync`）が中断される問題を修正
