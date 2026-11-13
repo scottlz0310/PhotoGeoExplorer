@@ -181,7 +181,14 @@ internal sealed record RoadNameCandidate(string? Name, string? Ref, double Dista
 
 - 決定事項（ユーザー合意 2026-11-14）: 歩行者用の経路（`path`）は候補に含めない。距離のしきい値は 50 m のまま。種別は推定せず、国道は名称で確定し、他は路線番号とする。
 - 判定は `RoadNameSuggester`（Core）。タイルは `IRoadTileSource` で受け取る。`VectorRoadTileSource` が、タイルの取得・キャッシュ（NuGet パッケージ `PhotoMapStudio.Tiles`。photo-map-studio #109）のバイト列を、タイルへ読み出す。取得の失敗は `HttpRequestException`、タイルとして読めない内容は `IOException` で報告する（`IRoadNameSuggester` の契約）。
-- 実装の分割: 1 つ目の PR は Core（判定・モデル・整形・文字列・テスト）。2 つ目の PR は UI（配線、候補の一覧、プライバシーポリシーとヘルプ）。
+- 実装の分割: 1 つ目の PR（#315）は Core（判定・モデル・整形・文字列・テスト）。2 つ目の PR は UI（配線、候補の一覧、プライバシーポリシーとヘルプ）。
+- 2 つ目の PR の構成:
+  - `OpenFreeMapRoadNameSuggester`（Core）が、OpenFreeMap のタイル取得（`OpenFreeMapTileSource`）・キャッシュ（`FileSystemTileCache`）・判定（`RoadNameSuggester`）を組み立てる。`MainWindow` が 1 つ作り、`MapPaneViewModel` → `MapLocationInfoViewModel` へ渡し、ウィンドウを閉じるときに破棄する
+  - 破棄（Dispose）は進行中の判定へキャンセルを要求するだけで、通信・キャッシュの破棄は進行中の判定がすべて終わってから行う（キャンセルの完了前に破棄すると、タイル取得の終了処理が破棄済みの資源に触れて ObjectDisposedException になるため）。UI スレッドは待たせない
+  - 配信元へ表明する User-Agent は、アプリの `UserAgentProvider`（アプリ名・版・連絡先）。応答のない通信で待ち続けないよう、通信のタイムアウトは 15 秒
+  - キャッシュは `%LocalAppData%\PhotoGeoExplorer\Cache\RoadTiles`（地図タイルの `Cache\Tiles` とは別）。容量の上限は約 200 MB（都市部のタイルは 1 枚で 1 MB 近いため、パッケージの既定の 1 GB より小さくする）
+  - 表示: ヘッダーの道路名はボタンで、第 1 候補の名称と、残りの件数（`(+N)`）を出す。名称がなく路線番号だけの道路は「路線番号 N」。クリックで候補の一覧（名称・路線番号・距離。近い順）、ツールチップに「最寄りの道路（候補）」・名称・距離・路線番号。名称と路線番号の両方がある道路は、ヘッダーには名称だけを出し、路線番号は一覧とツールチップに出す（市町村道の `ref` は市の内部の路線コードのことがあり、ヘッダーに出すと分かりにくいため）
+  - 距離の整形は `LocationTextFormatter.FormatDistance`（整数のメートル、言語によらず「12 m」）、候補 1 行の文言は `RoadCandidateItem`
 
 ## 6. 仮想ツリー（GroupBy）ビュー（#298）
 

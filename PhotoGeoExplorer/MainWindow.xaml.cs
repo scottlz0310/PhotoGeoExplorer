@@ -18,6 +18,7 @@ using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.AreaNames;
 using PhotoGeoExplorer.Services.AreaTree;
 using PhotoGeoExplorer.Services.Export;
+using PhotoGeoExplorer.Services.RoadNames;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Windows.Graphics;
@@ -41,6 +42,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly PasswordVaultSecretStore _secretStore = new();
     private readonly AreaDataStore _areaDataStore = new(AreaDataStore.DefaultRootDirectory);
     private readonly AreaNameResolver _areaNameResolver;
+    private readonly OpenFreeMapRoadNameSuggester _roadNameSuggester;
     private readonly AreaDataArchivePicker _areaDataArchivePicker;
     private Services.ICrashReportService? _crashReportService;
     private bool _mapInitialized;
@@ -66,6 +68,7 @@ public sealed partial class MainWindow : Window, IDisposable
         var dialogService = new DialogService(RootGrid, this);
         _areaDataArchivePicker = new AreaDataArchivePicker(dialogService);
         _areaNameResolver = new AreaNameResolver(PrefectureLocator.CreateFromEmbeddedData(), _areaDataStore);
+        _roadNameSuggester = new OpenFreeMapRoadNameSuggester(OpenFreeMapRoadNameSuggester.DefaultCacheDirectory, UserAgentProvider.UserAgent);
         var exifEditorService = new ExifEditorService(
             dialogService,
             new ExifMetadataService(),
@@ -92,7 +95,8 @@ public sealed partial class MainWindow : Window, IDisposable
             _viewModel.WorkspaceState,
             mapImageService,
             secretStore: _secretStore,
-            areaNameResolver: _areaNameResolver);
+            areaNameResolver: _areaNameResolver,
+            roadNameSuggester: _roadNameSuggester);
         _placesPaneViewModel = new PlacesPaneViewModel(
             _viewModel.WorkspaceState,
             new PhotoAreaClassifier(new PhotoCoordinateReader(new ExifMetadataService()).ReadAsync, _areaNameResolver, progressBatchSize: 200),
@@ -514,6 +518,9 @@ public sealed partial class MainWindow : Window, IDisposable
             _mapPaneViewModel.Cleanup();
             _placesPaneViewModel.Cleanup();
             _geoExportViewModel.Dispose();
+
+            // 判定中の通信は、上の Cleanup でキャンセルされている
+            _roadNameSuggester.Dispose();
 
             if (PreviewPaneControl is not null)
             {

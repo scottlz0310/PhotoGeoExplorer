@@ -148,6 +148,114 @@ public class MapLocationInfoViewModelTests
         Assert.Empty(areaResolver.Calls);
     }
 
+    [Fact]
+    public async Task RoadCandidatesListEachCandidateWithItsDistanceAndRouteNumber()
+    {
+        var roadSuggester = new FakeRoadNameSuggester();
+        var viewModel = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester);
+
+        var update = viewModel.SetLocationAsync(35.5036, 134.2381);
+        roadSuggester.Calls[0].Complete(new[]
+        {
+            new RoadNameCandidate("山の手通り", Ref: "203", DistanceMeters: 12.4),
+            new RoadNameCandidate(Name: null, Ref: "1167", DistanceMeters: 30.6),
+            new RoadNameCandidate("丸山通", Ref: null, DistanceMeters: 49.5)
+        });
+        await update.ConfigureAwait(true);
+
+        // 名称のない道路は、名称の欄に路線番号を出す（別の行にはしない）
+        Assert.Equal(
+            new[]
+            {
+                new RoadCandidateItem("山の手通り", "RoadName.RouteNumber", "12 m"),
+                new RoadCandidateItem("RoadName.RouteNumber", null, "31 m"),
+                new RoadCandidateItem("丸山通", null, "50 m")
+            },
+            viewModel.RoadCandidates);
+    }
+
+    [Theory]
+    [InlineData(true, Visibility.Visible)]
+    [InlineData(false, Visibility.Collapsed)]
+    public void RoadCandidateItemShowsTheRouteLineOnlyWhenThereIsOne(bool hasRoute, Visibility expected)
+    {
+        var item = new RoadCandidateItem("山の手通り", hasRoute ? "RoadName.RouteNumber" : null, "12 m");
+
+        Assert.Equal(expected, item.RouteVisibility);
+    }
+
+    [Fact]
+    public async Task RoadNameToolTipDescribesTheFirstCandidateAsACandidate()
+    {
+        var roadSuggester = new FakeRoadNameSuggester();
+        var viewModel = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester);
+
+        var update = viewModel.SetLocationAsync(35.5036, 134.2381);
+        roadSuggester.Calls[0].Complete(new[]
+        {
+            new RoadNameCandidate("山の手通り", Ref: "203", DistanceMeters: 12.4),
+            new RoadNameCandidate("丸山通", Ref: null, DistanceMeters: 20)
+        });
+        await update.ConfigureAwait(true);
+
+        Assert.Equal("RoadName.ToolTip.Header\n山の手通り  12 m\nRoadName.RouteNumber", viewModel.RoadNameToolTip);
+    }
+
+    [Fact]
+    public async Task RoadNameToolTipHasNoRouteLineForARoadWithoutAnotherRouteNumber()
+    {
+        var roadSuggester = new FakeRoadNameSuggester();
+        var viewModel = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester);
+
+        var update = viewModel.SetLocationAsync(43.588, 142.466);
+        roadSuggester.Calls[0].Complete(new[] { new RoadNameCandidate("丸山通", Ref: null, DistanceMeters: 9) });
+        await update.ConfigureAwait(true);
+
+        Assert.Equal("RoadName.ToolTip.Header\n丸山通  9 m", viewModel.RoadNameToolTip);
+    }
+
+    [Fact]
+    public async Task RoadCandidatesAndTheToolTipAreClearedWithTheSelection()
+    {
+        var roadSuggester = new FakeRoadNameSuggester();
+        var viewModel = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester);
+        var update = viewModel.SetLocationAsync(35.5036, 134.2381);
+        roadSuggester.Calls[0].Complete(new[] { new RoadNameCandidate("山の手通り", Ref: null, DistanceMeters: 5) });
+        await update.ConfigureAwait(true);
+
+        viewModel.Clear();
+
+        Assert.Empty(viewModel.RoadCandidates);
+        Assert.Null(viewModel.RoadNameToolTip);
+    }
+
+    [Fact]
+    public async Task NoRoadCandidateMeansNoToolTip()
+    {
+        var roadSuggester = new FakeRoadNameSuggester();
+        var viewModel = new MapLocationInfoViewModel(roadNameSuggester: roadSuggester);
+
+        var update = viewModel.SetLocationAsync(51.5, -0.12);
+        roadSuggester.Calls[0].Complete(Array.Empty<RoadNameCandidate>());
+        await update.ConfigureAwait(true);
+
+        Assert.Empty(viewModel.RoadCandidates);
+        Assert.Null(viewModel.RoadNameToolTip);
+    }
+
+    [Theory]
+    [InlineData("ja-JP")]
+    [InlineData("en-US")]
+    public void RoadNameTextsExistInBothLanguages(string language)
+    {
+        var path = Path.Combine(RepositoryPaths.FindRoot(), "PhotoGeoExplorer", "Strings", language, "Resources.resw");
+        var keys = XDocument.Load(path).Root!.Elements("data").Select(element => (string)element.Attribute("name")!).ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("RoadName.RouteNumber", keys);
+        Assert.Contains("RoadName.ToolTip.Header", keys);
+        Assert.Contains("RoadCandidatesFlyoutTitle.Text", keys);
+    }
+
     [Theory]
     [InlineData("ja-JP")]
     [InlineData("en-US")]
