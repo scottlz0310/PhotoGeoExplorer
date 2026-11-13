@@ -493,8 +493,7 @@ public class MapLocationInfoViewModelTests
             await update.ConfigureAwait(true);
         });
 
-        var completed = await Task.WhenAny(run, Task.Delay(5000)).ConfigureAwait(true);
-        Assert.Same(run, completed);
+        await TestTasks.AssertCompletesWithinAsync(run, TimeSpan.FromSeconds(5)).ConfigureAwait(true);
         await run.ConfigureAwait(true);
 
         lock (threadIds)

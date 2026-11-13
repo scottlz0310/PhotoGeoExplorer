@@ -1,8 +1,28 @@
 using System.Globalization;
 
 using PhotoGeoExplorer.Services;
+using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
+
+/// <summary>
+/// テストで「一定時間内に完了すること」を確かめる。<c>Task.WhenAny(task, Task.Delay(...))</c> は完了後も Delay のタイマーが
+/// 残る（CA2027）ため、タイマーを残さない <see cref="Task.WaitAsync(TimeSpan)"/> を使う
+/// </summary>
+internal static class TestTasks
+{
+    public static async Task AssertCompletesWithinAsync(Task task, TimeSpan timeout)
+    {
+        try
+        {
+            await task.WaitAsync(timeout).ConfigureAwait(true);
+        }
+        catch (TimeoutException) when (!task.IsCompleted)
+        {
+            Assert.Fail($"The task did not complete within {timeout}.");
+        }
+    }
+}
 
 internal sealed class CultureScope : IDisposable
 {
