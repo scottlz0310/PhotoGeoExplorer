@@ -20,6 +20,9 @@ internal sealed class AreaNameResolver : IAreaNameResolver
     private readonly LinkedList<string> _recentlyUsed = new();
     private readonly Dictionary<string, Task<AreaDataset?>> _loading = new(StringComparer.Ordinal);
 
+    // データの変更で破棄した後に、変更前から続いていた読み込みの結果を保存しないための世代
+    private int _generation;
+
     public AreaNameResolver(
         IPrefectureLocator prefectureLocator,
         IAreaDataSource dataSource,
@@ -30,7 +33,10 @@ internal sealed class AreaNameResolver : IAreaNameResolver
         _prefectureLocator = prefectureLocator ?? throw new ArgumentNullException(nameof(prefectureLocator));
         _dataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
         _cacheCapacity = cacheCapacity;
+        _dataSource.DataChanged += OnDataChanged;
     }
+
+    public event EventHandler? ResultsInvalidated;
 
     public async Task<AreaName?> ResolveAsync(double latitude, double longitude, CancellationToken cancellationToken)
     {
@@ -82,7 +88,7 @@ internal sealed class AreaNameResolver : IAreaNameResolver
 
             if (!_loading.TryGetValue(prefectureCode, out loading!))
             {
-                loading = LoadAndStoreAsync(prefectureCode);
+                loading = LoadAndStoreAsync(prefectureCode, _generation);
 
                 // 同期的に完了した読み込みは、この時点で結果の保存まで済んでいる
                 if (!loading.IsCompleted)
@@ -97,7 +103,7 @@ internal sealed class AreaNameResolver : IAreaNameResolver
 
     // 呼び出し元のキャンセルでは止めない（他の呼び出しと共有するため）。
     // 導入されていない（null）・失敗した読み込みは保持しない（後から導入されたデータを読めるようにするため）
-    private async Task<AreaDataset?> LoadAndStoreAsync(string prefectureCode)
+    private async Task<AreaDataset?> LoadAndStoreAsync(string prefectureCode, int generation)
     {
         AreaDataset? dataset = null;
         try
@@ -109,8 +115,13 @@ internal sealed class AreaNameResolver : IAreaNameResolver
         {
             lock (_cacheLock)
             {
-                _loading.Remove(prefectureCode);
-                if (dataset is not null)
+                // 破棄済みなら何も保存しない。_loading には、破棄後に始まった同じ県の読み込みが入っていることがある
+                if (generation == _generation)
+                {
+                    _loading.Remove(prefectureCode);
+                }
+
+                if (generation == _generation && dataset is not null)
                 {
                     _loaded[prefectureCode] = dataset;
                     _recentlyUsed.AddFirst(prefectureCode);
@@ -122,5 +133,18 @@ internal sealed class AreaNameResolver : IAreaNameResolver
                 }
             }
         }
+    }
+
+    private void OnDataChanged(object? sender, EventArgs e)
+    {
+        lock (_cacheLock)
+        {
+            _generation++;
+            _loaded.Clear();
+            _recentlyUsed.Clear();
+            _loading.Clear();
+        }
+
+        ResultsInvalidated?.Invoke(this, EventArgs.Empty);
     }
 }

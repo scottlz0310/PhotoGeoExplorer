@@ -486,6 +486,31 @@ public sealed class AreaDataStoreTests : IDisposable
         Assert.False(await store.DeleteAsync("31", CancellationToken.None).ConfigureAwait(true));
     }
 
+    [Fact]
+    public async Task ImportAndDeleteRaiseDataChangedOnlyWhenTheInstalledDataChanged()
+    {
+        var store = new AreaDataStore(Root);
+        var changes = 0;
+        store.DataChanged += (_, _) => changes++;
+        var archive = CreateArchive("r2ka31", GeographicProjection, AllAttributes, TottoriFeatures());
+
+        await store.ImportAsync(archive, CancellationToken.None).ConfigureAwait(true);
+        Assert.Equal(1, changes);
+
+        // 置き換えも変更
+        await store.ImportAsync(archive, CancellationToken.None).ConfigureAwait(true);
+        Assert.Equal(2, changes);
+
+        Assert.True(await store.DeleteAsync("31", CancellationToken.None).ConfigureAwait(true));
+        Assert.Equal(3, changes);
+
+        // 何も消えなかった削除と、失敗した取り込みでは、内容が変わらないので通知しない
+        Assert.False(await store.DeleteAsync("31", CancellationToken.None).ConfigureAwait(true));
+        await Assert.ThrowsAsync<AreaDataFormatException>(
+            () => store.ImportAsync(CreateArchive("r2ka31", null, AllAttributes, TottoriFeatures(), omitExtension: ".prj"), CancellationToken.None)).ConfigureAwait(true);
+        Assert.Equal(3, changes);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("1")]

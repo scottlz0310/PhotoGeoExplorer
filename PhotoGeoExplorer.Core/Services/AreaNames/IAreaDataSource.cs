@@ -5,6 +5,11 @@ namespace PhotoGeoExplorer.Services.AreaNames;
 /// </summary>
 internal interface IAreaDataSource
 {
+    /// <summary>
+    /// 導入済みのデータが追加・置換・削除され、読み込み済みの内容が古くなった
+    /// </summary>
+    event EventHandler? DataChanged;
+
     /// <param name="prefectureCode">都道府県コード（2 桁）</param>
     /// <returns>その都道府県のデータが導入されていなければ null</returns>
     /// <exception cref="IOException">データを読めなかった（形式の不正を含む）</exception>
