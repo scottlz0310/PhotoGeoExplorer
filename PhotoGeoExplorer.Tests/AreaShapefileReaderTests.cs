@@ -181,7 +181,6 @@ public sealed class AreaShapefileReaderTests : IDisposable
 
         Assert.Equal(AreaDataFormatError.CorruptData, exception.Error);
         Assert.IsAssignableFrom<IOException>(exception);
-        Assert.NotNull(exception.InnerException);
     }
 
     [Fact]

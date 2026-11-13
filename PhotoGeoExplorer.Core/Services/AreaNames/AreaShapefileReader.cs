@@ -60,9 +60,11 @@ internal static class AreaShapefileReader
         {
             return ReadRegions(shapefilePath, expectedPrefectureCode, censusYear);
         }
-        catch (Exception ex) when (ex is ShapefileException or NotSupportedException or InvalidDataException)
+        catch (Exception ex) when (ex is ShapefileException or NotSupportedException or InvalidDataException
+            or ArgumentException or FormatException)
         {
-            // 壊れたファイルを読むと、ライブラリは IOException ではなくこれらを投げる。
+            // 壊れたファイルを読むと、ライブラリは IOException ではなくこれらを投げる（ArgumentOutOfRangeException を含む）。
+            // 破損データで実際に出た型を、ランダムにバイトを壊す実験で洗い出して並べている。
             // 呼び出し元が IOException だけを扱えば足りるよう、AreaDataFormatException（IOException）に揃える
             throw new AreaDataFormatException(
                 AreaDataFormatError.CorruptData,
@@ -73,13 +75,16 @@ internal static class AreaShapefileReader
 
     private static AreaDataset ReadRegions(string shapefilePath, string? expectedPrefectureCode, int censusYear)
     {
+        // ライブラリは、ファイル内の点数やレコード数をもとに配列を確保する。破損データでメモリを使い果たさないよう、先に検査する
+        ShapefileStructureGuard.Validate(shapefilePath);
+
         // 壊れた図形は読み飛ばさずに修復する（1 件の不正で都道府県全体を読めなくしない）
         var options = new ShapefileReaderOptions { GeometryBuilderMode = GeometryBuilderMode.FixInvalidShapes };
         using var reader = Shapefile.OpenRead(shapefilePath, options);
         ValidateProjection(reader.Projection, shapefilePath);
         ValidateAttributes(reader, shapefilePath);
 
-        var regions = new List<AreaRegion>(reader.RecordCount);
+        var regions = new List<AreaRegion>();
         while (reader.Read(out var deleted, out Feature feature))
         {
             if (deleted || feature.Geometry is not (Polygon or MultiPolygon) || feature.Geometry.IsEmpty)

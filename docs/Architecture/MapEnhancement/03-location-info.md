@@ -103,7 +103,7 @@ flowchart TD
   - 置く前に、座標系・必須属性・ポリゴン・単一の都道府県を実際に読んで検証する。検証に失敗した取り込みは、既存のデータを変えない
   - 同じ都道府県のデータがあれば置き換える（既存を退避してから移し、失敗したら戻す）
   - 保存先は `AreaData\<県コード>\`（取り込んだファイル名のまま）。一覧は、このフォルダーを見て作る（別の管理ファイルは持たない）
-  - 壊れたファイルは、ライブラリが `IOException` ではなく `NotSupportedException`・`InvalidDataException`・`ShapefileException` を投げるため、`AreaDataFormatException`（`IOException`）に包んで報告する
+  - 壊れた・悪意のあるファイルへの備え: ライブラリは、ファイル内の点数やレコード数をもとに配列を確保するため、読み込む前に `ShapefileStructureGuard` で検査する（`.shp`: 各レコードの点数・部分数がレコード長に収まる、部分の開始位置が正しい、座標と外接矩形が経度 ±180・緯度 ±90 に収まる、ヘッダーのファイル長が実際と合う。`.dbf`: レコード数 × レコード長がファイルサイズに収まる）。ランダムにバイトを壊した約 9,600 件の実験では、検査なしだと 1 回の読み込みで 38GB を確保した。ライブラリが読む途中で投げる `NotSupportedException`・`InvalidDataException`・`ShapefileException`・`ArgumentException`・`FormatException` は、`AreaDataFormatException`（`IOException`）に包んで報告する。実データ 47 都道府県は、検査を通って取り込める（合計 16 秒）
   - 実データでの計測（開発機、1 回）: 北海道は取り込み（検証つき読み込み）約 1.9 秒、読み込み約 0.8 秒・約 79MB。東京は約 0.2 秒・約 27MB
 - アプリ内ダウンロードは、e-Stat の利用規約と URL 仕様を確認したうえでの拡張とする（この設計の範囲外）。
 - 形式は取り込んだ Shapefile をそのまま読む。読み込み時間が問題になった場合に限り、空間インデックスつきの形式（FlatGeobuf など）への変換を検討する。

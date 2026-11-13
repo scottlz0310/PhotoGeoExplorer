@@ -172,6 +172,64 @@ public sealed class AreaDataStoreTests : IDisposable
         await AssertNothingInstalledAsync(store).ConfigureAwait(true);
     }
 
+    [Theory]
+    // レビューで再現された、ライブラリが IOException ではない例外を投げる破損（不正な更新日・重複フィールド名・負の点数）と、
+    // ランダム破損の実験で見つかった、巨大なメモリを確保させる破損（巨大な点数・NaN の座標）
+    [InlineData("dbf-invalid-update-date")]
+    [InlineData("dbf-duplicate-field-names")]
+    [InlineData("shp-negative-point-count")]
+    [InlineData("shp-huge-point-count")]
+    [InlineData("shp-nan-coordinate")]
+    [InlineData("shp-truncated")]
+    public async Task ImportAsyncReportsEveryKindOfCorruptShapefileAsCorruptData(string damage)
+    {
+        var store = new AreaDataStore(Root);
+        var archive = CreateArchive("r2ka31", GeographicProjection, AllAttributes, TottoriFeatures(), mutateSourceDirectory: directory =>
+        {
+            var dbf = Path.Combine(directory, "r2ka31.dbf");
+            var shp = Path.Combine(directory, "r2ka31.shp");
+            switch (damage)
+            {
+                case "dbf-invalid-update-date":
+                    var dbfBytes = File.ReadAllBytes(dbf);
+                    dbfBytes[1] = 126;
+                    dbfBytes[2] = 99;
+                    dbfBytes[3] = 99;
+                    File.WriteAllBytes(dbf, dbfBytes);
+                    break;
+                case "dbf-duplicate-field-names":
+                    var fieldBytes = File.ReadAllBytes(dbf);
+                    Array.Copy(fieldBytes, 32, fieldBytes, 64, 11);
+                    File.WriteAllBytes(dbf, fieldBytes);
+                    break;
+                case "shp-negative-point-count":
+                    var negative = File.ReadAllBytes(shp);
+                    BitConverter.GetBytes(-1).CopyTo(negative, 148);
+                    File.WriteAllBytes(shp, negative);
+                    break;
+                case "shp-huge-point-count":
+                    var huge = File.ReadAllBytes(shp);
+                    BitConverter.GetBytes(int.MaxValue).CopyTo(huge, 148);
+                    File.WriteAllBytes(shp, huge);
+                    break;
+                case "shp-nan-coordinate":
+                    var nan = File.ReadAllBytes(shp);
+                    BitConverter.GetBytes(double.NaN).CopyTo(nan, 156);
+                    File.WriteAllBytes(shp, nan);
+                    break;
+                default:
+                    File.WriteAllBytes(shp, File.ReadAllBytes(shp)[..102]);
+                    break;
+            }
+        });
+
+        var exception = await Assert.ThrowsAsync<AreaDataFormatException>(
+            () => store.ImportAsync(archive, CancellationToken.None)).ConfigureAwait(true);
+
+        Assert.Equal(AreaDataFormatError.CorruptData, exception.Error);
+        await AssertNothingInstalledAsync(store).ConfigureAwait(true);
+    }
+
     [Fact]
     public async Task ImportAsyncRejectsAnArchiveWithSeveralShapefiles()
     {
@@ -496,6 +554,7 @@ public sealed class AreaDataStoreTests : IDisposable
         string? omitExtension = null,
         string? duplicateAs = null,
         bool corruptDbf = false,
+        Action<string>? mutateSourceDirectory = null,
         IReadOnlyCollection<string>? extraEntries = null)
     {
         var sourceDirectory = Path.Combine(_directory, "src-" + name + "-" + Guid.NewGuid().ToString("N"));
@@ -505,6 +564,8 @@ public sealed class AreaDataStoreTests : IDisposable
         {
             File.WriteAllText(Path.Combine(sourceDirectory, baseName + ".dbf"), "broken");
         }
+
+        mutateSourceDirectory?.Invoke(sourceDirectory);
 
         var zipPath = Path.Combine(_directory, name + "-" + Guid.NewGuid().ToString("N") + ".zip");
         using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
