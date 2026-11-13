@@ -76,6 +76,8 @@
   - `FileOperationCoordinator.PasteAsync` での `_onClipboardChanged` 呼び出しおよび `FileBrowserPaneViewModel.OnClipboardChanged` での `PropertyChanged` 発火を `_uiDispatcher.RunAsync` で UI スレッドへマーシャリングするようにした
 - E2E テストで項目追加・描画の過渡状態に UI オートメーション要素（`list.Items`）を取得した際、COM 例外（`0x80040201` や `0x8000FFFF`）で即座にテストが失敗する問題を修正
   - `WaitForListItemByName` および `WaitForListItems` などの `Retry` 呼び出しに `ignoreException: true` と `SafeGet` を追加し、一時的な COM 例外を無視して安定するまでリトライするようにした
+- テストの待機を、タイマーが残らない書き方に直した（.NET SDK 11 の解析ルール CA2027 への対応）
+  - `Task.WhenAny(task, Task.Delay(...))` を使っていたテスト 9 か所（5 ファイル）を、`TestTasks.AssertCompletesWithinAsync`（`Task.WaitAsync` を使う）に置き換えた。SDK 10.0.404 と 11.0.100 のどちらでも、警告をエラー扱いにしたビルドとテストが通る。製品コードの変更はない。.NET SDK 11 への更新（Renovate の #307）の前提
 
 ### ドキュメント
 - 地図機能拡充の設計ドキュメントを `docs/Architecture/MapEnhancement/` に追加 (#290)
