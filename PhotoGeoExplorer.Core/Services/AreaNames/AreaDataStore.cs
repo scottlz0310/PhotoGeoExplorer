@@ -39,10 +39,12 @@ internal sealed partial class AreaDataStore : IAreaDataStore, IAreaDataSource
             () => ReadInstalledPacks().Select(pack => pack.Info).ToList(),
             cancellationToken);
 
+    public event EventHandler? DataChanged;
+
     public Task<AreaDataPackInfo> ImportAsync(string archivePath, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(archivePath);
-        return Task.Run(() => Import(archivePath, cancellationToken), cancellationToken);
+        return ImportCoreAsync(archivePath, cancellationToken);
     }
 
     public Task<bool> DeleteAsync(string prefectureCode, CancellationToken cancellationToken)
@@ -52,19 +54,7 @@ internal sealed partial class AreaDataStore : IAreaDataStore, IAreaDataSource
             throw new ArgumentException($"Not a prefecture code: {prefectureCode}", nameof(prefectureCode));
         }
 
-        return Task.Run(
-            () =>
-            {
-                var directory = Path.Combine(_rootDirectory, prefectureCode);
-                if (!Directory.Exists(directory))
-                {
-                    return false;
-                }
-
-                Directory.Delete(directory, recursive: true);
-                return true;
-            },
-            cancellationToken);
+        return DeleteCoreAsync(prefectureCode, cancellationToken);
     }
 
     public Task<AreaDataset?> LoadAsync(string prefectureCode, CancellationToken cancellationToken)
@@ -107,6 +97,37 @@ internal sealed partial class AreaDataStore : IAreaDataStore, IAreaDataSource
             // 一時フォルダーの片付けに失敗しても、取り込みの結果には影響しない。次の取り込みの開始時に再度片付ける
             AppLog.Error($"Failed to delete a temporary area data directory: {directory}", ex);
         }
+    }
+
+    // 通知は呼び出し元の同期コンテキスト（UI スレッド）へ戻ってから行う。購読側が UI を更新するため
+    private async Task<AreaDataPackInfo> ImportCoreAsync(string archivePath, CancellationToken cancellationToken)
+    {
+        var info = await Task.Run(() => Import(archivePath, cancellationToken), cancellationToken).ConfigureAwait(true);
+        DataChanged?.Invoke(this, EventArgs.Empty);
+        return info;
+    }
+
+    private async Task<bool> DeleteCoreAsync(string prefectureCode, CancellationToken cancellationToken)
+    {
+        var deleted = await Task.Run(
+            () =>
+            {
+                var directory = Path.Combine(_rootDirectory, prefectureCode);
+                if (!Directory.Exists(directory))
+                {
+                    return false;
+                }
+
+                Directory.Delete(directory, recursive: true);
+                return true;
+            },
+            cancellationToken).ConfigureAwait(true);
+        if (deleted)
+        {
+            DataChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        return deleted;
     }
 
     private AreaDataPackInfo Import(string archivePath, CancellationToken cancellationToken)

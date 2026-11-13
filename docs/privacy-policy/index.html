@@ -105,7 +105,7 @@
 <body>
     <div class="container">
         <h1>プライバシーポリシー / Privacy Policy</h1>
-        <p class="last-updated">最終更新日: 2026年11月12日 / Last updated: November 12, 2026</p>
+        <p class="last-updated">最終更新日: 2026年11月13日 / Last updated: November 13, 2026</p>
         <p class="lang-switch"><a href="#ja">日本語</a> | <a href="#en">English</a></p>
 
         <section id="ja">
@@ -146,6 +146,9 @@
                     <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> にキャッシュされます（Mapbox のタイルは端末に保存しません）。</li>
                 <li><strong>Mapbox アクセストークン:</strong> Mapbox Satellite を使うために利用者が入力したアクセストークンは、Windows
                     の資格情報マネージャーに保存されます。設定ファイル・ログ・クラッシュレポートには記録しません。</li>
+                <li><strong>地域データ（字地名）:</strong> 地図ヘッダーに住所（字地名）を表示するために、利用者が選んだ ZIP
+                    （e-Stat の国勢調査 小地域境界データ）を読み取り、端末内の <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code>
+                    に保存します。住所の判定は端末内で行い、撮影位置は外部へ送信されません。設定から削除できます。</li>
             </ul>
 
             <h2>4. インターネット通信</h2>
@@ -159,6 +162,9 @@
                     を選んだ場合に限り、Mapbox のサーバーから地図タイルを取得します。リクエストには、表示範囲のタイル座標と利用者のアクセストークンが含まれます。写真データは送信しません。</li>
                 <li><strong>更新チェック:</strong> 新バージョン確認のため、GitHub Releases を参照します。これらのリクエストに個人情報や写真データは含めません。</li>
             </ul>
+            <p>
+                地域データ（字地名）は、本アプリが通信して取得することはありません。e-Stat からのダウンロードは、利用者がブラウザーで行います。
+            </p>
             <p>
                 初回の地図タイルがキャッシュされた後は、オフラインでも利用できます（地図の新規取得は除く）。
             </p>
@@ -266,6 +272,7 @@
                 <li><strong>Logs:</strong> For troubleshooting, logs are stored at <code>%LocalAppData%\PhotoGeoExplorer\Logs\app.log</code>.</li>
                 <li><strong>Map tile cache:</strong> Tiles are cached at <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> to improve performance and reduce network traffic (Mapbox tiles are not stored on the device).</li>
                 <li><strong>Mapbox access token:</strong> The access token you enter to use Mapbox Satellite is stored in Windows Credential Manager. It is not written to the settings file, logs, or crash reports.</li>
+                <li><strong>Area data (town names):</strong> To show the address (town name) in the map header, the App reads the ZIP you select (e-Stat census small-area boundary data) and stores it at <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code> on your device. The address lookup is done locally and the photo location is not sent externally. You can delete the data from Settings.</li>
             </ul>
 
             <h2>4. Network Communication</h2>
@@ -277,6 +284,9 @@
                 <li><strong>Mapbox Satellite (optional):</strong> Only when you set your own access token and select Mapbox Satellite, map tiles are fetched from Mapbox servers. These requests include the tile coordinates of the displayed area and your access token. Photo data is not sent.</li>
                 <li><strong>Update checks:</strong> GitHub Releases are queried for new versions. These requests do not include personal information or photo data.</li>
             </ul>
+            <p>
+                The App never downloads area data (town names) itself. You download it from e-Stat in your browser.
+            </p>
             <p>
                 Once map tiles are cached, the App can be used offline (except for fetching new tiles).
             </p>

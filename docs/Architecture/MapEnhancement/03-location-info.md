@@ -108,7 +108,12 @@ flowchart TD
 - アプリ内ダウンロードは、e-Stat の利用規約と URL 仕様を確認したうえでの拡張とする（この設計の範囲外）。
 - 形式は取り込んだ Shapefile をそのまま読む。読み込み時間が問題になった場合に限り、空間インデックスつきの形式（FlatGeobuf など）への変換を検討する。
 - 出典表記（e-Stat／国勢調査の調査年）を、設定画面とヘルプに出す。
-
+- ヘッダーへの接続（#294 の 3b）:
+  - `MainWindow` の組み立てで、同梱の `PrefectureLocator`・共有の `AreaDataStore`・`AreaNameResolver` を作り、`MapPaneViewModel` → `MapLocationInfoViewModel` に渡す
+  - 取り込み・置き換え・削除のあとは、`AreaDataStore.DataChanged`（`IAreaDataSource`）→ `AreaNameResolver.ResultsInvalidated`（`IAreaNameResolver`）の順に通知する。解決器は保持している都道府県のデータを破棄し、`MapLocationInfoViewModel` は表示中の写真の字地名を求め直す。通知は呼び出し元の同期コンテキスト（UI スレッド）で行う。内容が変わらなかった操作（何も消えなかった削除、失敗した取り込み）では通知しない
+  - データの変更前に始まった読み込みは、完了しても保持しない（世代番号で判別する）。変更後の判定は、新しいデータを読み直す
+  - 水面の小地域は住所として表示しない（`AreaName.IsWater`）
+  - ツールチップ: 完全な表記（都道府県名つき）・小地域コード・調査年、最寄りの小地域へ補正した場合はその旨
 ### 4.3 判定
 
 - 読み込み: `NetTopologySuite.IO.Esri` で読み、NetTopologySuite の `STRtree` に外接矩形を登録する。内包判定は `PreparedGeometry` を使う。R-Tree と Ray Casting は自作しない。
@@ -128,7 +133,8 @@ internal sealed record AreaName(
     string City,
     string Town,             // 町丁・字等名
     bool SnappedToNearest,   // 最近傍へ寄せたか
-    int CensusYear);
+    int CensusYear,
+    bool IsWater = false);   // 水面調査区か（表示には使わない）
 ```
 
 短縮表記（都道府県を省く、郡名の扱い）は表示側の関数に分け、パラメータ化テストで検証する。

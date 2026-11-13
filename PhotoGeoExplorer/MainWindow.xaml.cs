@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly MapPaneViewModel _mapPaneViewModel;
     private readonly PasswordVaultSecretStore _secretStore = new();
     private readonly AreaDataStore _areaDataStore = new(AreaDataStore.DefaultRootDirectory);
+    private readonly AreaNameResolver _areaNameResolver;
     private readonly AreaDataArchivePicker _areaDataArchivePicker;
     private Services.ICrashReportService? _crashReportService;
     private bool _mapInitialized;
@@ -57,6 +58,7 @@ public sealed partial class MainWindow : Window, IDisposable
         _viewModel = new MainViewModel();
         var dialogService = new DialogService(RootGrid, this);
         _areaDataArchivePicker = new AreaDataArchivePicker(dialogService);
+        _areaNameResolver = new AreaNameResolver(PrefectureLocator.CreateFromEmbeddedData(), _areaDataStore);
         var exifEditorService = new ExifEditorService(
             dialogService,
             new ExifMetadataService(),
@@ -77,7 +79,8 @@ public sealed partial class MainWindow : Window, IDisposable
             new MapPaneService(),
             _viewModel.WorkspaceState,
             mapImageService,
-            secretStore: _secretStore);
+            secretStore: _secretStore,
+            areaNameResolver: _areaNameResolver);
         _settingsCoordinator = new SettingsCoordinator(
             new SettingsService(),
             dialogService,

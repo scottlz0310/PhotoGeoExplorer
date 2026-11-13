@@ -26,6 +26,7 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     private (double Latitude, double Longitude)? _location;
     private AreaName? _areaName;
     private string _areaNameText = string.Empty;
+    private string? _areaNameToolTip;
     private string _roadNameText = string.Empty;
     private string _coordinatesText = string.Empty;
 
@@ -36,6 +37,10 @@ internal sealed class MapLocationInfoViewModel : BindableBase
         _areaNameResolver = areaNameResolver;
         _roadNameSuggester = roadNameSuggester;
         DisplaySettings.PropertyChanged += OnDisplaySettingsChanged;
+        if (_areaNameResolver is not null)
+        {
+            _areaNameResolver.ResultsInvalidated += OnAreaDataChanged;
+        }
     }
 
     public MapHeaderDisplaySettings DisplaySettings { get; } = new();
@@ -50,6 +55,15 @@ internal sealed class MapLocationInfoViewModel : BindableBase
                 OnPropertyChanged(nameof(AreaNameVisibility));
             }
         }
+    }
+
+    /// <summary>
+    /// 字地名の詳細（完全な表記・小地域コード・補正の有無）。字地名を表示していないときは null
+    /// </summary>
+    public string? AreaNameToolTip
+    {
+        get => _areaNameToolTip;
+        private set => SetProperty(ref _areaNameToolTip, value);
     }
 
     public string RoadNameText
@@ -132,6 +146,9 @@ internal sealed class MapLocationInfoViewModel : BindableBase
         }
     }
 
+    // 取り込み・削除の直後に、表示中の写真の字地名を新しいデータで求め直す
+    private void OnAreaDataChanged(object? sender, EventArgs e) => _ = ResolveAreaNameAsync();
+
     private void UpdateCoordinatesText()
     {
         CoordinatesText = DisplaySettings.ShowCoordinates && _location is { } location
@@ -159,9 +176,28 @@ internal sealed class MapLocationInfoViewModel : BindableBase
     private void ApplyAreaName(AreaName? areaName)
     {
         _areaName = areaName;
-        AreaNameText = areaName is null
+
+        // 水面調査区には住所としての字地名がないので、表示しない
+        var displayed = areaName is { IsWater: false } ? areaName : null;
+        AreaNameText = displayed is null
             ? string.Empty
-            : LocationTextFormatter.FormatAreaName(areaName, DisplaySettings.IncludePrefecture);
+            : LocationTextFormatter.FormatAreaName(displayed, DisplaySettings.IncludePrefecture);
+        AreaNameToolTip = displayed is null ? null : BuildAreaNameToolTip(displayed);
+    }
+
+    private static string BuildAreaNameToolTip(AreaName areaName)
+    {
+        var lines = new List<string>
+        {
+            LocationTextFormatter.FormatAreaName(areaName, includePrefecture: true),
+            LocalizationService.Format("AreaName.ToolTip.Source", areaName.KeyCode, areaName.CensusYear)
+        };
+        if (areaName.SnappedToNearest)
+        {
+            lines.Add(LocalizationService.GetString("AreaName.ToolTip.Snapped"));
+        }
+
+        return string.Join('\n', lines);
     }
 
     private void ApplyRoadNames(IReadOnlyList<RoadNameCandidate>? candidates)

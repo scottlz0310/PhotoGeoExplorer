@@ -38,5 +38,5 @@ internal sealed class AreaRegion
     public IPreparedGeometry Prepared { get; }
 
     public AreaName ToAreaName(bool snappedToNearest, int censusYear)
-        => new(KeyCode, Prefecture, City, Town, snappedToNearest, censusYear);
+        => new(KeyCode, Prefecture, City, Town, snappedToNearest, censusYear, IsWater);
 }

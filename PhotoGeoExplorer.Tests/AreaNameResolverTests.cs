@@ -281,6 +281,74 @@ public class AreaNameResolverTests
             () => new AreaNameResolver(new FakePrefectureLocator(), new FakeAreaDataSource(), capacity));
     }
 
+    [Fact]
+    public async Task ResolveAsyncMarksAWaterSurfaceArea()
+    {
+        var source = new FakeAreaDataSource
+        {
+            ["13"] = CreateDataset("13", "東京都", "千代田区", "水面", west: 139.0, east: 140.0, isWater: true)
+        };
+        var resolver = new AreaNameResolver(new FakePrefectureLocator("13"), source);
+
+        var areaName = await resolver.ResolveAsync(35.5, 139.5, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.NotNull(areaName);
+        Assert.True(areaName.IsWater);
+    }
+
+    [Fact]
+    public async Task ResolveAsyncReadsTheNewDataAfterTheDataChanges()
+    {
+        var source = new FakeAreaDataSource { ["13"] = CreateDataset("13", "東京都", "千代田区", "丸の内", west: 139.0, east: 140.0) };
+        var resolver = new AreaNameResolver(new FakePrefectureLocator("13"), source);
+        var invalidated = 0;
+        resolver.ResultsInvalidated += (_, _) => invalidated++;
+        Assert.Equal("丸の内", (await resolver.ResolveAsync(35.5, 139.5, CancellationToken.None).ConfigureAwait(true))?.Town);
+
+        // 読み込み済みの内容は、変更が通知されるまで使い続ける
+        source["13"] = CreateDataset("13", "東京都", "千代田区", "大手町", west: 139.0, east: 140.0);
+        Assert.Equal("丸の内", (await resolver.ResolveAsync(35.5, 139.5, CancellationToken.None).ConfigureAwait(true))?.Town);
+        Assert.Equal(0, invalidated);
+
+        source.RaiseDataChanged();
+
+        Assert.Equal(1, invalidated);
+        Assert.Equal("大手町", (await resolver.ResolveAsync(35.5, 139.5, CancellationToken.None).ConfigureAwait(true))?.Town);
+    }
+
+    [Fact]
+    public async Task ResolveAsyncStopsFindingADeletedDataset()
+    {
+        var source = new FakeAreaDataSource { ["13"] = CreateDataset("13", "東京都", "千代田区", "丸の内", west: 139.0, east: 140.0) };
+        var resolver = new AreaNameResolver(new FakePrefectureLocator("13"), source);
+        Assert.NotNull(await resolver.ResolveAsync(35.5, 139.5, CancellationToken.None).ConfigureAwait(true));
+
+        source.Remove("13");
+        source.RaiseDataChanged();
+
+        Assert.Null(await resolver.ResolveAsync(35.5, 139.5, CancellationToken.None).ConfigureAwait(true));
+    }
+
+    [Fact]
+    public async Task ResolveAsyncDoesNotKeepALoadThatWasStartedBeforeTheDataChanged()
+    {
+        var source = new FakeAreaDataSource
+        {
+            HoldLoads = true,
+            ["13"] = CreateDataset("13", "東京都", "千代田区", "丸の内", west: 139.0, east: 140.0)
+        };
+        var resolver = new AreaNameResolver(new FakePrefectureLocator("13"), source);
+        var stale = resolver.ResolveAsync(35.5, 139.5, CancellationToken.None);
+
+        source.RaiseDataChanged();
+        source.ReleaseLoads();
+        await stale.ConfigureAwait(true);
+        await resolver.ResolveAsync(35.5, 139.5, CancellationToken.None).ConfigureAwait(true);
+
+        // 変更前に始まった読み込みの結果は保存されず、次の判定で読み直す
+        Assert.Equal(2, source.LoadedCodes.Count);
+    }
+
     private static AreaDataset CreateDataset(
         string code,
         string prefecture,
@@ -312,6 +380,10 @@ public class AreaNameResolverTests
 
     private sealed class FakeAreaDataSource : IAreaDataSource
     {
+        public event EventHandler? DataChanged;
+
+        public void RaiseDataChanged() => DataChanged?.Invoke(this, EventArgs.Empty);
+
         private readonly Dictionary<string, AreaDataset> _datasets = new(StringComparer.Ordinal);
         private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -329,6 +401,8 @@ public class AreaNameResolverTests
         }
 
         public void ReleaseLoads() => _release.TrySetResult();
+
+        public void Remove(string prefectureCode) => _datasets.Remove(prefectureCode);
 
         public async Task<AreaDataset?> LoadAsync(string prefectureCode, CancellationToken cancellationToken)
         {

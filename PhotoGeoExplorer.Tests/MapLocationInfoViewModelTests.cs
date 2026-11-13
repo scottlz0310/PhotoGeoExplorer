@@ -4,6 +4,8 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
@@ -70,6 +72,92 @@ public class MapLocationInfoViewModelTests
         Assert.Equal(Visibility.Visible, viewModel.RoadNameVisibility);
         Assert.Equal((43.468212, 142.482015), (areaResolver.Calls[0].Latitude, areaResolver.Calls[0].Longitude));
         Assert.Equal((43.468212, 142.482015), (roadSuggester.Calls[0].Latitude, roadSuggester.Calls[0].Longitude));
+    }
+
+    [Fact]
+    public async Task SetLocationAsyncShowsNothingForAWaterSurfaceArea()
+    {
+        var areaResolver = new FakeAreaNameResolver();
+        var viewModel = new MapLocationInfoViewModel(areaResolver);
+
+        var update = viewModel.SetLocationAsync(35.65, 139.8);
+        areaResolver.Calls[0].Complete(Miyamachi with { IsWater = true });
+        await update.ConfigureAwait(true);
+
+        Assert.Equal(string.Empty, viewModel.AreaNameText);
+        Assert.Equal(Visibility.Collapsed, viewModel.AreaNameVisibility);
+        Assert.Null(viewModel.AreaNameToolTip);
+    }
+
+    [Fact]
+    public async Task AreaNameToolTipShowsTheFullNotationAndTheSourceRegardlessOfThePrefectureSetting()
+    {
+        var areaResolver = new FakeAreaNameResolver();
+        var viewModel = new MapLocationInfoViewModel(areaResolver);
+        Assert.False(viewModel.DisplaySettings.IncludePrefecture);
+
+        var update = viewModel.SetLocationAsync(43.468212, 142.482015);
+        areaResolver.Calls[0].Complete(Miyamachi);
+        await update.ConfigureAwait(true);
+
+        // テスト環境ではローカライズの文言が引けず、キーがそのまま返る
+        Assert.Equal("上富良野町 宮町", viewModel.AreaNameText);
+        Assert.Equal("北海道 上富良野町 宮町\nAreaName.ToolTip.Source", viewModel.AreaNameToolTip);
+    }
+
+    [Fact]
+    public async Task AreaNameToolTipExplainsWhenTheLocationWasSnappedToTheNearestArea()
+    {
+        var areaResolver = new FakeAreaNameResolver();
+        var viewModel = new MapLocationInfoViewModel(areaResolver);
+
+        var update = viewModel.SetLocationAsync(43.468212, 142.482015);
+        areaResolver.Calls[0].Complete(Miyamachi with { SnappedToNearest = true });
+        await update.ConfigureAwait(true);
+
+        Assert.EndsWith("\nAreaName.ToolTip.Snapped", viewModel.AreaNameToolTip, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ResolvingAgainAfterTheAreaDataChangesReplacesTheAreaName()
+    {
+        var areaResolver = new FakeAreaNameResolver();
+        var viewModel = new MapLocationInfoViewModel(areaResolver);
+        var first = viewModel.SetLocationAsync(43.468212, 142.482015);
+        areaResolver.Calls[0].Complete(null);
+        await first.ConfigureAwait(true);
+        Assert.Equal(string.Empty, viewModel.AreaNameText);
+
+        areaResolver.RaiseResultsInvalidated();
+
+        Assert.Equal(2, areaResolver.Calls.Count);
+        Assert.Equal((43.468212, 142.482015), (areaResolver.Calls[1].Latitude, areaResolver.Calls[1].Longitude));
+        areaResolver.Calls[1].Complete(Miyamachi);
+        await Task.Yield();
+        Assert.Equal("上富良野町 宮町", viewModel.AreaNameText);
+    }
+
+    [Fact]
+    public void AreaDataChangesDoNotResolveWhenNothingIsSelected()
+    {
+        var areaResolver = new FakeAreaNameResolver();
+        _ = new MapLocationInfoViewModel(areaResolver);
+
+        areaResolver.RaiseResultsInvalidated();
+
+        Assert.Empty(areaResolver.Calls);
+    }
+
+    [Theory]
+    [InlineData("ja-JP")]
+    [InlineData("en-US")]
+    public void AreaNameToolTipTextsExistInBothLanguages(string language)
+    {
+        var path = Path.Combine(RepositoryPaths.FindRoot(), "PhotoGeoExplorer", "Strings", language, "Resources.resw");
+        var keys = XDocument.Load(path).Root!.Elements("data").Select(element => (string)element.Attribute("name")!).ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("AreaName.ToolTip.Source", keys);
+        Assert.Contains("AreaName.ToolTip.Snapped", keys);
     }
 
     [Fact]
@@ -351,6 +439,10 @@ public class MapLocationInfoViewModelTests
 
     private sealed class FakeAreaNameResolver : IAreaNameResolver
     {
+        public event EventHandler? ResultsInvalidated;
+
+        public void RaiseResultsInvalidated() => ResultsInvalidated?.Invoke(this, EventArgs.Empty);
+
         public List<ResolverCall<AreaName?>> Calls { get; } = new();
 
         public AreaName? CompleteImmediatelyWith { get; init; }
