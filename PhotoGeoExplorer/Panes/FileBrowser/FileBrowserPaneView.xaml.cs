@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Windows.UI.Core;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Export;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
@@ -35,6 +36,7 @@ internal sealed partial class FileBrowserPaneView : UserControl
         _dragDropHandler = new FileBrowserDragDropHandler(RootGrid, () => ViewModel, _dialogs);
         _menuBuilder = new FileBrowserMenuBuilder(
             () => ViewModel,
+            () => GeoExport,
             new FileContextMenuHandlers(
                 OnCreateFolderClicked,
                 OnOpenInExplorerClicked,
@@ -56,6 +58,11 @@ internal sealed partial class FileBrowserPaneView : UserControl
     }
 
     public Window? HostWindow { get; set; }
+
+    /// <summary>
+    /// ファイル一覧の右クリックメニューに出す、書き出し（エクスポート）の ViewModel。未設定なら、メニューに出さない
+    /// </summary>
+    internal GeoExportViewModel? GeoExport { get; set; }
 
     public ICommand OpenFolderCommand { get; }
     public ICommand CreateFolderCommand { get; }

@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Export;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
 
@@ -18,6 +19,7 @@ namespace PhotoGeoExplorer.Panes.FileBrowser;
 internal sealed class FileBrowserMenuBuilder
 {
     private readonly Func<FileBrowserPaneViewModel?> _viewModelAccessor;
+    private readonly Func<GeoExportViewModel?> _geoExportAccessor;
     private readonly FileContextMenuHandlers _contextMenuHandlers;
 
     private MenuFlyout? _detailsColumnsFlyout;
@@ -25,9 +27,11 @@ internal sealed class FileBrowserMenuBuilder
 
     public FileBrowserMenuBuilder(
         Func<FileBrowserPaneViewModel?> viewModelAccessor,
+        Func<GeoExportViewModel?> geoExportAccessor,
         FileContextMenuHandlers contextMenuHandlers)
     {
         _viewModelAccessor = viewModelAccessor;
+        _geoExportAccessor = geoExportAccessor;
         _contextMenuHandlers = contextMenuHandlers;
     }
 
@@ -158,12 +162,44 @@ internal sealed class FileBrowserMenuBuilder
         flyout.Items.Add(moveItem);
         flyout.Items.Add(moveParentItem);
         flyout.Items.Add(copyItem);
+        if (BuildExportSubItem() is { } exportSubItem)
+        {
+            flyout.Items.Add(exportSubItem);
+        }
+
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(editExifItem);
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(deleteItem);
 
         return flyout;
+    }
+
+    // 選択した写真の書き出し（CSV・字地名別フォルダーへのコピー・リネームしてコピー）。処理は GeoExportViewModel に任せる
+    private MenuFlyoutSubItem? BuildExportSubItem()
+    {
+        if (_geoExportAccessor() is not { } export)
+        {
+            return null;
+        }
+
+        var subItem = new MenuFlyoutSubItem
+        {
+            Text = LocalizationService.GetString("Menu.Export"),
+            Icon = new SymbolIcon(Symbol.Share)
+        };
+        AutomationProperties.SetAutomationId(subItem, "FileBrowser.ExportMenuItem");
+        subItem.Items.Add(CreateExportItem("Menu.ExportCsv", export.ExportCsvCommand, "FileBrowser.ExportCsvMenuItem"));
+        subItem.Items.Add(CreateExportItem("Menu.ExportByArea", export.CopyByAreaCommand, "FileBrowser.ExportByAreaMenuItem"));
+        subItem.Items.Add(CreateExportItem("Menu.ExportRenamed", export.ExportRenamedCommand, "FileBrowser.ExportRenamedMenuItem"));
+        return subItem;
+    }
+
+    private static MenuFlyoutItem CreateExportItem(string textKey, System.Windows.Input.ICommand command, string automationId)
+    {
+        var item = new MenuFlyoutItem { Text = LocalizationService.GetString(textKey), Command = command };
+        AutomationProperties.SetAutomationId(item, automationId);
+        return item;
     }
 
     public void ShowDetailsColumnsFlyout(FrameworkElement anchor)

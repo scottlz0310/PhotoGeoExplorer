@@ -134,6 +134,7 @@
       <a href="#preview">Preview</a>
       <a href="#map">Map</a>
       <a href="#places">Places</a>
+      <a href="#export">Export</a>
       <a href="#selection">Multi-Select</a>
       <a href="#exif">EXIF Editing</a>
       <a href="#settings">Settings</a>
@@ -259,6 +260,18 @@
       </ul>
     </section>
 
+    <section id="export">
+      <h2>Export (with Location Data)</h2>
+      <ul>
+        <li>Select photos in the file list, then use File &gt; Export or Export in the right-click menu of the file list. The original photos are never changed. Selecting a node in the Places pane selects the photos of that place, so you can export them right away.</li>
+        <li><strong>List with locations (CSV)</strong>: saves the file name, prefecture, city, town, key code, latitude, longitude, date taken, and status as a CSV (UTF-8 with BOM) that Excel opens as it is. For photos without a town name, the address columns are blank and the status says No area data, No location, or Water.</li>
+        <li><strong>Copy to town-name folders</strong>: creates city &gt; town folders under the destination and copies the photos into them. Photos without a town name go to the Water (no address), No area data, and No location folders.</li>
+        <li><strong>Copy with date and town names</strong>: copies the photos to the destination with names such as "20240102_Higashi-hinjicho_001.jpg" (date taken, town name, sequence number).</li>
+        <li>When a file with the same name already exists at the destination, you can choose Overwrite, Skip, or Cancel (or Overwrite all / Skip all).</li>
+        <li>While exporting, the progress is shown in the status bar and Cancel stops it. When it ends, the numbers of copied, skipped, and failed photos are shown.</li>
+        <li>To determine town names, import the area data of the prefectures under Area data (town names) in Settings (photos of prefectures that are not imported are put in No area data).</li>
+      </ul>
+    </section>
     <section id="selection">
       <h2>Multi-Select &amp; Rectangle Selection</h2>
       <ul>
