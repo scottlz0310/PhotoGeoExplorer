@@ -41,7 +41,10 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
     private readonly PhotoGeoRecordLoader _recordLoader;
     private readonly IGeoExportService _exportService;
     private readonly IGeoExportUi _ui;
+    private readonly PhotoRoadNameResolver? _roadNameResolver;
+    private readonly Func<bool>? _suggestRoadNames;
     private CancellationTokenSource? _cancellation;
+    private RoadNameLookup? _roadNames;
     private bool _isBusy;
     private string _progressText = string.Empty;
 
@@ -49,12 +52,16 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         WorkspaceState workspaceState,
         PhotoGeoRecordLoader recordLoader,
         IGeoExportService exportService,
-        IGeoExportUi ui)
+        IGeoExportUi ui,
+        PhotoRoadNameResolver? roadNameResolver = null,
+        Func<bool>? suggestRoadNames = null)
     {
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         _recordLoader = recordLoader ?? throw new ArgumentNullException(nameof(recordLoader));
         _exportService = exportService ?? throw new ArgumentNullException(nameof(exportService));
         _ui = ui ?? throw new ArgumentNullException(nameof(ui));
+        _roadNameResolver = roadNameResolver;
+        _suggestRoadNames = suggestRoadNames;
         ExportCsvCommand = new RelayCommand(ExportCsvAsync, CanExport);
         CopyByAreaCommand = new RelayCommand(CopyByAreaAsync, CanExport);
         ExportRenamedCommand = new RelayCommand(ExportRenamedAsync, CanExport);
@@ -109,7 +116,7 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
     }
 
     /// <summary>
-    /// 台帳用の CSV を書き出す（ファイル名・字地名・緯度経度・撮影日時）
+    /// 台帳用の CSV を書き出す（ファイル名・字地名・緯度経度・撮影日時・道路名）
     /// </summary>
     public async Task ExportCsvAsync()
     {
@@ -141,7 +148,7 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
                     return;
                 }
 
-                _ui.Notify(LocalizationService.Format("GeoExport.Message.CsvDone", records.Count, Path.GetFileName(file)), InfoBarSeverity.Success);
+                Notify(LocalizationService.Format("GeoExport.Message.CsvDone", records.Count, Path.GetFileName(file)), InfoBarSeverity.Success);
             }).ConfigureAwait(true);
     }
 
@@ -152,7 +159,7 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         => CopyAsync(records => ExportPlanBuilder.BuildFolderCopyPlan(records, BuildFolderNames()));
 
     /// <summary>
-    /// 選択した写真を、「{日付}_{字名}_{連番}」の名前でコピーする
+    /// 選択した写真を、「{日付}_{字名}_{道路名}_{連番}」の名前でコピーする
     /// </summary>
     public Task ExportRenamedAsync()
         => CopyAsync(records => ExportPlanBuilder.BuildRenamePlan(records, BuildRenameNames()));
@@ -189,25 +196,38 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
     {
         if (result.Canceled)
         {
-            _ui.Notify(
+            Notify(
                 LocalizationService.Format("GeoExport.Message.CopyCanceled", result.SuccessCount, result.SkipCount, result.FailureCount),
                 InfoBarSeverity.Warning);
         }
         else if (result.FailureCount > 0)
         {
-            _ui.Notify(
+            Notify(
                 LocalizationService.Format("GeoExport.Message.CopyFailed", result.SuccessCount, result.SkipCount, result.FailureCount),
                 InfoBarSeverity.Warning);
         }
         else
         {
-            _ui.Notify(
+            Notify(
                 LocalizationService.Format("GeoExport.Message.CopyDone", result.SuccessCount, result.SkipCount),
                 InfoBarSeverity.Success);
         }
     }
 
-    // 位置情報と字地名を読み、続きの処理（CSV の書き出し・コピー）へ渡す。読み込みのキャンセルと失敗は、ここで利用者へ伝える
+    // 道路名を取得できなかった写真があるときは、完了の通知に、そのことを添える（成功の通知は、警告にする）
+    private void Notify(string message, InfoBarSeverity severity)
+    {
+        if (_roadNames is { HasFailures: true })
+        {
+            message = $"{message} {LocalizationService.GetString("GeoExport.Message.RoadNameIncomplete")}";
+            severity = severity == InfoBarSeverity.Success ? InfoBarSeverity.Warning : severity;
+        }
+
+        _ui.Notify(message, severity);
+    }
+
+    // 位置情報・字地名・道路名を読み、続きの処理（CSV の書き出し・コピー）へ渡す。読み込みのキャンセルと失敗は、ここで利用者へ伝える。
+    // 道路名は、確定した値を読む。未確定の写真の第 1 候補は、設定の道路名表示がオンのときだけ、通信して求める
     private async Task RunAsync(
         List<string> paths,
         Func<IReadOnlyList<PhotoGeoRecord>, CancellationToken, Task> operation)
@@ -219,7 +239,8 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         try
         {
             var loadProgress = new Progress<int>(done => ProgressText = LocalizationService.Format("GeoExport.Progress.Loading", done, paths.Count));
-            var records = await _recordLoader.LoadAsync(paths, loadProgress, cancellation.Token).ConfigureAwait(true);
+            _roadNames = _roadNameResolver?.CreateLookup(_suggestRoadNames?.Invoke() ?? false);
+            var records = await _recordLoader.LoadAsync(paths, loadProgress, cancellation.Token, _roadNames).ConfigureAwait(true);
             await operation(records, cancellation.Token).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
@@ -235,6 +256,7 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         {
             ProgressText = string.Empty;
             IsBusy = false;
+            _roadNames = null;
             _cancellation = null;
             cancellation.Dispose();
         }
@@ -272,7 +294,9 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         LocalizationService.GetString("Places.Node.NoAreaData"),
         LocalizationService.GetString("Places.Node.NoLocation"),
         LocalizationService.GetString("Places.Node.Unnamed"),
-        LocalizationService.GetString("GeoExport.NoDate"));
+        LocalizationService.GetString("GeoExport.NoDate"),
+        LocalizationService.GetString("GeoExport.NoRoad"),
+        FormatRouteNumber);
 
     private static GeoCsvLabels BuildCsvLabels() => new(
         LocalizationService.GetString("GeoExport.Csv.FileName"),
@@ -287,5 +311,13 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         LocalizationService.GetString("GeoExport.Csv.StatusResolved"),
         LocalizationService.GetString("GeoExport.Csv.StatusWater"),
         LocalizationService.GetString("GeoExport.Csv.StatusNoAreaData"),
-        LocalizationService.GetString("GeoExport.Csv.StatusNoLocation"));
+        LocalizationService.GetString("GeoExport.Csv.StatusNoLocation"),
+        LocalizationService.GetString("GeoExport.Csv.RoadName"),
+        LocalizationService.GetString("GeoExport.Csv.RoadNameStatus"),
+        LocalizationService.GetString("GeoExport.Csv.RoadStatusConfirmed"),
+        LocalizationService.GetString("GeoExport.Csv.RoadStatusCandidate"),
+        LocalizationService.GetString("GeoExport.Csv.RoadStatusNone"),
+        FormatRouteNumber);
+
+    private static string FormatRouteNumber(string route) => LocalizationService.Format("RoadName.RouteNumber", route);
 }

@@ -167,7 +167,7 @@
                 <li><strong>最寄り道路名（既定で有効。オフにできます）:</strong> 地図ヘッダーに最寄りの道路名（候補）を表示するために、OpenFreeMap
                     のサーバーから道路のタイルを取得します。リクエストに含まれるのは、撮影地点を含むタイルの番号（ズーム 14。約 2 km
                     四方で、地点が縁に近いときは隣のタイルも）と、本アプリの名称・版・連絡先（User-Agent）です。<strong>写真や緯度経度そのものは送信しません</strong>が、タイルの番号から、撮影地点を含む約
-                    2 km 四方の範囲は分かります。設定の「最寄り道路名（候補）を表示」をオフにすると、この通信は行いません。</li>
+                    2 km 四方の範囲は分かります。設定の「最寄り道路名（候補）を表示」をオフにすると、この通信は行いません。位置情報つきの書き出し（CSV・リネームしてコピー）で、未確定の写真の道路名の候補を求めるときも、同じ設定がオンのときだけ、同じ内容（タイルの番号と User-Agent）を送ります。</li>
                 <li><strong>更新チェック:</strong> 新バージョン確認のため、GitHub Releases を参照します。これらのリクエストに個人情報や写真データは含めません。</li>
             </ul>
             <p>
@@ -294,7 +294,7 @@
             <ul>
                 <li><strong>Map tiles:</strong> Map tiles are fetched from OpenStreetMap or Esri WorldImagery servers. These requests do not include personal information.</li>
                 <li><strong>Mapbox Satellite (optional):</strong> Only when you set your own access token and select Mapbox Satellite, map tiles are fetched from Mapbox servers. These requests include the tile coordinates of the displayed area and your access token. Photo data is not sent.</li>
-                <li><strong>Nearest road name (enabled by default; can be turned off):</strong> To show the nearest road name (a suggestion) in the map header, road tiles are fetched from OpenFreeMap servers. A request contains only the number of the tile that contains the photo location (a zoom-14 tile, about 2 km square; adjacent tiles when the location is near the edge) and the App's name, version, and contact address (User-Agent). <strong>Photos and the latitude and longitude themselves are not sent</strong>, but the tile number reveals the area of about 2 km square around the photo location. Turn off "Show nearest road name (suggestion)" in Settings to stop these requests.</li>
+                <li><strong>Nearest road name (enabled by default; can be turned off):</strong> To show the nearest road name (a suggestion) in the map header, road tiles are fetched from OpenFreeMap servers. A request contains only the number of the tile that contains the photo location (a zoom-14 tile, about 2 km square; adjacent tiles when the location is near the edge) and the App's name, version, and contact address (User-Agent). <strong>Photos and the latitude and longitude themselves are not sent</strong>, but the tile number reveals the area of about 2 km square around the photo location. Turn off "Show nearest road name (suggestion)" in Settings to stop these requests. When you export photos with location data (CSV, or copy with new names), the same requests are made, with the same content (tile numbers and User-Agent), only while that setting is on, to find the candidates for photos whose road name is not confirmed.</li>
                 <li><strong>Update checks:</strong> GitHub Releases are queried for new versions. These requests do not include personal information or photo data.</li>
             </ul>
             <p>

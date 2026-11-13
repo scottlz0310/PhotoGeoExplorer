@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -67,6 +68,74 @@ public class GeoExportViewModelTests
     }
 
     [Fact]
+    public async Task ExportCsvAsyncIncludesAConfirmedRoadNameWithoutFetchingCandidates()
+    {
+        using var fixture = new Fixture { CsvPath = "/out/list.csv" };
+        fixture.RoadStore.Items["/p/a.jpg"] = new ConfirmedRoadName("丸山通", null);
+        fixture.SuggestRoadNames = false;
+        fixture.Select("/p/a.jpg", "/p/b.jpg");
+
+        await fixture.ViewModel.ExportCsvAsync().ConfigureAwait(true);
+
+        // 設定がオフなら通信しない。確定した写真だけに、道路名が付く
+        var roads = fixture.Service.CsvRecords.ToDictionary(record => record.FilePath, record => record.Road);
+        Assert.Equal(new RoadNameInfo(RoadNameStatus.Confirmed, "丸山通", null), roads["/p/a.jpg"]);
+        Assert.Null(roads["/p/b.jpg"]);
+        Assert.Equal(0, fixture.RoadSuggester.CallCount);
+        Assert.Equal(("GeoExport.Message.CsvDone", InfoBarSeverity.Success), Assert.Single(fixture.Ui.Notifications));
+    }
+
+    [Fact]
+    public async Task ExportCsvAsyncFetchesTheFirstCandidateOnlyWhenRoadNamesAreEnabled()
+    {
+        using var fixture = new Fixture { CsvPath = "/out/list.csv" };
+        fixture.RoadStore.Items["/p/a.jpg"] = new ConfirmedRoadName("丸山通", null);
+        fixture.SuggestRoadNames = true;
+        fixture.Select("/p/a.jpg", "/p/b.jpg");
+
+        await fixture.ViewModel.ExportCsvAsync().ConfigureAwait(true);
+
+        // 確定した写真は確定値を優先し、未確定の写真だけが第 1 候補を取る
+        var roads = fixture.Service.CsvRecords.ToDictionary(record => record.FilePath, record => record.Road);
+        Assert.Equal(new RoadNameInfo(RoadNameStatus.Confirmed, "丸山通", null), roads["/p/a.jpg"]);
+        Assert.Equal(new RoadNameInfo(RoadNameStatus.Candidate, "山の手通り", "203"), roads["/p/b.jpg"]);
+        Assert.Equal(1, fixture.RoadSuggester.CallCount);
+    }
+
+    [Fact]
+    public async Task ExportCsvAsyncTellsTheUserWhenSomeRoadNamesCouldNotBeObtained()
+    {
+        using var fixture = new Fixture { CsvPath = "/out/list.csv" };
+        fixture.SuggestRoadNames = true;
+        fixture.RoadSuggester.Failure = new HttpRequestException("offline");
+        fixture.Select("/p/a.jpg", "/p/b.jpg");
+
+        await fixture.ViewModel.ExportCsvAsync().ConfigureAwait(true);
+
+        // 書き出しは続け、道路名は空にする。完了の通知に、そのことを添えて、警告にする
+        Assert.All(fixture.Service.CsvRecords, record => Assert.Null(record.Road));
+        var (message, severity) = Assert.Single(fixture.Ui.Notifications);
+        Assert.Contains("GeoExport.Message.CsvDone", message, StringComparison.Ordinal);
+        Assert.Contains("GeoExport.Message.RoadNameIncomplete", message, StringComparison.Ordinal);
+        Assert.Equal(InfoBarSeverity.Warning, severity);
+    }
+
+    [Fact]
+    public async Task ExportRenamedAsyncUsesAConfirmedRoadNameInTheFileName()
+    {
+        using var fixture = new Fixture { Folder = "/dest" };
+        fixture.RoadStore.Items["/p/a.jpg"] = new ConfirmedRoadName("丸山通", null);
+        fixture.Select("/p/a.jpg", "/p/b.jpg");
+
+        await fixture.ViewModel.ExportRenamedAsync().ConfigureAwait(true);
+
+        // 候補は、ファイル名には入れない（確定した値と見分けられないため）
+        var names = fixture.Service.CopyPlan.ToDictionary(item => item.SourcePath, item => item.RelativePath);
+        Assert.Equal("20240102_東品治町_丸山通_001.jpg", names["/p/a.jpg"]);
+        Assert.Equal("20240102_東品治町_GeoExport.NoRoad_001.jpg", names["/p/b.jpg"]);
+    }
+
+    [Fact]
     public async Task CopyByAreaAsyncCopiesToTownFoldersOfTheChosenDestination()
     {
         using var fixture = new Fixture { Folder = "/dest" };
@@ -89,7 +158,7 @@ public class GeoExportViewModelTests
 
         await fixture.ViewModel.ExportRenamedAsync().ConfigureAwait(true);
 
-        Assert.Equal("20240102_東品治町_001.JPG", Assert.Single(fixture.Service.CopyPlan).RelativePath);
+        Assert.Equal("20240102_東品治町_GeoExport.NoRoad_001.JPG", Assert.Single(fixture.Service.CopyPlan).RelativePath);
     }
 
     [Fact]
@@ -271,8 +340,17 @@ public class GeoExportViewModelTests
                 Workspace,
                 new PhotoGeoRecordLoader(Reader.ReadAsync, Resolver),
                 Service,
-                Ui));
+                Ui,
+                new PhotoRoadNameResolver(RoadStore, RoadSuggester, _ => 1000L),
+                () => SuggestRoadNames));
         }
+
+        public FakeRoadStore RoadStore { get; } = new();
+
+        public FakeRoadSuggester RoadSuggester { get; } = new();
+
+        // 設定の道路名表示（オンのときだけ、未確定の写真の道路名の候補を通信して求める）
+        public bool SuggestRoadNames { get; set; }
 
         public WorkspaceState Workspace { get; } = new();
 
@@ -317,6 +395,35 @@ public class GeoExportViewModelTests
             {
                 _viewModel.Value.Dispose();
             }
+        }
+    }
+
+    private sealed class FakeRoadStore : IRoadNameConfirmationStore
+    {
+        public Dictionary<string, ConfirmedRoadName> Items { get; } = new();
+
+        public Task<ConfirmedRoadName?> FindAsync(PhotoIdentity photo, CancellationToken cancellationToken)
+            => Task.FromResult(Items.TryGetValue(photo.FilePath, out var road) && photo.FileSize == 1000 && photo.TakenAt == TakenAt ? road : null);
+
+        public Task SaveAsync(PhotoIdentity photo, ConfirmedRoadName road, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task RemoveAsync(string filePath, CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class FakeRoadSuggester : IRoadNameSuggester
+    {
+        private int _callCount;
+
+        public int CallCount => Volatile.Read(ref _callCount);
+
+        public IReadOnlyList<RoadNameCandidate> Result { get; set; } = new[] { new RoadNameCandidate("山の手通り", "203", 12) };
+
+        public Exception? Failure { get; set; }
+
+        public Task<IReadOnlyList<RoadNameCandidate>> SuggestAsync(double latitude, double longitude, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _callCount);
+            return Failure is not null ? Task.FromException<IReadOnlyList<RoadNameCandidate>>(Failure) : Task.FromResult(Result);
         }
     }
 

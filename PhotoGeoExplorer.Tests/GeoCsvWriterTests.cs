@@ -13,7 +13,8 @@ public class GeoCsvWriterTests
 {
     private static readonly GeoCsvLabels Labels = new(
         "ファイル名", "都道府県", "市区町村", "町丁字", "キーコード", "緯度", "経度", "撮影日時", "判定",
-        "判定済み", "水面", "地域データなし", "位置情報なし");
+        "判定済み", "水面", "地域データなし", "位置情報なし",
+        "道路名", "道路名の区分", "確定", "候補", "なし", route => $"路線番号 {route}");
 
     private static readonly AreaName Higashi = new("312010870", "鳥取県", "鳥取市", "東品治町", SnappedToNearest: false, CensusYear: 2020);
 
@@ -40,8 +41,8 @@ public class GeoCsvWriterTests
         ]);
 
         Assert.Equal(
-            "ファイル名,都道府県,市区町村,町丁字,キーコード,緯度,経度,撮影日時,判定\r\n" +
-            "IMG_0001.jpg,鳥取県,鳥取市,東品治町,312010870,35.494300,134.225000,2024-01-02 03:04:05,判定済み\r\n",
+            "ファイル名,都道府県,市区町村,町丁字,キーコード,緯度,経度,撮影日時,判定,道路名,道路名の区分\r\n" +
+            "IMG_0001.jpg,鳥取県,鳥取市,東品治町,312010870,35.494300,134.225000,2024-01-02 03:04:05,判定済み,,なし\r\n",
             text);
     }
 
@@ -61,9 +62,33 @@ public class GeoCsvWriterTests
         ]);
 
         var rows = text.Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Skip(1).ToList();
-        Assert.Equal("nodata.jpg,,,,,35.680000,139.760000,,地域データなし", rows[0]);
-        Assert.Equal("nogps.jpg,,,,,,,,位置情報なし", rows[1]);
-        Assert.Equal("sea.jpg,,,,,35.800000,134.200000,,水面", rows[2]);
+        Assert.Equal("nodata.jpg,,,,,35.680000,139.760000,,地域データなし,,なし", rows[0]);
+        Assert.Equal("nogps.jpg,,,,,,,,位置情報なし,,なし", rows[1]);
+        Assert.Equal("sea.jpg,,,,,35.800000,134.200000,,水面,,なし", rows[2]);
+    }
+
+    [Theory]
+    [InlineData(true, "山の手通り", "203", "山の手通り,確定")]
+    [InlineData(false, "山の手通り", "203", "山の手通り,候補")]
+    [InlineData(true, null, "203", "路線番号 203,確定")]
+    [InlineData(false, null, "53・373", "路線番号 53・373,候補")]
+    [InlineData(false, "丸山通", null, "丸山通,候補")]
+    public void WriteAppendsTheRoadNameAndItsStatusAtTheEnd(bool confirmed, string? name, string? route, string expectedTail)
+    {
+        var text = WriteText([new PhotoGeoRecord("/src/a.jpg", null, new PhotoCoordinate(35, 134), PhotoAreaKind.Resolved, Higashi, new RoadNameInfo(confirmed ? RoadNameStatus.Confirmed : RoadNameStatus.Candidate, name, route))]);
+
+        // 既存の列の位置は変えない。道路名の 2 列は、末尾に足す
+        var row = text.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)[1];
+        Assert.StartsWith("a.jpg,鳥取県,鳥取市,東品治町,312010870,35.000000,134.000000,,判定済み,", row, StringComparison.Ordinal);
+        Assert.EndsWith(expectedTail, row, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteNeutralizesARoadNameThatCouldBeReadAsAFormula()
+    {
+        var text = WriteText([new PhotoGeoRecord("/src/a.jpg", null, null, PhotoAreaKind.NoLocation, null, new RoadNameInfo(RoadNameStatus.Confirmed, "=HYPERLINK(1)", null))]);
+
+        Assert.Contains(",'=HYPERLINK(1),確定", text, StringComparison.Ordinal);
     }
 
     [Theory]

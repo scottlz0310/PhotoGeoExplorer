@@ -268,7 +268,7 @@ public sealed class GeoExportServiceTests : IDisposable
     public async Task WriteCsvAsyncWritesAFileWithABom()
     {
         var path = Path.Combine(_root, "out.csv");
-        var labels = new GeoCsvLabels("F", "P", "C", "T", "K", "La", "Lo", "D", "S", "R", "W", "N", "L");
+        var labels = new GeoCsvLabels("F", "P", "C", "T", "K", "La", "Lo", "D", "S", "R", "W", "N", "L", "RN", "RS", "RC", "RD", "RX", route => route);
 
         await _service.WriteCsvAsync(
             path,
@@ -286,7 +286,7 @@ public sealed class GeoExportServiceTests : IDisposable
     {
         var path = Path.Combine(_root, "out.csv");
         await File.WriteAllTextAsync(path, "old content that is much longer than the new header line should be").ConfigureAwait(true);
-        var labels = new GeoCsvLabels("F", "P", "C", "T", "K", "La", "Lo", "D", "S", "R", "W", "N", "L");
+        var labels = new GeoCsvLabels("F", "P", "C", "T", "K", "La", "Lo", "D", "S", "R", "W", "N", "L", "RN", "RS", "RC", "RD", "RX", route => route);
 
         await _service.WriteCsvAsync(path, [], labels, CancellationToken.None).ConfigureAwait(true);
 

@@ -30,12 +30,14 @@ internal sealed class PhotoGeoRecordLoader
     }
 
     /// <param name="progress">写真 1 枚ごとに、読み終えた枚数を通知する</param>
+    /// <param name="roadNames">道路名を取得する（この回の分）。null なら、道路名は取得しない</param>
     /// <exception cref="OperationCanceledException">キャンセルされた</exception>
     /// <exception cref="IOException">地域データを読めなかった</exception>
     public async Task<IReadOnlyList<PhotoGeoRecord>> LoadAsync(
         IReadOnlyList<string> filePaths,
         IProgress<int>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        RoadNameLookup? roadNames = null)
     {
         ArgumentNullException.ThrowIfNull(filePaths);
 
@@ -51,14 +53,14 @@ internal sealed class PhotoGeoRecordLoader
             options,
             async (index, token) =>
             {
-                records[index] = await LoadOneAsync(filePaths[index], token).ConfigureAwait(false);
+                records[index] = await LoadOneAsync(filePaths[index], roadNames, token).ConfigureAwait(false);
                 progress?.Report(Interlocked.Increment(ref completed));
             }).ConfigureAwait(false);
 
         return records;
     }
 
-    private async Task<PhotoGeoRecord> LoadOneAsync(string filePath, CancellationToken cancellationToken)
+    private async Task<PhotoGeoRecord> LoadOneAsync(string filePath, RoadNameLookup? roadNames, CancellationToken cancellationToken)
     {
         // 読めない写真は、位置情報なしとして扱う（理由は、メタデータを読む側がログに残す）
         var metadata = await _readMetadata(filePath, cancellationToken).ConfigureAwait(false);
@@ -69,8 +71,11 @@ internal sealed class PhotoGeoRecordLoader
 
         var coordinate = new PhotoCoordinate(latitude, longitude);
         var area = await _areaNameResolver.ResolveAsync(latitude, longitude, cancellationToken).ConfigureAwait(false);
+        var road = roadNames is null
+            ? null
+            : await roadNames.ResolveAsync(filePath, metadata.TakenAt, coordinate, cancellationToken).ConfigureAwait(false);
         return area is null
-            ? new PhotoGeoRecord(filePath, metadata.TakenAt, coordinate, PhotoAreaKind.NoAreaData, null)
-            : new PhotoGeoRecord(filePath, metadata.TakenAt, coordinate, PhotoAreaKind.Resolved, area);
+            ? new PhotoGeoRecord(filePath, metadata.TakenAt, coordinate, PhotoAreaKind.NoAreaData, null, road)
+            : new PhotoGeoRecord(filePath, metadata.TakenAt, coordinate, PhotoAreaKind.Resolved, area, road);
     }
 }
