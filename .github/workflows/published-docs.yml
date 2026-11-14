@@ -1,0 +1,38 @@
+# 公開サイト（Cloudflare Pages）が main の docs と同じ内容かを監視する（読み取りのみ。デプロイは Cloudflare の Git 連携が行う）。
+# Cloudflare 側の自動デプロイが止まっても GitHub のチェックは赤くならず、古い内容が公開され続けるため。
+
+name: Published Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "scripts/PublishedDocs.psm1"
+      - "scripts/Test-PublishedDocs.ps1"
+      - ".github/workflows/published-docs.yml"
+  schedule:
+    # 毎日 03:17 JST。Cloudflare 側の変化（プロジェクトの削除・連携の失効）を、docs を変えなくても検知する。
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: published-docs
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # push の直後はデプロイ中なので、最大 10 分（1 分おき）待つ。定期実行は通信の一時的な失敗に備える程度。
+      - name: Verify the published site matches docs
+        shell: pwsh
+        run: |
+          $timeout = if ('${{ github.event_name }}' -eq 'push') { 600 } else { 120 }
+          ./scripts/Test-PublishedDocs.ps1 -TimeoutSeconds $timeout -IntervalSeconds 60
