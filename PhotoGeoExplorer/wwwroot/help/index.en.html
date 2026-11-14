@@ -119,6 +119,8 @@
       <a href="#search-filter">Search &amp; View</a>
       <a href="#preview">Preview</a>
       <a href="#map">Map</a>
+      <a href="#places">Places</a>
+      <a href="#export">Export</a>
       <a href="#selection">Multi-Select</a>
       <a href="#exif">EXIF Editing</a>
       <a href="#settings">Settings</a>
@@ -172,6 +174,19 @@
         <li><span class="tag">Right Top</span> Preview: inspect the selected photo.</li>
         <li><span class="tag">Right Bottom</span> Map: view and interact with location pins.</li>
         <li><span class="tag">Bottom</span> Status Bar: item counts, selection, and GPS status.</li>
+        <li><span class="tag">Optional</span> Places: a tree that groups the photos of the current folder by the town name where they were taken (not shown by default; see Places).</li>
+      </ul>
+    </section>
+
+    <section id="places">
+      <h2>Browsing by Town Name</h2>
+      <ul>
+        <li>Under Layout in Settings, set the view of any region to Places to show a tree that groups the photos of the current folder by city and town (only three views fit at once, so swap it with the preview or the map).</li>
+        <li>Selecting a node selects the matching photos in the file list, and the map and preview follow that selection. Files and folders are never moved or changed.</li>
+        <li>"Water (no address)" is for places without an address such as the sea or lakes, "No area data" is for photos that have a location but no town name could be determined (a prefecture whose data is not imported, outside Japan, and so on), and "No location" is for photos without GPS.</li>
+        <li>To determine town names, import the area data of the prefectures under Area data (town names) in Settings (see Settings). Importing or deleting the data updates the tree automatically.</li>
+        <li>The locations of the photos have to be read, so a folder with many photos takes a while. Progress is shown while it runs, and Cancel stops it. Nothing is looked up while the Places pane is not shown.</li>
+        <li>Only the photos of the current folder shown in the file list are included (subfolders are not).</li>
       </ul>
     </section>
 
@@ -226,9 +241,27 @@
         <li>Mapbox usage and charges are billed to the account that issued the token. See the <a href="https://www.mapbox.com/pricing" target="_blank" rel="noopener noreferrer">Mapbox pricing page</a> (Raster Tiles API) for the free tier and rates. URL-restricted tokens may not work from a desktop app.</li>
         <li>If Mapbox Satellite is selected but no token is set, OpenStreetMap is shown and a notice appears at the top left of the map.</li>
         <li>The map provider attribution is shown at the bottom right of the map. While Mapbox Satellite is displayed, the Mapbox logo is also shown at the bottom left. Both are included in saved map images.</li>
+        <li>When you select a single photo, the address (town name), the nearest road name (a suggestion), and the latitude/longitude of its location are shown to the right of the map title. Click the latitude/longitude to copy it. Choose the items to show from the right-click menu of the header or under Map in Settings.</li>
+        <li>The address appears once you import the data for the prefecture under Area data (town names) in Settings (see Settings below). Point at the address to see the small-area code and the census year. When the photo location is outside every small-area boundary, the nearest area within 30 m is shown and the tooltip says so. No address is shown over water such as the sea or lakes.</li>
+        <li>The nearest road name (a suggestion) is found by looking up to 3 roads within 50 m of the photo location, nearest first; the name of the nearest one is shown ("(+1)" is the number of other candidates). Click the road name to open the list of candidates (name, route number, distance); point at it to see the distance. The nearest road is not necessarily the road that was photographed, so it is a suggestion, not a fact. The type of road (national route, prefectural road, and so on) is never guessed: a national route is shown by its name (such as "国道53号"), and a road without a name is shown as "Route 203". Footpaths such as station platforms are not included.</li>
+        <li>Press "Confirm" in the list of road candidates to confirm one as that photo's road name (a confirmed photo shows "✓ road name"; "Clear" in the list undoes it). The confirmation is not written to the photo file; it is saved on your device at <code>%LocalAppData%\PhotoGeoExplorer\road-name-confirmations.json</code> and is never sent anywhere. Moving or renaming a photo removes its confirmation.</li>
+        <li>To find the nearest road name, road tiles are fetched from OpenFreeMap. Only the tile number (about 2 km square) is sent; the photo and its latitude/longitude themselves are not. If you do not want this connection, turn off "Show nearest road name (suggestion)" under Map in Settings (see the Privacy Policy). Fetched tiles are cached on your device; offline, only cached tiles are used.</li>
       </ul>
     </section>
 
+    <section id="export">
+      <h2>Export (with Location Data)</h2>
+      <ul>
+        <li>Select photos in the file list, then use File &gt; Export or Export in the right-click menu of the file list. The original photos are never changed. Selecting a node in the Places pane selects the photos of that place, so you can export them right away.</li>
+        <li><strong>List with locations (CSV)</strong>: saves the file name, prefecture, city, town, key code, latitude, longitude, date taken, status, road name, and road name status as a CSV (UTF-8 with BOM) that Excel opens as it is. The road name status is Confirmed (the road name you confirmed in the list of road candidates), Candidate (the first nearest-road candidate of a photo that is not confirmed), or None; the new columns are added at the end, so the positions of the existing columns do not change. For photos without a town name, the address columns are blank and the status says No area data, No location, or Water.</li>
+        <li><strong>Copy to town-name folders</strong>: creates city &gt; town folders under the destination and copies the photos into them. Photos without a town name go to the Water (no address), No area data, and No location folders.</li>
+        <li><strong>Copy with date, town and road names</strong>: copies the photos to the destination with names such as "20240102_Higashi-hinjicho_Yamanote-dori_001.jpg" (date taken, town name, road name, sequence number). Only a confirmed road name is used; photos that are not confirmed get "No road name" (a candidate cannot be told apart from a confirmed value, so it is not put in the file name).</li>
+        <li>Road name candidates are fetched from OpenFreeMap (road tiles) at export time only while "Show nearest road name (suggestion)" under Settings is on (the same setting and connection as the map header). When it is off, nothing is sent and only confirmed road names are written. The road name of a photo that could not be fetched is left empty, and the completion message says so.</li>
+        <li>When a file with the same name already exists at the destination, you can choose Overwrite, Skip, or Cancel (or Overwrite all / Skip all).</li>
+        <li>While exporting, the progress is shown in the status bar and Cancel stops it. When it ends, the numbers of copied, skipped, and failed photos are shown.</li>
+        <li>To determine town names, import the area data of the prefectures under Area data (town names) in Settings (photos of prefectures that are not imported are put in No area data).</li>
+      </ul>
+    </section>
     <section id="selection">
       <h2>Multi-Select &amp; Rectangle Selection</h2>
       <ul>
@@ -253,8 +286,18 @@
       <ul>
         <li>Switch language and theme (restart required after change).</li>
         <li>Change the default map zoom level and tile source.</li>
+        <li>Under Layout, choose the view of each region (File, Preview, Map, Places).</li>
         <li>Export and import settings.</li>
+        <li>Under Area data (town names), import or delete the data used to determine the address shown in the map header (see below).</li>
       </ul>
+      <h3>Importing area data (town names)</h3>
+      <ol>
+        <li>On the <a href="https://www.e-stat.go.jp/gis/statmap-search?type=2" target="_blank" rel="noopener noreferrer">boundary data download page of e-Stat (Portal Site of Official Statistics of Japan)</a>, choose Census, small area (town/block), 2020, JGD2011 latitude/longitude, Shape format, and download the ZIP of each prefecture you want.</li>
+        <li>Under Area data (town names) in Settings, choose Add ZIP... and select the downloaded ZIP. Data for the same prefecture is replaced.</li>
+        <li>Choose Delete in the list to remove data you no longer need.</li>
+      </ol>
+      <p>Imported data is stored at <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code>, and the address lookup runs on this device. The app does not download this data itself.</p>
+      <p class="note">Source: Portal Site of Official Statistics of Japan (e-Stat) (<a href="https://www.e-stat.go.jp/" target="_blank" rel="noopener noreferrer">https://www.e-stat.go.jp/</a>), "Census small area (town/block) boundary data" (Statistics Bureau, Ministry of Internal Affairs and Communications), processed by this app. This data was not created by the national government or the Ministry.</p>
     </section>
 
     <section id="support">
@@ -280,6 +323,7 @@
       <ul>
         <li>Photos and settings are processed locally and not uploaded.</li>
         <li>Map tiles are fetched from OpenStreetMap and Esri servers. When Mapbox Satellite is selected, tiles are fetched from Mapbox servers.</li>
+        <li>The address lookup uses the area data you imported, runs on this device, and does not send the photo location.</li>
         <li>See the privacy policy for details.</li>
       </ul>
       <p class="note">Privacy policy: <a href="https://photogeoexplorer.pages.dev/privacy-policy">https://photogeoexplorer.pages.dev/privacy-policy</a></p>
