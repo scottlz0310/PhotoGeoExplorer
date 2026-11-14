@@ -4,11 +4,21 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.9.3)
-- Fixed: The app no longer crashes when you change the selected photos in quick succession
-- Fixed: After you change the pane layout in Settings, the map keeps following the selected photo, and the Save map image button is no longer left disabled","リリースノート（v1.9.3）
-- 修正: 写真の選択を続けて切り替えると、アプリがクラッシュすることがある問題を修正
-- 修正: 設定でペインの配置を変更した後、地図が選択した写真に追従せず、地図画像の保存ボタンが無効のままになる問題を修正"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.10.0)
+- New: The map header shows the address (census town name; import the area data in Settings) and the nearest road name of the selected photo's location. You can confirm one road name per photo
+- New: Places pane: browse the photos of the current folder as a city > town tree
+- New: Export with location data: CSV, copy to town-name folders, and copy with date, town and road names
+- New: Mapbox Satellite background (uses your own public access token)
+- New: Map attribution is shown on the map and in the saved map image
+- Note: Nearest road names are looked up from OpenFreeMap (only tile numbers are sent). You can turn this off in Settings
+- Fixed: After cutting and pasting files, the folder no longer fails to refresh","リリースノート（v1.10.0）
+- 追加: 地図ヘッダーに、選択した写真の撮影位置の住所（国勢調査 字地名。設定で地域データの取り込みが必要）と最寄りの道路名を表示。道路名は写真ごとに 1 つ確定できます
+- 追加: 現在のフォルダーの写真を「市区町村 > 町丁・字」で束ねて見る「字地名」ペイン
+- 追加: 位置情報つきの書き出し（CSV、字地名別フォルダーへコピー、日付・字名・道路名でリネームしてコピー）
+- 追加: 背景地図に Mapbox 航空写真（ご自身の公開アクセストークンを設定して使います）
+- 追加: 地図の出典表示を、画面と保存した地図画像に表示
+- 注意: 最寄りの道路名は OpenFreeMap から取得します（送るのはタイルの番号だけ）。設定でオフにできます
+- 修正: ファイルを切り取って貼り付けたあと、フォルダーの再読み込みが中断されることがある問題を修正"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
@@ -321,10 +331,10 @@ Feature7,706,テキスト,,- Mapsui-based map rendering and offline tile cache,-
 Feature8,707,テキスト,,"- Settings persistence, language/theme switching, settings export/import",- 設定の永続化、言語/テーマ切替、設定のエクスポート/インポート
 Feature9,708,テキスト,,- File associations for .jpg/.jpeg/.png/.heic and launch with preview/map sync,- .jpg/.jpeg/.png/.heic のファイル関連付けと起動時のプレビュー/地図同期
 Feature10,709,テキスト,,- App log output to `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log`,- `%LocalAppData%\\PhotoGeoExplorer\\Logs\\app.log` へのアプリログ出力
-Feature11,710,テキスト,,,
-Feature12,711,テキスト,,,
-Feature13,712,テキスト,,,
-Feature14,713,テキスト,,,
+Feature11,710,テキスト,,"- Address (census town name) and nearest road name in the map header; confirm a road name per photo",- 地図ヘッダーに撮影位置の字地名（国勢調査 小地域）と最寄りの道路名を表示。道路名は写真ごとに確定可能
+Feature12,711,テキスト,,- Places pane: browse photos by city > town (virtual tree),- 字地名ペイン: 市区町村 > 町丁・字で写真を束ねて閲覧
+Feature13,712,テキスト,,"- Export with location data: CSV, copy to town-name folders, copy with date/town/road names","- 位置情報つきの書き出し: CSV、字地名別フォルダーへコピー、日付・字名・道路名でリネームしてコピー"
+Feature14,713,テキスト,,- Mapbox Satellite background (bring your own public token),- Mapbox 航空写真の背景（ご自身の公開トークンを使用）
 Feature15,714,テキスト,,,
 Feature16,715,テキスト,,,
 Feature17,716,テキスト,,,
