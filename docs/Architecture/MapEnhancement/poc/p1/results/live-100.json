@@ -1,0 +1,62 @@
+{
+  "rasterizationScale": 1,
+  "xamlRasterizationScale": 1,
+  "mapsuiPixelDensity": 1,
+  "windowDpi": 96,
+  "controlDip": [
+    683,
+    610
+  ],
+  "skiaSharp": "4.156.0.0",
+  "results": [
+    {
+      "step": "update-image",
+      "zoom": 17.4,
+      "widthPx": 683,
+      "heightPx": 610,
+      "renderMs": 118.7
+    },
+    {
+      "step": "static",
+      "marks": 6,
+      "maxCrossErrorPx": 0.616,
+      "maxMarkerErrorPx": 0.016,
+      "capture": "%TEMP%\\pge-bench\\p1-live-final-100\\live-d1.00-static.png"
+    },
+    {
+      "step": "stale-pan(\u002B50,\u002B30)",
+      "marks": 6,
+      "maxCrossErrorPx": 0.873,
+      "maxMarkerErrorPx": 0.064,
+      "capture": "%TEMP%\\pge-bench\\p1-live-final-100\\live-d1.00-stale-pan_p50_p30_.png"
+    },
+    {
+      "step": "stale-zoom-in(\u002B0.5)",
+      "marks": 6,
+      "maxCrossErrorPx": 0.483,
+      "maxMarkerErrorPx": 0.072,
+      "capture": "%TEMP%\\pge-bench\\p1-live-final-100\\live-d1.00-stale-zoom-in_p0.5_.png"
+    },
+    {
+      "step": "stale-zoom-out(-0.6)",
+      "marks": 6,
+      "maxCrossErrorPx": 1.795,
+      "maxMarkerErrorPx": 0.416,
+      "capture": "%TEMP%\\pge-bench\\p1-live-final-100\\live-d1.00-stale-zoom-out_-0.6_.png"
+    },
+    {
+      "step": "update-image",
+      "zoom": 17.9,
+      "widthPx": 683,
+      "heightPx": 610,
+      "renderMs": 37.1
+    },
+    {
+      "step": "fractional-z17.9",
+      "marks": 6,
+      "maxCrossErrorPx": 0.191,
+      "maxMarkerErrorPx": 0.064,
+      "capture": "%TEMP%\\pge-bench\\p1-live-final-100\\live-d1.00-fractional-z17.9.png"
+    }
+  ]
+}
