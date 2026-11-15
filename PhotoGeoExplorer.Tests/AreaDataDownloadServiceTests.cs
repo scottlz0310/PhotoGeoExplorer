@@ -270,6 +270,54 @@ public sealed class AreaDataDownloadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DownloadAsyncReportsAStalledBodyAsANetworkErrorAndLeavesNoFile()
+    {
+        // HttpClient.Timeout は本文の受信（ResponseHeadersRead 後）には効かない。無通信が続いたら打ち切る
+        var store = new FakeAreaDataStore();
+        var handler = Stub((_, _) =>
+        {
+            var content = new StreamContent(new BlockingStream(ArchiveBytes, new TaskCompletionSource()));
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/zip");
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+        });
+        var service = CreateService(handler, store, idleTimeout: TimeSpan.FromMilliseconds(200));
+
+        var exception = await Assert.ThrowsAsync<AreaDataDownloadException>(
+            () => service.DownloadAsync("31", null, CancellationToken.None)).ConfigureAwait(true);
+
+        Assert.Equal(AreaDataDownloadError.Network, exception.Error);
+        Assert.Empty(store.ImportedArchives);
+        AssertNoTemporaryFiles();
+    }
+
+    [Fact]
+    public async Task DownloadAsyncReportsAServerThatNeverRespondsAsANetworkError()
+    {
+        var store = new FakeAreaDataStore();
+        var handler = Stub(async (_, cancellationToken) =>
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        var service = CreateService(handler, store, idleTimeout: TimeSpan.FromMilliseconds(200));
+
+        var exception = await Assert.ThrowsAsync<AreaDataDownloadException>(
+            () => service.DownloadAsync("31", null, CancellationToken.None)).ConfigureAwait(true);
+
+        Assert.Equal(AreaDataDownloadError.Network, exception.Error);
+        Assert.Empty(store.ImportedArchives);
+        AssertNoTemporaryFiles();
+    }
+
+    [Fact]
+    public void ConstructorRejectsANonPositiveIdleTimeout()
+    {
+        using var client = new HttpClient();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => new AreaDataDownloadService(client, new FakeAreaDataStore(), idleTimeout: TimeSpan.Zero));
+    }
+
+    [Fact]
     public async Task DownloadAsyncStartsTheImportOnTheCallersSynchronizationContext()
     {
         // 取り込みの完了通知（DataChanged）は、取り込みを呼んだ側のコンテキストで発火する。UI スレッドで呼べば、住所の更新も UI スレッドで走る
@@ -318,11 +366,15 @@ public sealed class AreaDataDownloadServiceTests : IDisposable
         return handler;
     }
 
-    private AreaDataDownloadService CreateService(StubHandler handler, FakeAreaDataStore store, long maxDownloadBytes = AreaDataDownloadService.DefaultMaxDownloadBytes)
+    private AreaDataDownloadService CreateService(
+        StubHandler handler,
+        FakeAreaDataStore store,
+        long maxDownloadBytes = AreaDataDownloadService.DefaultMaxDownloadBytes,
+        TimeSpan? idleTimeout = null)
     {
         var client = new HttpClient(handler, disposeHandler: false);
         _disposables.Add(client);
-        return new(client, store, Path.Combine(_directory, "tmp"), maxDownloadBytes);
+        return new(client, store, Path.Combine(_directory, "tmp"), maxDownloadBytes, idleTimeout: idleTimeout);
     }
 
     private void AssertNoTemporaryFiles()

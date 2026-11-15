@@ -13,6 +13,7 @@ using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.AreaNames;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Xunit;
@@ -687,6 +688,81 @@ public class MapPaneViewModelTests
         }
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public async Task UpdateMarkersFromSelectionAsyncDoesNotStartAreaDataAcquisitionForASelectionThatChangedWhileResolving(int nextSelectionCount)
+    {
+        // Arrange: 住所の解決を保留したまま、選択を解除（0 件）・複数選択（2 件）へ変える
+        var service = new ControlledLoadMapPaneService();
+        var resolver = new PendingAreaNameResolver();
+        var detector = new RecordingNeedDetector();
+        var acquisition = new AreaDataAcquisitionViewModel(detector, new UnusedDownloader(), (_, _) => Task.FromResult(AreaDataConsent.Decline), (_, _) => { }, null);
+        var viewModel = new MapPaneViewModel(service, new WorkspaceState(), new MapImageService(), areaNameResolver: resolver, areaDataAcquisition: acquisition);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+
+        try
+        {
+            var first = viewModel.UpdateMarkersFromSelectionAsync(new[] { CreateListItem(@"C:Photosa.jpg", isFolder: false) });
+            service.CompleteLoad(0, latitude: 35.0, longitude: 133.0);
+            await resolver.Started.Task.ConfigureAwait(true);
+
+            // Act
+            var next = Enumerable.Range(0, nextSelectionCount)
+                .Select(index => CreateListItem($@"C:Photos
+ext{index}.jpg", isFolder: false))
+                .ToArray();
+            var second = viewModel.UpdateMarkersFromSelectionAsync(next);
+            if (nextSelectionCount > 0)
+            {
+                await service.WaitForLoadAsync(1).ConfigureAwait(true);
+                service.CompleteLoad(1, latitude: 35.0, longitude: 133.0);
+            }
+
+            await second.ConfigureAwait(true);
+            await first.ConfigureAwait(true);
+            await Task.Delay(100).ConfigureAwait(true);
+
+            // Assert: 古い選択のために、地域データの要否の確認（通信・確認ダイアログの入口）を始めていない
+            Assert.Equal(0, detector.CallCount);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    [Fact]
+    public async Task UpdateMarkersFromSelectionAsyncStartsAreaDataAcquisitionForTheCurrentSingleSelection()
+    {
+        var service = new ControlledLoadMapPaneService();
+        var resolver = new PendingAreaNameResolver();
+        var detector = new RecordingNeedDetector();
+        var acquisition = new AreaDataAcquisitionViewModel(detector, new UnusedDownloader(), (_, _) => Task.FromResult(AreaDataConsent.Decline), (_, _) => { }, null);
+        var viewModel = new MapPaneViewModel(service, new WorkspaceState(), new MapImageService(), areaNameResolver: resolver, areaDataAcquisition: acquisition);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+
+        try
+        {
+            var update = viewModel.UpdateMarkersFromSelectionAsync(new[] { CreateListItem(@"C:Photosa.jpg", isFolder: false) });
+            service.CompleteLoad(0, latitude: 35.0, longitude: 133.0);
+            await resolver.Started.Task.ConfigureAwait(true);
+            resolver.Complete();
+            await update.ConfigureAwait(true);
+            await detector.Called.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+
+            Assert.Equal(1, detector.CallCount);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
     private static PhotoListItem CreateListItem(string path, bool isFolder)
         => new(new PhotoItem(path, isFolder ? 0 : 1, DateTimeOffset.UtcNow, isFolder), thumbnail: null);
 
@@ -889,6 +965,48 @@ public class MapPaneViewModelTests
     }
 
     // メタデータ読み込みを呼び出しごとに保留し、テストから任意のタイミングで完了させる
+    /// <summary>住所の解決を、Complete() まで（または取り消されるまで）保留する</summary>
+    private sealed class PendingAreaNameResolver : IAreaNameResolver
+    {
+        private readonly TaskCompletionSource<AreaName?> _result = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public event EventHandler? ResultsInvalidated
+        {
+            add { }
+            remove { }
+        }
+
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Complete() => _result.TrySetResult(null);
+
+        public Task<AreaName?> ResolveAsync(double latitude, double longitude, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            return _result.Task.WaitAsync(cancellationToken);
+        }
+    }
+
+    private sealed class RecordingNeedDetector : IAreaDataNeedDetector
+    {
+        public int CallCount { get; private set; }
+
+        public TaskCompletionSource Called { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<IReadOnlyList<string>> FindMissingAsync(double latitude, double longitude, CancellationToken cancellationToken)
+        {
+            CallCount++;
+            Called.TrySetResult();
+            return Task.FromResult<IReadOnlyList<string>>([]);
+        }
+    }
+
+    private sealed class UnusedDownloader : IAreaDataDownloader
+    {
+        public Task<AreaDataPackInfo> DownloadAsync(string prefectureCode, IProgress<long>? progress, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("must not download");
+    }
+
     private sealed class ControlledLoadMapPaneService : IMapPaneService
     {
         private readonly object _gate = new();

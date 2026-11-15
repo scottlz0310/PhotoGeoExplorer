@@ -46,6 +46,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private MapTileSourceType _currentTileSource = MapTileSourceType.OpenStreetMap;
     private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private CancellationTokenSource? _mapUpdateCts;
+    private int _selectionGeneration;
     private CancellationTokenSource? _mapImageSaveCts;
     private bool _isMapInitialized;
     private bool _hasValidMapViewport;
@@ -416,6 +417,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             return;
         }
 
+        // Clear() が前の選択の解決を取り消すと、その待機側が先に再開し得る。世代は、その前に進めておく
+        var generation = ++_selectionGeneration;
+
         // 前の選択の撮影位置情報を、新しい選択のメタデータ読み込みを待つ前に消す。
         // 読み込み中に前の写真の座標が表示・コピーできる状態を残さない
         LocationInfo.Clear();
@@ -485,6 +489,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             var selected = points[0];
             var photo = new PhotoIdentity(selected.Item.FilePath, selected.Item.SizeBytes, selected.Metadata.TakenAt);
             await LocationInfo.SetLocationAsync(selected.Latitude, selected.Longitude, photo).ConfigureAwait(true);
+
+            // 解決の待ち中に、選択の変更（解除・複数選択・別の写真）や Cleanup() があった場合は、古い選択のために通信や確認を始めない
+            if (generation != _selectionGeneration || !ReferenceEquals(_mapUpdateCts, cts) || cts.IsCancellationRequested)
+            {
+                return;
+            }
+
             // 確認ダイアログの応答や取得を待たない（選択の処理を止めない）。想定内の失敗は ViewModel が通知とログで報告する。
             // 想定外の例外は、観測されないタスクの例外としてアプリを落とさないよう、ここでログに残す
             _ = AreaDataAcquisition.OnLocationAsync(selected.Latitude, selected.Longitude).ContinueWith(

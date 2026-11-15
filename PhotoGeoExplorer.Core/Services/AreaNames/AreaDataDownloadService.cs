@@ -19,6 +19,12 @@ internal sealed class AreaDataDownloadService : IAreaDataDownloader
     /// </summary>
     internal const long DefaultMaxDownloadBytes = 256L * 1024 * 1024;
 
+    /// <summary>
+    /// 応答の待ち・本文の受信が、これだけ進まなければ通信エラーとして打ち切る。
+    /// <see cref="HttpClient.Timeout"/> は応答ヘッダーまでで、本文の受信（ResponseHeadersRead 後）には効かないため、別に要る
+    /// </summary>
+    internal static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromSeconds(60);
+
     internal static readonly Uri DefaultBaseUri = new("https://www.e-stat.go.jp/", UriKind.Absolute);
 
     private static readonly string[] AcceptedMediaTypes = ["application/zip", "application/octet-stream", "application/x-zip-compressed"];
@@ -28,15 +34,19 @@ internal sealed class AreaDataDownloadService : IAreaDataDownloader
     private readonly string _temporaryDirectory;
     private readonly long _maxDownloadBytes;
     private readonly Uri _baseUri;
+    private readonly TimeSpan _idleTimeout;
 
     public AreaDataDownloadService(
         HttpClient httpClient,
         IAreaDataStore store,
         string? temporaryDirectory = null,
         long maxDownloadBytes = DefaultMaxDownloadBytes,
-        Uri? baseUri = null)
+        Uri? baseUri = null,
+        TimeSpan? idleTimeout = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxDownloadBytes);
+        _idleTimeout = idleTimeout ?? DefaultIdleTimeout;
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_idleTimeout, TimeSpan.Zero);
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _temporaryDirectory = temporaryDirectory ?? Path.GetTempPath();
@@ -79,20 +89,22 @@ internal sealed class AreaDataDownloadService : IAreaDataDownloader
 
     private async Task DownloadToFileAsync(Uri uri, string path, IProgress<long>? progress, CancellationToken cancellationToken)
     {
+        using var idle = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         try
         {
+            idle.CancelAfter(_idleTimeout);
             using var response = await _httpClient
-                .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, idle.Token)
                 .ConfigureAwait(false);
             ValidateResponse(response);
 
             var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
             await using (file.ConfigureAwait(false))
             {
-                var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                var stream = await response.Content.ReadAsStreamAsync(idle.Token).ConfigureAwait(false);
                 await using (stream.ConfigureAwait(false))
                 {
-                    await CopyWithLimitAsync(stream, file, progress, cancellationToken).ConfigureAwait(false);
+                    await CopyWithLimitAsync(stream, file, progress, idle, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -100,9 +112,9 @@ internal sealed class AreaDataDownloadService : IAreaDataDownloader
         {
             throw new AreaDataDownloadException(AreaDataDownloadError.Network, "Failed to download the area data.", innerException: ex);
         }
-        catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            // HttpClient のタイムアウト（呼び出し元のキャンセルではない）
+            // 無通信の期限切れ・HttpClient のタイムアウト（呼び出し元のキャンセルではない）
             throw new AreaDataDownloadException(AreaDataDownloadError.Network, "The area data download timed out.", innerException: ex);
         }
     }
@@ -132,13 +144,19 @@ internal sealed class AreaDataDownloadService : IAreaDataDownloader
         }
     }
 
-    private async Task CopyWithLimitAsync(Stream source, Stream destination, IProgress<long>? progress, CancellationToken cancellationToken)
+    private async Task CopyWithLimitAsync(
+        Stream source,
+        Stream destination,
+        IProgress<long>? progress,
+        CancellationTokenSource idle,
+        CancellationToken cancellationToken)
     {
         var buffer = new byte[81920];
         long total = 0;
         int read;
-        while ((read = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+        while ((read = await source.ReadAsync(buffer, idle.Token).ConfigureAwait(false)) > 0)
         {
+            idle.CancelAfter(_idleTimeout);
             total += read;
             if (total > _maxDownloadBytes)
             {
