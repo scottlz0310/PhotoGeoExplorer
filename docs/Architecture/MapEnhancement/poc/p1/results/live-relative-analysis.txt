@@ -1,0 +1,28 @@
+## 100%
+    live-d1.00-fractional-z17.9.png                    683x610 blobs=6 paired=6 maxRelative=0.252px
+    live-d1.00-stale-pan_p50_p30_.png                  683x610 blobs=6 paired=6 maxRelative=0.064px
+    live-d1.00-stale-zoom-in_p0.5_.png                 683x610 blobs=6 paired=6 maxRelative=0.277px
+    live-d1.00-stale-zoom-out_-0.6_.png                683x610 blobs=6 paired=6 maxRelative=0.576px
+    live-d1.00-static.png                              683x610 blobs=6 paired=6 maxRelative=0.016px
+    worst relative = 0.576px
+## 125%
+    live-d1.25-fractional-z17.9.png                    674x564 blobs=6 paired=6 maxRelative=0.182px
+    live-d1.25-stale-pan_p50_p30_.png                  674x564 blobs=6 paired=6 maxRelative=0.230px
+    live-d1.25-stale-zoom-in_p0.5_.png                 674x564 blobs=5 paired=5 maxRelative=0.253px
+    live-d1.25-stale-zoom-out_-0.6_.png                674x564 blobs=6 paired=6 maxRelative=1.050px
+    live-d1.25-static.png                              674x564 blobs=6 paired=6 maxRelative=0.090px
+    worst relative = 1.050px
+## 150%
+    live-d1.50-fractional-z17.9.png                    665x518 blobs=4 paired=4 maxRelative=0.174px
+    live-d1.50-stale-pan_p50_p30_.png                  665x518 blobs=6 paired=6 maxRelative=0.863px
+    live-d1.50-stale-zoom-in_p0.5_.png                 665x518 blobs=4 paired=4 maxRelative=0.691px
+    live-d1.50-stale-zoom-out_-0.6_.png                665x518 blobs=6 paired=6 maxRelative=0.511px
+    live-d1.50-static.png                              665x518 blobs=6 paired=6 maxRelative=0.030px
+    worst relative = 0.863px
+## 175%
+    live-d1.75-fractional-z17.9.png                    656x471 blobs=4 paired=4 maxRelative=2.855px
+    live-d1.75-stale-pan_p50_p30_.png                  656x471 blobs=5 paired=4 maxRelative=0.288px
+    live-d1.75-stale-zoom-in_p0.5_.png                 656x471 blobs=1 paired=1 maxRelative=0.208px
+    live-d1.75-stale-zoom-out_-0.6_.png                656x471 blobs=6 paired=4 maxRelative=1.216px
+    live-d1.75-static.png                              656x471 blobs=4 paired=4 maxRelative=0.285px
+    worst relative = 2.855px
