@@ -1,0 +1,664 @@
+{
+  "label": "warm-3",
+  "startedAt": "2026-11-15T14:17:26.5920686\u002B09:00",
+  "os": "Microsoft Windows 10.0.26300",
+  "arch": "X64",
+  "framework": ".NET 10.0.15",
+  "cpu": "12th Gen Intel(R) Core(TM) i7-12700K",
+  "logicalProcessors": 20,
+  "rasterizationScale": 1,
+  "controlSizeDip": [
+    471,
+    294
+  ],
+  "viewportPx": [
+    471,
+    294
+  ],
+  "resolutions": [
+    156543.03,
+    78271.52,
+    39135.76,
+    19567.88,
+    9783.94,
+    4891.97,
+    2445.98,
+    1222.99,
+    611.5,
+    305.75,
+    152.87,
+    76.44,
+    38.22,
+    19.11,
+    9.55,
+    4.78,
+    2.39,
+    1.19,
+    0.6,
+    0.3
+  ],
+  "commit": "main aed2a1a (v1.10.1) \u002B bench harness",
+  "cacheDir": "%TEMP%\\pge-bench\\cache",
+  "skiaSharp": "3.119.0.0",
+  "inputCadence": "CompositionTarget.Rendering (1 command per vsync)",
+  "pan": {
+    "ticks": 150,
+    "pixelsPerTick": 6,
+    "level": 17
+  },
+  "continuousZoom": {
+    "ticks": 150,
+    "from": 15,
+    "to": 19
+  },
+  "phases": [
+    {
+      "id": "jump-select:dense-odori",
+      "kind": "jump-select",
+      "level": 18,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 7.11,
+      "networkIdleMs": 10.91,
+      "timeToSharpMs": 28.76,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 3.84,
+        "p95": 3.84,
+        "max": 3.84,
+        "mean": 3.05
+      },
+      "workingSetMB": 197.49,
+      "gcHeapMB": 10.85
+    },
+    {
+      "id": "level:dense-odori:z15",
+      "kind": "level-change",
+      "level": 15,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 4.62,
+      "networkIdleMs": 15.36,
+      "timeToSharpMs": 31.65,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 4.03,
+        "p95": 5.65,
+        "max": 5.65,
+        "mean": 3.39
+      },
+      "workingSetMB": 209.15,
+      "gcHeapMB": 13.25
+    },
+    {
+      "id": "level:dense-odori:z16",
+      "kind": "level-change",
+      "level": 16,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 6.94,
+      "networkIdleMs": 15.17,
+      "timeToSharpMs": 31.15,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 5.06,
+        "p95": 5.71,
+        "max": 5.71,
+        "mean": 3.67
+      },
+      "workingSetMB": 215.33,
+      "gcHeapMB": 13.95
+    },
+    {
+      "id": "level:dense-odori:z17",
+      "kind": "level-change",
+      "level": 17,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 1.91,
+      "networkIdleMs": 15.65,
+      "timeToSharpMs": 31.98,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 0.83,
+        "p95": 1.42,
+        "max": 1.42,
+        "mean": 0.86
+      },
+      "workingSetMB": 217.51,
+      "gcHeapMB": 14.25
+    },
+    {
+      "id": "level:dense-odori:z18",
+      "kind": "level-change",
+      "level": 18,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 0.5,
+      "networkIdleMs": 15.6,
+      "timeToSharpMs": 16.54,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 0.3,
+        "p95": 0.3,
+        "max": 0.3,
+        "mean": 0.26
+      },
+      "workingSetMB": 220.28,
+      "gcHeapMB": 14.46
+    },
+    {
+      "id": "level:dense-odori:z19",
+      "kind": "level-change",
+      "level": 19,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 0.76,
+      "networkIdleMs": 16.01,
+      "timeToSharpMs": 32.06,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 0.52,
+        "p95": 1.36,
+        "max": 1.36,
+        "mean": 0.71
+      },
+      "workingSetMB": 223.38,
+      "gcHeapMB": 14.81
+    },
+    {
+      "id": "continuous-zoom:dense-odori",
+      "kind": "continuous-zoom",
+      "level": null,
+      "renderCount": 151,
+      "timeToFirstRenderMs": 33.36,
+      "networkIdleMs": 2524.91,
+      "timeToSharpMs": 2527.4,
+      "settleAfterInputMs": 11.39,
+      "frameIntervalMs": {
+        "n": 149,
+        "p50": 16.07,
+        "p95": 20.08,
+        "max": 24.06,
+        "mean": 16.55
+      },
+      "drawDurationMs": {
+        "n": 150,
+        "p50": 1,
+        "p95": 2.11,
+        "max": 4.16,
+        "mean": 1.06
+      },
+      "inputIntervalMs": {
+        "n": 149,
+        "p50": 16.69,
+        "p95": 17.84,
+        "max": 18.93,
+        "mean": 16.64
+      },
+      "inputToRenderMs": {
+        "n": 150,
+        "p50": 5.5,
+        "p95": 12.72,
+        "max": 17.42,
+        "mean": 6.15
+      },
+      "longStallsOver50Ms": 0,
+      "workingSetMB": 238.92,
+      "gcHeapMB": 18.62
+    },
+    {
+      "id": "pan:dense-odori",
+      "kind": "pan",
+      "level": null,
+      "renderCount": 150,
+      "timeToFirstRenderMs": 5.98,
+      "networkIdleMs": 2512.25,
+      "timeToSharpMs": 2515.48,
+      "settleAfterInputMs": 17.31,
+      "frameIntervalMs": {
+        "n": 148,
+        "p50": 16,
+        "p95": 22.3,
+        "max": 27.99,
+        "mean": 16.75
+      },
+      "drawDurationMs": {
+        "n": 149,
+        "p50": 0.39,
+        "p95": 0.87,
+        "max": 2.14,
+        "mean": 0.45
+      },
+      "inputIntervalMs": {
+        "n": 149,
+        "p50": 16.69,
+        "p95": 17.82,
+        "max": 19.78,
+        "mean": 16.64
+      },
+      "inputToRenderMs": {
+        "n": 150,
+        "p50": 5.76,
+        "p95": 14.15,
+        "max": 20.64,
+        "mean": 6.68
+      },
+      "longStallsOver50Ms": 0,
+      "workingSetMB": 244.76,
+      "gcHeapMB": 14.75
+    },
+    {
+      "id": "jump-select:suburb-okadama",
+      "kind": "jump-select",
+      "level": 18,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 5.51,
+      "networkIdleMs": 15.45,
+      "timeToSharpMs": 32.21,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 0.82,
+        "p95": 2.17,
+        "max": 2.17,
+        "mean": 1.1
+      },
+      "workingSetMB": 246.03,
+      "gcHeapMB": 15.28
+    },
+    {
+      "id": "level:suburb-okadama:z15",
+      "kind": "level-change",
+      "level": 15,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 2.12,
+      "networkIdleMs": 15.85,
+      "timeToSharpMs": 31.97,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 1.85,
+        "p95": 3.9,
+        "max": 3.9,
+        "mean": 2.06
+      },
+      "workingSetMB": 254.14,
+      "gcHeapMB": 17.06
+    },
+    {
+      "id": "level:suburb-okadama:z16",
+      "kind": "level-change",
+      "level": 16,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 3.42,
+      "networkIdleMs": 15.7,
+      "timeToSharpMs": 31.66,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 1.73,
+        "p95": 2.95,
+        "max": 2.95,
+        "mean": 1.75
+      },
+      "workingSetMB": 257.67,
+      "gcHeapMB": 17.68
+    },
+    {
+      "id": "level:suburb-okadama:z17",
+      "kind": "level-change",
+      "level": 17,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 1.99,
+      "networkIdleMs": 16.16,
+      "timeToSharpMs": 19.2,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 1.72,
+        "p95": 1.72,
+        "max": 1.72,
+        "mean": 1.11
+      },
+      "workingSetMB": 258.06,
+      "gcHeapMB": 18.16
+    },
+    {
+      "id": "level:suburb-okadama:z18",
+      "kind": "level-change",
+      "level": 18,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 1.05,
+      "networkIdleMs": 16.12,
+      "timeToSharpMs": 18.3,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 0.44,
+        "p95": 0.44,
+        "max": 0.44,
+        "mean": 0.41
+      },
+      "workingSetMB": 258.06,
+      "gcHeapMB": 18.6
+    },
+    {
+      "id": "level:suburb-okadama:z19",
+      "kind": "level-change",
+      "level": 19,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 3.38,
+      "networkIdleMs": 15.58,
+      "timeToSharpMs": 32.16,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 2.7,
+        "p95": 3.76,
+        "max": 3.76,
+        "mean": 2.33
+      },
+      "workingSetMB": 258.32,
+      "gcHeapMB": 19.11
+    },
+    {
+      "id": "continuous-zoom:suburb-okadama",
+      "kind": "continuous-zoom",
+      "level": null,
+      "renderCount": 151,
+      "timeToFirstRenderMs": 24.42,
+      "networkIdleMs": 2505.05,
+      "timeToSharpMs": 2506.48,
+      "settleAfterInputMs": 4.27,
+      "frameIntervalMs": {
+        "n": 149,
+        "p50": 16.07,
+        "p95": 20.63,
+        "max": 24.04,
+        "mean": 16.56
+      },
+      "drawDurationMs": {
+        "n": 150,
+        "p50": 1.03,
+        "p95": 1.87,
+        "max": 2.61,
+        "mean": 1.03
+      },
+      "inputIntervalMs": {
+        "n": 149,
+        "p50": 16.7,
+        "p95": 17.52,
+        "max": 19.32,
+        "mean": 16.68
+      },
+      "inputToRenderMs": {
+        "n": 150,
+        "p50": 5.56,
+        "p95": 12.32,
+        "max": 23.82,
+        "mean": 6.05
+      },
+      "longStallsOver50Ms": 0,
+      "workingSetMB": 262.76,
+      "gcHeapMB": 17.65
+    },
+    {
+      "id": "pan:suburb-okadama",
+      "kind": "pan",
+      "level": null,
+      "renderCount": 151,
+      "timeToFirstRenderMs": 10.21,
+      "networkIdleMs": 2525.98,
+      "timeToSharpMs": 2528.91,
+      "settleAfterInputMs": 19.39,
+      "frameIntervalMs": {
+        "n": 149,
+        "p50": 16.04,
+        "p95": 21.64,
+        "max": 24.21,
+        "mean": 16.69
+      },
+      "drawDurationMs": {
+        "n": 150,
+        "p50": 0.4,
+        "p95": 0.86,
+        "max": 2.09,
+        "mean": 0.45
+      },
+      "inputIntervalMs": {
+        "n": 149,
+        "p50": 16.67,
+        "p95": 17.84,
+        "max": 18.67,
+        "mean": 16.67
+      },
+      "inputToRenderMs": {
+        "n": 150,
+        "p50": 5.49,
+        "p95": 10.52,
+        "max": 12.47,
+        "mean": 5.77
+      },
+      "longStallsOver50Ms": 0,
+      "workingSetMB": 258.25,
+      "gcHeapMB": 26
+    },
+    {
+      "id": "jump-select:tile-boundary-z15",
+      "kind": "jump-select",
+      "level": 18,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 11.17,
+      "networkIdleMs": 14.95,
+      "timeToSharpMs": 32.67,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 3.88,
+        "p95": 3.88,
+        "max": 3.88,
+        "mean": 2.59
+      },
+      "workingSetMB": 259.28,
+      "gcHeapMB": 15.59
+    },
+    {
+      "id": "level:tile-boundary-z15:z15",
+      "kind": "level-change",
+      "level": 15,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 4.68,
+      "networkIdleMs": 16.08,
+      "timeToSharpMs": 18.09,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 4.37,
+        "p95": 4.37,
+        "max": 4.37,
+        "mean": 2.35
+      },
+      "workingSetMB": 260.67,
+      "gcHeapMB": 18.09
+    },
+    {
+      "id": "level:tile-boundary-z15:z16",
+      "kind": "level-change",
+      "level": 16,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 6.19,
+      "networkIdleMs": 15.03,
+      "timeToSharpMs": 17.24,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 5.47,
+        "p95": 5.47,
+        "max": 5.47,
+        "mean": 2.92
+      },
+      "workingSetMB": 260.7,
+      "gcHeapMB": 18.74
+    },
+    {
+      "id": "level:tile-boundary-z15:z17",
+      "kind": "level-change",
+      "level": 17,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 3.7,
+      "networkIdleMs": 15.62,
+      "timeToSharpMs": 16.9,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 3.2,
+        "p95": 3.2,
+        "max": 3.2,
+        "mean": 1.75
+      },
+      "workingSetMB": 260.86,
+      "gcHeapMB": 19.41
+    },
+    {
+      "id": "level:tile-boundary-z15:z18",
+      "kind": "level-change",
+      "level": 18,
+      "renderCount": 2,
+      "timeToFirstRenderMs": 1.54,
+      "networkIdleMs": 15.33,
+      "timeToSharpMs": 18.57,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 2,
+        "p50": 0.77,
+        "p95": 0.77,
+        "max": 0.77,
+        "mean": 0.59
+      },
+      "workingSetMB": 260.86,
+      "gcHeapMB": 20.08
+    },
+    {
+      "id": "level:tile-boundary-z15:z19",
+      "kind": "level-change",
+      "level": 19,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 1.94,
+      "networkIdleMs": 15.95,
+      "timeToSharpMs": 32.48,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 1.52,
+        "p95": 2.59,
+        "max": 2.59,
+        "mean": 1.61
+      },
+      "workingSetMB": 262.02,
+      "gcHeapMB": 20.82
+    },
+    {
+      "id": "continuous-zoom:tile-boundary-z15",
+      "kind": "continuous-zoom",
+      "level": null,
+      "renderCount": 150,
+      "timeToFirstRenderMs": 5.29,
+      "networkIdleMs": 2495.33,
+      "timeToSharpMs": 2496.86,
+      "settleAfterInputMs": 9.78,
+      "frameIntervalMs": {
+        "n": 148,
+        "p50": 16.06,
+        "p95": 21.58,
+        "max": 24.29,
+        "mean": 16.73
+      },
+      "drawDurationMs": {
+        "n": 149,
+        "p50": 1.15,
+        "p95": 1.95,
+        "max": 4.82,
+        "mean": 1.18
+      },
+      "inputIntervalMs": {
+        "n": 149,
+        "p50": 16.68,
+        "p95": 17.45,
+        "max": 18.21,
+        "mean": 16.58
+      },
+      "inputToRenderMs": {
+        "n": 150,
+        "p50": 5.53,
+        "p95": 10.53,
+        "max": 13.12,
+        "mean": 5.91
+      },
+      "longStallsOver50Ms": 0,
+      "workingSetMB": 264.35,
+      "gcHeapMB": 17.72
+    },
+    {
+      "id": "pan:tile-boundary-z15",
+      "kind": "pan",
+      "level": null,
+      "renderCount": 151,
+      "timeToFirstRenderMs": 5.42,
+      "networkIdleMs": 2489.12,
+      "timeToSharpMs": 2491.14,
+      "settleAfterInputMs": 4.2,
+      "frameIntervalMs": {
+        "n": 149,
+        "p50": 15.98,
+        "p95": 20.59,
+        "max": 23.31,
+        "mean": 16.57
+      },
+      "drawDurationMs": {
+        "n": 150,
+        "p50": 0.42,
+        "p95": 0.86,
+        "max": 1.61,
+        "mean": 0.47
+      },
+      "inputIntervalMs": {
+        "n": 149,
+        "p50": 16.72,
+        "p95": 17.65,
+        "max": 18.22,
+        "mean": 16.58
+      },
+      "inputToRenderMs": {
+        "n": 150,
+        "p50": 5.3,
+        "p95": 10.56,
+        "max": 12.54,
+        "mean": 5.9
+      },
+      "longStallsOver50Ms": 0,
+      "workingSetMB": 264.48,
+      "gcHeapMB": 26.22
+    },
+    {
+      "id": "jump-revisit:revisit-dense-odori",
+      "kind": "jump-revisit",
+      "level": 18,
+      "renderCount": 3,
+      "timeToFirstRenderMs": 6.78,
+      "networkIdleMs": 15.52,
+      "timeToSharpMs": 32.47,
+      "settleAfterInputMs": null,
+      "drawDurationMs": {
+        "n": 3,
+        "p50": 0.67,
+        "p95": 3.08,
+        "max": 3.08,
+        "mean": 1.36
+      },
+      "workingSetMB": 264.51,
+      "gcHeapMB": 27.08
+    }
+  ],
+  "finishedAt": "2026-11-15T14:17:52.2422272\u002B09:00"
+}
