@@ -45,6 +45,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly OpenFreeMapRoadNameSuggester _roadNameSuggester;
     private readonly JsonRoadNameConfirmationStore _roadNameConfirmationStore = new();
     private readonly AreaDataArchivePicker _areaDataArchivePicker;
+    private readonly System.Net.Http.HttpClient _areaDataHttpClient = new();
     private Services.ICrashReportService? _crashReportService;
     private bool _mapInitialized;
     private bool _disposed;
@@ -86,6 +87,13 @@ public sealed partial class MainWindow : Window, IDisposable
         _startupCoordinator = new StartupCoordinator(_fileBrowserPaneViewModel);
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         var mapImageService = new MapImageService();
+        _areaDataHttpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UserAgentProvider.UserAgent);
+        var areaDataAcquisition = new AreaDataAcquisitionViewModel(
+            new AreaDataNeedDetector(PrefectureLocator.CreateFromEmbeddedData(), _areaDataStore),
+            new AreaDataDownloadService(_areaDataHttpClient, _areaDataStore),
+            (prefectureNames, cancellationToken) => MapPaneControl.AskAreaDataConsentAsync(prefectureNames, cancellationToken),
+            (message, severity) => _viewModel.ShowNotificationMessage(message, severity),
+            createProgress: null);
         _mapPaneViewModel = new MapPaneViewModel(
             new MapPaneService(),
             _viewModel.WorkspaceState,
@@ -93,7 +101,8 @@ public sealed partial class MainWindow : Window, IDisposable
             secretStore: _secretStore,
             areaNameResolver: _areaNameResolver,
             roadNameSuggester: _roadNameSuggester,
-            roadNameConfirmationStore: _roadNameConfirmationStore);
+            roadNameConfirmationStore: _roadNameConfirmationStore,
+            areaDataAcquisition: areaDataAcquisition);
         // 書き出しは、設定の道路名表示（地図ヘッダーと共通）がオンのときだけ、未確定の写真の道路名の候補を通信して求める
         var headerSettings = _mapPaneViewModel.LocationInfo.DisplaySettings;
         _geoExportViewModel = new GeoExportViewModel(
@@ -444,7 +453,7 @@ public sealed partial class MainWindow : Window, IDisposable
             _viewModel,
             _secretStore,
             new MapboxConnectionTester(),
-            new SettingsPaneAreaDataSectionViewModel(_areaDataStore, _areaDataArchivePicker.PickAsync));
+            new SettingsPaneAreaDataSectionViewModel(_areaDataStore, _areaDataArchivePicker.PickAsync, _mapPaneViewModel.AreaDataAcquisition));
         await viewModel.InitializeAsync().ConfigureAwait(true);
         viewModel.IsActive = true;
 
@@ -528,6 +537,7 @@ public sealed partial class MainWindow : Window, IDisposable
 
             // 判定中の通信は、上の Cleanup でキャンセルされている
             _roadNameSuggester.Dispose();
+            _areaDataHttpClient.Dispose();
 
             if (PreviewPaneControl is not null)
             {

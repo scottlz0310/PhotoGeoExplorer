@@ -132,6 +132,54 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.True(display.IncludePrefecture);
     }
 
+    [Theory]
+    [InlineData(AreaDataDownloadMode.Ask)]
+    [InlineData(AreaDataDownloadMode.Auto)]
+    [InlineData(AreaDataDownloadMode.Never)]
+    public async Task LoadAsyncAppliesTheAreaDataDownloadMode(AreaDataDownloadMode mode)
+    {
+        using var context = CreateContext();
+        await context.SettingsService.SaveAsync(new AppSettings { AreaDataDownloadMode = mode }).ConfigureAwait(true);
+
+        await context.Coordinator.LoadAsync().ConfigureAwait(true);
+
+        Assert.Equal(mode, context.MapPaneViewModel.AreaDataAcquisition.Mode);
+    }
+
+    [Fact]
+    public async Task LoadAsyncFallsBackToAskForAnUnknownAreaDataDownloadMode()
+    {
+        using var context = CreateContext();
+        await context.SettingsService.SaveAsync(new AppSettings { AreaDataDownloadMode = (AreaDataDownloadMode)99 }).ConfigureAwait(true);
+
+        await context.Coordinator.LoadAsync().ConfigureAwait(true);
+
+        Assert.Equal(AreaDataDownloadMode.Ask, context.MapPaneViewModel.AreaDataAcquisition.Mode);
+    }
+
+    [Fact]
+    public async Task AreaDataDownloadModeChangesArePersisted()
+    {
+        using var context = CreateContext();
+
+        context.MapPaneViewModel.AreaDataAcquisition.Mode = AreaDataDownloadMode.Never;
+        await Task.Delay(450).ConfigureAwait(true);
+        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+
+        Assert.Equal(AreaDataDownloadMode.Never, saved.AreaDataDownloadMode);
+    }
+
+    [Fact]
+    public async Task AreaDataDownloadModeDefaultsToAsk()
+    {
+        using var context = CreateContext();
+
+        await context.Coordinator.SaveAsync().ConfigureAwait(true);
+        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+
+        Assert.Equal(AreaDataDownloadMode.Ask, saved.AreaDataDownloadMode);
+    }
+
     [Fact]
     public async Task MapHeaderDisplayDefaultsMatchAppSettingsDefaults()
     {

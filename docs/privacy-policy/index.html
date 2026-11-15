@@ -105,7 +105,7 @@
 <body>
     <div class="container">
         <h1>プライバシーポリシー / Privacy Policy</h1>
-        <p class="last-updated">最終更新日: 2026年11月14日 / Last updated: November 14, 2026</p>
+        <p class="last-updated">最終更新日: 2026年11月15日 / Last updated: November 15, 2026</p>
         <p class="lang-switch"><a href="#ja">日本語</a> | <a href="#en">English</a></p>
 
         <section id="ja">
@@ -146,7 +146,7 @@
                     <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> にキャッシュされます（Mapbox のタイルは端末に保存しません）。</li>
                 <li><strong>Mapbox アクセストークン:</strong> Mapbox Satellite を使うために利用者が入力したアクセストークンは、Windows
                     の資格情報マネージャーに保存されます。設定ファイル・ログ・クラッシュレポートには記録しません。</li>
-                <li><strong>地域データ（字地名）:</strong> 地図ヘッダーに住所（字地名）を表示するために、利用者が選んだ ZIP
+                <li><strong>地域データ（字地名）:</strong> 地図ヘッダーに住所（字地名）を表示するために、利用者が選んだ ZIP、または利用者の同意のもとに本アプリが e-Stat から取得した ZIP
                     （e-Stat の国勢調査 小地域境界データ）を読み取り、端末内の <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code>
                     に保存します。住所の判定は端末内で行い、撮影位置は外部へ送信されません。設定から削除できます。</li>
                 <li><strong>確定した道路名:</strong> 地図ヘッダーの候補の一覧で利用者が確定した道路名は、写真のパス・ファイルサイズ・撮影日時とともに、端末内の
@@ -171,7 +171,7 @@
                 <li><strong>更新チェック:</strong> 新バージョン確認のため、GitHub Releases を参照します。これらのリクエストに個人情報や写真データは含めません。</li>
             </ul>
             <p>
-                地域データ（字地名）は、本アプリが通信して取得することはありません。e-Stat からのダウンロードは、利用者がブラウザーで行います。
+                地域データ（字地名）は、地域データが無い地域の写真を選んだときに、利用者がダイアログで同意した場合（または設定で「確認せずに取得する」を選んだ場合）に限り、本アプリが政府統計の総合窓口（e-Stat）から取得します。送信されるのは、取得する都道府県を示す URL と、通常の通信情報（IP アドレス・アプリ名を含む User-Agent）だけで、写真や撮影位置は送信されません。取得の確認・確認なしの取得・何もしない、のどれにするかは、設定でいつでも切り替えられます（「何もしない」では、本アプリは自動では通信しません）。手動でダウンロードして取り込むこともできます。
             </p>
             <p>
                 初回の地図タイルがキャッシュされた後は、オフラインでも利用できます（地図の新規取得は除く）。最寄り道路名は、オフラインではキャッシュにあるタイルだけで判定し、なければ表示しません。
@@ -188,6 +188,8 @@
                         rel="noopener noreferrer">Privacy Policy</a> を参照してください。</li>
                 <li><strong>OpenFreeMap（最寄り道路名）:</strong> 道路のタイルを <a href="https://openfreemap.org/" target="_blank"
                         rel="noopener noreferrer">OpenFreeMap</a> のサーバーから取得します。地図データは OpenStreetMap の貢献者によるものです。</li>
+                <li><strong>e-Stat（地域データ（字地名））:</strong> 利用者が同意したときに、都道府県ごとの境界データ（ZIP）を <a href="https://www.e-stat.go.jp/" target="_blank"
+                        rel="noopener noreferrer">政府統計の総合窓口（e-Stat）</a> のサーバー（www.e-stat.go.jp）から取得します。送信されるのは、取得する都道府県を示す URL と、通常の通信情報（IP アドレス・アプリ名を含む User-Agent）だけです。写真や撮影位置は送信されません。</li>
                 <li><strong>Esri WorldImagery:</strong> 衛星画像タイルを <a href="https://www.esri.com/" target="_blank"
                         rel="noopener noreferrer">Esri</a> のサーバーから取得します。詳しくは <a
                         href="https://www.esri.com/en-us/privacy/overview" target="_blank" rel="noopener noreferrer">Privacy
@@ -282,7 +284,7 @@
                 <li><strong>Logs:</strong> For troubleshooting, logs are stored at <code>%LocalAppData%\PhotoGeoExplorer\Logs\app.log</code>.</li>
                 <li><strong>Map tile cache:</strong> Tiles are cached at <code>%LocalAppData%\PhotoGeoExplorer\Cache\Tiles</code> to improve performance and reduce network traffic (Mapbox tiles are not stored on the device).</li>
                 <li><strong>Mapbox access token:</strong> The access token you enter to use Mapbox Satellite is stored in Windows Credential Manager. It is not written to the settings file, logs, or crash reports.</li>
-                <li><strong>Area data (town names):</strong> To show the address (town name) in the map header, the App reads the ZIP you select (e-Stat census small-area boundary data) and stores it at <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code> on your device. The address lookup is done locally and the photo location is not sent externally. You can delete the data from Settings.</li>
+                <li><strong>Area data (town names):</strong> To show the address (town name) in the map header, the App reads the ZIP you select, or the ZIP the App downloaded from e-Stat with your consent (e-Stat census small-area boundary data), and stores it at <code>%LocalAppData%\PhotoGeoExplorer\AreaData</code> on your device. The address lookup is done locally and the photo location is not sent externally. You can delete the data from Settings.</li>
                 <li><strong>Confirmed road names:</strong> A road name you confirm in the list of candidates in the map header is saved on your device at <code>%LocalAppData%\PhotoGeoExplorer\road-name-confirmations.json</code>, together with the photo's path, file size, and taken-at time. It is not written to the photo file and is never sent anywhere.</li>
                 <li><strong>Road tile cache:</strong> Road tiles fetched to show the nearest road name (a suggestion) in the map header are cached at <code>%LocalAppData%\PhotoGeoExplorer\Cache\RoadTiles</code> (up to about 200 MB). Road names are determined on your device.</li>
             </ul>
@@ -298,7 +300,7 @@
                 <li><strong>Update checks:</strong> GitHub Releases are queried for new versions. These requests do not include personal information or photo data.</li>
             </ul>
             <p>
-                The App never downloads area data (town names) itself. You download it from e-Stat in your browser.
+                The App downloads area data (town names) from e-Stat (the Japanese government statistics portal) only when you select a photo in an area with no data and you agree in the dialog (or you chose "Download without asking" in Settings). Only the URL that identifies the prefecture and ordinary connection information (your IP address and a User-Agent that includes the app name) are sent; your photos and their locations are not. You can choose at any time in Settings whether the App asks, downloads without asking, or does nothing (with "Do nothing", the App never connects on its own), and you can also download and import the data manually.
             </p>
             <p>
                 Once map tiles are cached, the App can be used offline (except for fetching new tiles). Offline, the nearest road name is determined only from cached tiles; if the tiles are not cached, it is not shown.
@@ -315,6 +317,8 @@
                         rel="noopener noreferrer">Privacy Policy</a>.</li>
                 <li><strong>OpenFreeMap (nearest road name):</strong> Road tiles are fetched from <a href="https://openfreemap.org/" target="_blank"
                         rel="noopener noreferrer">OpenFreeMap</a>. The map data is by OpenStreetMap contributors.</li>
+                <li><strong>e-Stat (area data / town names):</strong> With your consent, the boundary data (ZIP) of a prefecture is downloaded from the servers of <a href="https://www.e-stat.go.jp/" target="_blank"
+                        rel="noopener noreferrer">e-Stat (Portal Site of Official Statistics of Japan)</a> (www.e-stat.go.jp). Only the URL that identifies the prefecture and ordinary connection information (your IP address and a User-Agent that includes the app name) are sent. Your photos and their locations are not sent.</li>
                 <li><strong>Esri WorldImagery:</strong> Satellite tiles are fetched from <a href="https://www.esri.com/" target="_blank"
                         rel="noopener noreferrer">Esri</a>. See their <a
                         href="https://www.esri.com/en-us/privacy/overview" target="_blank" rel="noopener noreferrer">Privacy
