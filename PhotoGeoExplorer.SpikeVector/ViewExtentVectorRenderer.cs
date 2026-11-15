@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Mapsui;
 using PhotoMapStudio.Core.Geo;
 using PhotoMapStudio.Core.Tiles.Vector;
 using PhotoMapStudio.Tiles.Vector;
@@ -14,11 +16,35 @@ public sealed class ViewExtentVectorRenderer
 {
     private readonly IVectorTileSource _source;
     private readonly IVectorMapStyle _style;
+    private readonly DecodedTileCache? _cache;
 
-    public ViewExtentVectorRenderer(IVectorTileSource source, IVectorMapStyle style)
+    public ViewExtentVectorRenderer(IVectorTileSource source, IVectorMapStyle style, DecodedTileCache? cache = null)
     {
         _source = source;
         _style = style;
+        _cache = cache;
+    }
+
+    /// <summary>描画要求から 1 枚描く（P2）。画像の参照は 1 つ持って返す。</summary>
+    public async Task<RenderOutput> RenderAsync(RenderRequest request, CancellationToken cancellationToken = default)
+    {
+        var center = Mapsui.Projections.SphericalMercator.ToLonLat(new MPoint(request.CenterX, request.CenterY));
+        var timings = new TimingsAccumulator();
+        using var bitmap = await RenderCoreAsync(center.Y, center.X, request.Zoom, request.ImageWidth, request.ImageHeight, null, timings, cancellationToken).ConfigureAwait(false);
+        bitmap.SetImmutable();
+        var image = SKImage.FromBitmap(bitmap);
+        return new RenderOutput(new RefCountedImage(image), timings.ToTimings());
+    }
+
+    private sealed class TimingsAccumulator
+    {
+        public TimeSpan Fetch;
+        public TimeSpan Decode;
+        public TimeSpan Draw;
+        public int Tiles;
+        public int Hits;
+
+        public RenderTimings ToTimings() => new(Fetch, Decode, Draw, Tiles, Hits);
     }
 
     /// <summary>世界ピクセル座標（zoom の倍率）。</summary>
@@ -35,7 +61,7 @@ public sealed class ViewExtentVectorRenderer
     /// 中心・連続ズーム・画像寸法（ピクセル）で描いて返す。
     /// overlay は、画像座標（左上原点）で描き足す関数。位置の整合の確認用に、緯度経度の目印を同じ変換で描くために使う。
     /// </summary>
-    public async Task<SKBitmap> RenderAsync(
+    public Task<SKBitmap> RenderAsync(
         double centerLatitude,
         double centerLongitude,
         double zoom,
@@ -43,6 +69,17 @@ public sealed class ViewExtentVectorRenderer
         int height,
         Action<SKCanvas, Func<double, double, SKPoint>>? overlay = null,
         CancellationToken cancellationToken = default)
+        => RenderCoreAsync(centerLatitude, centerLongitude, zoom, width, height, overlay, new TimingsAccumulator(), cancellationToken);
+
+    private async Task<SKBitmap> RenderCoreAsync(
+        double centerLatitude,
+        double centerLongitude,
+        double zoom,
+        int width,
+        int height,
+        Action<SKCanvas, Func<double, double, SKPoint>>? overlay,
+        TimingsAccumulator timings,
+        CancellationToken cancellationToken)
     {
         var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
@@ -72,8 +109,8 @@ public sealed class ViewExtentVectorRenderer
             for (var tx = minTx; tx <= maxTx; tx++)
             {
                 var fetchX = ((tx % maxTiles) + maxTiles) % maxTiles;
-                var data = await _source.GetTileAsync(tileZoom, fetchX, ty, null, cancellationToken).ConfigureAwait(false);
-                if (data is null || data.Length == 0 || !VectorTileDecoder.TryDecode(data, out var tile))
+                var tile = await GetTileAsync(tileZoom, fetchX, ty, timings, cancellationToken).ConfigureAwait(false);
+                if (tile is null)
                 {
                     continue;
                 }
@@ -86,6 +123,7 @@ public sealed class ViewExtentVectorRenderer
             }
         }
 
+        var drawStart = Stopwatch.StartNew();
         canvas.Clear(_style.BackgroundColor);
         var viewport = new SKRect(0, 0, width, height);
         var grid = new LabelCollisionGrid();
@@ -126,6 +164,7 @@ public sealed class ViewExtentVectorRenderer
             _style.RenderLabels(canvas, item.Tile, matrix, styleZoom, grid, viewport);
         }
 
+        timings.Draw += drawStart.Elapsed;
         overlay?.Invoke(canvas, (lat, lon) =>
         {
             var (x, y) = ToWorldPixel(lat, lon, zoom);
@@ -133,5 +172,40 @@ public sealed class ViewExtentVectorRenderer
         });
 
         return bitmap;
+    }
+
+    private async Task<VectorTile?> GetTileAsync(int tileZoom, int x, int y, TimingsAccumulator timings, CancellationToken cancellationToken)
+    {
+        timings.Tiles++;
+        var key = new TileKey(_source.SourceId, tileZoom, x, y);
+        if (_cache is not null && _cache.TryGet(key, out var cached))
+        {
+            timings.Hits++;
+            return cached;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        var data = await _source.GetTileAsync(tileZoom, x, y, null, cancellationToken).ConfigureAwait(false);
+        timings.Fetch += stopwatch.Elapsed;
+        if (data is null || data.Length == 0)
+        {
+            _cache?.Add(key, null, 0);
+            return null;
+        }
+
+        // デコードは同期処理なので、同じスレッドの割り当て量の差を、モデルの大きさの見積もりにする
+        stopwatch.Restart();
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var ok = VectorTileDecoder.TryDecode(data, out var tile);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        timings.Decode += stopwatch.Elapsed;
+        if (!ok)
+        {
+            _cache?.Add(key, null, 0);
+            return null;
+        }
+
+        _cache?.Add(key, tile, allocated);
+        return tile;
     }
 }
