@@ -17,6 +17,7 @@ namespace PhotoGeoExplorer.Services;
 
 internal sealed class SettingsCoordinator : ISettingsCoordinator
 {
+    private static readonly TimeSpan SaveDebounce = TimeSpan.FromMilliseconds(300);
     private static readonly IReadOnlyList<string> JsonFileTypeFilter = new[] { ".json" };
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> JsonFileTypeChoices =
         new Dictionary<string, IReadOnlyList<string>>
@@ -30,6 +31,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     private readonly MapPaneViewModel _mapPaneViewModel;
     private readonly MainViewModel _shellViewModel;
     private readonly Func<string?> _startupFilePathProvider;
+    private readonly Func<TimeSpan, CancellationToken, Task> _debounceDelayAsync;
     private CancellationTokenSource? _settingsCts;
     private bool _isApplyingSettings;
     private string? _languageOverride;
@@ -51,7 +53,8 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         FileBrowserPaneViewModel fileBrowserPaneViewModel,
         MapPaneViewModel mapPaneViewModel,
         MainViewModel shellViewModel,
-        Func<string?> startupFilePathProvider)
+        Func<string?> startupFilePathProvider,
+        Func<TimeSpan, CancellationToken, Task>? debounceDelayAsync = null)
     {
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
@@ -60,6 +63,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _mapPaneViewModel = mapPaneViewModel ?? throw new ArgumentNullException(nameof(mapPaneViewModel));
         _shellViewModel = shellViewModel ?? throw new ArgumentNullException(nameof(shellViewModel));
         _startupFilePathProvider = startupFilePathProvider ?? throw new ArgumentNullException(nameof(startupFilePathProvider));
+        _debounceDelayAsync = debounceDelayAsync ?? Task.Delay;
         SettingsFileExistsAtStartup = _settingsService.SettingsFileExists();
         UpdateShellSettingsState();
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
@@ -452,7 +456,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     {
         try
         {
-            await Task.Delay(300, token).ConfigureAwait(true);
+            await _debounceDelayAsync(SaveDebounce, token).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {

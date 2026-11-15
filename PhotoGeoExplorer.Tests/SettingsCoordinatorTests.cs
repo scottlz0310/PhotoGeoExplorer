@@ -163,8 +163,8 @@ public sealed class SettingsCoordinatorTests : IDisposable
         using var context = CreateContext();
 
         context.MapPaneViewModel.AreaDataAcquisition.Mode = AreaDataDownloadMode.Never;
-        await Task.Delay(450).ConfigureAwait(true);
-        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+        context.Debounce.Elapse();
+        var saved = await WaitForSavedSettingsAsync(context, settings => settings.AreaDataDownloadMode == AreaDataDownloadMode.Never).ConfigureAwait(true);
 
         Assert.Equal(AreaDataDownloadMode.Never, saved.AreaDataDownloadMode);
     }
@@ -204,8 +204,8 @@ public sealed class SettingsCoordinatorTests : IDisposable
         context.Coordinator.MapHeaderDisplay.ShowCoordinates = false;
         context.Coordinator.MapHeaderDisplay.IncludePrefecture = true;
 
-        await Task.Delay(450).ConfigureAwait(true);
-        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+        context.Debounce.Elapse();
+        var saved = await WaitForSavedSettingsAsync(context, settings => settings.MapHeaderIncludePrefecture).ConfigureAwait(true);
 
         Assert.False(saved.ShowMapHeaderAddress);
         Assert.False(saved.ShowMapHeaderRoadName);
@@ -219,14 +219,16 @@ public sealed class SettingsCoordinatorTests : IDisposable
         using var context = CreateContext();
 
         context.Coordinator.ChangeTheme(ThemePreference.Light);
-        await Task.Delay(100).ConfigureAwait(true);
         context.Coordinator.ChangeTheme(ThemePreference.Dark);
 
-        await Task.Delay(180).ConfigureAwait(true);
+        // 2 回目の変更で、1 回目の保存待ちは取り消される。デバウンス時間が経つまでは保存されない
+        Assert.Equal(2, context.Debounce.Tokens.Length);
+        Assert.True(context.Debounce.Tokens[0].IsCancellationRequested);
+        Assert.False(context.Debounce.Tokens[1].IsCancellationRequested);
         Assert.False(context.SettingsService.SettingsFileExists());
 
-        await Task.Delay(260).ConfigureAwait(true);
-        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+        context.Debounce.Elapse();
+        var saved = await WaitForSavedSettingsAsync(context, settings => settings.Theme == ThemePreference.Dark).ConfigureAwait(true);
         Assert.Equal(ThemePreference.Dark, saved.Theme);
     }
 
@@ -239,8 +241,8 @@ public sealed class SettingsCoordinatorTests : IDisposable
         context.FileBrowserPaneViewModel.FileViewMode = FileViewMode.Icon;
         context.FileBrowserPaneViewModel.ShowDetailsTakenAtColumn = true;
 
-        await Task.Delay(450).ConfigureAwait(true);
-        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+        context.Debounce.Elapse();
+        var saved = await WaitForSavedSettingsAsync(context, settings => settings.ShowDetailsTakenAtColumn).ConfigureAwait(true);
 
         Assert.False(saved.ShowImagesOnly);
         Assert.Equal(FileViewMode.Icon, saved.FileViewMode);
@@ -253,12 +255,15 @@ public sealed class SettingsCoordinatorTests : IDisposable
         using var context = CreateContext();
 
         context.Coordinator.ChangeTheme(ThemePreference.Light);
+        Assert.False(context.Debounce.Tokens[0].IsCancellationRequested);
         await context.Coordinator.SaveAsync().ConfigureAwait(true);
+        Assert.True(context.Debounce.Tokens[0].IsCancellationRequested);
 
         const string sentinel = "manual-marker";
         await File.WriteAllTextAsync(context.SettingsPath, sentinel).ConfigureAwait(true);
 
-        await Task.Delay(500).ConfigureAwait(true);
+        // 取り消された保存待ちは完了しないため、デバウンス時間が経っても保存は走らない
+        context.Debounce.Elapse();
         var persisted = await File.ReadAllTextAsync(context.SettingsPath).ConfigureAwait(true);
         Assert.Equal(sentinel, persisted);
     }
@@ -304,8 +309,30 @@ public sealed class SettingsCoordinatorTests : IDisposable
         }
     }
 
+    private static async Task<AppSettings> WaitForSavedSettingsAsync(TestContext context, Func<AppSettings, bool> predicate)
+    {
+        // 保存は別タスクで走るため、固定時間ではなく、条件を満たすまで待つ（上限は失敗の検出用）
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (true)
+        {
+            var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+            if (predicate(saved))
+            {
+                return saved;
+            }
+
+            if (DateTime.UtcNow > deadline)
+            {
+                Assert.Fail("The expected settings were not saved within 10 seconds.");
+            }
+
+            await Task.Delay(20).ConfigureAwait(true);
+        }
+    }
+
     private TestContext CreateContext()
     {
+        var debounce = new ManualDebounce();
         var root = CreateTempDirectory();
         var settingsPath = Path.Combine(root, "settings.json");
         var settingsService = new SettingsService(settingsPath);
@@ -324,12 +351,14 @@ public sealed class SettingsCoordinatorTests : IDisposable
             fileBrowserPaneViewModel,
             mapPaneViewModel,
             shellViewModel,
-            () => null);
+            () => null,
+            debounce.DelayAsync);
 
         shellViewModel.ConfigureSettingsCoordinator(coordinator);
 
         return new TestContext(
             coordinator,
+            debounce,
             settingsPath,
             settingsService,
             shellViewModel,
@@ -345,10 +374,56 @@ public sealed class SettingsCoordinatorTests : IDisposable
         return tempPath;
     }
 
+    /// <summary>保存のデバウンス時間を、実時間ではなく Elapse() で進める。取り消されたものは完了せず、取り消しとして扱う</summary>
+    private sealed class ManualDebounce
+    {
+        private readonly object _gate = new();
+        private readonly List<TaskCompletionSource> _delays = [];
+        private readonly List<CancellationToken> _tokens = [];
+
+        public CancellationToken[] Tokens
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _tokens.ToArray();
+                }
+            }
+        }
+
+        public Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken)
+        {
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (_gate)
+            {
+                _delays.Add(completion);
+                _tokens.Add(cancellationToken);
+            }
+
+            return completion.Task.WaitAsync(cancellationToken);
+        }
+
+        public void Elapse()
+        {
+            TaskCompletionSource[] delays;
+            lock (_gate)
+            {
+                delays = _delays.ToArray();
+            }
+
+            foreach (var delay in delays)
+            {
+                delay.TrySetResult();
+            }
+        }
+    }
+
     private sealed class TestContext : IDisposable
     {
         public TestContext(
             SettingsCoordinator coordinator,
+            ManualDebounce debounce,
             string settingsPath,
             SettingsService settingsService,
             MainViewModel mainViewModel,
@@ -356,6 +431,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
             MapPaneViewModel mapPaneViewModel)
         {
             Coordinator = coordinator;
+            Debounce = debounce;
             SettingsPath = settingsPath;
             SettingsService = settingsService;
             MainViewModel = mainViewModel;
@@ -364,6 +440,8 @@ public sealed class SettingsCoordinatorTests : IDisposable
         }
 
         public SettingsCoordinator Coordinator { get; }
+
+        public ManualDebounce Debounce { get; }
 
         public string SettingsPath { get; }
 
