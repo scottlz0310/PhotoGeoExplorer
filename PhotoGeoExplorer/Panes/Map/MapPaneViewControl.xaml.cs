@@ -208,6 +208,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             MapControl.Map = map;
             SubscribeToMapState(map);
             Diagnostics.MapBench.MapBenchRunner.TryStart(MapControl, map);
+            Diagnostics.MapBench.P1LiveCheck.TryStart(MapControl, map);
         }
 
         UpdateMapImageSaveState();
