@@ -66,8 +66,10 @@ internal sealed class AreaDataDownloadService : IAreaDataDownloader
         var temporaryPath = Path.Combine(_temporaryDirectory, $"photogeoexplorer-areadata-{Guid.NewGuid():N}.zip");
         try
         {
-            await DownloadToFileAsync(uri, temporaryPath, progress, cancellationToken).ConfigureAwait(false);
-            return await _store.ImportAsync(temporaryPath, cancellationToken).ConfigureAwait(false);
+            // 取り込みは、呼び出し元の同期コンテキスト（UI スレッド）で始める。取り込みの完了通知（DataChanged）は、
+            // 取り込みを呼んだ側のコンテキストで発火し、表示中の写真の住所の更新が UI スレッドで走るため
+            await DownloadToFileAsync(uri, temporaryPath, progress, cancellationToken).ConfigureAwait(true);
+            return await _store.ImportAsync(temporaryPath, cancellationToken).ConfigureAwait(true);
         }
         finally
         {

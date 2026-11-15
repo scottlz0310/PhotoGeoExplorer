@@ -270,6 +270,26 @@ public sealed class AreaDataDownloadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DownloadAsyncStartsTheImportOnTheCallersSynchronizationContext()
+    {
+        // 取り込みの完了通知（DataChanged）は、取り込みを呼んだ側のコンテキストで発火する。UI スレッドで呼べば、住所の更新も UI スレッドで走る
+        var store = new FakeAreaDataStore();
+        SynchronizationContext? importContext = null;
+        store.OnImport = _ => importContext = SynchronizationContext.Current;
+        var handler = Stub((_, _) => Task.FromResult(ArchiveResponse("application/zip")));
+        var service = CreateService(handler, store);
+        var callerContext = new PostingSynchronizationContext();
+
+        await Task.Run(async () =>
+        {
+            SynchronizationContext.SetSynchronizationContext(callerContext);
+            await service.DownloadAsync("31", null, CancellationToken.None).ConfigureAwait(true);
+        }).ConfigureAwait(true);
+
+        Assert.Same(callerContext, importContext);
+    }
+
+    [Fact]
     public async Task DownloadAsyncPropagatesAnImportFailureAndRemovesTheTemporaryFile()
     {
         var store = new FakeAreaDataStore { Failure = new AreaDataFormatException(AreaDataFormatError.InvalidArchive, "not an area data archive") };
@@ -329,6 +349,20 @@ public sealed class AreaDataDownloadServiceTests : IDisposable
     private sealed class SynchronousProgress<T>(Action<T> report) : IProgress<T>
     {
         public void Report(T value) => report(value);
+    }
+
+    /// <summary>投稿された処理を、自分を現在のコンテキストにしてスレッドプールで実行する（UI スレッドの代わり）</summary>
+    private sealed class PostingSynchronizationContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state)
+        {
+            ArgumentNullException.ThrowIfNull(d);
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                SetSynchronizationContext(this);
+                d(state);
+            });
+        }
     }
 
     /// <summary>Content-Length を持たない（読み取り専用・シークなし）ストリーム</summary>

@@ -485,8 +485,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             var selected = points[0];
             var photo = new PhotoIdentity(selected.Item.FilePath, selected.Item.SizeBytes, selected.Metadata.TakenAt);
             await LocationInfo.SetLocationAsync(selected.Latitude, selected.Longitude, photo).ConfigureAwait(true);
-            // 確認ダイアログの応答や取得を待たない（選択の処理を止めない）。失敗は ViewModel が通知とログで報告する
-            _ = AreaDataAcquisition.OnLocationAsync(selected.Latitude, selected.Longitude);
+            // 確認ダイアログの応答や取得を待たない（選択の処理を止めない）。想定内の失敗は ViewModel が通知とログで報告する。
+            // 想定外の例外は、観測されないタスクの例外としてアプリを落とさないよう、ここでログに残す
+            _ = AreaDataAcquisition.OnLocationAsync(selected.Latitude, selected.Longitude).ContinueWith(
+                task => AppLog.Error("The area data acquisition failed unexpectedly.", task.Exception),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
         }
     }
 
