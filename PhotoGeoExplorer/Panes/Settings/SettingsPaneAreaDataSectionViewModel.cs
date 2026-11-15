@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Collections.Specialized;
 using System.Collections.Generic;
 using System.Globalization;
@@ -9,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.AreaNames;
@@ -39,6 +41,13 @@ internal sealed class SettingsPaneAreaDataSectionViewModel : BindableBase
         AreaDataAcquisitionViewModel? acquisition = null)
     {
         Acquisition = acquisition ?? new AreaDataAcquisitionViewModel();
+        Modes =
+        [
+            new AreaDataModeOption(AreaDataDownloadMode.Ask, LocalizationService.GetString("AreaData.Mode.Ask")),
+            new AreaDataModeOption(AreaDataDownloadMode.Auto, LocalizationService.GetString("AreaData.Mode.Auto")),
+            new AreaDataModeOption(AreaDataDownloadMode.Never, LocalizationService.GetString("AreaData.Mode.Never"))
+        ];
+        Acquisition.PropertyChanged += OnAcquisitionPropertyChanged;
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _pickArchiveAsync = pickArchiveAsync ?? throw new ArgumentNullException(nameof(pickArchiveAsync));
         _addCommand = new RelayCommand(() => AddAsync(), () => !IsBusy);
@@ -52,6 +61,21 @@ internal sealed class SettingsPaneAreaDataSectionViewModel : BindableBase
 
     /// <summary>e-Stat からの取得（確認の省略の設定を含む）</summary>
     public AreaDataAcquisitionViewModel Acquisition { get; }
+
+    /// <summary>地域データが無い地域の写真を選んだときの動作の選択肢（確認する・確認せずに取得する・何もしない）</summary>
+    public IReadOnlyList<AreaDataModeOption> Modes { get; }
+
+    public AreaDataModeOption SelectedMode
+    {
+        get => Modes.First(option => option.Mode == Acquisition.Mode);
+        set
+        {
+            if (value is not null)
+            {
+                Acquisition.Mode = value.Mode;
+            }
+        }
+    }
 
     public IReadOnlyList<PrefectureOption> Prefectures { get; } = PrefectureCatalog.Codes
         .Select(code => new PrefectureOption(code, PrefectureCatalog.TryGetName(code, out var name) ? name : code))
@@ -217,6 +241,15 @@ internal sealed class SettingsPaneAreaDataSectionViewModel : BindableBase
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    // 確認ダイアログの「以降は確認せずに取得する」「今後は取得しない」でも動作が変わる
+    private void OnAcquisitionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AreaDataAcquisitionViewModel.Mode))
+        {
+            OnPropertyChanged(nameof(SelectedMode));
         }
     }
 

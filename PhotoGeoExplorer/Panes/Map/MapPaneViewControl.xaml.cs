@@ -86,6 +86,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             Title = LocalizationService.GetString("AreaData.Download.Prompt.Title"),
             Content = content,
             PrimaryButtonText = LocalizationService.GetString("AreaData.Download.Prompt.Accept"),
+            SecondaryButtonText = LocalizationService.GetString("AreaData.Download.Prompt.Never"),
             CloseButtonText = LocalizationService.GetString("AreaData.Download.Prompt.Decline"),
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = XamlRoot
@@ -93,12 +94,12 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         try
         {
             var result = await dialog.ShowAsync().AsTask(cancellationToken).ConfigureAwait(true);
-            if (result != ContentDialogResult.Primary)
+            return result switch
             {
-                return AreaDataConsent.Decline;
-            }
-
-            return remember.IsChecked == true ? AreaDataConsent.AcceptAndRemember : AreaDataConsent.Accept;
+                ContentDialogResult.Primary => remember.IsChecked == true ? AreaDataConsent.AcceptAndRemember : AreaDataConsent.Accept,
+                ContentDialogResult.Secondary => AreaDataConsent.DeclineAndRemember,
+                _ => AreaDataConsent.Decline
+            };
         }
         catch (System.Runtime.InteropServices.COMException ex)
         {

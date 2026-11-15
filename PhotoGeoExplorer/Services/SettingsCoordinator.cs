@@ -258,7 +258,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
         _externalContentBaseUrl = SettingsNormalization.NormalizeExternalContentBaseUrl(settings.ExternalContentBaseUrl);
         MapHeaderDisplay.Apply(settings);
-        _mapPaneViewModel.AreaDataAcquisition.AutoDownload = settings.AutoDownloadAreaData;
+        _mapPaneViewModel.AreaDataAcquisition.Mode = Enum.IsDefined(settings.AreaDataDownloadMode) ? settings.AreaDataDownloadMode : AreaDataDownloadMode.Ask;
 
         var savedTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
         if (savedTileSource != _mapTileSource)
@@ -421,7 +421,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     private void OnAreaDataAcquisitionPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         // 取得中の状態（進捗など）の変化では保存しない
-        if (e.PropertyName == nameof(AreaDataAcquisitionViewModel.AutoDownload))
+        if (e.PropertyName == nameof(AreaDataAcquisitionViewModel.Mode))
         {
             ScheduleSave();
         }
@@ -489,7 +489,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             ShowMapHeaderRoadName = MapHeaderDisplay.ShowRoadName,
             ShowMapHeaderCoordinates = MapHeaderDisplay.ShowCoordinates,
             MapHeaderIncludePrefecture = MapHeaderDisplay.IncludePrefecture,
-            AutoDownloadAreaData = _mapPaneViewModel.AreaDataAcquisition.AutoDownload,
+            AreaDataDownloadMode = _mapPaneViewModel.AreaDataAcquisition.Mode,
             ShowQuickStartOnStartup = _showQuickStartOnStartup,
             ExternalContentBaseUrl = _externalContentBaseUrl,
             PaneLayoutPreset = _paneLayoutPreset,

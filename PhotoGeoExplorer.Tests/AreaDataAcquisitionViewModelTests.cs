@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services.AreaNames;
 using Xunit;
@@ -46,12 +47,12 @@ public sealed class AreaDataAcquisitionViewModelTests
         Assert.Equal([["鳥取県"]], fixture.Prompts);
         Assert.Equal(Tottori, fixture.Downloader.Requested);
         Assert.Equal([InfoBarSeverity.Success], fixture.Notifications.Select(notification => notification.Severity));
-        Assert.False(fixture.ViewModel.AutoDownload);
+        Assert.Equal(AreaDataDownloadMode.Ask, fixture.ViewModel.Mode);
         Assert.False(fixture.ViewModel.IsDownloading);
     }
 
     [Fact]
-    public async Task AcceptAndRememberTurnsOnAutoDownloadAndLaterRequestsSkipTheDialog()
+    public async Task AcceptAndRememberSwitchesToAutoAndLaterRequestsSkipTheDialog()
     {
         var fixture = new Fixture(Tottori) { Consent = AreaDataConsent.AcceptAndRemember };
 
@@ -59,16 +60,16 @@ public sealed class AreaDataAcquisitionViewModelTests
         fixture.Detector.Missing = ["13"];
         await fixture.ViewModel.OnLocationAsync(35.7, 139.7).ConfigureAwait(true);
 
-        Assert.True(fixture.ViewModel.AutoDownload);
+        Assert.Equal(AreaDataDownloadMode.Auto, fixture.ViewModel.Mode);
         Assert.Single(fixture.Prompts);
         Assert.Equal(["31", "13"], fixture.Downloader.Requested);
     }
 
     [Fact]
-    public async Task OnLocationAsyncSkipsTheDialogWhenAutoDownloadIsAlreadyOn()
+    public async Task OnLocationAsyncSkipsTheDialogInAutoMode()
     {
         var fixture = new Fixture(Tottori);
-        fixture.ViewModel.AutoDownload = true;
+        fixture.ViewModel.Mode = AreaDataDownloadMode.Auto;
 
         await fixture.ViewModel.OnLocationAsync(35.0, 133.0).ConfigureAwait(true);
 
@@ -88,7 +89,62 @@ public sealed class AreaDataAcquisitionViewModelTests
 
         Assert.Equal([["鳥取県"], ["東京都"]], fixture.Prompts);
         Assert.Empty(fixture.Downloader.Requested);
-        Assert.False(fixture.ViewModel.AutoDownload);
+        Assert.Equal(AreaDataDownloadMode.Ask, fixture.ViewModel.Mode);
+    }
+
+    [Fact]
+    public async Task DeclineAndRememberSwitchesToNeverAndNothingHappensAfterwards()
+    {
+        var fixture = new Fixture(Tottori) { Consent = AreaDataConsent.DeclineAndRemember };
+
+        await fixture.ViewModel.OnLocationAsync(35.0, 133.0).ConfigureAwait(true);
+        fixture.Detector.Missing = ["13"];
+        await fixture.ViewModel.OnLocationAsync(35.7, 139.7).ConfigureAwait(true);
+
+        Assert.Equal(AreaDataDownloadMode.Never, fixture.ViewModel.Mode);
+        Assert.Single(fixture.Prompts);
+        Assert.Empty(fixture.Downloader.Requested);
+        Assert.Equal(1, fixture.Detector.CallCount);
+        Assert.Empty(fixture.Notifications);
+    }
+
+    [Fact]
+    public async Task NeverModeDoesNotEvenCheckWhetherDataIsNeededOrAsk()
+    {
+        var fixture = new Fixture(Tottori) { Consent = AreaDataConsent.Accept };
+        fixture.ViewModel.Mode = AreaDataDownloadMode.Never;
+
+        await fixture.ViewModel.OnLocationAsync(35.0, 133.0).ConfigureAwait(true);
+
+        Assert.Equal(0, fixture.Detector.CallCount);
+        Assert.Empty(fixture.Prompts);
+        Assert.Empty(fixture.Downloader.Requested);
+    }
+
+    [Fact]
+    public async Task ManualDownloadStillWorksInNeverMode()
+    {
+        var fixture = new Fixture(Tottori);
+        fixture.ViewModel.Mode = AreaDataDownloadMode.Never;
+
+        await fixture.ViewModel.DownloadAsync("31").ConfigureAwait(true);
+
+        Assert.Equal(Tottori, fixture.Downloader.Requested);
+        Assert.Equal([InfoBarSeverity.Success], fixture.Notifications.Select(notification => notification.Severity));
+        Assert.Equal(AreaDataDownloadMode.Never, fixture.ViewModel.Mode);
+    }
+
+    [Fact]
+    public void ChangingTheModeRaisesPropertyChanged()
+    {
+        var fixture = new Fixture(Tottori);
+        var changed = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        fixture.ViewModel.Mode = AreaDataDownloadMode.Auto;
+        fixture.ViewModel.Mode = AreaDataDownloadMode.Auto;
+
+        Assert.Equal([nameof(AreaDataAcquisitionViewModel.Mode)], changed);
     }
 
     [Theory]

@@ -1327,9 +1327,6 @@
   <data name="SettingsPaneAreaDataDownloadButton.Content" xml:space="preserve">
     <value>e-Stat から取得</value>
   </data>
-  <data name="SettingsPaneAreaDataAutoDownload.Content" xml:space="preserve">
-    <value>地域データが無い地域の写真を選んだとき、確認せずに取得する</value>
-  </data>
   <data name="AreaDataDownloadCancelButton.Content" xml:space="preserve">
     <value>中止</value>
   </data>
@@ -1377,5 +1374,20 @@
   </data>
   <data name="AreaData.Download.Prompt.Decline" xml:space="preserve">
     <value>今回はしない</value>
+  </data>
+  <data name="SettingsPaneAreaDataMode.Header" xml:space="preserve">
+    <value>地域データが無い地域の写真を選んだとき</value>
+  </data>
+  <data name="AreaData.Mode.Ask" xml:space="preserve">
+    <value>取得してよいかを確認する</value>
+  </data>
+  <data name="AreaData.Mode.Auto" xml:space="preserve">
+    <value>確認せずに取得する</value>
+  </data>
+  <data name="AreaData.Mode.Never" xml:space="preserve">
+    <value>何もしない（案内も取得もしない）</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Never" xml:space="preserve">
+    <value>今後は取得しない</value>
   </data>
 </root>

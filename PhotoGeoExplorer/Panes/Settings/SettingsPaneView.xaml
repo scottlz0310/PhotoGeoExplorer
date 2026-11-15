@@ -265,10 +265,13 @@
                                 Command="{Binding AreaData.DownloadCommand}"
                                 AutomationProperties.AutomationId="SettingsAreaDataDownloadButton" />
                         </StackPanel>
-                        <CheckBox
-                            x:Uid="SettingsPaneAreaDataAutoDownload"
-                            IsChecked="{Binding AreaData.Acquisition.AutoDownload, Mode=TwoWay}"
-                            AutomationProperties.AutomationId="SettingsAreaDataAutoDownload" />
+                        <ComboBox
+                            x:Uid="SettingsPaneAreaDataMode"
+                            MinWidth="280"
+                            ItemsSource="{Binding AreaData.Modes}"
+                            SelectedItem="{Binding AreaData.SelectedMode, Mode=TwoWay}"
+                            DisplayMemberPath="Label"
+                            AutomationProperties.AutomationId="SettingsAreaDataMode" />
                         <TextBlock
                             Text="{Binding AreaData.StatusMessage, Mode=OneWay}"
                             AutomationProperties.AutomationId="SettingsAreaDataStatus"

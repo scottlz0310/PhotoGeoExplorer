@@ -7,6 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Microsoft.UI.Xaml;
+using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services.AreaNames;
 using Xunit;
@@ -256,6 +258,74 @@ public class SettingsPaneAreaDataSectionViewModelTests
             "AreaData.Imported",
             "AreaData.Deleted",
             "AreaData.Error.Io"
+        };
+
+        foreach (var language in new[] { "ja-JP", "en-US" })
+        {
+            var available = ResourceKeys(language);
+            Assert.All(keys, key => Assert.True(available.Contains(key), $"{language} の Resources.resw に {key} がありません。"));
+        }
+    }
+
+    [Fact]
+    public void ModesOfferAskAutoAndNeverAndSelectingOneChangesTheAcquisitionMode()
+    {
+        var acquisition = new AreaDataAcquisitionViewModel();
+        var section = new SettingsPaneAreaDataSectionViewModel(new FakeAreaDataStore(), _ => Task.FromResult<string?>(null), acquisition);
+
+        Assert.Equal([AreaDataDownloadMode.Ask, AreaDataDownloadMode.Auto, AreaDataDownloadMode.Never], section.Modes.Select(option => option.Mode));
+        Assert.Equal(AreaDataDownloadMode.Ask, section.SelectedMode.Mode);
+
+        section.SelectedMode = section.Modes[2];
+        Assert.Equal(AreaDataDownloadMode.Never, acquisition.Mode);
+
+        section.SelectedMode = null!;
+        Assert.Equal(AreaDataDownloadMode.Never, acquisition.Mode);
+    }
+
+    [Fact]
+    public void TheSelectedModeFollowsChangesMadeElsewhereAndRaisesPropertyChanged()
+    {
+        var acquisition = new AreaDataAcquisitionViewModel();
+        var section = new SettingsPaneAreaDataSectionViewModel(new FakeAreaDataStore(), _ => Task.FromResult<string?>(null), acquisition);
+        var changed = new List<string?>();
+        ((INotifyPropertyChanged)section).PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        // 確認ダイアログの「以降は確認せずに取得する」「今後は取得しない」
+        acquisition.Mode = AreaDataDownloadMode.Auto;
+
+        Assert.Equal(AreaDataDownloadMode.Auto, section.SelectedMode.Mode);
+        Assert.Contains(nameof(SettingsPaneAreaDataSectionViewModel.SelectedMode), changed);
+    }
+
+    [Fact]
+    public void EveryDownloadResourceUsedByTheViewsHasAMessageInBothLanguages()
+    {
+        var keys = new[]
+        {
+            "SettingsPaneAreaDataPrefecture.PlaceholderText",
+            "SettingsPaneAreaDataDownloadButton.Content",
+            "SettingsPaneAreaDataMode.Header",
+            "AreaDataDownloadCancelButton.Content",
+            "AreaData.Mode.Ask",
+            "AreaData.Mode.Auto",
+            "AreaData.Mode.Never",
+            "AreaData.Download.Progress",
+            "AreaData.Download.Done",
+            "AreaData.Download.Cancelled",
+            "AreaData.Download.Error.Network",
+            "AreaData.Download.Error.HttpStatus",
+            "AreaData.Download.Error.NotArchive",
+            "AreaData.Download.Error.TooLarge",
+            "AreaData.Download.Error.Import",
+            "AreaData.Download.Error.Io",
+            "AreaData.Download.Prompt.Title",
+            "AreaData.Download.Prompt.Body",
+            "AreaData.Download.Prompt.Notice",
+            "AreaData.Download.Prompt.Remember",
+            "AreaData.Download.Prompt.Accept",
+            "AreaData.Download.Prompt.Never",
+            "AreaData.Download.Prompt.Decline"
         };
 
         foreach (var language in new[] { "ja-JP", "en-US" })

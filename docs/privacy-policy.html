@@ -171,7 +171,7 @@
                 <li><strong>更新チェック:</strong> 新バージョン確認のため、GitHub Releases を参照します。これらのリクエストに個人情報や写真データは含めません。</li>
             </ul>
             <p>
-                地域データ（字地名）は、地域データが無い地域の写真を選んだときに、利用者がダイアログで同意した場合（または「以降は確認せずに取得する」を選んだ場合）に限り、本アプリが政府統計の総合窓口（e-Stat）から取得します。送信されるのは、取得する都道府県を示す URL と、通常の通信情報（IP アドレス・アプリ名を含む User-Agent）だけで、写真や撮影位置は送信されません。確認なしの取得は、設定でいつでも切り替えられます。手動でダウンロードして取り込むこともできます。
+                地域データ（字地名）は、地域データが無い地域の写真を選んだときに、利用者がダイアログで同意した場合（または設定で「確認せずに取得する」を選んだ場合）に限り、本アプリが政府統計の総合窓口（e-Stat）から取得します。送信されるのは、取得する都道府県を示す URL と、通常の通信情報（IP アドレス・アプリ名を含む User-Agent）だけで、写真や撮影位置は送信されません。取得の確認・確認なしの取得・何もしない、のどれにするかは、設定でいつでも切り替えられます（「何もしない」では、本アプリは自動では通信しません）。手動でダウンロードして取り込むこともできます。
             </p>
             <p>
                 初回の地図タイルがキャッシュされた後は、オフラインでも利用できます（地図の新規取得は除く）。最寄り道路名は、オフラインではキャッシュにあるタイルだけで判定し、なければ表示しません。
@@ -300,7 +300,7 @@
                 <li><strong>Update checks:</strong> GitHub Releases are queried for new versions. These requests do not include personal information or photo data.</li>
             </ul>
             <p>
-                The App downloads area data (town names) from e-Stat (the Japanese government statistics portal) only when you select a photo in an area with no data and you agree in the dialog (or you chose "Download without asking from now on"). Only the URL that identifies the prefecture and ordinary connection information (your IP address and a User-Agent that includes the app name) are sent; your photos and their locations are not. You can change the no-confirmation setting at any time, and you can also download and import the data manually.
+                The App downloads area data (town names) from e-Stat (the Japanese government statistics portal) only when you select a photo in an area with no data and you agree in the dialog (or you chose "Download without asking" in Settings). Only the URL that identifies the prefecture and ordinary connection information (your IP address and a User-Agent that includes the app name) are sent; your photos and their locations are not. You can choose at any time in Settings whether the App asks, downloads without asking, or does nothing (with "Do nothing", the App never connects on its own), and you can also download and import the data manually.
             </p>
             <p>
                 Once map tiles are cached, the App can be used offline (except for fetching new tiles). Offline, the nearest road name is determined only from cached tiles; if the tiles are not cached, it is not shown.

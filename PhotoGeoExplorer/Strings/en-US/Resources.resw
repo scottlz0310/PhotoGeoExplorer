@@ -1327,9 +1327,6 @@
   <data name="SettingsPaneAreaDataDownloadButton.Content" xml:space="preserve">
     <value>Download from e-Stat</value>
   </data>
-  <data name="SettingsPaneAreaDataAutoDownload.Content" xml:space="preserve">
-    <value>Download without asking when I select a photo in an area with no data</value>
-  </data>
   <data name="AreaDataDownloadCancelButton.Content" xml:space="preserve">
     <value>Cancel</value>
   </data>
@@ -1377,5 +1374,20 @@
   </data>
   <data name="AreaData.Download.Prompt.Decline" xml:space="preserve">
     <value>Not now</value>
+  </data>
+  <data name="SettingsPaneAreaDataMode.Header" xml:space="preserve">
+    <value>When I select a photo in an area with no data</value>
+  </data>
+  <data name="AreaData.Mode.Ask" xml:space="preserve">
+    <value>Ask whether to download</value>
+  </data>
+  <data name="AreaData.Mode.Auto" xml:space="preserve">
+    <value>Download without asking</value>
+  </data>
+  <data name="AreaData.Mode.Never" xml:space="preserve">
+    <value>Do nothing (no prompt, no download)</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Never" xml:space="preserve">
+    <value>Never download</value>
   </data>
 </root>

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.AreaNames;
@@ -25,7 +26,10 @@ internal enum AreaDataConsent
     Accept,
 
     /// <summary>取得し、以降は確認せずに取得する</summary>
-    AcceptAndRemember
+    AcceptAndRemember,
+
+    /// <summary>取得せず、以降は案内も取得もしない</summary>
+    DeclineAndRemember
 }
 
 /// <summary>
@@ -45,7 +49,7 @@ internal sealed class AreaDataAcquisitionViewModel : BindableBase
     private readonly RelayCommand _cancelCommand;
     private CancellationTokenSource? _downloadCancellation;
     private bool _busy;
-    private bool _autoDownload;
+    private AreaDataDownloadMode _mode;
     private bool _isDownloading;
     private string _statusText = string.Empty;
 
@@ -79,11 +83,14 @@ internal sealed class AreaDataAcquisitionViewModel : BindableBase
         });
     }
 
-    /// <summary>確認なしで取得する（確認ダイアログの「以降は確認せずに取得する」）。設定ファイルに保存される</summary>
-    public bool AutoDownload
+    /// <summary>
+    /// 地域データが無い地域の写真を選んだときの動作。確認ダイアログの「以降は確認せずに取得する」「今後は取得しない」でも変わる。設定ファイルに保存される。
+    /// <see cref="AreaDataDownloadMode.Never"/> でも、設定からの手動の取得（<see cref="DownloadAsync"/>）は使える
+    /// </summary>
+    public AreaDataDownloadMode Mode
     {
-        get => _autoDownload;
-        set => SetProperty(ref _autoDownload, value);
+        get => _mode;
+        set => SetProperty(ref _mode, value);
     }
 
     public bool IsDownloading
@@ -114,7 +121,7 @@ internal sealed class AreaDataAcquisitionViewModel : BindableBase
     /// </summary>
     public async Task OnLocationAsync(double latitude, double longitude)
     {
-        if (_detector is null || _downloader is null || _askConsentAsync is null || _busy)
+        if (_detector is null || _downloader is null || _askConsentAsync is null || _busy || Mode == AreaDataDownloadMode.Never)
         {
             return;
         }
@@ -139,18 +146,23 @@ internal sealed class AreaDataAcquisitionViewModel : BindableBase
                 return;
             }
 
-            if (!AutoDownload)
+            if (Mode == AreaDataDownloadMode.Ask)
             {
                 var consent = await _askConsentAsync(GetNames(targets), CancellationToken.None).ConfigureAwait(true);
-                if (consent == AreaDataConsent.Decline)
+                if (consent is AreaDataConsent.Decline or AreaDataConsent.DeclineAndRemember)
                 {
                     _blocked.UnionWith(targets);
+                    if (consent == AreaDataConsent.DeclineAndRemember)
+                    {
+                        Mode = AreaDataDownloadMode.Never;
+                    }
+
                     return;
                 }
 
                 if (consent == AreaDataConsent.AcceptAndRemember)
                 {
-                    AutoDownload = true;
+                    Mode = AreaDataDownloadMode.Auto;
                 }
             }
 
