@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace PhotoMapStudio.Spike;
 
 /// <summary>描画の内訳（デコード済みキャッシュの効果を見るため、取得・デコード・描画を分ける）。</summary>
-public readonly record struct RenderTimings(TimeSpan Fetch, TimeSpan Decode, TimeSpan Draw, int Tiles, int CacheHits);
+public readonly record struct RenderTimings(TimeSpan Fetch, TimeSpan Decode, TimeSpan Draw, int Tiles, int CacheHits, TimeSpan Polygons = default, TimeSpan Lines = default, TimeSpan Symbols = default, TimeSpan LineLabels = default, TimeSpan Labels = default);
 
 /// <summary>描画の出力。画像の参照（1 つ）を持つ。受け取った側が <see cref="RefCountedImage.Release"/> する。</summary>
 public sealed record RenderOutput(RefCountedImage Image, RenderTimings Timings);

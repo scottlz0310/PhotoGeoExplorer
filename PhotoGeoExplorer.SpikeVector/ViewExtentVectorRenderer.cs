@@ -43,8 +43,13 @@ public sealed class ViewExtentVectorRenderer
         public TimeSpan Draw;
         public int Tiles;
         public int Hits;
+        public TimeSpan Polygons;
+        public TimeSpan Lines;
+        public TimeSpan Symbols;
+        public TimeSpan LineLabels;
+        public TimeSpan Labels;
 
-        public RenderTimings ToTimings() => new(Fetch, Decode, Draw, Tiles, Hits);
+        public RenderTimings ToTimings() => new(Fetch, Decode, Draw, Tiles, Hits, Polygons, Lines, Symbols, LineLabels, Labels);
     }
 
     /// <summary>世界ピクセル座標（zoom の倍率）。</summary>
@@ -128,6 +133,7 @@ public sealed class ViewExtentVectorRenderer
         var viewport = new SKRect(0, 0, width, height);
         var grid = new LabelCollisionGrid();
 
+        var phase = Stopwatch.StartNew();
         foreach (var item in loaded)
         {
             canvas.Save();
@@ -136,6 +142,9 @@ public sealed class ViewExtentVectorRenderer
             _style.RenderPolygons(canvas, item.Tile, item.Scale, styleZoom);
             canvas.Restore();
         }
+
+        timings.Polygons += phase.Elapsed;
+        phase.Restart();
 
         foreach (var item in loaded)
         {
@@ -146,11 +155,17 @@ public sealed class ViewExtentVectorRenderer
             canvas.Restore();
         }
 
+        timings.Lines += phase.Elapsed;
+        phase.Restart();
+
         foreach (var item in loaded)
         {
             var matrix = SKMatrix.CreateScaleTranslation(item.Scale, item.Scale, item.Dx, item.Dy);
             _style.RenderSymbols(canvas, item.Tile, matrix, styleZoom, grid, viewport);
         }
+
+        timings.Symbols += phase.Elapsed;
+        phase.Restart();
 
         foreach (var item in loaded)
         {
@@ -158,11 +173,16 @@ public sealed class ViewExtentVectorRenderer
             _style.RenderLineLabels(canvas, item.Tile, matrix, styleZoom, grid, viewport);
         }
 
+        timings.LineLabels += phase.Elapsed;
+        phase.Restart();
+
         foreach (var item in loaded)
         {
             var matrix = SKMatrix.CreateScaleTranslation(item.Scale, item.Scale, item.Dx, item.Dy);
             _style.RenderLabels(canvas, item.Tile, matrix, styleZoom, grid, viewport);
         }
+
+        timings.Labels += phase.Elapsed;
 
         timings.Draw += drawStart.Elapsed;
         overlay?.Invoke(canvas, (lat, lon) =>

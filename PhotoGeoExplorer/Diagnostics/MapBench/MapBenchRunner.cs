@@ -20,6 +20,7 @@ using Microsoft.UI.Dispatching;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services;
+using PhotoMapStudio.Spike;
 
 namespace PhotoGeoExplorer.Diagnostics.MapBench;
 
@@ -47,6 +48,7 @@ internal sealed class MapBenchRunner
     private readonly TileLayer _tileLayer;
     private readonly MemoryLayer _markerLayer;
     private readonly BenchMapRenderer _renderer;
+    private readonly P2Backend? _p2;
     private readonly string _outDir;
     private readonly string _label;
     private readonly DispatcherQueue _queue;
@@ -54,8 +56,9 @@ internal sealed class MapBenchRunner
     private readonly Dictionary<string, object?> _result = new();
     private readonly List<Dictionary<string, object?>> _phases = new();
 
-    private MapBenchRunner(MapControl mapControl, Mapsui.Map map, TileLayer tileLayer, MemoryLayer markerLayer, string outDir, string label)
+    private MapBenchRunner(MapControl mapControl, Mapsui.Map map, TileLayer tileLayer, MemoryLayer markerLayer, string outDir, string label, P2Backend? p2)
     {
+        _p2 = p2;
         _mapControl = mapControl;
         _map = map;
         _tileLayer = tileLayer;
@@ -84,7 +87,18 @@ internal sealed class MapBenchRunner
 
         Directory.CreateDirectory(outDir);
         var label = Environment.GetEnvironmentVariable("PGE_BENCH_LABEL") ?? "run";
-        var runner = new MapBenchRunner(mapControl, map, tileLayer, markerLayer, outDir, label);
+        // スパイク #293 の P2: PGE_P2_MVT があれば、OSM のラスタを無効にして、保存済み MVT の表示範囲画像（背景スレッド描画）を背景にする
+        P2Backend? p2 = null;
+        if (Environment.GetEnvironmentVariable("PGE_P2_MVT") is { Length: > 0 } mvt)
+        {
+            // ズームの段階表（Resolutions）は、有効なタイルレイヤーから決まる。OSM を無効にしても、同じ段階（z0〜20）で操作できるようにする
+            map.Navigator.OverrideResolutions = Enumerable.Range(0, 21).Select(i => ViewExtentInjection.ResolutionAtZoom0 / Math.Pow(2, i)).ToArray();
+            tileLayer.Enabled = false;
+            p2 = new P2Backend(mapControl, map, mvt, Environment.GetEnvironmentVariable("PGE_P2_NOCACHE") != "1");
+            p2.Start();
+        }
+
+        var runner = new MapBenchRunner(mapControl, map, tileLayer, markerLayer, outDir, label, p2);
         _ = runner.RunAsync();
     }
 
@@ -114,6 +128,25 @@ internal sealed class MapBenchRunner
             // 同じプロセス内での再訪（メモリキャッシュ）
             var first = points[0];
             await MeasureJumpAsync("revisit-" + first.Name, first.Lat, first.Lon, "jump-revisit").ConfigureAwait(true);
+
+            if (_p2 is not null)
+            {
+                var st = _p2.Stats;
+                _result["p2"] = new Dictionary<string, object?>
+                {
+                    ["submitted"] = st.Submitted,
+                    ["replaced"] = st.Replaced,
+                    ["rendered"] = st.Started,
+                    ["delivered"] = st.Delivered,
+                    ["applied"] = _p2.Applied,
+                    ["discardedStale"] = st.DiscardedStale,
+                    ["cancelled"] = st.Cancelled,
+                    ["failed"] = st.Failed,
+                    ["liveImages"] = RefCountedImage.LiveCount,
+                    ["cacheMB"] = _p2.Cache is { } c ? Math.Round(c.Bytes / 1048576.0, 1) : 0,
+                    ["cacheTiles"] = _p2.Cache?.Count ?? 0,
+                };
+            }
 
             _result["phases"] = _phases;
             _result["finishedAt"] = DateTimeOffset.Now.ToString("o", CultureInfo.InvariantCulture);
@@ -250,7 +283,7 @@ internal sealed class MapBenchRunner
         while (Stopwatch.GetTimestamp() < deadline)
         {
             await Task.Delay(5).ConfigureAwait(true);
-            if (_tileLayer.Busy)
+            if (_p2 is not null ? _p2.Busy : _tileLayer.Busy)
             {
                 requested = true;
                 idleTicks = 0;

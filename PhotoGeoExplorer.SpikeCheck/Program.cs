@@ -20,6 +20,12 @@ if (args.Length >= 2 && args[0] == "analyze")
     return Analyze.Run(args[1]);
 }
 
+if (args.Length >= 3 && args[0] == "p2")
+{
+    var d = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 1.0;
+    return await P2Check.RunAsync(args[1], args[2], d);
+}
+
 var mvtRoot = args.Length > 0 ? args[0] : Path.Combine(Path.GetTempPath(), "pge-bench", "mvt");
 var outDir = args.Length > 1 ? args[1] : Path.Combine(Path.GetTempPath(), "pge-bench", "p1");
 Directory.CreateDirectory(outDir);
