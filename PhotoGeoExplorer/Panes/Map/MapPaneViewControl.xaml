@@ -277,6 +277,30 @@
                     FontSize="12"
                     TextWrapping="Wrap" />
             </Border>
+            <!-- 字地名の地域データの取得中。進捗は受信済みのバイト数（サイズは取得前には分からない） -->
+            <Border
+                Margin="8"
+                Padding="12,6"
+                CornerRadius="4"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}"
+                Visibility="{Binding AreaDataAcquisition.StatusVisibility, Mode=OneWay}"
+                AutomationProperties.AutomationId="AreaDataDownloadStatus">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <ProgressRing Width="16" Height="16" IsActive="True" VerticalAlignment="Center" />
+                    <TextBlock
+                        Text="{Binding AreaDataAcquisition.StatusText, Mode=OneWay}"
+                        FontSize="12"
+                        VerticalAlignment="Center"
+                        TextWrapping="Wrap" />
+                    <Button
+                        x:Uid="AreaDataDownloadCancelButton"
+                        Padding="8,2"
+                        Command="{Binding AreaDataAcquisition.CancelCommand}"
+                        AutomationProperties.AutomationId="AreaDataDownloadCancel" />
+                </StackPanel>
+            </Border>
             <Border
                 x:Name="MapStatusOverlay"
                 Background="#D0000000"

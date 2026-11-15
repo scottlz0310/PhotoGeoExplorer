@@ -1,12 +1,15 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.UI.Xaml;
+using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.AreaNames;
 using PhotoGeoExplorer.ViewModels;
@@ -23,23 +26,50 @@ internal sealed class SettingsPaneAreaDataSectionViewModel : BindableBase
     private readonly IAreaDataStore _store;
     private readonly Func<CancellationToken, Task<string?>> _pickArchiveAsync;
     private readonly RelayCommand _addCommand;
+    private readonly RelayCommand _downloadCommand;
+    private PrefectureOption? _selectedPrefecture;
     private bool _isBusy;
     private string _statusMessage = string.Empty;
 
     /// <param name="pickArchiveAsync">取り込む ZIP のパスを利用者に選んでもらう。キャンセルされたら null</param>
+    /// <param name="acquisition">e-Stat からの取得。null なら取得の項目は使えない（何もしない）</param>
     internal SettingsPaneAreaDataSectionViewModel(
         IAreaDataStore store,
-        Func<CancellationToken, Task<string?>> pickArchiveAsync)
+        Func<CancellationToken, Task<string?>> pickArchiveAsync,
+        AreaDataAcquisitionViewModel? acquisition = null)
     {
+        Acquisition = acquisition ?? new AreaDataAcquisitionViewModel();
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _pickArchiveAsync = pickArchiveAsync ?? throw new ArgumentNullException(nameof(pickArchiveAsync));
         _addCommand = new RelayCommand(() => AddAsync(), () => !IsBusy);
+        _downloadCommand = new RelayCommand(() => DownloadSelectedAsync(), () => !IsBusy && SelectedPrefecture is not null);
         Packs.CollectionChanged += OnPacksChanged;
     }
 
     public ObservableCollection<AreaDataPackItemViewModel> Packs { get; } = [];
 
     public ICommand AddCommand => _addCommand;
+
+    /// <summary>e-Stat からの取得（確認の省略の設定を含む）</summary>
+    public AreaDataAcquisitionViewModel Acquisition { get; }
+
+    public IReadOnlyList<PrefectureOption> Prefectures { get; } = PrefectureCatalog.Codes
+        .Select(code => new PrefectureOption(code, PrefectureCatalog.TryGetName(code, out var name) ? name : code))
+        .ToList();
+
+    public PrefectureOption? SelectedPrefecture
+    {
+        get => _selectedPrefecture;
+        set
+        {
+            if (SetProperty(ref _selectedPrefecture, value))
+            {
+                _downloadCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public ICommand DownloadCommand => _downloadCommand;
 
     public Visibility EmptyVisibility => Packs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -54,6 +84,7 @@ internal sealed class SettingsPaneAreaDataSectionViewModel : BindableBase
             }
 
             _addCommand.RaiseCanExecuteChanged();
+            _downloadCommand.RaiseCanExecuteChanged();
             foreach (var pack in Packs)
             {
                 pack.RaiseDeleteCanExecuteChanged();
@@ -118,6 +149,26 @@ internal sealed class SettingsPaneAreaDataSectionViewModel : BindableBase
         {
             AppLog.Error("Failed to import the area data.", ex);
             StatusMessage = LocalizationService.GetString("AreaData.Error.Io");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    // 取得の結果（成功・失敗・中止）は、地図ペインと同じ通知で示される。ここでは、取得のあとで一覧を更新する
+    internal async Task DownloadSelectedAsync()
+    {
+        if (IsBusy || SelectedPrefecture is not { } prefecture)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            await Acquisition.DownloadAsync(prefecture.Code).ConfigureAwait(true);
+            await RefreshAsync().ConfigureAwait(true);
         }
         finally
         {

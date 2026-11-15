@@ -252,6 +252,23 @@
                             HorizontalAlignment="Left"
                             Command="{Binding AreaData.AddCommand}"
                             AutomationProperties.AutomationId="SettingsAreaDataAddButton" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ComboBox
+                                x:Uid="SettingsPaneAreaDataPrefecture"
+                                MinWidth="180"
+                                ItemsSource="{Binding AreaData.Prefectures}"
+                                SelectedItem="{Binding AreaData.SelectedPrefecture, Mode=TwoWay}"
+                                DisplayMemberPath="Name"
+                                AutomationProperties.AutomationId="SettingsAreaDataPrefecture" />
+                            <Button
+                                x:Uid="SettingsPaneAreaDataDownloadButton"
+                                Command="{Binding AreaData.DownloadCommand}"
+                                AutomationProperties.AutomationId="SettingsAreaDataDownloadButton" />
+                        </StackPanel>
+                        <CheckBox
+                            x:Uid="SettingsPaneAreaDataAutoDownload"
+                            IsChecked="{Binding AreaData.Acquisition.AutoDownload, Mode=TwoWay}"
+                            AutomationProperties.AutomationId="SettingsAreaDataAutoDownload" />
                         <TextBlock
                             Text="{Binding AreaData.StatusMessage, Mode=OneWay}"
                             AutomationProperties.AutomationId="SettingsAreaDataStatus"

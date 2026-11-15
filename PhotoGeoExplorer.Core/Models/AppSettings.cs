@@ -49,6 +49,8 @@ internal sealed class AppSettings
     public bool ShowMapHeaderRoadName { get; set; } = true;
     public bool ShowMapHeaderCoordinates { get; set; } = true;
     public bool MapHeaderIncludePrefecture { get; set; }
+    /// <summary>字地名の地域データが無い地域の写真を選んだとき、確認せずにダウンロードする</summary>
+    public bool AutoDownloadAreaData { get; set; }
     public bool ShowQuickStartOnStartup { get; set; }
     public string? ExternalContentBaseUrl { get; set; } = DefaultExternalContentBaseUrl;
     public PaneLayoutPreset PaneLayoutPreset { get; set; } = DefaultPaneLayoutPreset;

@@ -64,6 +64,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         UpdateShellSettingsState();
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
         MapHeaderDisplay.PropertyChanged += OnMapHeaderDisplayPropertyChanged;
+        _mapPaneViewModel.AreaDataAcquisition.PropertyChanged += OnAreaDataAcquisitionPropertyChanged;
     }
 
     public bool SettingsFileExistsAtStartup { get; }
@@ -238,6 +239,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _disposed = true;
         _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
         MapHeaderDisplay.PropertyChanged -= OnMapHeaderDisplayPropertyChanged;
+        _mapPaneViewModel.AreaDataAcquisition.PropertyChanged -= OnAreaDataAcquisitionPropertyChanged;
         _settingsCts?.Cancel();
         _settingsCts?.Dispose();
         _settingsCts = null;
@@ -256,6 +258,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _showQuickStartOnStartup = settings.ShowQuickStartOnStartup;
         _externalContentBaseUrl = SettingsNormalization.NormalizeExternalContentBaseUrl(settings.ExternalContentBaseUrl);
         MapHeaderDisplay.Apply(settings);
+        _mapPaneViewModel.AreaDataAcquisition.AutoDownload = settings.AutoDownloadAreaData;
 
         var savedTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
         if (savedTileSource != _mapTileSource)
@@ -415,6 +418,15 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     private void OnMapHeaderDisplayPropertyChanged(object? sender, PropertyChangedEventArgs e)
         => ScheduleSave();
 
+    private void OnAreaDataAcquisitionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // 取得中の状態（進捗など）の変化では保存しない
+        if (e.PropertyName == nameof(AreaDataAcquisitionViewModel.AutoDownload))
+        {
+            ScheduleSave();
+        }
+    }
+
     private static void ApplyLanguageOverride(string? normalized)
     {
         if (string.IsNullOrWhiteSpace(normalized))
@@ -477,6 +489,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             ShowMapHeaderRoadName = MapHeaderDisplay.ShowRoadName,
             ShowMapHeaderCoordinates = MapHeaderDisplay.ShowCoordinates,
             MapHeaderIncludePrefecture = MapHeaderDisplay.IncludePrefecture,
+            AutoDownloadAreaData = _mapPaneViewModel.AreaDataAcquisition.AutoDownload,
             ShowQuickStartOnStartup = _showQuickStartOnStartup,
             ExternalContentBaseUrl = _externalContentBaseUrl,
             PaneLayoutPreset = _paneLayoutPreset,

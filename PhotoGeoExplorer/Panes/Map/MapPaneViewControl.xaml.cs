@@ -60,6 +60,54 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
 
+    /// <summary>
+    /// 地域データの取得の確認ダイアログを出す（View の責務。取得するか・以降は確認しないかだけを返す）。
+    /// 表示中のダイアログがある間は、そのダイアログが閉じるまで待たず、取得しない扱いにする
+    /// </summary>
+    internal async Task<AreaDataConsent> AskAreaDataConsentAsync(System.Collections.Generic.IReadOnlyList<string> prefectureNames, CancellationToken cancellationToken)
+    {
+        var remember = new CheckBox { Content = LocalizationService.GetString("AreaData.Download.Prompt.Remember") };
+        var content = new StackPanel { Spacing = 12, MaxWidth = 420 };
+        content.Children.Add(new TextBlock
+        {
+            Text = LocalizationService.Format("AreaData.Download.Prompt.Body", string.Join(", ", prefectureNames)),
+            TextWrapping = TextWrapping.Wrap
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = LocalizationService.GetString("AreaData.Download.Prompt.Notice"),
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12,
+            Opacity = 0.8
+        });
+        content.Children.Add(remember);
+        var dialog = new ContentDialog
+        {
+            Title = LocalizationService.GetString("AreaData.Download.Prompt.Title"),
+            Content = content,
+            PrimaryButtonText = LocalizationService.GetString("AreaData.Download.Prompt.Accept"),
+            CloseButtonText = LocalizationService.GetString("AreaData.Download.Prompt.Decline"),
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+        try
+        {
+            var result = await dialog.ShowAsync().AsTask(cancellationToken).ConfigureAwait(true);
+            if (result != ContentDialogResult.Primary)
+            {
+                return AreaDataConsent.Decline;
+            }
+
+            return remember.IsChecked == true ? AreaDataConsent.AcceptAndRemember : AreaDataConsent.Accept;
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            // 別のダイアログが開いているときは開けない。取得しない扱いにして、選択の処理を止めない
+            AppLog.Error("Failed to show the area data download dialog.", ex);
+            return AreaDataConsent.Decline;
+        }
+    }
+
     // 幅が足りないときは、緯度経度を非表示 → 道路名を末尾省略 → 字地名を末尾省略の順に省略する。
     // XAML では指定できないため、ここで設定する（理由は PriorityCollapsePanel を参照）
     private void ConfigureMapHeaderCollapse()

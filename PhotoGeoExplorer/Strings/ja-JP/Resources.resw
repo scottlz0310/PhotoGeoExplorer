@@ -1321,4 +1321,61 @@
   <data name="AreaData.Error.CorruptData" xml:space="preserve">
     <value>ファイルが壊れているか、Shapefile として読めません。ダウンロードし直してください。</value>
   </data>
+  <data name="SettingsPaneAreaDataPrefecture.PlaceholderText" xml:space="preserve">
+    <value>都道府県を選択</value>
+  </data>
+  <data name="SettingsPaneAreaDataDownloadButton.Content" xml:space="preserve">
+    <value>e-Stat から取得</value>
+  </data>
+  <data name="SettingsPaneAreaDataAutoDownload.Content" xml:space="preserve">
+    <value>地域データが無い地域の写真を選んだとき、確認せずに取得する</value>
+  </data>
+  <data name="AreaDataDownloadCancelButton.Content" xml:space="preserve">
+    <value>中止</value>
+  </data>
+  <data name="AreaData.Download.Progress" xml:space="preserve">
+    <value>{0}の地域データを取得しています… {1}</value>
+  </data>
+  <data name="AreaData.Download.Done" xml:space="preserve">
+    <value>{0}の地域データ（{1} 年）を取得しました。</value>
+  </data>
+  <data name="AreaData.Download.Cancelled" xml:space="preserve">
+    <value>{0}の地域データの取得を中止しました。</value>
+  </data>
+  <data name="AreaData.Download.Error.Network" xml:space="preserve">
+    <value>{0}の地域データを取得できませんでした（通信できません）。しばらくしてから、設定の「地域データ」でもう一度お試しください。e-Stat から ZIP をダウンロードして追加することもできます。</value>
+  </data>
+  <data name="AreaData.Download.Error.HttpStatus" xml:space="preserve">
+    <value>{0}の地域データを取得できませんでした（サーバーがエラーを返しました: {1}）。しばらくしてから、設定の「地域データ」でもう一度お試しください。e-Stat から ZIP をダウンロードして追加することもできます。</value>
+  </data>
+  <data name="AreaData.Download.Error.NotArchive" xml:space="preserve">
+    <value>{0}の地域データを取得できませんでした（ログインが必要な応答など、データではない応答でした）。e-Stat から ZIP をダウンロードして、設定の「地域データ」から追加してください。</value>
+  </data>
+  <data name="AreaData.Download.Error.TooLarge" xml:space="preserve">
+    <value>{0}の地域データを取得できませんでした（データが大きすぎます）。e-Stat から ZIP をダウンロードして、設定の「地域データ」から追加してください。</value>
+  </data>
+  <data name="AreaData.Download.Error.Import" xml:space="preserve">
+    <value>{0}の地域データを取り込めませんでした: {1}</value>
+  </data>
+  <data name="AreaData.Download.Error.Io" xml:space="preserve">
+    <value>{0}の地域データを保存できませんでした。ディスクの空き容量と権限を確認してください。</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Title" xml:space="preserve">
+    <value>地域データを取得しますか</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Body" xml:space="preserve">
+    <value>撮影場所（{0}）の字地名を表示するには、国勢調査の小地域（町丁・字等）の境界データが必要です。政府統計の総合窓口（e-Stat）からダウンロードして、端末内に保存します。</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Notice" xml:space="preserve">
+    <value>サイズはダウンロードするまで分かりません。写真や撮影位置は送信しません。出典: 政府統計の総合窓口(e-Stat)（総務省統計局）を加工して作成。境界は実際の町丁・字の境界と一致しない場合があります。</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Remember" xml:space="preserve">
+    <value>以降は確認せずに取得する（設定で変更できます）</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Accept" xml:space="preserve">
+    <value>取得する</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Decline" xml:space="preserve">
+    <value>今回はしない</value>
+  </data>
 </root>

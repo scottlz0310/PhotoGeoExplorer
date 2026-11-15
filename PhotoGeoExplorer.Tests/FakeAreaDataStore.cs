@@ -30,6 +30,9 @@ internal sealed class FakeAreaDataStore : IAreaDataStore
     /// <summary>設定すると、取り込みがこのタスクの完了まで待つ</summary>
     public Task? ImportGate { get; set; }
 
+    /// <summary>設定すると、取り込みの開始時（アーカイブのパスが有効なうち）に呼ばれる</summary>
+    public Action<string>? OnImport { get; set; }
+
     public void Add(AreaDataPackInfo info) => _packs.Add(info);
 
     public Task<IReadOnlyList<AreaDataPackInfo>> ListAsync(CancellationToken cancellationToken)
@@ -46,6 +49,7 @@ internal sealed class FakeAreaDataStore : IAreaDataStore
     public async Task<AreaDataPackInfo> ImportAsync(string archivePath, CancellationToken cancellationToken)
     {
         ImportedArchives.Add(archivePath);
+        OnImport?.Invoke(archivePath);
         if (ImportGate is not null)
         {
             await ImportGate.ConfigureAwait(false);

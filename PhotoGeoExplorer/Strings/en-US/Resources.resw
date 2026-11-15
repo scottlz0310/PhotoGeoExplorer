@@ -1321,4 +1321,61 @@
   <data name="AreaData.Error.CorruptData" xml:space="preserve">
     <value>The file is corrupt or cannot be read as a shapefile. Download it again.</value>
   </data>
+  <data name="SettingsPaneAreaDataPrefecture.PlaceholderText" xml:space="preserve">
+    <value>Select a prefecture</value>
+  </data>
+  <data name="SettingsPaneAreaDataDownloadButton.Content" xml:space="preserve">
+    <value>Download from e-Stat</value>
+  </data>
+  <data name="SettingsPaneAreaDataAutoDownload.Content" xml:space="preserve">
+    <value>Download without asking when I select a photo in an area with no data</value>
+  </data>
+  <data name="AreaDataDownloadCancelButton.Content" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="AreaData.Download.Progress" xml:space="preserve">
+    <value>Downloading area data for {0}... {1}</value>
+  </data>
+  <data name="AreaData.Download.Done" xml:space="preserve">
+    <value>Downloaded the area data for {0} (census year {1}).</value>
+  </data>
+  <data name="AreaData.Download.Cancelled" xml:space="preserve">
+    <value>Canceled the download of the area data for {0}.</value>
+  </data>
+  <data name="AreaData.Download.Error.Network" xml:space="preserve">
+    <value>Could not download the area data for {0} (cannot connect). Try again later from "Area data" in Settings, or download the ZIP from e-Stat and add it.</value>
+  </data>
+  <data name="AreaData.Download.Error.HttpStatus" xml:space="preserve">
+    <value>Could not download the area data for {0} (the server returned an error: {1}). Try again later from "Area data" in Settings, or download the ZIP from e-Stat and add it.</value>
+  </data>
+  <data name="AreaData.Download.Error.NotArchive" xml:space="preserve">
+    <value>Could not download the area data for {0} (the response was not data, for example a login page). Download the ZIP from e-Stat and add it from "Area data" in Settings.</value>
+  </data>
+  <data name="AreaData.Download.Error.TooLarge" xml:space="preserve">
+    <value>Could not download the area data for {0} (the data is too large). Download the ZIP from e-Stat and add it from "Area data" in Settings.</value>
+  </data>
+  <data name="AreaData.Download.Error.Import" xml:space="preserve">
+    <value>Could not import the area data for {0}: {1}</value>
+  </data>
+  <data name="AreaData.Download.Error.Io" xml:space="preserve">
+    <value>Could not save the area data for {0}. Check the free disk space and permissions.</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Title" xml:space="preserve">
+    <value>Download area data?</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Body" xml:space="preserve">
+    <value>To show the address (town name) of the photo location ({0}), the census small-area (town/block) boundary data is needed. It is downloaded from e-Stat (the Japanese government statistics portal) and saved on this device.</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Notice" xml:space="preserve">
+    <value>The size is not known until the download. Your photos and locations are not sent. Source: e-Stat (Statistics Bureau of Japan), modified. Boundaries may not match the actual town and block boundaries.</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Remember" xml:space="preserve">
+    <value>Download without asking from now on (you can change this in Settings)</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Accept" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="AreaData.Download.Prompt.Decline" xml:space="preserve">
+    <value>Not now</value>
+  </data>
 </root>

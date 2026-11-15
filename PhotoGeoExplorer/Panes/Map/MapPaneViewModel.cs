@@ -79,9 +79,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         ISecretStore? secretStore = null,
         IAreaNameResolver? areaNameResolver = null,
         IRoadNameSuggester? roadNameSuggester = null,
-        IRoadNameConfirmationStore? roadNameConfirmationStore = null)
+        IRoadNameConfirmationStore? roadNameConfirmationStore = null,
+        AreaDataAcquisitionViewModel? areaDataAcquisition = null)
     {
         LocationInfo = new MapLocationInfoViewModel(areaNameResolver, roadNameSuggester, roadNameConfirmationStore);
+        AreaDataAcquisition = areaDataAcquisition ?? new AreaDataAcquisitionViewModel();
         _secretStore = secretStore ?? new PasswordVaultSecretStore();
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
@@ -212,6 +214,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     /// 地図ヘッダーに表示する撮影位置情報
     /// </summary>
     public MapLocationInfoViewModel LocationInfo { get; }
+
+    /// <summary>字地名の地域データが無い地域の写真を選んだときの、ダウンロードの案内と取得</summary>
+    public AreaDataAcquisitionViewModel AreaDataAcquisition { get; }
 
     /// <summary>
     /// 地図のデフォルトズームレベル
@@ -480,6 +485,8 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             var selected = points[0];
             var photo = new PhotoIdentity(selected.Item.FilePath, selected.Item.SizeBytes, selected.Metadata.TakenAt);
             await LocationInfo.SetLocationAsync(selected.Latitude, selected.Longitude, photo).ConfigureAwait(true);
+            // 確認ダイアログの応答や取得を待たない（選択の処理を止めない）。失敗は ViewModel が通知とログで報告する
+            _ = AreaDataAcquisition.OnLocationAsync(selected.Latitude, selected.Longitude);
         }
     }
 
