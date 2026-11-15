@@ -209,6 +209,11 @@ internal sealed class MapPaneService : IMapPaneService
 
     private static string GetDefaultTileCacheRootDirectory()
     {
+        if (Environment.GetEnvironmentVariable("PGE_BENCH_CACHE_DIR") is { Length: > 0 } benchCache)
+        {
+            return benchCache;
+        }
+
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "PhotoGeoExplorer",
