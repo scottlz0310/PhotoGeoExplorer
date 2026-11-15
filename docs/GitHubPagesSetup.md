@@ -6,7 +6,10 @@
 
 - Cloudflare Pages に `photogeoexplorer` プロジェクトを作成済みであること
 - Production branch が `main` に設定されていること
-- Root directory が `docs` に設定されていること
+- ビルド設定が次のとおりであること（ビルドは行わず、`docs` をそのまま配信する）
+  - ビルド コマンド: 空
+  - ビルド出力ディレクトリ: `docs`
+  - ルート ディレクトリ: 空（リポジトリのルート）
 
 ## デプロイ方式
 
