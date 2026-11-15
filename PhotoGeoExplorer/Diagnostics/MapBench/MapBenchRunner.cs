@@ -38,7 +38,7 @@ internal sealed class MapBenchRunner
     private static readonly (string Name, double Lat, double Lon)[] Locations =
     {
         ("dense-odori", 43.0606, 141.3469),
-        ("suburb-tonden", 43.1280, 141.3190),
+        ("suburb-okadama", 43.1180, 141.3900),
         ("tile-boundary-z15", double.NaN, double.NaN),
     };
 
@@ -103,7 +103,7 @@ internal sealed class MapBenchRunner
                 await Task.Delay(1000).ConfigureAwait(true);
             }
 
-            var points = Locations.Select(ResolveLocation).ToArray();
+            var points = ReadLocations().Select(ResolveLocation).ToArray();
             RecordEnvironment();
 
             foreach (var (name, lat, lon) in points)
@@ -133,14 +133,14 @@ internal sealed class MapBenchRunner
     private async Task RunLocationAsync(string name, double lat, double lon)
     {
         await MeasureJumpAsync(name, lat, lon, "jump-select").ConfigureAwait(true);
-        SaveStill(name, 18);
+        await SaveStillAsync(name, 18).ConfigureAwait(true);
 
         foreach (var level in new[] { 15, 16, 17, 18, 19 })
         {
             await MeasureLevelAsync(name, level).ConfigureAwait(true);
         }
 
-        SaveStill(name, 16);
+        await SaveStillAsync(name, 16).ConfigureAwait(true);
 
         await MeasureContinuousZoomAsync(name).ConfigureAwait(true);
         await MeasurePanAsync(name).ConfigureAwait(true);
@@ -361,11 +361,19 @@ internal sealed class MapBenchRunner
         return result;
     }
 
-    private void SaveStill(string name, int level)
+    /// <summary>
+    /// 800x600 の基準画像を保存する。実際の地図ペインは 800x600 より小さく、外側のタイルは取得されていないため、
+    /// 描く範囲のタイルを先に取得し、取得が止まるのを待ってから描く（待たないと、タイルの継ぎ目に低解像度の代替が混ざる）。
+    /// </summary>
+    private async Task SaveStillAsync(string name, int level)
     {
         _map.Navigator.ZoomToLevel(level);
+        await WaitIdleAsync().ConfigureAwait(true);
         var viewport = _map.Navigator.Viewport;
         var still = new Viewport(viewport.CenterX, viewport.CenterY, viewport.Resolution, 0, 800, 600);
+        await _map.RefreshDataAsync(still).ConfigureAwait(true);
+        await Task.Delay(300).ConfigureAwait(true);
+        await WaitIdleAsync().ConfigureAwait(true);
         using var stream = new MapRenderer().RenderToBitmapStream(
             still,
             _map.Layers,
@@ -376,7 +384,7 @@ internal sealed class MapBenchRunner
             RenderFormat.Png,
             100);
         var path = Path.Combine(_outDir, $"still-{_label}-{name}-z{level}.png");
-        File.WriteAllBytes(path, stream.ToArray());
+        await File.WriteAllBytesAsync(path, stream.ToArray()).ConfigureAwait(true);
     }
 
     private void RecordEnvironment()
@@ -399,6 +407,22 @@ internal sealed class MapBenchRunner
         _result["inputCadence"] = "CompositionTarget.Rendering (1 command per vsync)";
         _result["pan"] = new { ticks = PanTicks, pixelsPerTick = PanPixelsPerTick, level = 17 };
         _result["continuousZoom"] = new { ticks = ContinuousTicks, from = 15, to = 19 };
+    }
+
+    private static (string Name, double Lat, double Lon)[] ReadLocations()
+    {
+        // 例: PGE_BENCH_LOCATIONS="a:43.1:141.3;b:43.2:141.4"（候補地の確認用。基準値の採取では使わない）
+        var text = Environment.GetEnvironmentVariable("PGE_BENCH_LOCATIONS");
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return Locations;
+        }
+
+        return text.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(entry =>
+        {
+            var parts = entry.Split(':');
+            return (parts[0], double.Parse(parts[1], CultureInfo.InvariantCulture), double.Parse(parts[2], CultureInfo.InvariantCulture));
+        }).ToArray();
     }
 
     private static (string Name, double Lat, double Lon) ResolveLocation((string Name, double Lat, double Lon) location)
