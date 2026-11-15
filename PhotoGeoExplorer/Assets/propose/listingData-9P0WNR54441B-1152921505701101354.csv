@@ -4,9 +4,9 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.10.1)
-- Fixed: The offline Help bundled with the app was missing the sections on town names, nearest road names, export and importing area data. It now matches the online Help","リリースノート（v1.10.1）
-- 修正: 外部サイトに接続できないときに表示される同梱ヘルプに、字地名・最寄りの道路名・エクスポート・地域データの取り込みの説明が欠けていた問題を修正し、公開サイトのヘルプと同じ内容にしました"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.11.0)
+- New: You can now download the area (town name) data for a prefecture from e-Stat inside the app. When you select a photo in an area with no data, the app asks first, then downloads and imports it. Under Settings > Area data (town names), choose to ask each time, download without asking, or do nothing","リリースノート（v1.11.0）
+- 新機能: 字地名の地域データを、アプリ内で e-Stat（政府統計の総合窓口）からダウンロードして取り込めるようにしました。地域データが無い地域の写真を選ぶと、確認のうえ、ダウンロードから取り込みまで自動で進みます。設定の「地域データ（字地名）」で、確認する／確認せずに取得する／何もしない、を選べます"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
@@ -323,7 +323,7 @@ Feature11,710,テキスト,,"- Address (census town name) and nearest road name 
 Feature12,711,テキスト,,- Places pane: browse photos by city > town (virtual tree),- 字地名ペイン: 市区町村 > 町丁・字で写真を束ねて閲覧
 Feature13,712,テキスト,,"- Export with location data: CSV, copy to town-name folders, copy with date/town/road names","- 位置情報つきの書き出し: CSV、字地名別フォルダーへコピー、日付・字名・道路名でリネームしてコピー"
 Feature14,713,テキスト,,- Mapbox Satellite background (bring your own public token),- Mapbox 航空写真の背景（ご自身の公開トークンを使用）
-Feature15,714,テキスト,,,
+Feature15,714,テキスト,,- Download area (town name) data in the app (asks first; no photos or locations are sent),- 字地名の地域データをアプリ内でダウンロード（確認のうえ取得。写真や撮影位置は送信しません）
 Feature16,715,テキスト,,,
 Feature17,716,テキスト,,,
 Feature18,717,テキスト,,,
