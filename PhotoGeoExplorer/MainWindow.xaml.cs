@@ -88,12 +88,20 @@ public sealed partial class MainWindow : Window, IDisposable
         _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
         var mapImageService = new MapImageService();
         _areaDataHttpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UserAgentProvider.UserAgent);
-        var areaDataAcquisition = new AreaDataAcquisitionViewModel(
-            new AreaDataNeedDetector(PrefectureLocator.CreateFromEmbeddedData(), _areaDataStore),
-            new AreaDataDownloadService(_areaDataHttpClient, _areaDataStore),
-            (prefectureNames, cancellationToken) => MapPaneControl.AskAreaDataConsentAsync(prefectureNames, cancellationToken),
-            (message, severity) => _viewModel.ShowNotificationMessage(message, severity),
-            createProgress: null);
+        var areaDataDownloadDisabled = E2EOptions.IsAreaDataDownloadDisabled();
+        if (areaDataDownloadDisabled)
+        {
+            AppLog.Info("Area data download is disabled by the E2E option.");
+        }
+
+        var areaDataAcquisition = areaDataDownloadDisabled
+            ? new AreaDataAcquisitionViewModel()
+            : new AreaDataAcquisitionViewModel(
+                new AreaDataNeedDetector(PrefectureLocator.CreateFromEmbeddedData(), _areaDataStore),
+                new AreaDataDownloadService(_areaDataHttpClient, _areaDataStore),
+                (prefectureNames, cancellationToken) => MapPaneControl.AskAreaDataConsentAsync(prefectureNames, cancellationToken),
+                (message, severity) => _viewModel.ShowNotificationMessage(message, severity),
+                createProgress: null);
         _mapPaneViewModel = new MapPaneViewModel(
             new MapPaneService(),
             _viewModel.WorkspaceState,

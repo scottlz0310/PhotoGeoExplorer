@@ -2044,6 +2044,8 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
                 WorkingDirectory = Path.GetDirectoryName(appPath) ?? root,
                 UseShellExecute = false
             };
+            // 写真に位置情報があり、地域データが無い環境では、地域データの確認ダイアログが開いて他のダイアログや操作を妨げるため、取得を無効にする
+            startInfo.Environment["PHOTO_GEO_EXPLORER_E2E_DISABLE_AREA_DATA_DOWNLOAD"] = "1";
 
             output.WriteLine($"E2E folder: {root}");
             output.WriteLine($"App path: {appPath}");
