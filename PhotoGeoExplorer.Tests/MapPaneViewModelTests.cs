@@ -825,12 +825,12 @@ ext{index}.jpg", isFolder: false))
 
         public Task LoadCalled => _loadCalled.Task;
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
 
-        public TileLayer CreateTileLayer(MapBackgroundRequest background)
+        public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -872,7 +872,7 @@ ext{index}.jpg", isFolder: false))
 
         public string CreateDefaultFileName(DateTimeOffset timestamp) => "map.png";
 
-        public Stream RenderPng(Map map, Viewport viewport, float pixelDensity)
+        public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
             => throw new NotSupportedException();
 
         public Task SavePngAsync(Stream pngStream, string filePath, CancellationToken cancellationToken)
@@ -896,12 +896,12 @@ ext{index}.jpg", isFolder: false))
 
         public void CompleteLoad(PhotoMetadata? metadata) => _loadCompletion.TrySetResult(metadata);
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
 
-        public TileLayer CreateTileLayer(MapBackgroundRequest background)
+        public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -931,12 +931,12 @@ ext{index}.jpg", isFolder: false))
 
         public Task LoadStarted => _loadStarted.Task;
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
 
-        public TileLayer CreateTileLayer(MapBackgroundRequest background)
+        public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -1012,10 +1012,10 @@ ext{index}.jpg", isFolder: false))
         private readonly object _gate = new();
         private readonly List<PendingLoad> _loads = new();
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
-        public TileLayer CreateTileLayer(MapBackgroundRequest background)
+        public IMapBackground CreateBackground(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
         public Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
@@ -1089,12 +1089,12 @@ ext{index}.jpg", isFolder: false))
             _onLoadCompleting = onLoadCompleting;
         }
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
 
-        public TileLayer CreateTileLayer(MapBackgroundRequest background)
+        public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }

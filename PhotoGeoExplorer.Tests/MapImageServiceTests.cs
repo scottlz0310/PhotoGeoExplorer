@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
+using Mapsui.Layers;
 using PhotoGeoExplorer.Services;
 using Xunit;
 
@@ -21,7 +23,7 @@ public sealed class MapImageServiceTests
     }
 
     [Fact]
-    public void RenderPngPassesCurrentMapViewportAndPixelDensityToRenderer()
+    public void RenderPngPassesMapLayersViewportAndPixelDensityToRenderer()
     {
         using var map = new Map();
         var viewport = new Viewport(100, 200, 2, 30, 640, 480);
@@ -29,10 +31,13 @@ public sealed class MapImageServiceTests
         var renderer = new CapturingRenderer(expectedStream);
         var service = new MapImageService(renderer, _ => new MemoryStream());
 
-        var actualStream = service.RenderPng(map, viewport, 1.5f);
+        var layers = new List<ILayer> { new MemoryLayer() };
+
+        var actualStream = service.RenderPng(map, layers, viewport, 1.5f);
 
         Assert.Same(expectedStream, actualStream);
         Assert.Same(map, renderer.Map);
+        Assert.Same(layers, renderer.Layers);
         Assert.Equal(viewport, renderer.Viewport);
         Assert.Equal(1.5f, renderer.PixelDensity);
     }
@@ -45,7 +50,7 @@ public sealed class MapImageServiceTests
         var service = new MapImageService(new ThrowingRenderer(expectedException), _ => new MemoryStream());
 
         var exception = Assert.Throws<InvalidOperationException>(
-            () => service.RenderPng(map, new Viewport(0, 0, 1, 0, 100, 50), 1));
+            () => service.RenderPng(map, [], new Viewport(0, 0, 1, 0, 100, 50), 1));
 
         Assert.Equal("Failed to render the current map viewport as PNG.", exception.Message);
         Assert.Same(expectedException, exception.InnerException);
@@ -138,13 +143,16 @@ public sealed class MapImageServiceTests
     {
         public Map? Map { get; private set; }
 
+        public IReadOnlyList<ILayer>? Layers { get; private set; }
+
         public Viewport Viewport { get; private set; }
 
         public float PixelDensity { get; private set; }
 
-        public Stream RenderPng(Map map, Viewport viewport, float pixelDensity)
+        public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
         {
             Map = map;
+            Layers = layers;
             Viewport = viewport;
             PixelDensity = pixelDensity;
             return stream;
@@ -153,7 +161,7 @@ public sealed class MapImageServiceTests
 
     private sealed class ThrowingRenderer(Exception exception) : IMapImageRenderer
     {
-        public Stream RenderPng(Map map, Viewport viewport, float pixelDensity)
+        public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
         {
             throw exception;
         }

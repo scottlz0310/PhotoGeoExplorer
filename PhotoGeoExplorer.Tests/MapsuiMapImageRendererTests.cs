@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.Linq;
 using Mapsui;
 using PhotoGeoExplorer.Services;
 using Xunit;
@@ -16,6 +17,7 @@ public sealed class MapsuiMapImageRendererTests
 
         using var stream = renderer.RenderPng(
             map,
+            map.Layers.ToArray(),
             new Viewport(0, 0, 1, 0, 120, 80),
             pixelDensity: 1.5f);
 
@@ -33,14 +35,14 @@ public sealed class MapsuiMapImageRendererTests
         var viewport = new Viewport(0, 0, 1, 0, 400, 200);
 
         using var plainMap = new Map();
-        using var plainStream = renderer.RenderPng(plainMap, viewport, pixelDensity: 1f);
+        using var plainStream = renderer.RenderPng(plainMap, plainMap.Layers.ToArray(), viewport, pixelDensity: 1f);
         using var plainImage = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(plainStream);
 
         using var attributedMap = new Map();
         new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter().Attach(
             attributedMap,
             PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatellite);
-        using var attributedStream = renderer.RenderPng(attributedMap, viewport, pixelDensity: 1f);
+        using var attributedStream = renderer.RenderPng(attributedMap, attributedMap.Layers.ToArray(), viewport, pixelDensity: 1f);
         using var attributedImage = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(attributedStream);
 
         // 帰属表示は右下に描かれる。右下の領域だけが変わり、左上は変わらないこと
@@ -60,14 +62,14 @@ public sealed class MapsuiMapImageRendererTests
         var viewport = new Viewport(0, 0, 1, 0, 800, 200);
 
         using var map = new Map { BackColor = Mapsui.Styles.Color.Black };
-        using var plainDarkStream = renderer.RenderPng(map, viewport, pixelDensity: 1f);
+        using var plainDarkStream = renderer.RenderPng(map, map.Layers.ToArray(), viewport, pixelDensity: 1f);
         using var plainDarkImage = await SixLabors.ImageSharp.Image
             .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(plainDarkStream)
             .ConfigureAwait(true);
         var presenter = new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter();
         presenter.Attach(map, sourceType);
         Assert.True(await presenter.LoadImagesAsync(map).ConfigureAwait(true));
-        using var stream = renderer.RenderPng(map, viewport, pixelDensity: 1f);
+        using var stream = renderer.RenderPng(map, map.Layers.ToArray(), viewport, pixelDensity: 1f);
         using var image = await SixLabors.ImageSharp.Image
             .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(stream)
             .ConfigureAwait(true);
@@ -89,7 +91,7 @@ public sealed class MapsuiMapImageRendererTests
         using var map = new Map { BackColor = Mapsui.Styles.Color.Black };
         new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter().Attach(map, sourceType);
 
-        using var stream = renderer.RenderPng(map, new Viewport(0, 0, 1, 0, width, height), pixelDensity: 1f);
+        using var stream = renderer.RenderPng(map, map.Layers.ToArray(), new Viewport(0, 0, 1, 0, width, height), pixelDensity: 1f);
         using var image = await SixLabors.ImageSharp.Image
             .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(stream)
             .ConfigureAwait(true);
@@ -150,6 +152,6 @@ public sealed class MapsuiMapImageRendererTests
         var renderer = new MapsuiMapImageRenderer();
 
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => renderer.RenderPng(map, new Viewport(0, 0, 1, 0, 120, 80), pixelDensity));
+            () => renderer.RenderPng(map, map.Layers.ToArray(), new Viewport(0, 0, 1, 0, 120, 80), pixelDensity));
     }
 }

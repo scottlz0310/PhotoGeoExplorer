@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
-using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.ViewModels;
 
@@ -19,15 +18,15 @@ internal interface IMapPaneService
     /// 地図オブジェクトを初期化する
     /// </summary>
     /// <param name="background">背景地図レイヤーの生成要求</param>
-    /// <returns>初期化された地図オブジェクト、タイルレイヤー、マーカーレイヤー</returns>
-    (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background);
+    /// <returns>初期化された地図オブジェクト、背景、マーカーレイヤー</returns>
+    (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background);
 
     /// <summary>
-    /// タイルレイヤーを作成する
+    /// 背景を作成する。呼び出し側が破棄する
     /// </summary>
     /// <param name="background">背景地図レイヤーの生成要求</param>
-    /// <returns>新しいタイルレイヤー</returns>
-    TileLayer CreateTileLayer(MapBackgroundRequest background);
+    /// <returns>新しい背景</returns>
+    IMapBackground CreateBackground(MapBackgroundRequest background);
 
     /// <summary>
     /// 選択された写真のメタデータを読み込む

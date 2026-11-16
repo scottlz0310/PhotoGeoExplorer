@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Mapsui;
 using Mapsui.Extensions;
+using Mapsui.Layers;
 using Mapsui.Rendering;
 using Mapsui.Rendering.Skia;
 
@@ -9,9 +11,10 @@ namespace PhotoGeoExplorer.Services;
 
 internal sealed class MapsuiMapImageRenderer : IMapImageRenderer
 {
-    public Stream RenderPng(Map map, Viewport viewport, float pixelDensity)
+    public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
     {
         ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(layers);
         if (viewport.Width <= 0 || viewport.Height <= 0)
         {
             throw new ArgumentException("Viewport dimensions must be positive.", nameof(viewport));
@@ -25,7 +28,7 @@ internal sealed class MapsuiMapImageRenderer : IMapImageRenderer
         var renderer = new MapRenderer();
         var stream = renderer.RenderToBitmapStream(
             viewport,
-            map.Layers,
+            layers,
             map.RenderService,
             map.BackColor,
             pixelDensity,

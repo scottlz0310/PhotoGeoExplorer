@@ -110,10 +110,10 @@ public sealed class MapMarkerPresenterTests
             _pinExists = pinExists;
         }
 
-        public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
-        public TileLayer CreateTileLayer(MapBackgroundRequest background)
+        public IMapBackground CreateBackground(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
         public Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(

@@ -158,7 +158,7 @@ public sealed partial class MainWindow : Window, IDisposable
         PreviewPaneControl.DataContext = _previewPaneViewModel;
         PreviewPaneControl.MaximizeChanged += OnPreviewMaximizeChanged;
         MapPaneControl.DataContext = _mapPaneViewModel;
-        MapPaneControl.ConfigureMapImageExport(dialogService, mapImageService);
+        MapPaneControl.ConfigureMapImageExport(dialogService);
         PlacesPaneControl.DataContext = _placesPaneViewModel;
         var paneLayoutHostService = new PaneLayoutHostService(
             FileBrowserPane,

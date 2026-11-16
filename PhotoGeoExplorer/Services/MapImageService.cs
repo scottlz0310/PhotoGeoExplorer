@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
+using Mapsui.Layers;
 
 namespace PhotoGeoExplorer.Services;
 
@@ -32,11 +34,11 @@ internal sealed class MapImageService : IMapImageService
             MapImageSavePickerOptions.DefaultFileExtension);
     }
 
-    public Stream RenderPng(Map map, Viewport viewport, float pixelDensity)
+    public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
     {
         try
         {
-            return _renderer.RenderPng(map, viewport, pixelDensity);
+            return _renderer.RenderPng(map, layers, viewport, pixelDensity);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
