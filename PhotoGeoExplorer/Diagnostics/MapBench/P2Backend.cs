@@ -27,6 +27,8 @@ internal sealed class P2Backend : IDisposable
     private readonly string _sourceId;
     private readonly DecodedTileCache? _cache;
     private readonly ViewRenderScheduler _scheduler;
+    private readonly ViewExtentVectorRenderer _renderer;
+    private readonly string _mvtSourceId;
     private readonly object _gate = new();
     private MemoryLayer? _layer;
     private RefCountedImage? _image;
@@ -55,7 +57,14 @@ internal sealed class P2Backend : IDisposable
         }
 
         var renderer = new ViewExtentVectorRenderer(new SavedMvtTileSource(mvtRoot), style, _cache, render);
-        _scheduler = new ViewRenderScheduler((request, token) => renderer.RenderAsync(request, token), OnRendered);
+        // 操作が止まったとき、古い視点の実行中の描画を中断して、最新の描画を先に始める（#339。PGE_P3_IDLE_MS で時間を指定。既定は無効）
+        var idleMs = int.TryParse(Environment.GetEnvironmentVariable("PGE_P3_IDLE_MS"), out var im) ? im : 0;
+        _scheduler = new ViewRenderScheduler((request, token) => renderer.RenderAsync(request, token), OnRendered)
+        {
+            IdleCancelAfter = TimeSpan.FromMilliseconds(idleMs),
+        };
+        _renderer = renderer;
+        _mvtSourceId = _sourceId;
     }
 
     /// <summary>視点に対して、画像が追いついていない（または描画中）。</summary>
@@ -83,6 +92,30 @@ internal sealed class P2Backend : IDisposable
                 return _applied;
             }
         }
+    }
+
+    /// <summary>
+    /// 起動時のウォームアップ（PGE_P3_WARMUP=1）: 一回限りのコスト（JIT・フォント・スレッドプール・ネイティブの初期化）を、最初の操作より前に済ませる。
+    /// 計測では、本番の地点とは別のタイルで描くため、デコード済みキャッシュには本番のタイルを入れない。
+    /// </summary>
+    public async System.Threading.Tasks.Task WarmUpAsync(double lat, double lon)
+    {
+        var density = ((IMapControl)_control).GetPixelDensity() ?? 1.0;
+        var center = Mapsui.Projections.SphericalMercator.FromLonLat(new MPoint(lon, lat));
+        foreach (var zoom in new[] { 16.0, 18.0 })
+        {
+            var request = new RenderRequest(center.X, center.Y, ViewExtentInjection.ResolutionFromZoom(zoom, density), 256, 256, density, _mvtSourceId, 1, 0);
+            using var output = await _renderer.RenderAsync(request).ConfigureAwait(false) is { } o ? new Releaser(o.Image) : null;
+        }
+    }
+
+    private sealed class Releaser : IDisposable
+    {
+        private readonly RefCountedImage _image;
+
+        public Releaser(RefCountedImage image) => _image = image;
+
+        public void Dispose() => _image.Release();
     }
 
     public void Start()

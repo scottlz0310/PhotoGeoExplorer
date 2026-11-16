@@ -107,6 +107,14 @@ internal sealed class MapBenchRunner
         try
         {
             await WaitUntilAsync(() => _map.Navigator.Viewport.HasSize() && _mapControl.ActualWidth > 0, 30_000).ConfigureAwait(true);
+            if (_p2 is not null && Environment.GetEnvironmentVariable("PGE_P3_WARMUP") == "1")
+            {
+                // 一回限りのコストを、最初の操作より前に済ませる（本番の地点とは別のタイルで。デコード済みキャッシュを汚さない）
+                var warm = Stopwatch.StartNew();
+                await _p2.WarmUpAsync(43.1180, 141.3900).ConfigureAwait(true);
+                _result["warmUpMs"] = Math.Round(warm.Elapsed.TotalMilliseconds, 1);
+            }
+
             await Task.Delay(3000).ConfigureAwait(true);
 
             // 録画の開始などを待つ合図（スクリプトがファイルを置く）。無ければ待たない
