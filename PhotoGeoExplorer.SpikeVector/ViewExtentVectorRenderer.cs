@@ -46,6 +46,34 @@ public sealed class ViewExtentVectorRenderer
         return new RenderOutput(new RefCountedImage(image), timings.ToTimings());
     }
 
+    /// <summary>
+    /// 操作が止まっている間に、中心付近のタイル（取得ズームで、中心を囲む 2×2 枚）を、デコード済みキャッシュへ入れておく。
+    /// ズームアウトで、これまで見ていない隣のタイルが必要になったとき、描画の中でデコードする（密集市街地で 1 枚 30 ms 以上）のを避ける。
+    /// </summary>
+    public async Task PrefetchAsync(double centerLatitude, double centerLongitude, double zoom, CancellationToken cancellationToken = default)
+    {
+        await _source.PrepareAsync(null, cancellationToken).ConfigureAwait(false);
+        var tileZoom = Math.Min((int)Math.Floor(zoom), _source.MaxZoom);
+        var maxTiles = 1 << tileZoom;
+        var (px, py) = ToWorldPixel(centerLatitude, centerLongitude, tileZoom);
+        var tx = px / WebMercator.TileSize;
+        var ty = py / WebMercator.TileSize;
+        var timings = new TimingsAccumulator();
+        foreach (var y in new[] { (int)Math.Floor(ty - 0.5), (int)Math.Floor(ty + 0.5) }.Distinct())
+        {
+            foreach (var x in new[] { (int)Math.Floor(tx - 0.5), (int)Math.Floor(tx + 0.5) }.Distinct())
+            {
+                if (y < 0 || y >= maxTiles)
+                {
+                    continue;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                await GetTileAsync(tileZoom, ((x % maxTiles) + maxTiles) % maxTiles, y, timings, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
     private sealed class TimingsAccumulator
     {
         public TimeSpan Fetch;

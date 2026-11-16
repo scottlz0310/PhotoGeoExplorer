@@ -28,6 +28,10 @@ internal sealed class P2Backend : IDisposable
     private readonly DecodedTileCache? _cache;
     private readonly ViewRenderScheduler _scheduler;
     private readonly ViewExtentVectorRenderer _renderer;
+    private readonly int _prefetchMs;
+    private System.Threading.Timer? _prefetchTimer;
+    private RenderRequest? _lastRequest;
+    private (int Z, int X, int Y) _lastPrefetched = (-1, -1, -1);
     private readonly string _mvtSourceId;
     private readonly object _gate = new();
     private MemoryLayer? _layer;
@@ -38,6 +42,12 @@ internal sealed class P2Backend : IDisposable
     private bool _disposed;
     private long _applied;
     private readonly List<(long Tick, long Generation)> _appliedTicks = new();
+    private readonly Dictionary<long, long> _submitTicks = new();
+    private readonly Dictionary<long, (long Tick, double RenderMs)> _deliveredTicks = new();
+    private readonly Dictionary<long, RenderTimings> _timings = new();
+
+    /// <summary>計測用: 要求ごとの時系列（絶対 ms、Stopwatch）。[世代, 要求, 描画開始（推定）, 描画終了（反映の引き渡し）, UI での反映, 描画時間 ms]。</summary>
+    public List<double[]> Timeline { get; } = new();
 
     public P2Backend(MapControl control, Mapsui.Map map, string mvtRoot, bool useCache)
     {
@@ -45,7 +55,7 @@ internal sealed class P2Backend : IDisposable
         _map = map;
         _queue = control.DispatcherQueue;
         _sourceId = "saved-mvt:" + mvtRoot;
-        _cache = useCache ? new DecodedTileCache(64L * 1024 * 1024) : null;
+        _cache = useCache ? new DecodedTileCache((int.TryParse(Environment.GetEnvironmentVariable("PGE_P3_CACHE_MB"), out var cacheMb) ? cacheMb : 64) * 1024L * 1024) : null;
         // #293 の P3a: PGE_P3_FAST=1 で、確定描画の高速化（範囲外を描かない・破線の切り詰め・帯の並列・注記の並列）を有効にする。帯の数は論理コア数の半分（最大 8。PGE_P3_BANDS で上書き）
         IVectorMapStyle style = new OpenMapTilesStyle();
         var render = new ViewRenderOptions();
@@ -65,6 +75,7 @@ internal sealed class P2Backend : IDisposable
         };
         _renderer = renderer;
         _mvtSourceId = _sourceId;
+        _prefetchMs = Environment.GetEnvironmentVariable("PGE_P3_PREFETCH") == "1" ? (int.TryParse(Environment.GetEnvironmentVariable("PGE_P3_PREFETCH_DELAY_MS"), out var pd) ? pd : 120) : 0;
     }
 
     /// <summary>視点に対して、画像が追いついていない（または描画中）。</summary>
@@ -92,6 +103,38 @@ internal sealed class P2Backend : IDisposable
                 return _applied;
             }
         }
+    }
+
+    private void OnPrefetchIdle(object? state)
+    {
+        var request = _lastRequest;
+        if (_disposed || request is null || _scheduler.IsBusy)
+        {
+            return;
+        }
+
+        var center = Mapsui.Projections.SphericalMercator.ToLonLat(new MPoint(request.CenterX, request.CenterY));
+        var zoom = request.Zoom;
+        var tileZoom = Math.Min((int)Math.Floor(zoom), 14);
+        var n = Math.Pow(2, tileZoom);
+        var key = (tileZoom, (int)Math.Floor((center.X + 180) / 360 * n), (int)Math.Floor((1 - (Math.Asinh(Math.Tan(center.Y * Math.PI / 180)) / Math.PI)) / 2 * n));
+        if (key == _lastPrefetched)
+        {
+            return;
+        }
+
+        _lastPrefetched = key;
+        _ = System.Threading.Tasks.Task.Run(async () =>
+        {
+            try
+            {
+                await _renderer.PrefetchAsync(center.Y, center.X, zoom).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // 事前デコードは最適化。失敗しても、描画の中でデコードされる
+            }
+        });
     }
 
     /// <summary>
@@ -128,6 +171,7 @@ internal sealed class P2Backend : IDisposable
     public void Dispose()
     {
         _disposed = true;
+        _prefetchTimer?.Dispose();
         _map.Navigator.ViewportChanged -= OnViewportChanged;
         _scheduler.Dispose();
     }
@@ -149,14 +193,29 @@ internal sealed class P2Backend : IDisposable
             generation = ++_generation;
         }
 
-        _scheduler.Submit(new RenderRequest(vp.CenterX, vp.CenterY, vp.Resolution, vp.Width, vp.Height, density, _sourceId, 1, generation));
+        lock (_gate)
+        {
+            _submitTicks[generation] = System.Diagnostics.Stopwatch.GetTimestamp();
+        }
+
+        var request = new RenderRequest(vp.CenterX, vp.CenterY, vp.Resolution, vp.Width, vp.Height, density, _sourceId, 1, generation);
+        _scheduler.Submit(request);
+        if (_prefetchMs > 0)
+        {
+            // 操作が止まって _prefetchMs 経ったら、中心付近のタイルを先にデコードする
+            _lastRequest = request;
+            (_prefetchTimer ??= new System.Threading.Timer(OnPrefetchIdle)).Change(_prefetchMs, System.Threading.Timeout.Infinite);
+        }
     }
 
     private void OnRendered(RenderResult result)
     {
+        var deliveredTick = System.Diagnostics.Stopwatch.GetTimestamp();
         lock (_gate)
         {
             _pendingApply++;
+            _deliveredTicks[result.Request.Generation] = (deliveredTick, result.Duration.TotalMilliseconds);
+            _timings[result.Request.Generation] = result.Timings;
         }
 
         if (!_queue.TryEnqueue(() => Apply(result)))
@@ -196,7 +255,13 @@ internal sealed class P2Backend : IDisposable
             {
                 _shownGeneration = result.Request.Generation;
                 _applied++;
-                _appliedTicks.Add((System.Diagnostics.Stopwatch.GetTimestamp(), result.Request.Generation));
+                var appliedTick = System.Diagnostics.Stopwatch.GetTimestamp();
+                _appliedTicks.Add((appliedTick, result.Request.Generation));
+                if (_submitTicks.TryGetValue(result.Request.Generation, out var submitted) && _deliveredTicks.TryGetValue(result.Request.Generation, out var delivered))
+                {
+                    static double Ms(long t) => t * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                    Timeline.Add(new[] { result.Request.Generation, Ms(submitted), Ms(delivered.Tick) - delivered.RenderMs, Ms(delivered.Tick), Ms(appliedTick), delivered.RenderMs, _timings[result.Request.Generation].Decode.TotalMilliseconds, _timings[result.Request.Generation].Fetch.TotalMilliseconds, _timings[result.Request.Generation].Tiles, _timings[result.Request.Generation].CacheHits });
+                }
             }
 
             _map.Refresh();

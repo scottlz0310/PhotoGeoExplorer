@@ -159,6 +159,7 @@ internal sealed class MapBenchRunner
                     ["reuse"] = new[] { PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ReuseMs.Count, Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ReuseMs, 0.5), 2), Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ReuseMs, 0.95), 2) },
                     ["scaleOne"] = new[] { PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOneMs.Count, Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOneMs, 0.5), 2), Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOneMs, 0.95), 2) },
                     ["scaleOther"] = new[] { PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOtherMs.Count, Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOtherMs, 0.5), 2), Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOtherMs, 0.95), 2) },
+                    ["timeline"] = _p2.Timeline.Select(t => t.Select(x => Math.Round(x, 1)).ToArray()).ToArray(),
                     ["drawImageMsMax"] = Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.DrawTimesMs, 1.0), 2),
                     ["cacheMB"] = _p2.Cache is { } c ? Math.Round(c.Bytes / 1048576.0, 1) : 0,
                     ["cacheTiles"] = _p2.Cache?.Count ?? 0,
@@ -350,6 +351,8 @@ internal sealed class MapBenchRunner
         var durations = driven.Select(sample => ToMs(sample.EndTicks - sample.StartTicks)).ToList();
         var phase = new Dictionary<string, object?>
         {
+            ["startAbsMs"] = Math.Round(ToMs(startTicks), 1),
+            ["sharpAbsMs"] = Math.Round(ToMs(settle.SharpTicks), 1),
             ["id"] = id,
             ["kind"] = kind,
             ["level"] = resolutionLevel,
