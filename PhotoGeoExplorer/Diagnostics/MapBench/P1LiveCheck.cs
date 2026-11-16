@@ -69,7 +69,7 @@ internal sealed class P1LiveCheck
                 await Task.Delay(50).ConfigureAwait(true);
             }
 
-            await Task.Delay(2500).ConfigureAwait(true);
+            await Task.Delay(int.TryParse(Environment.GetEnvironmentVariable("PGE_P1_WARMUP_MS"), out var warmup) ? warmup : 2500).ConfigureAwait(true);
             foreach (var tile in _map.Layers.OfType<Mapsui.Tiling.Layers.TileLayer>())
             {
                 tile.Enabled = false;

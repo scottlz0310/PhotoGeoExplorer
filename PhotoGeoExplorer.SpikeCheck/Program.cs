@@ -20,6 +20,24 @@ if (args.Length >= 2 && args[0] == "analyze")
     return Analyze.Run(args[1]);
 }
 
+if (args.Length >= 2 && args[0] == "p3a-profile")
+{
+    return await P3aCheck.RunProfileAsync(args[1], args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 1.0, args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 9);
+}
+
+if (args.Length >= 2 && args[0] == "p3a-phases")
+{
+    var dp = args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 1.0;
+    return await P3aCheck.RunPhasesAsync(args[1], dp, args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 9);
+}
+
+if (args.Length >= 3 && args[0] == "p3a")
+{
+    var d3 = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 1.0;
+    var reps = args.Length > 4 ? int.Parse(args[4], CultureInfo.InvariantCulture) : 11;
+    return await P3aCheck.RunAsync(args[1], args[2], d3, reps, args.Length > 5 && args[5] == "images");
+}
+
 if (args.Length >= 3 && args[0] == "p2")
 {
     var d = args.Length > 3 ? double.Parse(args[3], CultureInfo.InvariantCulture) : 1.0;

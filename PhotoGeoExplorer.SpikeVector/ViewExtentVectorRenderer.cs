@@ -17,12 +17,14 @@ public sealed class ViewExtentVectorRenderer
     private readonly IVectorTileSource _source;
     private readonly IVectorMapStyle _style;
     private readonly DecodedTileCache? _cache;
+    private readonly ViewRenderOptions _options;
 
-    public ViewExtentVectorRenderer(IVectorTileSource source, IVectorMapStyle style, DecodedTileCache? cache = null)
+    public ViewExtentVectorRenderer(IVectorTileSource source, IVectorMapStyle style, DecodedTileCache? cache = null, ViewRenderOptions? options = null)
     {
         _source = source;
         _style = style;
         _cache = cache;
+        _options = options ?? new ViewRenderOptions();
     }
 
     /// <summary>描画要求から 1 枚描く（P2）。画像の参照は 1 つ持って返す。</summary>
@@ -129,6 +131,18 @@ public sealed class ViewExtentVectorRenderer
         }
 
         var drawStart = Stopwatch.StartNew();
+        if (_options.Bands > 1 || _options.ParallelLabels)
+        {
+            await DrawParallelAsync(bitmap, canvas, loaded, styleZoom, width, height).ConfigureAwait(false);
+            timings.Draw += drawStart.Elapsed;
+            overlay?.Invoke(canvas, (lat, lon) =>
+            {
+                var (x, y) = ToWorldPixel(lat, lon, zoom);
+                return new SKPoint((float)(x - left), (float)(y - top));
+            });
+            return bitmap;
+        }
+
         canvas.Clear(_style.BackgroundColor);
         var viewport = new SKRect(0, 0, width, height);
         var grid = new LabelCollisionGrid();
@@ -194,6 +208,94 @@ public sealed class ViewExtentVectorRenderer
         return bitmap;
     }
 
+    /// <summary>
+    /// 面・線を、画像を横に分けた帯ごとに並列で描く（帯は連続した行なので、同じ画素メモリの別範囲を別のサーフェスで描ける）。
+    /// 注記は、衝突判定が逐次のため 1 スレッドで、別の透明な画像に描いて最後に重ねる（<see cref="ViewRenderOptions.ParallelLabels"/>）か、帯の描画のあとに本体へ直接描く。
+    /// </summary>
+    private async Task DrawParallelAsync(SKBitmap bitmap, SKCanvas canvas, List<(VectorTile Tile, float Scale, float Dx, float Dy)> loaded, int styleZoom, int width, int height)
+    {
+        var viewport = new SKRect(0, 0, width, height);
+        var grid = new LabelCollisionGrid();
+
+        void DrawLabels(SKCanvas target)
+        {
+            foreach (var item in loaded)
+            {
+                _style.RenderSymbols(target, item.Tile, SKMatrix.CreateScaleTranslation(item.Scale, item.Scale, item.Dx, item.Dy), styleZoom, grid, viewport);
+            }
+
+            foreach (var item in loaded)
+            {
+                _style.RenderLineLabels(target, item.Tile, SKMatrix.CreateScaleTranslation(item.Scale, item.Scale, item.Dx, item.Dy), styleZoom, grid, viewport);
+            }
+
+            foreach (var item in loaded)
+            {
+                _style.RenderLabels(target, item.Tile, SKMatrix.CreateScaleTranslation(item.Scale, item.Scale, item.Dx, item.Dy), styleZoom, grid, viewport);
+            }
+        }
+
+        SKBitmap? labelBitmap = null;
+        Task? labelTask = null;
+        if (_options.ParallelLabels)
+        {
+            labelBitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            labelTask = Task.Run(() =>
+            {
+                using var labelCanvas = new SKCanvas(labelBitmap);
+                labelCanvas.Clear(SKColors.Transparent);
+                DrawLabels(labelCanvas);
+            });
+        }
+
+        var bands = Math.Max(1, _options.Bands);
+        var pixels = bitmap.GetPixels();
+        var rowBytes = bitmap.RowBytes;
+        var background = _style.BackgroundColor;
+        Parallel.For(0, bands, band =>
+        {
+            var y0 = height * band / bands;
+            var y1 = height * (band + 1) / bands;
+            if (y1 <= y0)
+            {
+                return;
+            }
+
+            var info = new SKImageInfo(width, y1 - y0, SKColorType.Rgba8888, SKAlphaType.Premul);
+            using var surface = SKSurface.Create(info, pixels + (y0 * rowBytes), rowBytes);
+            var bandCanvas = surface.Canvas;
+            bandCanvas.Clear(background);
+            bandCanvas.Translate(0, -y0);
+            foreach (var item in loaded)
+            {
+                bandCanvas.Save();
+                bandCanvas.Translate(item.Dx, item.Dy);
+                bandCanvas.Scale(item.Scale, item.Scale);
+                _style.RenderPolygons(bandCanvas, item.Tile, item.Scale, styleZoom);
+                bandCanvas.Restore();
+            }
+
+            foreach (var item in loaded)
+            {
+                bandCanvas.Save();
+                bandCanvas.Translate(item.Dx, item.Dy);
+                bandCanvas.Scale(item.Scale, item.Scale);
+                _style.RenderLines(bandCanvas, item.Tile, item.Scale, styleZoom);
+                bandCanvas.Restore();
+            }
+        });
+
+        if (labelTask is null)
+        {
+            DrawLabels(canvas);
+            return;
+        }
+
+        await labelTask.ConfigureAwait(false);
+        canvas.DrawBitmap(labelBitmap!, 0, 0, new SKSamplingOptions(SKFilterMode.Nearest), null);
+        labelBitmap!.Dispose();
+    }
+
     private async Task<VectorTile?> GetTileAsync(int tileZoom, int x, int y, TimingsAccumulator timings, CancellationToken cancellationToken)
     {
         timings.Tiles++;
@@ -228,4 +330,14 @@ public sealed class ViewExtentVectorRenderer
         _cache?.Add(key, tile, allocated);
         return tile;
     }
+}
+
+/// <summary>手順 1（#293 P3a）の実験用の描画オプション。既定は、従来どおり 1 スレッドで描く。</summary>
+public sealed record ViewRenderOptions
+{
+    /// <summary>面・線を、画像を横に分けた帯ごとに並列で描く（1 で無効）。</summary>
+    public int Bands { get; init; } = 1;
+
+    /// <summary>注記を、別スレッドで透明な画像へ描いて、最後に重ねる。</summary>
+    public bool ParallelLabels { get; init; }
 }
