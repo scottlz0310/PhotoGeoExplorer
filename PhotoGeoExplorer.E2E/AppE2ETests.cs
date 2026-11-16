@@ -2132,13 +2132,17 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
         private static string ResolveAppPath()
         {
             var root = FindSolutionRoot() ?? throw new InvalidOperationException("Solution root not found.");
+            var targetFramework = typeof(AppE2ETests).Assembly
+                .GetCustomAttributes<AssemblyMetadataAttribute>()
+                .Single(attribute => attribute.Key == "AppTargetFramework")
+                .Value ?? throw new InvalidOperationException("AppTargetFramework metadata is empty.");
             var appPath = Path.Combine(
                 root,
                 "PhotoGeoExplorer",
                 "bin",
                 "x64",
                 "Release",
-                "net10.0-windows10.0.19041.0",
+                targetFramework,
                 "PhotoGeoExplorer.exe");
 
             if (!File.Exists(appPath))

@@ -8,13 +8,12 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Track netX.Y in TargetFramework",
+      "description": "Track netX.Y in DotNetTargetFramework (single source of truth for all projects)",
       "managerFilePatterns": [
-        "/(^|/)PhotoGeoExplorer/PhotoGeoExplorer\\.csproj$/",
-        "/(^|/)PhotoGeoExplorer\\.Tests/PhotoGeoExplorer\\.Tests\\.csproj$/"
+        "/(^|/)Directory\\.Build\\.props$/"
       ],
       "matchStrings": [
-        "<TargetFramework>net(?<currentValue>\\d+\\.\\d+)-windows10\\.0\\.19041\\.0</TargetFramework>"
+        "<DotNetTargetFramework>net(?<currentValue>\\d+\\.\\d+)</DotNetTargetFramework>"
       ],
       "depNameTemplate": "dotnet-sdk",
       "datasourceTemplate": "dotnet-version",

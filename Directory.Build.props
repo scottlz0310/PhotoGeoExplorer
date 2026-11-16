@@ -8,6 +8,13 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
+  <!-- ターゲットフレームワークの単一の定義元。各 csproj と E2E の exe パス解決はここを参照する。
+       DotNetTargetFramework は renovate.json のカスタムマネージャー（dotnet-version）が追跡する。 -->
+  <PropertyGroup>
+    <DotNetTargetFramework>net10.0</DotNetTargetFramework>
+    <WindowsTargetFramework>$(DotNetTargetFramework)-windows10.0.19041.0</WindowsTargetFramework>
+  </PropertyGroup>
+
   <!-- SixLabors.ImageSharp v4 以降はビルド時ライセンス検証が必須。
        SIXLABORS_LICENSE_KEY 環境変数（GitHub シークレット）から SixLaborsLicenseKey に転写する。
        https://sixlabors.com/posts/licence-enforcement-changes/ -->

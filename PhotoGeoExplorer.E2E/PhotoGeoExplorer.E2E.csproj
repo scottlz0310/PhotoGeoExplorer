@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>$(WindowsTargetFramework)</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -19,6 +19,14 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- 起動対象アプリの出力フォルダー名を、TFM の定義元（Directory.Build.props）から引くために埋め込む -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>AppTargetFramework</_Parameter1>
+      <_Parameter2>$(WindowsTargetFramework)</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>
