@@ -28,6 +28,16 @@ public sealed class ViewExtentImageStyle : BaseStyle
 
 public sealed class ViewExtentImageStyleRenderer : ISkiaStyleRenderer
 {
+    /// <summary>計測用: 画像の描画（DrawImage）にかかった時間（ms）と、キャンバスが GPU ベースか。UI スレッドだけが書く。</summary>
+    public static readonly List<double> DrawTimesMs = new();
+    public static readonly List<double> FirstUseMs = new();
+    public static readonly List<double> ReuseMs = new();
+    public static readonly List<double> ScaleOneMs = new();
+    public static readonly List<double> ScaleOtherMs = new();
+    private static readonly HashSet<ulong> Seen = new();
+
+    public static bool? GpuBackedCanvas;
+
     private static readonly bool SnapEnabled = Environment.GetEnvironmentVariable("PGE_P3_SNAP") == "1";
 
     public static void Register()
@@ -48,20 +58,27 @@ public sealed class ViewExtentImageStyleRenderer : ISkiaStyleRenderer
         var top = (float)(((viewport.CenterY - s.Extent.MaxY) / viewport.Resolution) + (viewport.Height / 2));
         var bottom = (float)(((viewport.CenterY - s.Extent.MinY) / viewport.Resolution) + (viewport.Height / 2));
         // 縮小して見るとき（操作中の古い画像）は、ミップマップを使い、エイリアシングによる位置のずれを避ける
-        var scale = (right - left) / s.Image.Width;
+        // 拡大率は、デバイスピクセルで求める（right-left は DIP、Image.Width は画素。DPI が 100% を超えると、画像と描画先が同じ画素寸法でも 1/密度（150% で 0.67）になり、縮小用のミップマップ補間に入って遅くなる）
+        var deviceScale = canvas.TotalMatrix.ScaleX;
+        var scale = (right - left) * deviceScale / s.Image.Width;
         // PGE_P3_SNAP=1: 拡大率が 1（パンだけ）のとき、画像を整数のデバイスピクセルへ合わせて、補間なしで描く（小数ずれの双線形補間は、画素数に比例して UI スレッドを使う）。位置のずれは最大 0.5 デバイスピクセル（操作中だけ）
         if (SnapEnabled && Math.Abs(scale - 1f) < 0.001f)
         {
-            var density = canvas.TotalMatrix.ScaleX;
-            var snappedLeft = (float)Math.Round(left * density) / density;
-            var snappedTop = (float)Math.Round(top * density) / density;
-            canvas.DrawImage(s.Image, new SKRect(snappedLeft, snappedTop, snappedLeft + s.Image.Width / density, snappedTop + s.Image.Height / density), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None));
+            var snappedLeft = (float)Math.Round(left * deviceScale) / deviceScale;
+            var snappedTop = (float)Math.Round(top * deviceScale) / deviceScale;
+            canvas.DrawImage(s.Image, new SKRect(snappedLeft, snappedTop, snappedLeft + (s.Image.Width / deviceScale), snappedTop + (s.Image.Height / deviceScale)), new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None));
             return true;
         }
 
         var nearest = Environment.GetEnvironmentVariable("PGE_P1_NEAREST") == "1" && Math.Abs(scale - 1f) < 0.001f;
         var sampling = nearest ? new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None) : scale < 0.9f ? new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear) : new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+        GpuBackedCanvas ??= canvas.Context is not null;
+        var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         canvas.DrawImage(s.Image, new SKRect(left, top, right, bottom), sampling);
+        var elapsed = (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+        DrawTimesMs.Add(elapsed);
+        (Seen.Add((ulong)s.Image.UniqueId) ? FirstUseMs : ReuseMs).Add(elapsed);
+        (Math.Abs(scale - 1f) < 0.001f ? ScaleOneMs : ScaleOtherMs).Add(elapsed);
         return true;
     }
 }

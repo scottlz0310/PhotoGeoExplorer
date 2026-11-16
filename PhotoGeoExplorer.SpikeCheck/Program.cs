@@ -25,6 +25,11 @@ if (args.Length >= 2 && args[0] == "p3a-cold")
     return await P3aCheck.RunColdAsync(args[1], args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 1.0, args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 9);
 }
 
+if (args.Length >= 1 && args[0] == "p3a-firstdraw")
+{
+    return await P3aCheck.RunFirstDrawAsync(args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 1.0);
+}
+
 if (args.Length >= 1 && args[0] == "p3a-draw")
 {
     return await P3aCheck.RunDrawBenchAsync(args.Length > 1 ? double.Parse(args[1], CultureInfo.InvariantCulture) : 1.0);

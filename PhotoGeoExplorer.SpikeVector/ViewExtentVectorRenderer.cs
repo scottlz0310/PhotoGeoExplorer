@@ -35,6 +35,14 @@ public sealed class ViewExtentVectorRenderer
         using var bitmap = await RenderCoreAsync(center.Y, center.X, request.Zoom, request.ImageWidth, request.ImageHeight, null, timings, cancellationToken).ConfigureAwait(false);
         bitmap.SetImmutable();
         var image = SKImage.FromBitmap(bitmap);
+        if (Environment.GetEnvironmentVariable("PGE_P3_PREWARM") == "1")
+        {
+            // 実験: 背景スレッドで画像を 1 回描いておく（UI スレッドの初回描画のコストが、画像ごとの準備なら、ここへ移る）
+            using var tiny = new SKBitmap(new SKImageInfo(64, 64, SKImageInfo.PlatformColorType, SKAlphaType.Premul));
+            using var tinyCanvas = new SKCanvas(tiny);
+            tinyCanvas.DrawImage(image, SKRect.Create(0, 0, 64, 64), SKRect.Create(0, 0, 64, 64), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
+        }
+
         return new RenderOutput(new RefCountedImage(image), timings.ToTimings());
     }
 

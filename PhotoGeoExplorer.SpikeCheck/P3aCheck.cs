@@ -344,6 +344,67 @@ internal static class P3aCheck
         return 0;
     }
 
+    /// <summary>新しい画像（描画のたびに別のバッファ）の初回の DrawImage のコスト。実アプリでは、画像が毎フレーム新しくなる。</summary>
+    public static Task<int> RunFirstDrawAsync(double density)
+    {
+        var w = (int)Math.Round(Width * density);
+        var h = (int)Math.Round(Height * density);
+        using var target = new SKBitmap(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
+        using var canvas = new SKCanvas(target);
+        canvas.Scale((float)density);
+        using var template = new SKBitmap(new SKImageInfo(w, h, SKImageInfo.PlatformColorType, SKAlphaType.Premul));
+        var rng = new Random(1);
+        var px = template.GetPixelSpan();
+        for (var i = 0; i < px.Length; i += 4)
+        {
+            px[i] = (byte)rng.Next(256);
+            px[i + 1] = (byte)rng.Next(256);
+            px[i + 2] = (byte)rng.Next(256);
+            px[i + 3] = 255;
+        }
+
+        var rect = new SKRect(0.37f, 0.61f, 0.37f + (w / (float)density), 0.61f + (h / (float)density));
+        var linear = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+        foreach (var mode in new[] { "同じ画像を繰り返し描く", "毎回新しいバッファ（コピー→不変化→SKImage）", "毎回新しいバッファ＋スレッドプールで別のスレッドが書いた直後" })
+        {
+            var times = new List<double>();
+            for (var i = 0; i < 30; i++)
+            {
+                SKBitmap? fresh = null;
+                SKImage image;
+                if (mode.StartsWith("同じ", StringComparison.Ordinal))
+                {
+                    template.SetImmutable();
+                    image = SKImage.FromBitmap(template);
+                }
+                else
+                {
+                    fresh = template.Copy();
+                    if (mode.Contains("別のスレッド", StringComparison.Ordinal))
+                    {
+                        var copy = fresh;
+                        Task.Run(() => copy.GetPixelSpan()[0] = (byte)i).Wait();
+                    }
+
+                    fresh.SetImmutable();
+                    image = SKImage.FromBitmap(fresh);
+                }
+
+                var sw = Stopwatch.StartNew();
+                canvas.DrawImage(image, rect, linear);
+                times.Add(sw.Elapsed.TotalMilliseconds);
+                image.Dispose();
+                fresh?.Dispose();
+            }
+
+            times.RemoveRange(0, 3);
+            times.Sort();
+            Console.WriteLine($"  {mode,-52} 中央値 {Median(times):0.00} ms、p95 {times[(int)(times.Count * 0.95)]:0.00} ms、最大 {times[^1]:0.00} ms");
+        }
+
+        return Task.FromResult(0);
+    }
+
     private static string Format(Dictionary<(string Scenario, string Variant), (double Median, double P95, Diff? Diff)> table, double density, int width, int height, int reps)
     {
         var sb = new StringBuilder();

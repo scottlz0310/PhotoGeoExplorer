@@ -143,6 +143,15 @@ internal sealed class MapBenchRunner
                     ["cancelled"] = st.Cancelled,
                     ["failed"] = st.Failed,
                     ["liveImages"] = RefCountedImage.LiveCount,
+                    ["gpuBackedCanvas"] = PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.GpuBackedCanvas,
+                    ["drawImageCount"] = PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.DrawTimesMs.Count,
+                    ["drawImageMsP50"] = Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.DrawTimesMs, 0.5), 2),
+                    ["drawImageMsP95"] = Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.DrawTimesMs, 0.95), 2),
+                    ["firstUse"] = new[] { PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.FirstUseMs.Count, Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.FirstUseMs, 0.5), 2), Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.FirstUseMs, 0.95), 2) },
+                    ["reuse"] = new[] { PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ReuseMs.Count, Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ReuseMs, 0.5), 2), Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ReuseMs, 0.95), 2) },
+                    ["scaleOne"] = new[] { PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOneMs.Count, Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOneMs, 0.5), 2), Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOneMs, 0.95), 2) },
+                    ["scaleOther"] = new[] { PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOtherMs.Count, Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOtherMs, 0.5), 2), Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.ScaleOtherMs, 0.95), 2) },
+                    ["drawImageMsMax"] = Math.Round(Pct(PhotoMapStudio.Spike.ViewExtentImageStyleRenderer.DrawTimesMs, 1.0), 2),
                     ["cacheMB"] = _p2.Cache is { } c ? Math.Round(c.Bytes / 1048576.0, 1) : 0,
                     ["cacheTiles"] = _p2.Cache?.Count ?? 0,
                 };
@@ -492,6 +501,17 @@ internal sealed class MapBenchRunner
     }
 
     private static double ToMs(long ticks) => ticks * 1000.0 / Stopwatch.Frequency;
+
+    private static double Pct(List<double> values, double p)
+    {
+        if (values.Count == 0)
+        {
+            return 0;
+        }
+
+        var sorted = values.OrderBy(x => x).ToList();
+        return sorted[Math.Clamp((int)Math.Ceiling(p * sorted.Count) - 1, 0, sorted.Count - 1)];
+    }
 
     private static double Round(double value) => Math.Round(value, 2);
 
