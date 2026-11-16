@@ -220,6 +220,35 @@ internal static class P3aCheck
         return 0;
     }
 
+    /// <summary>パスの事前生成（Prep）によるメモリの増加。3 地点の z15・z17 を描いたあとの、プロセスの専有メモリの差。</summary>
+    public static async Task<int> RunMemoryAsync(string mvtRoot, string only)
+    {
+        var source = new SavedMvtTileSource(mvtRoot);
+        foreach (var (name, options) in new (string, FastStyleOptions?)[] { ("base", null), ("pcv", new FastStyleOptions { Prep = true, Cull = true, ClipVertices = true }) }.Where(v => v.Item1 == only))
+        {
+            (await new ViewExtentVectorRenderer(source, new OpenMapTilesStyle(), null).RenderAsync(43.0606, 141.3469, 17, 100, 100).ConfigureAwait(false)).Dispose();
+            GC.Collect(2, GCCollectionMode.Forced, true);
+            var before = Process.GetCurrentProcess().PrivateMemorySize64;
+            var cache = new DecodedTileCache(256L * 1024 * 1024);
+            using var fast = options is null ? null : new FastVectorStyle(options);
+            IVectorMapStyle style = fast is null ? new OpenMapTilesStyle() : fast;
+            var renderer = new ViewExtentVectorRenderer(source, style, cache);
+            foreach (var (_, lat, lon) in Locations)
+            {
+                foreach (var zoom in new[] { 15.0, 17.0 })
+                {
+                    (await renderer.RenderAsync(lat, lon, zoom, 683, 610).ConfigureAwait(false)).Dispose();
+                }
+            }
+
+            GC.Collect(2, GCCollectionMode.Forced, true);
+            var after = Process.GetCurrentProcess().PrivateMemorySize64;
+            Console.WriteLine($"{name}: 専有メモリ +{(after - before) / 1048576.0:0.0} MB、デコード済みキャッシュ {cache.Bytes / 1048576.0:0.0} MB（見積もり）、タイル {cache.Count}");
+        }
+
+        return 0;
+    }
+
     private static string Format(Dictionary<(string Scenario, string Variant), (double Median, double P95, Diff? Diff)> table, double density, int width, int height, int reps)
     {
         var sb = new StringBuilder();

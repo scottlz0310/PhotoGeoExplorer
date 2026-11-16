@@ -20,6 +20,11 @@ if (args.Length >= 2 && args[0] == "analyze")
     return Analyze.Run(args[1]);
 }
 
+if (args.Length >= 2 && args[0] == "p3a-mem")
+{
+    return await P3aCheck.RunMemoryAsync(args[1], args[2]);
+}
+
 if (args.Length >= 2 && args[0] == "p3a-profile")
 {
     return await P3aCheck.RunProfileAsync(args[1], args.Length > 2 ? double.Parse(args[2], CultureInfo.InvariantCulture) : 1.0, args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 9);
