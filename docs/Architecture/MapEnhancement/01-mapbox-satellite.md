@@ -68,7 +68,7 @@ https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.jpg90?access_token={token
 | `Panes/Settings` | トークン入力欄（`PasswordBox`）、取得方法へのリンク、接続テスト、削除ボタン。選択肢に「Mapbox 航空写真」 |
 | ドキュメント | ヘルプ（トークンの取得手順・料金は利用者負担である旨）、プライバシーポリシー、`CHANGELOG.md` |
 
-`IMapPaneService.CreateTileLayer(MapTileSourceType, string userAgent)` は、背景ごとの追加パラメータ（今回はトークン）を渡せるよう、引数をレコード（`MapBackgroundRequest`）にまとめる。ベクター地図（[02](02-vector-renderer.md)）でも同じ入口を使う。
+`IMapPaneService.CreateBackground`（当初は `CreateTileLayer(MapTileSourceType, string userAgent)`）は、背景ごとの追加パラメータ（今回はトークン）を渡せるよう、引数をレコード（`MapBackgroundRequest`）にまとめる。ベクター地図（[02](02-vector-renderer.md)）でも同じ入口を使う。
 
 ## 5. 振る舞い
 

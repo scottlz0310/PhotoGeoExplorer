@@ -1,0 +1,68 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Mapsui;
+using Mapsui.Layers;
+using Mapsui.Tiling.Layers;
+using PhotoGeoExplorer.Models;
+
+namespace PhotoGeoExplorer.Panes.Map;
+
+/// <summary>
+/// ラスタタイル 1 枚のレイヤーを背景として扱う（OpenStreetMap・Esri・Mapbox）。
+/// </summary>
+internal sealed class RasterMapBackground : IMapBackground
+{
+    private readonly TileLayer _layer;
+    private bool _disposed;
+
+    internal RasterMapBackground(TileLayer layer, MapTileSourceType sourceType)
+    {
+        ArgumentNullException.ThrowIfNull(layer);
+
+        _layer = layer;
+        Layers = [layer];
+        AttributionText = string.Join(' ', MapAttribution.GetLinks(sourceType).Select(link => link.Text));
+        _layer.PropertyChanged += OnLayerPropertyChanged;
+    }
+
+    public IReadOnlyList<ILayer> Layers { get; }
+
+    public string AttributionText { get; }
+
+    public bool IsBusy => _layer.Busy;
+
+    public event EventHandler? BusyChanged;
+
+    public Task<IMapExportLayers> CreateExportLayersAsync(
+        Viewport viewport,
+        float pixelDensity,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(MapExportLayers.Borrowed(Layers));
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _layer.PropertyChanged -= OnLayerPropertyChanged;
+        _layer.Dispose();
+    }
+
+    private void OnLayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TileLayer.Busy))
+        {
+            BusyChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+}

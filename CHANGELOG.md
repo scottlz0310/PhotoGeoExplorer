@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 変更
+- 地図の背景を `IMapBackground` で扱う内部構造に変更し、`MapPaneViewModel`・`MapPaneViewControl`・PNG 保存が `TileLayer` に依存しないようにした (#295 の PR ①。見た目・操作・保存される PNG は変わらない)。PNG 保存は、背景が返す保存用レイヤーと写真マーカーなど背景以外のレイヤーを合成して描く。ベクター背景を後から追加できるようにするための土台で、背景の切り替え・読み込み中の保存ボタンの無効化・帰属表示は従来どおり。
 - ターゲットフレームワークを `Directory.Build.props` の `DotNetTargetFramework` に一本化し、全プロジェクトと E2E の exe パス解決がそこを参照するようにした。Renovate の追跡もこの 1 行だけに絞った。これまで追跡漏れだった E2E（`net8.0`）と Core が、他と同じ `net10.0` になる（E2E のために .NET 8 ランタイムが要らなくなる）
 
 ### 追加

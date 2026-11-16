@@ -24,9 +24,9 @@ PhotoMapStudio の静止画向けの計測値（1 枚あたりの描画時間な
 
 ### PhotoGeoExplorer 側の接続点
 
-- `MapPaneService` が背景の `TileLayer` を作り、`MapPaneViewModel` が背景の切り替え（`SwitchTileSource`）と写真マーカーの `MemoryLayer` を管理する。
-- `MapsuiMapImageRenderer` が `MapRenderer.RenderToBitmapStream` で PNG を保存する。
-- `IMapPaneService.InitializeMap` / `CreateTileLayer` の戻り値は `TileLayer` 型で固定されている。
+- `MapPaneService` が背景（`IMapBackground`。ラスタは `RasterMapBackground`）を作り、`MapPaneViewModel` が背景の切り替え（`SwitchTileSource`）と写真マーカーの `MemoryLayer` を管理する。
+- `MapsuiMapImageRenderer` が `MapRenderer.RenderToBitmapStream` で PNG を保存する。保存に使うレイヤーは、背景の `CreateExportLayersAsync` が返す保存用レイヤーと、写真マーカーなど背景以外のレイヤーを `MapExportLayers.Compose` で合成して渡す。
+- 背景は `IMapBackground`（#295 の PR ① で導入）で扱い、`IMapPaneService` と `MapPaneViewModel` は背景の種類（ラスタ・ベクター）を知らない。
 
 ### PhotoMapStudio 側の資産（`PhotoMapStudio.Core/Tiles/Vector`）
 
@@ -114,7 +114,7 @@ sequenceDiagram
 保存時のビューポートと `pixelDensity` で確定描画を 1 回行い、**保存専用のレイヤー**に入れて `RenderToBitmapStream` へ渡す。操作中の変形表示（低解像度）のまま保存しない。
 
 - 表示中のレイヤーには触らない。保存用の画像を表示中のレイヤーへ設定すると、画面が一瞬ずれた表示になり、コーディネーターの交換・解放と競合する。
-- `MapsuiMapImageRenderer` は現在 `map.Layers` をそのまま描いている。これを「保存用の背景レイヤー（`IMapBackground.CreateExportLayersAsync` の戻り値）＋写真マーカーのレイヤー」のリストを受け取る形に変える。ラスタの背景は表示中のレイヤーをそのまま返す。
+- `MapsuiMapImageRenderer` は、`map.Layers` ではなく、呼び出し側が渡すレイヤーのリスト（保存用の背景レイヤー［`IMapBackground.CreateExportLayersAsync` の戻り値］＋写真マーカーなど背景以外のレイヤー）を描く。合成は `MapExportLayers.Compose`、呼び出しは `MapPaneViewModel.CaptureMapImageAsync`。ラスタの背景は表示中のレイヤーをそのまま返す（破棄しない）。
 - 保存用のレイヤーと画像は、保存が終わったら破棄する。
 - 背景とピンは同じビューポートのスナップショットから描くので、古い背景と新しいピンが混在しない。
 
@@ -128,14 +128,25 @@ internal interface IMapBackground : IDisposable
     IReadOnlyList<ILayer> Layers { get; }   // 下から順。ラスタ・ベクター単体は 1 要素
     string AttributionText { get; }
 
+    // 表示に必要な読み込み・描画の待機中か。待機中は PNG を保存できない。View は背景の種類を問わずこれで保存可否を決める。
+    bool IsBusy { get; }
+    event EventHandler? BusyChanged;   // 任意のスレッドから呼ばれる
+
     // PNG 保存用。ラスタは Layers をそのまま返す。ベクターは保存用に確定描画した別レイヤーを返す。
     Task<IMapExportLayers> CreateExportLayersAsync(Viewport viewport, float pixelDensity, CancellationToken ct);
+}
+
+internal interface IMapExportLayers : IDisposable
+{
+    IReadOnlyList<ILayer> Layers { get; }   // 保存用の背景レイヤー（下から順）。保存後に破棄する
 }
 ```
 
 レイヤーは最初から複数を前提にする。航空写真＋道路オーバーレイ（§9）は 2 層になるため、単一レイヤーの契約で始めると `MapPaneViewModel`・PNG 保存・破棄処理を後で作り直すことになる。
 
 この整理は [01](01-mapbox-satellite.md) の `MapBackgroundRequest` と合わせて行い、`MapPaneViewModel` はラスタ／ベクターの違いを知らない状態にする。
+
+実装: #295 の PR ①（ラスタのみ・挙動不変）。ラスタは `RasterMapBackground`（`TileLayer` を 1 枚包み、`TileLayer.Busy` を `IsBusy` として転送する）。
 
 ## 4. スタイル方針
 
@@ -214,7 +225,7 @@ P0 の成果物（手順・基準値・基準画像・許容差）は [poc/READM
 
 ## 8. 製品統合（#295）の範囲
 
-- `MapTileSourceType` に `VectorOpenFreeMap`（必要なら `VectorGsi`）を追加し、設定の選択肢に出す。既定の背景は変えない。
+- `MapTileSourceType` に `VectorOpenFreeMap`（必要なら `VectorGsi`）を追加し、設定の選択肢に出す。**最初のリリースは選択式で、既定は現行ラスタのまま。目標は既定のベクター化**（#293 の判定の条件を満たしたら既定化を検討する。選択式を恒久にはしない。現行の OSM ラスタを残すかは、その時点で決める）。
 - 初期のスタイルは現行に近い見た目にする。道路名優先のプロファイルは、エンジンの統合が済んでから、選べるスタイルとして別の PR で追加する（§4）。
 - 描画・取得の失敗時の表示（部分的に取得できない、オフライン）。失敗を隠して別の背景へ自動で切り替えない。
 - 帰属表示（OSM、OpenFreeMap、国土地理院）を画面と PNG に出す。

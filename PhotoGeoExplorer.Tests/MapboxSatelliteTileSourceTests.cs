@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using BruTile;
+using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 
@@ -16,12 +17,13 @@ public sealed class MapboxSatelliteTileSourceTests
     private static readonly TileInfo Tile = new() { Index = new TileIndex(3, 5, 4) };
 
     [Fact]
-    public void CreateTileLayerReturnsMapboxLayerWithoutPersistentCache()
+    public void CreateBackgroundReturnsMapboxLayerWithoutPersistentCache()
     {
         var service = new MapPaneService();
 
-        using var layer = service.CreateTileLayer(
+        using var background = service.CreateBackground(
             new MapBackgroundRequest(MapTileSourceType.MapboxSatellite, UserAgent, Token));
+        var layer = Assert.IsType<TileLayer>(Assert.Single(background.Layers));
 
         var source = Assert.IsType<MapboxSatelliteTileSource>(layer.TileSource);
         Assert.Equal("Mapbox Satellite", layer.Name);
@@ -36,11 +38,11 @@ public sealed class MapboxSatelliteTileSourceTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void CreateTileLayerThrowsWhenMapboxTokenIsMissing(string? token)
+    public void CreateBackgroundThrowsWhenMapboxTokenIsMissing(string? token)
     {
         var service = new MapPaneService();
 
-        Assert.Throws<ArgumentException>(() => service.CreateTileLayer(
+        Assert.Throws<ArgumentException>(() => service.CreateBackground(
             new MapBackgroundRequest(MapTileSourceType.MapboxSatellite, UserAgent, token)));
     }
 
@@ -97,7 +99,6 @@ public sealed class MapboxSatelliteTileSourceTests
         var link = Assert.Single(presenter.Links);
         Assert.Equal(expectedText, link.Text);
         Assert.Equal(expectedUrl, link.Url);
-        Assert.Equal(expectedText, presenter.Text);
         Assert.False(presenter.IsMapboxLogoVisible);
     }
 
@@ -118,7 +119,6 @@ public sealed class MapboxSatelliteTileSourceTests
                 ("Improve this map", "https://apps.mapbox.com/feedback/")
             ],
             presenter.Links);
-        Assert.Equal(MapAttribution.MapboxText, presenter.Text);
         Assert.True(presenter.IsMapboxLogoVisible);
     }
 

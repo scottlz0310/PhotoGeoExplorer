@@ -45,14 +45,17 @@ internal sealed class MapPaneService : IMapPaneService
     }
 
     /// <inheritdoc/>
-    public (Mapsui.Map Map, TileLayer TileLayer, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+    public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
     {
         ArgumentNullException.ThrowIfNull(background);
 
-        // レイヤー生成が失敗したときに Map を取り残さないよう、先にレイヤーを作る。
-        var tileLayer = CreateTileLayer(background);
+        // レイヤー生成が失敗したときに Map を取り残さないよう、先に背景を作る。
+        var mapBackground = CreateBackground(background);
         var map = new Mapsui.Map();
-        map.Layers.Add(tileLayer);
+        foreach (var layer in mapBackground.Layers)
+        {
+            map.Layers.Add(layer);
+        }
 
         var markerLayer = new MemoryLayer
         {
@@ -62,15 +65,20 @@ internal sealed class MapPaneService : IMapPaneService
         };
         map.Layers.Add(markerLayer);
 
-        return (map, tileLayer, markerLayer);
+        return (map, mapBackground, markerLayer);
     }
 
     /// <inheritdoc/>
-    public TileLayer CreateTileLayer(MapBackgroundRequest background)
+    public IMapBackground CreateBackground(MapBackgroundRequest background)
     {
         ArgumentNullException.ThrowIfNull(background);
         ArgumentNullException.ThrowIfNull(background.UserAgent);
 
+        return new RasterMapBackground(CreateTileLayer(background), background.SourceType);
+    }
+
+    private TileLayer CreateTileLayer(MapBackgroundRequest background)
+    {
         return background.SourceType switch
         {
             MapTileSourceType.MapboxSatellite => CreateMapboxSatelliteLayer(background),

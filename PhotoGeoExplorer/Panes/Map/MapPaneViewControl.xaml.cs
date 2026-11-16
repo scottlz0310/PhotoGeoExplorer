@@ -10,7 +10,6 @@ using Mapsui.Fetcher;
 using Mapsui.Layers;
 using Mapsui.Nts;
 using Mapsui.Styles;
-using Mapsui.Tiling.Layers;
 using Mapsui.UI;
 using Mapsui.UI.WinUI;
 using Microsoft.UI;
@@ -36,10 +35,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private readonly MapExifLocationPicker _exifLocationPicker;
     private IDialogService _dialogService = null!;
-    private IMapImageService _mapImageService = null!;
     private MapPaneViewModel? _viewModel;
     private Mapsui.Map? _map;
-    private INotifyPropertyChanged? _subscribedTileLayer;
     private PhotoMetadata? _flyoutMetadata;
     private bool _mapRectangleSelecting;
     private MPoint? _mapRectangleStart;
@@ -120,10 +117,9 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         MapHeaderLocationPanel.SetOverflow(MapHeaderCoordinatesButton, PriorityCollapseMode.Hide, priority: 3);
     }
 
-    internal void ConfigureMapImageExport(IDialogService dialogService, IMapImageService mapImageService)
+    internal void ConfigureMapImageExport(IDialogService dialogService)
     {
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-        _mapImageService = mapImageService ?? throw new ArgumentNullException(nameof(mapImageService));
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -181,6 +177,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         }
 
         _viewModel.PropertyChanged += OnMapPaneViewModelPropertyChanged;
+        _viewModel.BackgroundBusyChanged += OnBackgroundBusyChanged;
         ApplyMapFromViewModel();
         UpdateMapStatusFromViewModel();
     }
@@ -190,6 +187,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged -= OnMapPaneViewModelPropertyChanged;
+            _viewModel.BackgroundBusyChanged -= OnBackgroundBusyChanged;
             _viewModel = null;
         }
     }
@@ -266,7 +264,6 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         map.DataChanged += OnMapDataChanged;
         map.Navigator.ViewportChanged += OnMapViewportChanged;
         map.Layers.Changed += OnMapLayersChanged;
-        UpdateTileLayerSubscription(map);
     }
 
     private void UnsubscribeFromMapState(Mapsui.Map? map)
@@ -279,7 +276,6 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         map.DataChanged -= OnMapDataChanged;
         map.Navigator.ViewportChanged -= OnMapViewportChanged;
         map.Layers.Changed -= OnMapLayersChanged;
-        UpdateTileLayerSubscription(null);
     }
 
     private void OnMapDataChanged(object? sender, DataChangedEventArgs e)
@@ -290,13 +286,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private void OnMapLayersChanged(object sender, LayerCollectionChangedEventArgs args)
         => QueueMapImageSaveStateUpdate();
 
-    private void OnTileLayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(TileLayer.Busy))
-        {
-            QueueMapImageSaveStateUpdate();
-        }
-    }
+    private void OnBackgroundBusyChanged(object? sender, EventArgs e)
+        => QueueMapImageSaveStateUpdate();
 
     private void OnMapViewportChanged(object? sender, ViewportChangedEventArgs e)
         => QueueMapImageSaveStateUpdate();
@@ -318,30 +309,9 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private void UpdateMapImageSaveState()
     {
         var map = _map;
-        UpdateTileLayerSubscription(map);
         var hasValidViewport = map?.Navigator.Viewport.HasSize() == true;
-        var isTileLoading = map?.Layers.OfType<TileLayer>().Any(layer => layer.Busy) == true;
+        var isTileLoading = _viewModel?.IsBackgroundBusy == true;
         _viewModel?.UpdateMapImageSaveState(hasValidViewport, isTileLoading);
-    }
-
-    private void UpdateTileLayerSubscription(Mapsui.Map? map)
-    {
-        var tileLayer = map?.Layers.OfType<TileLayer>().FirstOrDefault();
-        if (ReferenceEquals(_subscribedTileLayer, tileLayer))
-        {
-            return;
-        }
-
-        if (_subscribedTileLayer is not null)
-        {
-            _subscribedTileLayer.PropertyChanged -= OnTileLayerPropertyChanged;
-        }
-
-        _subscribedTileLayer = tileLayer;
-        if (_subscribedTileLayer is not null)
-        {
-            _subscribedTileLayer.PropertyChanged += OnTileLayerPropertyChanged;
-        }
     }
 
     private async void OnSaveMapImageClicked(object sender, RoutedEventArgs e)
@@ -370,11 +340,11 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private Task<Stream> CaptureMapImageAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var map = MapControl.Map;
-        var viewport = map.Navigator.Viewport;
+        var viewModel = _viewModel ?? throw new InvalidOperationException("The map pane view model is not attached.");
+        var viewport = MapControl.Map.Navigator.Viewport;
         var pixelDensity = ((IMapControl)MapControl).GetPixelDensity()
             ?? throw new InvalidOperationException("Map pixel density is not available.");
-        return Task.FromResult(_mapImageService.RenderPng(map, viewport, pixelDensity));
+        return viewModel.CaptureMapImageAsync(viewport, pixelDensity, cancellationToken);
     }
 
     private void OnMapHeaderRightTapped(object sender, RightTappedRoutedEventArgs e)

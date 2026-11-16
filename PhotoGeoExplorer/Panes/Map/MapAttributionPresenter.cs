@@ -52,8 +52,6 @@ internal sealed class MapAttributionPresenter
         .Select(widget => (widget.Text ?? string.Empty, widget.Url ?? string.Empty))
         .ToArray();
 
-    internal string Text => string.Join(' ', Links.Select(link => link.Text));
-
     internal bool IsMapboxLogoVisible => _mapboxLogo.Enabled;
 
     internal void Attach(Mapsui.Map map, MapTileSourceType sourceType)

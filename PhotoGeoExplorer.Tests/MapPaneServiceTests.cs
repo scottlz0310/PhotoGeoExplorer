@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services;
@@ -25,11 +26,11 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var (map, tileLayer, markerLayer) = service.InitializeMap(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
+            var (map, background, markerLayer) = service.InitializeMap(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
 
             // Assert
             Assert.NotNull(map);
-            Assert.NotNull(tileLayer);
+            Assert.NotNull(background);
             Assert.NotNull(markerLayer);
             Assert.Equal(2, map.Layers.Count); // タイルレイヤー + マーカーレイヤー
             Assert.Equal("PhotoMarkers", markerLayer.Name);
@@ -44,17 +45,17 @@ public class MapPaneServiceTests
     }
 
     [Fact]
-    public void CreateTileLayerThrowsWhenUserAgentIsNull()
+    public void CreateBackgroundThrowsWhenUserAgentIsNull()
     {
         // Arrange
         var service = new MapPaneService();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => service.CreateTileLayer(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, null!)));
+        Assert.Throws<ArgumentNullException>(() => service.CreateBackground(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, null!)));
     }
 
     [Fact]
-    public void CreateTileLayerReturnsOpenStreetMapLayer()
+    public void CreateBackgroundReturnsOpenStreetMapLayer()
     {
         // Arrange
         var cacheRoot = CreateTempCacheRoot();
@@ -64,15 +65,12 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var layer = service.CreateTileLayer(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
+            using var background = service.CreateBackground(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
+            var layer = Assert.IsType<TileLayer>(Assert.Single(background.Layers));
 
             // Assert
-            Assert.NotNull(layer);
             Assert.Equal("OpenStreetMap", layer.Name);
             Assert.Equal("© OpenStreetMap contributors", layer.TileSource.Attribution.Text);
-
-            // Cleanup
-            layer.Dispose();
         }
         finally
         {
@@ -81,7 +79,7 @@ public class MapPaneServiceTests
     }
 
     [Fact]
-    public void CreateTileLayerReturnsEsriWorldImageryLayer()
+    public void CreateBackgroundReturnsEsriWorldImageryLayer()
     {
         // Arrange
         var cacheRoot = CreateTempCacheRoot();
@@ -91,17 +89,14 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var layer = service.CreateTileLayer(new MapBackgroundRequest(MapTileSourceType.EsriWorldImagery, userAgent));
+            using var background = service.CreateBackground(new MapBackgroundRequest(MapTileSourceType.EsriWorldImagery, userAgent));
+            var layer = Assert.IsType<TileLayer>(Assert.Single(background.Layers));
 
             // Assert
-            Assert.NotNull(layer);
             Assert.Equal("Esri WorldImagery", layer.Name);
             Assert.Equal(
                 "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
                 layer.TileSource.Attribution.Text);
-
-            // Cleanup
-            layer.Dispose();
         }
         finally
         {
@@ -110,7 +105,7 @@ public class MapPaneServiceTests
     }
 
     [Fact]
-    public void CreateTileLayerFallsBackWhenCacheRootIsAFile()
+    public void CreateBackgroundFallsBackWhenCacheRootIsAFile()
     {
         // Arrange
         var cacheRoot = CreateTempCacheRoot();
@@ -122,14 +117,11 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var layer = service.CreateTileLayer(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
+            using var background = service.CreateBackground(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
+            var layer = Assert.IsType<TileLayer>(Assert.Single(background.Layers));
 
             // Assert
-            Assert.NotNull(layer);
             Assert.Equal("OpenStreetMap", layer.Name);
-
-            // Cleanup
-            layer.Dispose();
         }
         finally
         {
