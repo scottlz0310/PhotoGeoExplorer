@@ -68,7 +68,6 @@ public sealed class ViewExtentVectorRenderer
                     continue;
                 }
 
-                cancellationToken.ThrowIfCancellationRequested();
                 await GetTileAsync(tileZoom, ((x % maxTiles) + maxTiles) % maxTiles, y, timings, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -188,7 +187,7 @@ public sealed class ViewExtentVectorRenderer
         var drawStart = Stopwatch.StartNew();
         if (_options.Bands > 1 || _options.ParallelLabels)
         {
-            await DrawParallelAsync(bitmap, canvas, loaded, styleZoom, width, height, cancellationToken).ConfigureAwait(false);
+            await DrawParallelAsync(bitmap, canvas, loaded, styleZoom, width, height).ConfigureAwait(false);
             timings.Draw += drawStart.Elapsed;
             overlay?.Invoke(canvas, (lat, lon) =>
             {
@@ -267,7 +266,7 @@ public sealed class ViewExtentVectorRenderer
     /// 面・線を、画像を横に分けた帯ごとに並列で描く（帯は連続した行なので、同じ画素メモリの別範囲を別のサーフェスで描ける）。
     /// 注記は、衝突判定が逐次のため 1 スレッドで、別の透明な画像に描いて最後に重ねる（<see cref="ViewRenderOptions.ParallelLabels"/>）か、帯の描画のあとに本体へ直接描く。
     /// </summary>
-    private async Task DrawParallelAsync(SKBitmap bitmap, SKCanvas canvas, List<(VectorTile Tile, float Scale, float Dx, float Dy)> loaded, int styleZoom, int width, int height, CancellationToken cancellationToken)
+    private async Task DrawParallelAsync(SKBitmap bitmap, SKCanvas canvas, List<(VectorTile Tile, float Scale, float Dx, float Dy)> loaded, int styleZoom, int width, int height)
     {
         var viewport = new SKRect(0, 0, width, height);
         var grid = new LabelCollisionGrid();
@@ -276,19 +275,16 @@ public sealed class ViewExtentVectorRenderer
         {
             foreach (var item in loaded)
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 _style.RenderSymbols(target, item.Tile, SKMatrix.CreateScaleTranslation(item.Scale, item.Scale, item.Dx, item.Dy), styleZoom, grid, viewport);
             }
 
             foreach (var item in loaded)
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 _style.RenderLineLabels(target, item.Tile, SKMatrix.CreateScaleTranslation(item.Scale, item.Scale, item.Dx, item.Dy), styleZoom, grid, viewport);
             }
 
             foreach (var item in loaded)
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 _style.RenderLabels(target, item.Tile, SKMatrix.CreateScaleTranslation(item.Scale, item.Scale, item.Dx, item.Dy), styleZoom, grid, viewport);
             }
         }
@@ -310,62 +306,38 @@ public sealed class ViewExtentVectorRenderer
         var pixels = bitmap.GetPixels();
         var rowBytes = bitmap.RowBytes;
         var background = _style.BackgroundColor;
-        try
+        Parallel.For(0, bands, band =>
         {
-            Parallel.For(0, bands, new ParallelOptions { CancellationToken = cancellationToken }, band =>
+            var y0 = height * band / bands;
+            var y1 = height * (band + 1) / bands;
+            if (y1 <= y0)
             {
-                var y0 = height * band / bands;
-                var y1 = height * (band + 1) / bands;
-                if (y1 <= y0)
-                {
-                    return;
-                }
-
-                var info = new SKImageInfo(width, y1 - y0, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
-                using var surface = SKSurface.Create(info, pixels + (y0 * rowBytes), rowBytes);
-                var bandCanvas = surface.Canvas;
-                bandCanvas.Clear(background);
-                bandCanvas.Translate(0, -y0);
-                foreach (var item in loaded)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    bandCanvas.Save();
-                    bandCanvas.Translate(item.Dx, item.Dy);
-                    bandCanvas.Scale(item.Scale, item.Scale);
-                    _style.RenderPolygons(bandCanvas, item.Tile, item.Scale, styleZoom);
-                    bandCanvas.Restore();
-                }
-
-                foreach (var item in loaded)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    bandCanvas.Save();
-                    bandCanvas.Translate(item.Dx, item.Dy);
-                    bandCanvas.Scale(item.Scale, item.Scale);
-                    _style.RenderLines(bandCanvas, item.Tile, item.Scale, styleZoom);
-                    bandCanvas.Restore();
-                }
-            });
-        }
-        catch
-        {
-            // 中断・失敗のときも、別スレッドの注記の描画が終わるまで待ち、画像を解放する（描画中の画像を解放しない）
-            if (labelTask is not null)
-            {
-                try
-                {
-                    await labelTask.ConfigureAwait(false);
-                }
-                catch (Exception)
-                {
-                    // 元の例外を優先する
-                }
-
-                labelBitmap!.Dispose();
+                return;
             }
 
-            throw;
-        }
+            var info = new SKImageInfo(width, y1 - y0, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
+            using var surface = SKSurface.Create(info, pixels + (y0 * rowBytes), rowBytes);
+            var bandCanvas = surface.Canvas;
+            bandCanvas.Clear(background);
+            bandCanvas.Translate(0, -y0);
+            foreach (var item in loaded)
+            {
+                bandCanvas.Save();
+                bandCanvas.Translate(item.Dx, item.Dy);
+                bandCanvas.Scale(item.Scale, item.Scale);
+                _style.RenderPolygons(bandCanvas, item.Tile, item.Scale, styleZoom);
+                bandCanvas.Restore();
+            }
+
+            foreach (var item in loaded)
+            {
+                bandCanvas.Save();
+                bandCanvas.Translate(item.Dx, item.Dy);
+                bandCanvas.Scale(item.Scale, item.Scale);
+                _style.RenderLines(bandCanvas, item.Tile, item.Scale, styleZoom);
+                bandCanvas.Restore();
+            }
+        });
 
         if (labelTask is null)
         {
@@ -374,7 +346,6 @@ public sealed class ViewExtentVectorRenderer
         }
 
         await labelTask.ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
         canvas.DrawBitmap(labelBitmap!, 0, 0, new SKSamplingOptions(SKFilterMode.Nearest), null);
         labelBitmap!.Dispose();
     }

@@ -23,9 +23,7 @@ public readonly record struct ViewRenderStats(
 /// 要求を集約して、背景スレッドで 1 つずつ描く。
 /// - 未着手の古い要求は、最新で置き換える（<see cref="ViewRenderStats.Replaced"/>）。
 /// - 実行中の描画は、原則として完走させる（連続操作中に、確定描画が完了せず白紙化するのを防ぐ）。
-///   キャンセルするのは、ソース・スタイルが変わった場合と、最新の表示範囲が描画範囲と重ならなくなった場合、破棄のときに加えて、
-///   <see cref="IdleCancelAfter"/> が有効なとき、操作が止まった（一定時間、新しい要求が来ない）のに、実行中の描画が古い視点のままの場合
-///   （最新の描画の開始が、古い描画の完了待ちで遅れるのを避ける。ほぼ終わっている描画は、完了させる）。
+///   キャンセルするのは、ソース・スタイルが変わった場合と、最新の表示範囲が描画範囲と重ならなくなった場合、破棄のときだけ。
 /// - 反映は世代番号で単調にする（古い世代の結果で、新しい結果を上書きしない）。互換（同じソース・スタイル）で、
 ///   最新の表示範囲と重なる結果だけを反映し、それ以外は破棄して画像を解放する。
 /// </summary>
@@ -48,28 +46,6 @@ public sealed class ViewRenderScheduler : IDisposable
     private long _discarded;
     private long _cancelled;
     private long _failed;
-    private Timer? _idleTimer;
-    private long _lastSubmitTicks;
-    private long _runningStartTicks;
-    private double _averageDurationMs;
-    private long _idleCancelled;
-
-    /// <summary>
-    /// 操作が止まったとみなす時間（最後の要求から）。0 で無効。止まったとき、実行中の描画が最新の要求と別の世代で、
-    /// かつ、直近の描画時間の 70% を超えて進んでいなければ、キャンセルして最新の要求を先に描く。
-    /// </summary>
-    public TimeSpan IdleCancelAfter { get; init; } = TimeSpan.Zero;
-
-    public long IdleCancelled
-    {
-        get
-        {
-            lock (_gate)
-            {
-                return _idleCancelled;
-            }
-        }
-    }
 
     /// <param name="render">1 枚描く。キャンセルされたら <see cref="OperationCanceledException"/> を投げてよい。</param>
     /// <param name="deliver">結果の反映（背景スレッドから呼ばれる。UI へ渡す側で切り替える）。受け取った参照は、反映先が解放する。</param>
@@ -116,12 +92,6 @@ public sealed class ViewRenderScheduler : IDisposable
 
             _pending = request;
             _latest = request;
-            _lastSubmitTicks = Stopwatch.GetTimestamp();
-            if (IdleCancelAfter > TimeSpan.Zero)
-            {
-                _idleTimer ??= new Timer(OnIdle);
-                _idleTimer.Change(IdleCancelAfter, Timeout.InfiniteTimeSpan);
-            }
 
             if (_running is not null && ShouldCancelRunning(_running, request))
             {
@@ -148,7 +118,6 @@ public sealed class ViewRenderScheduler : IDisposable
             _disposed = true;
             _pending = null;
             _runningCts?.Cancel();
-            _idleTimer?.Dispose();
         }
     }
 
@@ -175,7 +144,6 @@ public sealed class ViewRenderScheduler : IDisposable
                 cts = new CancellationTokenSource();
                 _running = request;
                 _runningCts = cts;
-                _runningStartTicks = Stopwatch.GetTimestamp();
                 _started++;
             }
 
@@ -215,8 +183,6 @@ public sealed class ViewRenderScheduler : IDisposable
                 }
                 else if (output is not null)
                 {
-                    var ms = stopwatch.Elapsed.TotalMilliseconds;
-                    _averageDurationMs = _averageDurationMs == 0 ? ms : (_averageDurationMs * 0.7) + (ms * 0.3);
                     if (ShouldApply(request))
                     {
                         _lastDeliveredGeneration = request.Generation;
@@ -243,32 +209,6 @@ public sealed class ViewRenderScheduler : IDisposable
                     throw;
                 }
             }
-        }
-    }
-
-    private void OnIdle(object? state)
-    {
-        lock (_gate)
-        {
-            if (_disposed || _running is null || _latest is null || _running.Generation == _latest.Generation || _pending is null)
-            {
-                return;
-            }
-
-            var sinceSubmit = (Stopwatch.GetTimestamp() - _lastSubmitTicks) * 1000.0 / Stopwatch.Frequency;
-            if (sinceSubmit < IdleCancelAfter.TotalMilliseconds * 0.9)
-            {
-                return;
-            }
-
-            var runningMs = (Stopwatch.GetTimestamp() - _runningStartTicks) * 1000.0 / Stopwatch.Frequency;
-            if (_averageDurationMs > 0 && runningMs > _averageDurationMs * 0.7)
-            {
-                return;
-            }
-
-            _idleCancelled++;
-            _runningCts?.Cancel();
         }
     }
 

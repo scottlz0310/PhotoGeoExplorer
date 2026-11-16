@@ -67,12 +67,7 @@ internal sealed class P2Backend : IDisposable
         }
 
         var renderer = new ViewExtentVectorRenderer(new SavedMvtTileSource(mvtRoot), style, _cache, render);
-        // 操作が止まったとき、古い視点の実行中の描画を中断して、最新の描画を先に始める（#339。PGE_P3_IDLE_MS で時間を指定。既定は無効）
-        var idleMs = int.TryParse(Environment.GetEnvironmentVariable("PGE_P3_IDLE_MS"), out var im) ? im : 0;
-        _scheduler = new ViewRenderScheduler((request, token) => renderer.RenderAsync(request, token), OnRendered)
-        {
-            IdleCancelAfter = TimeSpan.FromMilliseconds(idleMs),
-        };
+        _scheduler = new ViewRenderScheduler((request, token) => renderer.RenderAsync(request, token), OnRendered);
         _renderer = renderer;
         _mvtSourceId = _sourceId;
         _prefetchMs = Environment.GetEnvironmentVariable("PGE_P3_PREFETCH") == "1" ? (int.TryParse(Environment.GetEnvironmentVariable("PGE_P3_PREFETCH_DELAY_MS"), out var pd) ? pd : 120) : 0;
