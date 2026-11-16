@@ -88,7 +88,7 @@ public sealed class ViewExtentVectorRenderer
         TimingsAccumulator timings,
         CancellationToken cancellationToken)
     {
-        var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        var bitmap = new SKBitmap(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
 
         await _source.PrepareAsync(null, cancellationToken).ConfigureAwait(false);
@@ -105,7 +105,7 @@ public sealed class ViewExtentVectorRenderer
         var maxTx = (int)Math.Floor((left + width) / scaleRatio / WebMercator.TileSize);
         var maxTy = (int)Math.Floor((top + height) / scaleRatio / WebMercator.TileSize);
 
-        var loaded = new List<(VectorTile Tile, float Scale, float Dx, float Dy)>();
+        var coordinates = new List<(int Tx, int Ty, int FetchX)>();
         for (var ty = minTy; ty <= maxTy; ty++)
         {
             if (ty < 0 || ty >= maxTiles)
@@ -115,21 +115,40 @@ public sealed class ViewExtentVectorRenderer
 
             for (var tx = minTx; tx <= maxTx; tx++)
             {
-                var fetchX = ((tx % maxTiles) + maxTiles) % maxTiles;
-                var tile = await GetTileAsync(tileZoom, fetchX, ty, timings, cancellationToken).ConfigureAwait(false);
-                if (tile is null)
-                {
-                    continue;
-                }
-
-                uint extent = tile.Layers.Count > 0 ? tile.Layers[0].Extent : 4096;
-                var scale = (float)(WebMercator.TileSize * scaleRatio / extent);
-                var dx = (float)((tx * WebMercator.TileSize * scaleRatio) - left);
-                var dy = (float)((ty * WebMercator.TileSize * scaleRatio) - top);
-                loaded.Add((tile, scale, dx, dy));
+                coordinates.Add((tx, ty, ((tx % maxTiles) + maxTiles) % maxTiles));
             }
         }
 
+        // 取得・デコードは、タイルごとに独立。ParallelDecode のときは、全タイルを同時に始める（キャッシュにないタイルのデコードが、描画の前に直列で並ぶのを避ける）
+        VectorTile?[] tiles;
+        if (_options.ParallelDecode && coordinates.Count > 1)
+        {
+            tiles = await Task.WhenAll(coordinates.Select(c => Task.Run(() => GetTileAsync(tileZoom, c.FetchX, c.Ty, timings, cancellationToken), cancellationToken))).ConfigureAwait(false);
+        }
+        else
+        {
+            tiles = new VectorTile?[coordinates.Count];
+            for (var i = 0; i < coordinates.Count; i++)
+            {
+                tiles[i] = await GetTileAsync(tileZoom, coordinates[i].FetchX, coordinates[i].Ty, timings, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        var loaded = new List<(VectorTile Tile, float Scale, float Dx, float Dy)>();
+        for (var i = 0; i < coordinates.Count; i++)
+        {
+            var tile = tiles[i];
+            if (tile is null)
+            {
+                continue;
+            }
+
+            uint extent = tile.Layers.Count > 0 ? tile.Layers[0].Extent : 4096;
+            var scale = (float)(WebMercator.TileSize * scaleRatio / extent);
+            var dx = (float)((coordinates[i].Tx * WebMercator.TileSize * scaleRatio) - left);
+            var dy = (float)((coordinates[i].Ty * WebMercator.TileSize * scaleRatio) - top);
+            loaded.Add((tile, scale, dx, dy));
+        }
         var drawStart = Stopwatch.StartNew();
         if (_options.Bands > 1 || _options.ParallelLabels)
         {
@@ -239,7 +258,7 @@ public sealed class ViewExtentVectorRenderer
         Task? labelTask = null;
         if (_options.ParallelLabels)
         {
-            labelBitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            labelBitmap = new SKBitmap(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
             labelTask = Task.Run(() =>
             {
                 using var labelCanvas = new SKCanvas(labelBitmap);
@@ -261,7 +280,7 @@ public sealed class ViewExtentVectorRenderer
                 return;
             }
 
-            var info = new SKImageInfo(width, y1 - y0, SKColorType.Rgba8888, SKAlphaType.Premul);
+            var info = new SKImageInfo(width, y1 - y0, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
             using var surface = SKSurface.Create(info, pixels + (y0 * rowBytes), rowBytes);
             var bandCanvas = surface.Canvas;
             bandCanvas.Clear(background);
@@ -298,17 +317,29 @@ public sealed class ViewExtentVectorRenderer
 
     private async Task<VectorTile?> GetTileAsync(int tileZoom, int x, int y, TimingsAccumulator timings, CancellationToken cancellationToken)
     {
-        timings.Tiles++;
+        lock (timings)
+        {
+            timings.Tiles++;
+        }
+
         var key = new TileKey(_source.SourceId, tileZoom, x, y);
         if (_cache is not null && _cache.TryGet(key, out var cached))
         {
-            timings.Hits++;
+            lock (timings)
+            {
+                timings.Hits++;
+            }
+
             return cached;
         }
 
         var stopwatch = Stopwatch.StartNew();
         var data = await _source.GetTileAsync(tileZoom, x, y, null, cancellationToken).ConfigureAwait(false);
-        timings.Fetch += stopwatch.Elapsed;
+        lock (timings)
+        {
+            timings.Fetch += stopwatch.Elapsed;
+        }
+
         if (data is null || data.Length == 0)
         {
             _cache?.Add(key, null, 0);
@@ -320,7 +351,11 @@ public sealed class ViewExtentVectorRenderer
         var before = GC.GetAllocatedBytesForCurrentThread();
         var ok = VectorTileDecoder.TryDecode(data, out var tile);
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        timings.Decode += stopwatch.Elapsed;
+        lock (timings)
+        {
+            timings.Decode += stopwatch.Elapsed;
+        }
+
         if (!ok)
         {
             _cache?.Add(key, null, 0);
@@ -340,4 +375,7 @@ public sealed record ViewRenderOptions
 
     /// <summary>注記を、別スレッドで透明な画像へ描いて、最後に重ねる。</summary>
     public bool ParallelLabels { get; init; }
+
+    /// <summary>タイルの取得・デコードを、全タイル同時に行う（既定は 1 枚ずつ）。</summary>
+    public bool ParallelDecode { get; init; }
 }

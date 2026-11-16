@@ -30,10 +30,8 @@ internal static class P3aCheck
         ("base", null, new ViewRenderOptions()),
         ("pcv", Fast, new ViewRenderOptions()),
         ("pcv+pl", Fast, new ViewRenderOptions { ParallelLabels = true }),
-        ("pcv+b4+pl", Fast, new ViewRenderOptions { Bands = 4, ParallelLabels = true }),
         ("pcv+b8+pl", Fast, new ViewRenderOptions { Bands = 8, ParallelLabels = true }),
-        ("pcv+b12+pl", Fast, new ViewRenderOptions { Bands = 12, ParallelLabels = true }),
-        ("pcv+b16+pl", Fast, new ViewRenderOptions { Bands = 16, ParallelLabels = true }),
+        ("cv+b8+pl", new FastStyleOptions { Cull = true, ClipVertices = true }, new ViewRenderOptions { Bands = 8, ParallelLabels = true }),
         ("thin+b8+pl", Fast with { MinPolygonPx = 4f, MinRoadOrder = 40, HidePathsBelowZoom = 16 }, new ViewRenderOptions { Bands = 8, ParallelLabels = true }),
     };
     public static async Task<int> RunAsync(string mvtRoot, string outDir, double density, int reps, bool saveImages)
@@ -244,6 +242,103 @@ internal static class P3aCheck
             GC.Collect(2, GCCollectionMode.Forced, true);
             var after = Process.GetCurrentProcess().PrivateMemorySize64;
             Console.WriteLine($"{name}: 専有メモリ +{(after - before) / 1048576.0:0.0} MB、デコード済みキャッシュ {cache.Bytes / 1048576.0:0.0} MB（見積もり）、タイル {cache.Count}");
+        }
+
+        return 0;
+    }
+
+    /// <summary>UI スレッドの 1 フレームの描画コストの切り分け: 画像の色形式（RGBA／BGRA）と、配置（整数／小数のずれ／拡大）と、補間による違い。</summary>
+    public static Task<int> RunDrawBenchAsync(double density)
+    {
+        var w = (int)Math.Round(Width * density);
+        var h = (int)Math.Round(Height * density);
+        var target = new SKBitmap(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul));
+        using var canvas = new SKCanvas(target);
+        var rng = new Random(1);
+        Console.WriteLine($"キャンバス {w}x{h} Bgra8888。1 回の DrawImage の中央値（ms）");
+        foreach (var colorType in new[] { SKColorType.Rgba8888, SKColorType.Bgra8888 })
+        {
+            using var src = new SKBitmap(new SKImageInfo(w, h, colorType, SKAlphaType.Premul));
+            var px = src.GetPixelSpan();
+            for (var i = 0; i < px.Length; i += 4)
+            {
+                px[i] = (byte)rng.Next(256);
+                px[i + 1] = (byte)rng.Next(256);
+                px[i + 2] = (byte)rng.Next(256);
+                px[i + 3] = 255;
+            }
+
+            src.SetImmutable();
+            using var image = SKImage.FromBitmap(src);
+            foreach (var (label, dx, dy, scale, sampling) in new (string, float, float, float, SKSamplingOptions)[]
+            {
+                ("整数配置・Linear", 0, 0, 1f, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None)),
+                ("整数配置・Nearest", 0, 0, 1f, new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)),
+                ("小数ずれ(0.37px)・Linear", 0.37f, 0.61f, 1f, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None)),
+                ("小数ずれ(0.37px)・Nearest", 0.37f, 0.61f, 1f, new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None)),
+                ("拡大 1.3x・Linear", 0f, 0f, 1.3f, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None)),
+                ("縮小 0.7x・Linear+Mip", 0f, 0f, 0.7f, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)),
+            })
+            {
+                var times = new List<double>();
+                for (var i = 0; i < 40; i++)
+                {
+                    var sw = Stopwatch.StartNew();
+                    canvas.DrawImage(image, new SKRect(dx, dy, dx + (w * scale), dy + (h * scale)), sampling);
+                    times.Add(sw.Elapsed.TotalMilliseconds);
+                }
+
+                times.RemoveRange(0, 5);
+                times.Sort();
+                Console.WriteLine($"  {colorType,-10} {label,-28} {Median(times):0.00} ms");
+            }
+        }
+
+        return Task.FromResult(0);
+    }
+
+    /// <summary>デコード済みキャッシュが空の状態（ジャンプ直後）の確定描画。タイルの取得・デコードを直列／並列で比べる。</summary>
+    public static async Task<int> RunColdAsync(string mvtRoot, double density, int reps)
+    {
+        var source = new SavedMvtTileSource(mvtRoot);
+        var width = (int)Math.Round(Width * density);
+        var height = (int)Math.Round(Height * density);
+        var fast = new FastStyleOptions { Prep = true, Cull = true, ClipVertices = true };
+        var noPrep = new FastStyleOptions { Cull = true, ClipVertices = true };
+        var variants = new (string Name, FastStyleOptions Style, ViewRenderOptions Render)[]
+        {
+            ("prep+serial", fast, new ViewRenderOptions { Bands = 8, ParallelLabels = true }),
+            ("noprep+serial", noPrep, new ViewRenderOptions { Bands = 8, ParallelLabels = true }),
+            ("noprep+pdecode", noPrep, new ViewRenderOptions { Bands = 8, ParallelLabels = true, ParallelDecode = true }),
+        };
+        Console.WriteLine($"## キャッシュ空（ジャンプ直後）の確定描画 ms（density {density:0.00}、{reps} 回の中央値（最小））。デコードの Prep（パス生成）も毎回やり直し");
+        foreach (var (location, lat, lon) in Locations)
+        {
+            foreach (var zoom in new[] { 15.0, 17.0, 19.0 })
+            {
+                var line = $"{location} z{zoom:0}: ";
+                foreach (var (name, styleOptions, render) in variants)
+                {
+                    using var style = new FastVectorStyle(styleOptions);
+                    var times = new List<double>();
+                    for (var i = 0; i < reps + 2; i++)
+                    {
+                        // 毎回、新しいキャッシュ（デコード済みモデルも新規。パスの事前生成はモデルに紐づくので、やり直しになる）
+                        var renderer = new ViewExtentVectorRenderer(source, style, new DecodedTileCache(256L * 1024 * 1024), render);
+                        var sw = Stopwatch.StartNew();
+                        (await renderer.RenderAsync(lat, lon, zoom, width, height).ConfigureAwait(false)).Dispose();
+                        if (i >= 2)
+                        {
+                            times.Add(sw.Elapsed.TotalMilliseconds);
+                        }
+                    }
+
+                    times.Sort();
+                    line += $"{name} {Median(times):0.0} ({times[0]:0.0})  ";
+                }
+
+                Console.WriteLine(line);
+            }
         }
 
         return 0;

@@ -44,7 +44,17 @@ internal sealed class P2Backend : IDisposable
         _queue = control.DispatcherQueue;
         _sourceId = "saved-mvt:" + mvtRoot;
         _cache = useCache ? new DecodedTileCache(64L * 1024 * 1024) : null;
-        var renderer = new ViewExtentVectorRenderer(new SavedMvtTileSource(mvtRoot), new OpenMapTilesStyle(), _cache);
+        // #293 の P3a: PGE_P3_FAST=1 で、確定描画の高速化（範囲外を描かない・破線の切り詰め・帯の並列・注記の並列）を有効にする。帯の数は論理コア数の半分（最大 8。PGE_P3_BANDS で上書き）
+        IVectorMapStyle style = new OpenMapTilesStyle();
+        var render = new ViewRenderOptions();
+        if (Environment.GetEnvironmentVariable("PGE_P3_FAST") == "1")
+        {
+            style = new FastVectorStyle(new FastStyleOptions { Cull = true, ClipVertices = true });
+            var bands = int.TryParse(Environment.GetEnvironmentVariable("PGE_P3_BANDS"), out var b) ? b : Math.Clamp(Environment.ProcessorCount / 2, 1, 8);
+            render = new ViewRenderOptions { Bands = bands, ParallelLabels = true, ParallelDecode = true };
+        }
+
+        var renderer = new ViewExtentVectorRenderer(new SavedMvtTileSource(mvtRoot), style, _cache, render);
         _scheduler = new ViewRenderScheduler((request, token) => renderer.RenderAsync(request, token), OnRendered);
     }
 
