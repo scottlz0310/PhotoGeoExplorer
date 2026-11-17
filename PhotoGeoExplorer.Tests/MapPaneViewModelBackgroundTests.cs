@@ -46,6 +46,126 @@ public sealed class MapPaneViewModelBackgroundTests
     }
 
     [Fact]
+    public void SwitchTileSourceAttachesTheNewBackgroundToTheMapWithTheLatestPixelDensity()
+    {
+        var service = new FakeBackgroundMapPaneService();
+        var viewModel = CreateInitializedViewModel(service, new RecordingImageService(), out var map, out _);
+
+        try
+        {
+            viewModel.UpdatePixelDensity(1.5);
+            viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
+
+            var background = Assert.Single(service.Created);
+            Assert.Equal(1, background.AttachCount);
+            Assert.Same(map, background.AttachedMap);
+            Assert.Equal(1.5, background.GetPixelDensity!());
+
+            // 密度の取得関数は、あとから更新された値を返す（背景が毎回の描画要求で読む）
+            viewModel.UpdatePixelDensity(2.0);
+            Assert.Equal(2.0, background.GetPixelDensity());
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    [Fact]
+    public void SwitchTileSourceRequestsTheSelectedSourceAndProvidesAWayToReachTheUiThread()
+    {
+        var service = new FakeBackgroundMapPaneService();
+        var viewModel = CreateInitializedViewModel(service, new RecordingImageService(), out _, out _);
+
+        try
+        {
+            viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
+
+            var request = Assert.Single(service.Requests);
+            Assert.Equal(MapTileSourceType.OpenFreeMapVector, request.SourceType);
+            Assert.Equal(MapTileSourceType.OpenFreeMapVector, viewModel.CurrentTileSource);
+            // UI スレッドのディスパッチャーが無い環境では、渡せないことを false で返す（例外にしない）
+            Assert.False(Assert.IsAssignableFrom<Func<Action, bool>>(request.TryPostToUi)(() => { }));
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    [Fact]
+    public void PixelDensityChangeIsForwardedOnlyToTheCurrentBackgroundAndOnlyWhenTheValueChanges()
+    {
+        var service = new FakeBackgroundMapPaneService();
+        var viewModel = CreateInitializedViewModel(service, new RecordingImageService(), out _, out _);
+
+        try
+        {
+            viewModel.SwitchTileSource(MapTileSourceType.OpenStreetMap);
+            viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
+            var replaced = service.Created[0];
+            var current = service.Created[1];
+
+            viewModel.UpdatePixelDensity(1.5);
+            viewModel.UpdatePixelDensity(1.5);
+            viewModel.UpdatePixelDensity(2.0);
+
+            Assert.Equal(2, current.PixelDensityChangedCount);
+            Assert.Equal(0, replaced.PixelDensityChangedCount);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(0.0)]
+    [InlineData(-1.0)]
+    public void InvalidPixelDensityIsIgnored(double invalid)
+    {
+        var service = new FakeBackgroundMapPaneService();
+        var viewModel = CreateInitializedViewModel(service, new RecordingImageService(), out _, out _);
+
+        try
+        {
+            viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
+            var background = Assert.Single(service.Created);
+
+            viewModel.UpdatePixelDensity(invalid);
+
+            Assert.Equal(0, background.PixelDensityChangedCount);
+            // 既定の 1.0 のまま
+            Assert.Equal(1.0, background.GetPixelDensity!());
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    [Fact]
+    public void PixelDensityUpdateBeforeAnyBackgroundExistsIsKeptForTheFirstBackground()
+    {
+        var service = new FakeBackgroundMapPaneService();
+        var viewModel = CreateInitializedViewModel(service, new RecordingImageService(), out _, out _);
+
+        try
+        {
+            viewModel.UpdatePixelDensity(1.75);
+            viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
+
+            Assert.Equal(1.75, Assert.Single(service.Created).GetPixelDensity!());
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    [Fact]
     public void BackgroundBusyChangesAreForwardedOnlyFromTheCurrentBackground()
     {
         var service = new FakeBackgroundMapPaneService();
@@ -164,6 +284,14 @@ public sealed class MapPaneViewModelBackgroundTests
 
         public float ExportPixelDensity { get; private set; }
 
+        public Mapsui.Map? AttachedMap { get; private set; }
+
+        public Func<double>? GetPixelDensity { get; private set; }
+
+        public int AttachCount { get; private set; }
+
+        public int PixelDensityChangedCount { get; private set; }
+
         IReadOnlyList<ILayer> IMapBackground.Layers => Layers;
 
         public string AttributionText => string.Empty;
@@ -177,6 +305,15 @@ public sealed class MapPaneViewModelBackgroundTests
             _busy = busy;
             BusyChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        public void Attach(Mapsui.Map map, Func<double> getPixelDensity)
+        {
+            AttachCount++;
+            AttachedMap = map;
+            GetPixelDensity = getPixelDensity;
+        }
+
+        public void OnPixelDensityChanged() => PixelDensityChangedCount++;
 
         public Task<IMapExportLayers> CreateExportLayersAsync(Viewport viewport, float pixelDensity, CancellationToken cancellationToken)
         {
@@ -199,11 +336,14 @@ public sealed class MapPaneViewModelBackgroundTests
     {
         public List<FakeBackground> Created { get; } = [];
 
+        public List<MapBackgroundRequest> Requests { get; } = [];
+
         public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
+            Requests.Add(background);
             var created = new FakeBackground();
             Created.Add(created);
             return created;

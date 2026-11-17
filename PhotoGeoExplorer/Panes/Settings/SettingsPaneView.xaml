@@ -121,6 +121,9 @@
                                 x:Uid="SettingsPaneMapTileSourceMapbox"
                                 Content="Mapbox Satellite (衛星・要アクセストークン)"
                                 IsEnabled="{Binding Mapbox.HasToken, Mode=OneWay}" />
+                            <RadioButton
+                                x:Uid="SettingsPaneMapTileSourceOpenFreeMapVector"
+                                Content="OpenFreeMap（ベクター地図）" />
                         </RadioButtons>
 
                         <!-- Mapbox アクセストークン -->

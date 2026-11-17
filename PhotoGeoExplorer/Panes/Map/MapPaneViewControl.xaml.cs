@@ -36,6 +36,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private readonly MapExifLocationPicker _exifLocationPicker;
     private IDialogService _dialogService = null!;
     private MapPaneViewModel? _viewModel;
+    private XamlRoot? _observedXamlRoot;
     private Mapsui.Map? _map;
     private PhotoMetadata? _flyoutMetadata;
     private bool _mapRectangleSelecting;
@@ -126,6 +127,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     {
         _lifecycle.NotifyLoaded(DescribeState());
         AttachViewModel(DataContext as MapPaneViewModel);
+        ObserveXamlRoot();
         // Loaded 前に受信した PropertyChanged を取りこぼした場合に備えて UI を再同期する
         ApplyMapFromViewModel();
         UpdateMapStatusFromViewModel();
@@ -149,6 +151,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         }
 
         _exifLocationPicker.Cancel();
+        StopObservingXamlRoot();
         UnsubscribeFromMapState(_map);
         _viewModel?.UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);
         DetachViewModel();
@@ -178,8 +181,44 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
         _viewModel.PropertyChanged += OnMapPaneViewModelPropertyChanged;
         _viewModel.BackgroundBusyChanged += OnBackgroundBusyChanged;
+        ReportPixelDensity();
         ApplyMapFromViewModel();
         UpdateMapStatusFromViewModel();
+    }
+
+    // 画素密度は XamlRoot からしか分からない。表示倍率の変化（別のモニターへの移動など）を ViewModel へ伝える
+    private void ObserveXamlRoot()
+    {
+        if (!ReferenceEquals(_observedXamlRoot, XamlRoot))
+        {
+            StopObservingXamlRoot();
+            _observedXamlRoot = XamlRoot;
+            if (_observedXamlRoot is not null)
+            {
+                _observedXamlRoot.Changed += OnXamlRootChanged;
+            }
+        }
+
+        ReportPixelDensity();
+    }
+
+    private void StopObservingXamlRoot()
+    {
+        if (_observedXamlRoot is not null)
+        {
+            _observedXamlRoot.Changed -= OnXamlRootChanged;
+            _observedXamlRoot = null;
+        }
+    }
+
+    private void OnXamlRootChanged(XamlRoot sender, XamlRootChangedEventArgs args) => ReportPixelDensity();
+
+    private void ReportPixelDensity()
+    {
+        if (_viewModel is not null && ((IMapControl)MapControl).GetPixelDensity() is { } pixelDensity)
+        {
+            _viewModel.UpdatePixelDensity(pixelDensity);
+        }
     }
 
     private void DetachViewModel()

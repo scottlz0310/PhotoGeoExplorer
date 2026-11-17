@@ -83,6 +83,7 @@ public sealed class MapsuiMapImageRendererTests
     [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatellite)]
     [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.OpenStreetMap)]
     [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.EsriWorldImagery)]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.OpenFreeMapVector)]
     internal async System.Threading.Tasks.Task RenderPngDrawsAttributionLinksAsOneContiguousStrip(PhotoGeoExplorer.Models.MapTileSourceType sourceType)
     {
         var renderer = new MapsuiMapImageRenderer();

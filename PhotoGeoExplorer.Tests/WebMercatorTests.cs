@@ -23,6 +23,30 @@ public sealed class WebMercatorTests
     }
 
     [Theory]
+    [InlineData(0, 1)]
+    [InlineData(3, 4)]
+    [InlineData(19, 20)]
+    public void ZoomLevelResolutionsStartAtTheWorldAndHalveWithEachLevel(int maxLevel, int expectedCount)
+    {
+        var resolutions = WebMercator.ZoomLevelResolutions(maxLevel);
+
+        Assert.Equal(expectedCount, resolutions.Length);
+        Assert.Equal(WebMercator.ZoomZeroResolution, resolutions[0]);
+        for (var level = 1; level < resolutions.Length; level++)
+        {
+            Assert.Equal(resolutions[level - 1] / 2, resolutions[level], 9);
+            // 連続ズームの式と逆の関係（密度 1 のとき、レベルがそのままズーム）
+            Assert.Equal(level, WebMercator.ZoomFromResolution(resolutions[level], 1.0), 9);
+        }
+    }
+
+    [Fact]
+    public void ZoomLevelResolutionsRejectANegativeLevel()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => WebMercator.ZoomLevelResolutions(-1));
+    }
+
+    [Theory]
     // 100%: ズーム 0 の解像度なら 0、解像度が半分になるごとに 1 増える
     [InlineData(WebMercator.ZoomZeroResolution, 1.0, 0.0)]
     [InlineData(WebMercator.ZoomZeroResolution / 2, 1.0, 1.0)]

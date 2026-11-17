@@ -38,6 +38,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private readonly FolderPickerHistory _saveFolderHistory = new();
     private readonly Func<DispatcherQueue?> _dispatcherQueueAccessor;
     private DispatcherQueue? _dispatcherQueue;
+    private double _pixelDensity = 1.0;
     private int _backgroundGeneration;
     private string _backgroundNotice = string.Empty;
     private Mapsui.Map? _map;
@@ -575,6 +576,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             var background = CreateBackgroundRequest(newSource, out var notice);
             var newBackground = _service.CreateBackground(background);
             ReplaceBackground(_map, newBackground);
+            newBackground.Attach(_map, GetPixelDensity);
             CurrentTileSource = newSource;
             _attributionPresenter.Update(background.SourceType);
             BackgroundNotice = notice;
@@ -669,6 +671,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         _background = mapBackground;
         _background.BusyChanged += OnBackgroundBusyChanged;
+        mapBackground.Attach(map, GetPixelDensity);
         _markerLayer = markerLayer;
         _attributionPresenter.Attach(map, background.SourceType);
         _ = LoadAttributionImagesAsync(map);
@@ -705,21 +708,46 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         notice = string.Empty;
         if (requested != MapTileSourceType.MapboxSatellite)
         {
-            return new MapBackgroundRequest(requested, UserAgentProvider.UserAgent);
+            return new MapBackgroundRequest(requested, UserAgentProvider.UserAgent, TryPostToUi: TryPostToUi);
         }
 
         var token = ReadMapboxAccessToken();
         if (token is null)
         {
             notice = LocalizationService.GetString("MapStatus.MapboxTokenMissing");
-            return new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, UserAgentProvider.UserAgent);
+            return new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, UserAgentProvider.UserAgent, TryPostToUi: TryPostToUi);
         }
 
         return new MapBackgroundRequest(
             requested,
             UserAgentProvider.UserAgent,
             token,
-            () => OnMapboxAuthenticationFailed(generation));
+            () => OnMapboxAuthenticationFailed(generation),
+            TryPostToUi);
+    }
+
+    // 任意のスレッドから呼ばれる（ベクター背景は、描いた画像の反映を UI スレッドへ渡すために使う）
+    private bool TryPostToUi(Action action)
+    {
+        var dispatcherQueue = _dispatcherQueue;
+        return dispatcherQueue is not null && dispatcherQueue.TryEnqueue(() => action());
+    }
+
+    private double GetPixelDensity() => Volatile.Read(ref _pixelDensity);
+
+    /// <summary>
+    /// 地図の画素密度（物理ピクセル／論理ピクセル）を更新する。View が読み込み時と、表示倍率の変化（別のモニターへの移動など）で呼ぶ。
+    /// 密度は XAML からしか分からず、視点の通知は UI スレッド以外から来るため、ここで保持して背景へは取得関数で渡す。
+    /// </summary>
+    internal void UpdatePixelDensity(double pixelDensity)
+    {
+        if (!double.IsFinite(pixelDensity) || pixelDensity <= 0 || pixelDensity == GetPixelDensity())
+        {
+            return;
+        }
+
+        Volatile.Write(ref _pixelDensity, pixelDensity);
+        _background?.OnPixelDensityChanged();
     }
 
     private string? ReadMapboxAccessToken()

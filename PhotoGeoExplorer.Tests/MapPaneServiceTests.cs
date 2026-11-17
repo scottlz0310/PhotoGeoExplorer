@@ -105,6 +105,65 @@ public class MapPaneServiceTests
     }
 
     [Fact]
+    public void CreateBackgroundReturnsTheVectorBackgroundWithItsAttribution()
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        var service = new MapPaneService(cacheRoot);
+
+        try
+        {
+            using var background = service.CreateBackground(
+                new MapBackgroundRequest(MapTileSourceType.OpenFreeMapVector, "PhotoGeoExplorer/Test", TryPostToUi: _ => true));
+
+            Assert.IsType<VectorMapBackground>(background);
+            Assert.Single(background.Layers);
+            Assert.Equal("OpenFreeMap © OpenMapTiles Data from OpenStreetMap", background.AttributionText);
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
+    [Fact]
+    public void CreateBackgroundRejectsTheVectorBackgroundWithoutAWayToReachTheUiThread()
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        var service = new MapPaneService(cacheRoot);
+
+        try
+        {
+            Assert.Throws<ArgumentException>(() => service.CreateBackground(
+                new MapBackgroundRequest(MapTileSourceType.OpenFreeMapVector, "PhotoGeoExplorer/Test")));
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
+    [Fact]
+    public void CreateBackgroundForTheVectorBackgroundDoesNotThrowWhenCacheRootIsAFile()
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        var cacheRootFile = Path.Combine(cacheRoot, "cache-root-file.txt");
+        File.WriteAllText(cacheRootFile, "cache root file");
+        var service = new MapPaneService(cacheRootFile);
+
+        try
+        {
+            using var background = service.CreateBackground(
+                new MapBackgroundRequest(MapTileSourceType.OpenFreeMapVector, "PhotoGeoExplorer/Test", TryPostToUi: _ => true));
+
+            Assert.IsType<VectorMapBackground>(background);
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
+    [Fact]
     public void CreateBackgroundFallsBackWhenCacheRootIsAFile()
     {
         // Arrange

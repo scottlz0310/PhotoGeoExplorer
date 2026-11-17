@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
@@ -87,7 +88,82 @@ public sealed class VectorMapBackgroundTests
         using var background = CreateBackground(out _);
 
         Assert.Equal("OpenFreeMap © OpenMapTiles Data from OpenStreetMap", background.AttributionText);
-        Assert.InRange(MapAttribution.VectorLinks.Count, 1, MapAttribution.MaxLinkCount);
+        Assert.InRange(MapAttribution.GetLinks(MapTileSourceType.OpenFreeMapVector).Count, 1, MapAttribution.MaxLinkCount);
+    }
+
+    [Fact]
+    public async Task PixelDensityChangeRendersTheCurrentViewportAgainAtTheNewDensityAsync()
+    {
+        using var background = CreateBackground(out var renderer);
+        var density = 1.0;
+        background.Attach(CreateMap(width: 400, height: 300), () => density);
+        var first = await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+
+        density = 2.0;
+        background.OnPixelDensityChanged();
+
+        var second = await renderer.NextRequestAsync().ConfigureAwait(true);
+        Assert.Equal(400, first.PixelWidth);
+        Assert.Equal(800, second.PixelWidth);
+        Assert.Equal(first.Zoom + 1, second.Zoom, 9);
+    }
+
+    [Fact]
+    public async Task AttachGivesMapsuiTheZoomLevelsSoThatZoomingToALevelResolvesTheViewAsync()
+    {
+        // 実機の確認で見つかった不具合: ベクターのレイヤーにはズームの段階が無く、写真を選んでも ZoomToLevel が呼ばれず
+        // 視点の解像度が 0 のままで、何も描かれなかった（MapMarkerPresenter は Resolutions が空だと ZoomToLevel を呼ばない）
+        using var background = CreateBackground(out var renderer);
+        var map = new Mapsui.Map();
+        map.Navigator.SetSize(400, 300);
+        Assert.Empty(map.Navigator.Resolutions);
+
+        background.Attach(map, () => 1.0);
+
+        Assert.Equal(VectorMapBackground.MaxZoomLevel + 1, map.Navigator.Resolutions.Count);
+        map.Navigator.CenterOn(new MPoint(15860088, 5381690));
+        map.Navigator.ZoomToLevel(18);
+        Assert.Equal(WebMercator.ZoomZeroResolution / Math.Pow(2, 18), map.Navigator.Viewport.Resolution, 9);
+        var request = await renderer.NextRequestAsync().ConfigureAwait(true);
+        Assert.Equal(18, request.Zoom, 6);
+    }
+
+    [Fact]
+    public void DisposeRestoresTheZoomLevelsSoTheNextBackgroundCanUseItsOwn()
+    {
+        var background = CreateBackground(out _);
+        var map = CreateMap(width: 400, height: 300);
+        background.Attach(map, () => 1.0);
+        Assert.NotEmpty(map.Navigator.Resolutions);
+
+        background.Dispose();
+
+        Assert.Empty(map.Navigator.Resolutions);
+    }
+
+    [Fact]
+    public void DisposeKeepsZoomLevelsThatSomeoneElseSet()
+    {
+        var background = CreateBackground(out _);
+        var map = CreateMap(width: 400, height: 300);
+        background.Attach(map, () => 1.0);
+        double[] others = [100, 50, 25];
+        map.Navigator.OverrideResolutions = others;
+
+        background.Dispose();
+
+        Assert.Same(others, map.Navigator.OverrideResolutions);
+    }
+
+    [Fact]
+    public void PixelDensityChangeBeforeAttachDoesNothing()
+    {
+        using var background = CreateBackground(out var renderer);
+
+        background.OnPixelDensityChanged();
+
+        Assert.Equal(0, renderer.CallCount);
     }
 
     [Fact]

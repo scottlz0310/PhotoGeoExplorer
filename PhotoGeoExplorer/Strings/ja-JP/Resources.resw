@@ -968,6 +968,9 @@
   <data name="SettingsPaneMapTileSourceMapbox.Content" xml:space="preserve">
     <value>Mapbox Satellite (衛星・要アクセストークン)</value>
   </data>
+  <data name="SettingsPaneMapTileSourceOpenFreeMapVector.Content" xml:space="preserve">
+    <value>OpenFreeMap（ベクター地図）</value>
+  </data>
   <data name="SettingsPaneMapboxTokenBox.Header" xml:space="preserve">
     <value>Mapbox アクセストークン</value>
   </data>

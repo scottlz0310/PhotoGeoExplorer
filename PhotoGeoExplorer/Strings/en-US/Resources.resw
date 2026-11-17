@@ -968,6 +968,9 @@
   <data name="SettingsPaneMapTileSourceMapbox.Content" xml:space="preserve">
     <value>Mapbox Satellite (access token required)</value>
   </data>
+  <data name="SettingsPaneMapTileSourceOpenFreeMapVector.Content" xml:space="preserve">
+    <value>OpenFreeMap (vector map)</value>
+  </data>
   <data name="SettingsPaneMapboxTokenBox.Header" xml:space="preserve">
     <value>Mapbox access token</value>
   </data>

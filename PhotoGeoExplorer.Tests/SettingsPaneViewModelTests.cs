@@ -82,6 +82,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     [InlineData(0, MapTileSourceType.OpenStreetMap)]
     [InlineData(1, MapTileSourceType.EsriWorldImagery)]
     [InlineData(2, MapTileSourceType.MapboxSatellite)]
+    [InlineData(3, MapTileSourceType.OpenFreeMapVector)]
     [InlineData(99, MapTileSourceType.OpenStreetMap)]
     internal async Task MapTileSourceIndexMapsToSourceType(int index, MapTileSourceType expected)
     {

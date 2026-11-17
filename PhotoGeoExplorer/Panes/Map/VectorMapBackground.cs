@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
 using SkiaSharp;
@@ -26,8 +27,17 @@ internal sealed class VectorMapBackground : IMapBackground
     /// </summary>
     internal const string SourceKey = "openfreemap-vector:1";
 
+    /// <summary>
+    /// 地図で選べるズームレベルの上限。現行の既定（OpenStreetMap のラスタ）の上限と同じにして、操作の範囲を変えない。
+    /// </summary>
+    internal const int MaxZoomLevel = 19;
+
     // 並列の帯の数。最良値はコア数に近く、多すぎると遅くなる（設計合意 #295）
     private static readonly int DefaultBandCount = Math.Clamp(Environment.ProcessorCount, 1, 8);
+
+    // Mapsui はズームの段階（解像度の一覧）をタイルレイヤーのスキーマから得る。ベクター背景のレイヤーにはスキーマが無く、
+    // 一覧が空だとズームレベルでの移動（写真を選んだときの ZoomToLevel）が効かず、視点の解像度が 0 のまま何も描けない
+    private readonly double[] _zoomResolutions = WebMercator.ZoomLevelResolutions(MaxZoomLevel);
 
     private readonly IVectorMapRenderer _renderer;
     private readonly ViewExtentImageLayer _layer;
@@ -47,7 +57,7 @@ internal sealed class VectorMapBackground : IMapBackground
         _renderer = renderer;
         _layer = new ViewExtentImageLayer("VectorMapBackground");
         Layers = [_layer.Layer];
-        AttributionText = string.Join(' ', MapAttribution.VectorLinks.Select(link => link.Text));
+        AttributionText = string.Join(' ', MapAttribution.GetLinks(MapTileSourceType.OpenFreeMapVector).Select(link => link.Text));
         _coordinator = new ViewExtentRenderCoordinator<SKImage>(
             RenderAsync,
             tryPostToUi,
@@ -67,9 +77,7 @@ internal sealed class VectorMapBackground : IMapBackground
     /// <summary>
     /// 地図の視点の監視を始め、今の視点で最初の描画を要求する。1 回だけ呼べる。
     /// </summary>
-    /// <param name="map">視点を監視する地図。</param>
-    /// <param name="getPixelDensity">画素密度（物理ピクセル／論理ピクセル）の取得。任意のスレッドから呼ばれる。</param>
-    internal void Attach(Mapsui.Map map, Func<double> getPixelDensity)
+    public void Attach(Mapsui.Map map, Func<double> getPixelDensity)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(getPixelDensity);
@@ -81,9 +89,12 @@ internal sealed class VectorMapBackground : IMapBackground
 
         _map = map;
         _getPixelDensity = getPixelDensity;
+        map.Navigator.OverrideResolutions = _zoomResolutions;
         map.Navigator.ViewportChanged += OnViewportChanged;
         SubmitCurrentViewport();
     }
+
+    public void OnPixelDensityChanged() => SubmitCurrentViewport();
 
     public async Task<IMapExportLayers> CreateExportLayersAsync(
         Viewport viewport,
@@ -124,6 +135,12 @@ internal sealed class VectorMapBackground : IMapBackground
         if (_map is { } map)
         {
             map.Navigator.ViewportChanged -= OnViewportChanged;
+
+            // 次の背景（ラスタ）が、自分のスキーマの解像度を使えるように戻す。ほかが設定した値は消さない
+            if (ReferenceEquals(map.Navigator.OverrideResolutions, _zoomResolutions))
+            {
+                map.Navigator.OverrideResolutions = null;
+            }
         }
 
         _coordinator.BusyChanged -= OnCoordinatorBusyChanged;
