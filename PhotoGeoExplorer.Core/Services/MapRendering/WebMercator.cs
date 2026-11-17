@@ -12,6 +12,15 @@ internal static class WebMercator
     /// <summary>球面メルカトルの地球半径（m）。</summary>
     internal const double EarthRadius = 6378137.0;
 
+    /// <summary>
+    /// ズームレベル 0 から <paramref name="maxLevel"/> までの、各レベルの解像度（m/論理ピクセル）。レベルが 1 上がるごとに半分になる。
+    /// </summary>
+    internal static double[] ZoomLevelResolutions(int maxLevel)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxLevel);
+        return [.. Enumerable.Range(0, maxLevel + 1).Select(level => ZoomZeroResolution / Math.Pow(2, level))];
+    }
+
     /// <summary>東西方向の座標（m）から経度（度）を求める。</summary>
     internal static double ToLongitude(double x) => x / EarthRadius * (180.0 / Math.PI);
 
