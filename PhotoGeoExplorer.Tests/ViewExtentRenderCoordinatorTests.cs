@@ -300,6 +300,71 @@ public sealed class ViewExtentRenderCoordinatorTests
         Assert.Equal(shown.Count, live);
     }
 
+    [Theory]
+    // UI へ渡したあと、実行される前に要求が変わった: 結果が使えなければ、表示へ回さず解放する
+    [InlineData(5000, "a", false)]
+    [InlineData(0, "b", false)]
+    // 範囲が重なる（互換）なら、位置が正しい直前画像として表示する
+    [InlineData(60, "a", true)]
+    internal async Task FrameWaitingForTheUiIsRevalidatedAgainstTheNewestRequestBeforeItIsShown(double newCenterX, string newSource, bool expectFirstShown)
+    {
+        using var harness = new Harness();
+
+        harness.Coordinator.Submit(Request(0, "a"));
+        var first = await harness.NextRenderAsync().ConfigureAwait(true);
+        first.Complete();
+        await WaitUntilAsync(() => harness.PendingUiCount == 1).ConfigureAwait(true);
+
+        // 世代 1 の画像が UI キューで待っている間に、要求が変わる
+        harness.Coordinator.Submit(Request(newCenterX, newSource));
+        var second = await harness.NextRenderAsync().ConfigureAwait(true);
+        second.Complete();
+        await WaitUntilAsync(() => harness.PendingUiCount == 2).ConfigureAwait(true);
+        harness.RunUi();
+
+        Assert.Equal(expectFirstShown, harness.Shown.Any(f => f.Generation == 1));
+        Assert.Equal(expectFirstShown, !first.Image.IsDisposed);
+        Assert.Equal(2, harness.Shown[^1].Generation);
+        await WaitUntilAsync(() => !harness.Coordinator.IsBusy).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task CancellationThatTheCoordinatorDidNotRequestIsReportedAsFailure()
+    {
+        using var harness = new Harness();
+
+        harness.Coordinator.Submit(Request(0));
+        var render = await harness.NextRenderAsync().ConfigureAwait(true);
+        Assert.False(render.Token.IsCancellationRequested);
+
+        // 描画側が独自のタイムアウトなどで OperationCanceledException を返した
+        render.CancelByItself();
+        await WaitUntilAsync(() => !harness.Coordinator.IsBusy).ConfigureAwait(true);
+
+        var (request, exception) = Assert.Single(harness.Failures);
+        Assert.Equal(0, request.CenterX);
+        Assert.IsAssignableFrom<OperationCanceledException>(exception);
+        Assert.Empty(harness.Shown);
+    }
+
+    [Fact]
+    public async Task CancellationTheCoordinatorRequestedIsNotReportedAsFailure()
+    {
+        using var harness = new Harness();
+
+        harness.Coordinator.Submit(Request(0));
+        var render = await harness.NextRenderAsync().ConfigureAwait(true);
+        harness.Coordinator.Submit(Request(5000));
+        Assert.True(render.Token.IsCancellationRequested);
+
+        render.CancelByItself();
+        (await harness.NextRenderAsync().ConfigureAwait(true)).Complete();
+        await WaitUntilAsync(() => harness.PendingUiCount == 1).ConfigureAwait(true);
+        harness.RunUi();
+
+        Assert.Empty(harness.Failures);
+    }
+
     [Fact]
     public void ShouldCancelRunningFollowsTheDocumentedConditions()
     {
@@ -468,6 +533,9 @@ public sealed class ViewExtentRenderCoordinatorTests
         public void Complete() => _completion.SetResult(Image);
 
         public void Cancel() => _completion.SetCanceled(Token.IsCancellationRequested ? Token : new CancellationToken(true));
+
+        /// <summary>コーディネーターのキャンセルとは無関係に、描画側が OperationCanceledException（TaskCanceledException）で終わる。</summary>
+        public void CancelByItself() => _completion.SetCanceled(new CancellationToken(true));
 
         public void Fail(Exception exception) => _completion.SetException(exception);
     }

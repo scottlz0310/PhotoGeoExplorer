@@ -171,9 +171,11 @@ internal sealed class ViewExtentRenderCoordinator<T> : IDisposable
         {
             image = await _renderAsync(current.Request, cts.Token).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
-            // キャンセルは結果が使えないと分かって止めたもの。失敗ではない
+            // コーディネーターが、結果が使えないと分かって止めたもの。失敗ではない。
+            // キャンセルを要求していないのに届いた OperationCanceledException（描画側の独自のタイムアウトなど）は
+            // 下の失敗として通知する
         }
         // 描画の失敗は握りつぶさず、必ず renderFailed へ通知する。ここで止めないとループが死んで以後の描画が止まる
 #pragma warning disable CA1031 // Do not catch general exception types
@@ -191,7 +193,7 @@ internal sealed class ViewExtentRenderCoordinator<T> : IDisposable
             _runningCts = null;
             cts.Dispose();
 
-            apply = image is not null && ShouldApplyLocked(current);
+            apply = image is not null && IsStillUsableLocked(current.Request, current.Generation);
             if (apply)
             {
                 _uiPending++;
@@ -236,13 +238,14 @@ internal sealed class ViewExtentRenderCoordinator<T> : IDisposable
     {
         try
         {
-            bool disposed;
+            // UI へ渡してから実行されるまでの間にも、要求は変わりうる。反映の直前に、もう一度最新の要求と照合する
+            bool usable;
             lock (_gate)
             {
-                disposed = _disposed;
+                usable = IsStillUsableLocked(frame.Request, frame.Generation);
             }
 
-            if (disposed)
+            if (!usable)
             {
                 frame.Image.Release();
                 return;
@@ -276,21 +279,21 @@ internal sealed class ViewExtentRenderCoordinator<T> : IDisposable
         RaiseBusyChanged(busyChanged);
     }
 
-    // 呼び出し側は _gate を持つ
-    private bool ShouldApplyLocked(Pending finished)
+    // 呼び出し側は _gate を持つ。描画の完了時と UI への反映時の両方で、最新の要求に対して結果がまだ使えるかを判定する
+    private bool IsStillUsableLocked(ViewExtentRequest request, long generation)
     {
         if (_disposed || _latest is null)
         {
             return false;
         }
 
-        if (!finished.Request.IsCompatibleWith(_latest.Request))
+        if (!request.IsCompatibleWith(_latest.Request))
         {
             return false;
         }
 
-        return finished.Generation == _latest.Generation
-            || finished.Request.Extent.Intersects(_latest.Request.Extent);
+        return generation == _latest.Generation
+            || request.Extent.Intersects(_latest.Request.Extent);
     }
 
     // 呼び出し側は _gate を持つ。変化したら true
