@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Services.MapRendering;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
@@ -26,9 +27,11 @@ internal static class MapAttribution
     internal const string MapboxText = "© Mapbox © OpenStreetMap Improve this map";
     internal const string MapboxUrl = "https://www.mapbox.com/about/maps";
     internal const string MapboxFeedbackUrl = "https://apps.mapbox.com/feedback/";
-
-    // Web メルカトルで、256px タイルのズーム 0 における 1px あたりのメートル数。
-    private const double ZoomZeroResolution = 156543.03392804097;
+    internal const string OpenFreeMapText = "OpenFreeMap";
+    internal const string OpenFreeMapUrl = "https://openfreemap.org";
+    internal const string OpenMapTilesText = "© OpenMapTiles";
+    internal const string OpenMapTilesUrl = "https://www.openmaptiles.org/";
+    internal const string OpenStreetMapDataText = "Data from OpenStreetMap";
 
     private static readonly MapAttributionLink[] OpenStreetMapLinks =
     [
@@ -47,6 +50,19 @@ internal static class MapAttribution
         new("© OpenStreetMap", OpenStreetMapUrl),
         new("Improve this map", MapboxFeedbackUrl, TracksViewport: true)
     ];
+
+    // OpenFreeMap の利用条件が求める「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」を、項目ごとのリンクで示す。
+    private static readonly MapAttributionLink[] OpenFreeMapVectorLinks =
+    [
+        new(OpenFreeMapText, OpenFreeMapUrl),
+        new(OpenMapTilesText, OpenMapTilesUrl),
+        new(OpenStreetMapDataText, OpenStreetMapUrl)
+    ];
+
+    /// <summary>
+    /// ベクター背景（OpenFreeMap）の帰属項目
+    /// </summary>
+    internal static IReadOnlyList<MapAttributionLink> VectorLinks => OpenFreeMapVectorLinks;
 
     /// <summary>
     /// 1 つの背景が持つ帰属項目の最大数
@@ -92,7 +108,7 @@ internal static class MapAttribution
         }
 
         // Mapbox のズームは 512px タイル基準のため、256px タイル基準の値より 1 小さい。
-        var zoom = Math.Clamp(Math.Log2(ZoomZeroResolution / resolution) - 1, 0, 22);
+        var zoom = Math.Clamp(Math.Log2(WebMercator.ZoomZeroResolution / resolution) - 1, 0, 22);
         return string.Create(
             CultureInfo.InvariantCulture,
             $"{MapboxFeedbackUrl}#/{longitude:0.#####}/{latitude:0.#####}/{zoom:0.##}");
