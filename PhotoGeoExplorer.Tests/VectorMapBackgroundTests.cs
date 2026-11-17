@@ -152,6 +152,41 @@ public sealed class VectorMapBackgroundTests
     }
 
     [Fact]
+    public async Task ImageWithMissingTilesIsStillShownAndLaterRendersContinueAsync()
+    {
+        using var background = CreateBackground(out var renderer);
+        renderer.UnavailableTileCount = 3;
+        var map = CreateMap(width: 400, height: 300);
+        background.Attach(map, () => 1.0);
+
+        await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => FeatureCount(background) == 1 && !background.IsBusy).ConfigureAwait(true);
+
+        // 欠けた状態から完全な状態へ戻っても描画は続く
+        renderer.UnavailableTileCount = 0;
+        map.Navigator.ZoomTo(map.Navigator.Viewport.Resolution / 2);
+        await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+        Assert.Equal(1, FeatureCount(background));
+    }
+
+    [Fact]
+    public void ConstructionRejectsMissingDependencies()
+    {
+        Assert.Throws<ArgumentNullException>(() => new VectorMapBackground(null!, _ => true));
+        Assert.Throws<ArgumentNullException>(() => new VectorMapBackground(new FakeRenderer(), null!));
+    }
+
+    [Fact]
+    public void AttachRejectsMissingArguments()
+    {
+        using var background = CreateBackground(out _);
+
+        Assert.Throws<ArgumentNullException>(() => background.Attach(null!, () => 1.0));
+        Assert.Throws<ArgumentNullException>(() => background.Attach(CreateMap(width: 0, height: 0), null!));
+    }
+
+    [Fact]
     public async Task BusyChangedIsRaisedWhileRenderingAsync()
     {
         using var background = CreateBackground(out var renderer);
@@ -285,6 +320,8 @@ public sealed class VectorMapBackgroundTests
 
         public bool FailNextCall { get; set; }
 
+        public int UnavailableTileCount { get; set; }
+
         public Task<VectorViewResult> RenderViewAsync(VectorViewRequest request, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _callCount);
@@ -296,7 +333,10 @@ public sealed class VectorMapBackgroundTests
             }
 
             using var bitmap = new SKBitmap(request.PixelWidth, request.PixelHeight);
-            return Task.FromResult(new VectorViewResult(SKImage.FromBitmap(bitmap)));
+            return Task.FromResult(new VectorViewResult(
+                SKImage.FromBitmap(bitmap),
+                requestedTileCount: 4,
+                unavailableTileCount: UnavailableTileCount));
         }
 
         public Task<VectorViewRequest> NextRequestAsync()
