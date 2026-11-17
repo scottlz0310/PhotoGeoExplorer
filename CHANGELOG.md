@@ -5,10 +5,12 @@
 ## [Unreleased]
 
 ### 変更
+- `SkiaSharp` 系パッケージ（`SkiaSharp`・`Views.WinUI`・`HarfBuzz`・`NativeAssets.WinUI`・`NativeAssets.Win32`）を 3.119.x から 4.156.0 へ明示して引き上げた (#295 の PR ③)。`PhotoMapStudio.Rendering` が 4.156.0 に依存するため。Mapsui 5.1.0 の描画・PNG 保存は #293 の関門で動作確認済み。Web メルカトルのズーム 0 の解像度の定数は `WebMercator` に一本化した
 - 地図の背景を `IMapBackground` で扱う内部構造に変更し、`MapPaneViewModel`・`MapPaneViewControl`・PNG 保存が `TileLayer` に依存しないようにした (#295 の PR ①。見た目・操作・保存される PNG は変わらない)。PNG 保存は、背景が返す保存用レイヤーと写真マーカーなど背景以外のレイヤーを合成して描く。ベクター背景を後から追加できるようにするための土台で、背景の切り替え・読み込み中の保存ボタンの無効化・帰属表示は従来どおり。
 - ターゲットフレームワークを `Directory.Build.props` の `DotNetTargetFramework` に一本化し、全プロジェクトと E2E の exe パス解決がそこを参照するようにした。Renovate の追跡もこの 1 行だけに絞った。これまで追跡漏れだった E2E（`net8.0`）と Core が、他と同じ `net10.0` になる（E2E のために .NET 8 ランタイムが要らなくなる）
 
 ### 追加
+- ベクター地図の背景 `VectorMapBackground` を追加 (#295 の PR ③。製品からはまだ使われず、見た目・操作は変わらない。設定 UI とあわせて PR ④ でつなぐ)。`PhotoMapStudio.Rendering` 0.1.0 で OpenFreeMap のタイルを表示範囲全体の 1 枚の画像に描き、視点の変化に合わせて描き直す。PNG 保存は保存時の視点と密度で確定描画し、タイルが欠けたまま書き出さない。通信・キャッシュ（`Cache\VectorTiles`）・スタイルは `OpenFreeMapVectorMapRenderer` が所有する。帰属表示（OpenFreeMap・OpenMapTiles・OpenStreetMap）を追加
 - ベクター地図の表示範囲画像を扱う内部部品を追加 (#295 の PR ②。製品からはまだ使われず、見た目・操作は変わらない)。描画要求の集約・世代管理・キャンセルを行う `ViewExtentRenderCoordinator`（Mapsui・WinUI 非依存）、参照カウントつきの画像の所有権 `SharedResource`、画像を地理範囲に合わせて Mapsui へ載せる `ViewExtentImageLayer`。Mapsui はアニメーション中（ホイールズームなど）の視点変更を UI スレッド以外で通知するため、コーディネーターは任意のスレッドから例外なく呼べる（PoC ではこの通知で XAML に触れてアニメーションが止まった）
 - ベクター地図レンダラー PoC（#293）の P2 に、実アプリの高 DPI（150%・175%・200%）の計測結果を追加（`docs/Architecture/MapEnhancement/poc/p2/`）。確定描画はどの DPI でも現行より大幅に遅く、フレーム時間も DPI が高いほど現行より悪化することを確認した（50 ms 超の停止は 0）
 - ベクター地図レンダラー PoC（#293）の P2「応答性」の結果を `docs/Architecture/MapEnhancement/poc/p2/` に追加。背景スレッド描画・要求の集約・世代管理・参照カウント・デコード済みキャッシュを、P0 と同じ手順で現行版と比較した（フレーム時間は同等、確定描画は現行より遅い。実装はスパイクブランチ `spike/293-p2`、`main` へはマージしない）

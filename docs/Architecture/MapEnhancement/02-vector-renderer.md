@@ -148,7 +148,19 @@ internal interface IMapExportLayers : IDisposable
 
 この整理は [01](01-mapbox-satellite.md) の `MapBackgroundRequest` と合わせて行い、`MapPaneViewModel` はラスタ／ベクターの違いを知らない状態にする。
 
-実装: #295 の PR ①（ラスタのみ・挙動不変）。ラスタは `RasterMapBackground`（`TileLayer` を 1 枚包み、`TileLayer.Busy` を `IsBusy` として転送する）。
+実装: #295 の PR ①（ラスタのみ・挙動不変）。ラスタは `RasterMapBackground`（`TileLayer` を 1 枚包み、`TileLayer.Busy` を `IsBusy` として転送する）。ベクターは PR ③ の `VectorMapBackground`（§3.9）。
+
+### 3.9 ベクター背景（`VectorMapBackground`。#295 の PR ③）
+
+`IMapBackground` のベクター実装。`PhotoMapStudio.Rendering`（NuGet）の `IVectorMapRenderer.RenderViewAsync` を、`ViewExtentRenderCoordinator`（§3.2）と `ViewExtentImageLayer`（§3.3）につなぐ。
+
+- **描画要求の変換**: `ViewExtentRequest`（Mapsui の中心［m］・解像度［m/論理ピクセル］・論理寸法・密度）を、`VectorViewRequest`（緯度経度・連続ズーム・物理ピクセル寸法）へ変換する。変換式は Core の `WebMercator` に集約する（ズームは `log2(ZoomZeroResolution × 密度 / 解像度)`。画像寸法は `ViewExtentRequest` が丸めた値を使い、配置［§3.3］と食い違わせない）。帯の数は `Math.Clamp(ProcessorCount, 1, 8)`、注記は並列。
+- **接続**: 視点の監視と最初の描画要求は `Attach(Map, Func<double> getPixelDensity)` で始める（1 回だけ）。視点の通知は UI スレッド以外から来るため（§3.2）、密度は呼び出し側が渡す取得関数で読み、ハンドラは XAML に触らない。
+- **欠落タイル**: 表示は欠けたタイルを許して取得できた分を描き、欠けた状態になったとき・戻ったときだけログに残す（白地のまま気づかれないのを避ける）。**PNG 保存は欠落を許さない**（描画エンジンが例外にし、欠けた地図を黙って書き出さない）。描画の失敗は握りつぶさずログへ出し、以後の描画は続ける。
+- **エンジンの組み立て**: `OpenFreeMapVectorMapRenderer` が通信・ディスクキャッシュ（`Cache\VectorTiles`。地図タイル `Cache\Tiles`・道路名 `Cache\RoadTiles` とは別。容量はパッケージの既定）・`OpenMapTilesStyle`・デコード済みタイルのキャッシュ（128MB 固定）を所有する。破棄は進行中の描画が終わってから行う。
+- **帰属表示**: 「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」を、項目ごとのリンクで示す（`MapAttribution.VectorLinks`）。
+- **未接続**: `MapTileSourceType`・設定・`MapPaneService.CreateBackground` へはつないでいない（製品からは使われない）。設定 UI とあわせて PR ④ でつなぐ。そのとき `Attach` を `IMapBackground` へ上げる（背景を作る時点では `Map` がまだ無い）。
+- **未実施**: ウォームアップ・事前デコード（2×2）、実機での受け入れ確認（ホイールズームの完走・P3・見た目とラベルの比較）、画素密度の更新（`XamlRoot.Changed`）。
 
 ## 4. スタイル方針
 
@@ -172,6 +184,7 @@ internal interface IMapExportLayers : IDisposable
 
 - SkiaSharp を継続利用する。PhotoGeoExplorer は Mapsui.Rendering.Skia と PNG 保存で既に Skia に依存しており、ImageSharp.Drawing へ移してもネイティブ依存はなくならない。
 - **SkiaSharp の版**: PhotoMapStudio は 4.x、Mapsui 5.1.0 は自身の依存する版を持つ。同一プロセスでは 1 つの版に統一されるので、P1 の最初に「解決後の版で Mapsui の描画と PNG 保存が動くこと」を確認する。動かない場合はダウングレードせず、Mapsui の対応版を待つ（PoC は保留）。
+  - 確認済み（#293 の関門）。製品では、`SkiaSharp`・`SkiaSharp.Views.WinUI`・`SkiaSharp.HarfBuzz`・`SkiaSharp.NativeAssets.WinUI`・`SkiaSharp.NativeAssets.Win32` を `PhotoGeoExplorer.csproj` で `PhotoMapStudio.Rendering` と同じ版（4.156.0）に明示する（#295 の PR ③）。Renovate の共有プリセットは NuGet の更新を種別ごとに 1 グループへまとめるため、これらは同時に上がる。Mapsui 側の推移的な `SkiaSharp.NativeAssets.Linux` は 3.119.2 のまま残るが、Windows 専用のため読み込まれない。
 
 ## 7. PoC 計画（#293）
 

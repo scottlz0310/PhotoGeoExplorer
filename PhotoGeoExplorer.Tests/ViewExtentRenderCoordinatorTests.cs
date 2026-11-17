@@ -43,9 +43,12 @@ public sealed class ViewExtentRenderCoordinatorTests
         var transitions = new ConcurrentQueue<bool>();
         harness.Coordinator.BusyChanged += (_, _) => transitions.Enqueue(harness.Coordinator.IsBusy);
 
+        // 最初の描画が始まってから 2 件目を送る。続けて送ると、描画ループが最初の要求を取り出す前に
+        // 未着手の要求が最新の 1 件へ置き換わり、描画が 1 回しか起きないことがある
         harness.Coordinator.Submit(Request(0));
+        var first = await harness.NextRenderAsync().ConfigureAwait(true);
         harness.Coordinator.Submit(Request(1));
-        (await harness.NextRenderAsync().ConfigureAwait(true)).Complete();
+        first.Complete();
         (await harness.NextRenderAsync().ConfigureAwait(true)).Complete();
         await WaitUntilAsync(() => harness.PendingUiCount == 2).ConfigureAwait(true);
         harness.RunUi();
