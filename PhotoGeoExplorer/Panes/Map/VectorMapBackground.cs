@@ -39,6 +39,11 @@ internal sealed class VectorMapBackground : IMapBackground
     // 一覧が空だとズームレベルでの移動（写真を選んだときの ZoomToLevel）が効かず、視点の解像度が 0 のまま何も描けない
     private readonly double[] _zoomResolutions = WebMercator.ZoomLevelResolutions(MaxZoomLevel);
 
+    // ズームの上下限も、レイヤーからは決まらない（ベクター背景のレイヤーの範囲は直前に描いた 1 枚で、描画の前は何も無い）。
+    // 上下限が無いと、ホイールやピンチで際限なく拡大・縮小できる。Mapsui がタイルレイヤーのスキーマの解像度から導く値
+    // （最小＝最後の段階の半分、最大＝最初の段階）と同じにして、ラスタ（OpenStreetMap）と操作の範囲を揃える
+    private readonly MMinMax _zoomBounds;
+
     private readonly IVectorMapRenderer _renderer;
     private readonly ViewExtentImageLayer _layer;
     private readonly ViewExtentRenderCoordinator<SKImage> _coordinator;
@@ -55,6 +60,7 @@ internal sealed class VectorMapBackground : IMapBackground
         ArgumentNullException.ThrowIfNull(tryPostToUi);
 
         _renderer = renderer;
+        _zoomBounds = new MMinMax(_zoomResolutions[^1] / 2, _zoomResolutions[0]);
         _layer = new ViewExtentImageLayer("VectorMapBackground");
         Layers = [_layer.Layer];
         AttributionText = string.Join(' ', MapAttribution.GetLinks(MapTileSourceType.OpenFreeMapVector).Select(link => link.Text));
@@ -90,6 +96,7 @@ internal sealed class VectorMapBackground : IMapBackground
         _map = map;
         _getPixelDensity = getPixelDensity;
         map.Navigator.OverrideResolutions = _zoomResolutions;
+        map.Navigator.OverrideZoomBounds = _zoomBounds;
         map.Navigator.ViewportChanged += OnViewportChanged;
         SubmitCurrentViewport();
     }
@@ -140,6 +147,11 @@ internal sealed class VectorMapBackground : IMapBackground
             if (ReferenceEquals(map.Navigator.OverrideResolutions, _zoomResolutions))
             {
                 map.Navigator.OverrideResolutions = null;
+            }
+
+            if (ReferenceEquals(map.Navigator.OverrideZoomBounds, _zoomBounds))
+            {
+                map.Navigator.OverrideZoomBounds = null;
             }
         }
 

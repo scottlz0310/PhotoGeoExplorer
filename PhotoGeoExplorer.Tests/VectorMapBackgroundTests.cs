@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
+using Mapsui.Manipulations;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services.MapRendering;
@@ -127,6 +128,62 @@ public sealed class VectorMapBackgroundTests
         Assert.Equal(WebMercator.ZoomZeroResolution / Math.Pow(2, 18), map.Navigator.Viewport.Resolution, 9);
         var request = await renderer.NextRequestAsync().ConfigureAwait(true);
         Assert.Equal(18, request.Zoom, 6);
+    }
+
+    [Theory]
+    // ピンチ・ホイールで拡大し続けても、縮小し続けても、上下限（最小＝最後の段階の半分、最大＝最初の段階）で止まる。
+    // 実機で、ベクターを選ぶと際限なく拡大・縮小できた。描画の前（レイヤーが空）でも、描画の後でも同じ
+    [InlineData(2.0, WebMercator.ZoomZeroResolution / 1048576, false)]
+    [InlineData(0.5, WebMercator.ZoomZeroResolution, false)]
+    [InlineData(2.0, WebMercator.ZoomZeroResolution / 1048576, true)]
+    [InlineData(0.5, WebMercator.ZoomZeroResolution, true)]
+    public async Task ZoomByGestureStopsAtTheZoomLimitsWhetherOrNotAnImageHasBeenRenderedAsync(double scaleFactor, double expectedResolution, bool afterRender)
+    {
+        using var background = CreateBackground(out var renderer);
+        var map = CreateMap(width: 400, height: 300);
+        map.Layers.Add(background.Layers[0]);
+        background.Attach(map, () => 1.0);
+        if (afterRender)
+        {
+            await renderer.NextRequestAsync().ConfigureAwait(true);
+            await WaitUntilAsync(() => FeatureCount(background) == 1 && !background.IsBusy).ConfigureAwait(true);
+        }
+
+        var center = new ScreenPosition(200, 150);
+        for (var i = 0; i < 60; i++)
+        {
+            map.Navigator.Manipulate(new Manipulation(center, center, scaleFactor, 0, 0));
+        }
+
+        Assert.Equal(expectedResolution, map.Navigator.Viewport.Resolution, 9);
+    }
+
+    [Fact]
+    public void AttachSetsTheZoomLimitsAndDisposeRestoresThem()
+    {
+        var background = CreateBackground(out _);
+        var map = CreateMap(width: 400, height: 300);
+        Assert.Null(map.Navigator.OverrideZoomBounds);
+
+        background.Attach(map, () => 1.0);
+        Assert.NotNull(map.Navigator.OverrideZoomBounds);
+
+        background.Dispose();
+        Assert.Null(map.Navigator.OverrideZoomBounds);
+    }
+
+    [Fact]
+    public void DisposeKeepsZoomLimitsThatSomeoneElseSet()
+    {
+        var background = CreateBackground(out _);
+        var map = CreateMap(width: 400, height: 300);
+        background.Attach(map, () => 1.0);
+        var others = new MMinMax(1, 1000);
+        map.Navigator.OverrideZoomBounds = others;
+
+        background.Dispose();
+
+        Assert.Same(others, map.Navigator.OverrideZoomBounds);
     }
 
     [Fact]
