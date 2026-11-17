@@ -36,17 +36,10 @@ internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IDispos
     private int _activeCalls;
     private bool _disposed;
 
-    /// <summary>
-    /// 地図のタイルのキャッシュの置き場（地図タイルのキャッシュ <c>Cache\Tiles</c>・道路名の <c>Cache\RoadTiles</c> とは別）。
-    /// 道路名の判定は z14 の 1 枚ずつを上限つきで持つ用途で、閲覧で広く触れる地図とは容量・消し方が違うため分ける。
-    /// </summary>
-    public static string DefaultCacheDirectory => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "PhotoGeoExplorer",
-        "Cache",
-        "VectorTiles");
-
-    /// <param name="cacheDirectory">タイルのキャッシュの置き場</param>
+    /// <param name="cacheDirectory">
+    /// タイルのキャッシュの置き場。道路名の判定（<c>Cache\RoadTiles</c>。z14 の 1 枚ずつを上限つきで持つ用途）とは、
+    /// 容量・消し方が違うため共有しない
+    /// </param>
     /// <param name="userAgent">配信元へ表明する User-Agent（アプリの名称・版・連絡先）</param>
     /// <param name="handler">通信の中身。テストで差し替える（<see langword="null"/> なら既定）</param>
     public OpenFreeMapVectorMapRenderer(string cacheDirectory, string userAgent, HttpMessageHandler? handler = null)

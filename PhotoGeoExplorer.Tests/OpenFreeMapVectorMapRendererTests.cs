@@ -17,14 +17,6 @@ public sealed class OpenFreeMapVectorMapRendererTests
 
     private static readonly VectorViewRequest TokyoRequest = new(35.681, 139.767, 15, 256, 256);
 
-    [Fact]
-    public void DefaultCacheDirectoryIsSeparateFromTheMapAndRoadTileCaches()
-    {
-        var directory = OpenFreeMapVectorMapRenderer.DefaultCacheDirectory;
-
-        Assert.EndsWith(Path.Combine("PhotoGeoExplorer", "Cache", "VectorTiles"), directory, StringComparison.Ordinal);
-    }
-
     [Theory]
     [InlineData("", UserAgent)]
     [InlineData(" ", UserAgent)]

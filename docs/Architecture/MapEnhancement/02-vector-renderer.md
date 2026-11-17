@@ -157,10 +157,11 @@ internal interface IMapExportLayers : IDisposable
 - **描画要求の変換**: `ViewExtentRequest`（Mapsui の中心［m］・解像度［m/論理ピクセル］・論理寸法・密度）を、`VectorViewRequest`（緯度経度・連続ズーム・物理ピクセル寸法）へ変換する。変換式は Core の `WebMercator` に集約する（ズームは `log2(ZoomZeroResolution × 密度 / 解像度)`。画像寸法は `ViewExtentRequest` が丸めた値を使い、配置［§3.3］と食い違わせない）。帯の数は `Math.Clamp(ProcessorCount, 1, 8)`、注記は並列。
 - **接続**: 視点の監視と最初の描画要求は `Attach(Map, Func<double> getPixelDensity)` で始める（1 回だけ）。視点の通知は UI スレッド以外から来るため（§3.2）、密度は呼び出し側が渡す取得関数で読み、ハンドラは XAML に触らない。
 - **欠落タイル**: 表示は欠けたタイルを許して取得できた分を描き、欠けた状態になったとき・戻ったときだけログに残す（白地のまま気づかれないのを避ける）。**PNG 保存は欠落を許さない**（描画エンジンが例外にし、欠けた地図を黙って書き出さない）。描画の失敗は握りつぶさずログへ出し、以後の描画は続ける。
-- **エンジンの組み立て**: `OpenFreeMapVectorMapRenderer` が通信・ディスクキャッシュ（`Cache\VectorTiles`。地図タイル `Cache\Tiles`・道路名 `Cache\RoadTiles` とは別。容量はパッケージの既定）・`OpenMapTilesStyle`・デコード済みタイルのキャッシュ（128MB 固定）を所有する。破棄は進行中の描画が終わってから行う。
-- **帰属表示**: 「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」を、項目ごとのリンクで示す（`MapAttribution.VectorLinks`）。
-- **未接続**: `MapTileSourceType`・設定・`MapPaneService.CreateBackground` へはつないでいない（製品からは使われない）。設定 UI とあわせて PR ④ でつなぐ。そのとき `Attach` を `IMapBackground` へ上げる（背景を作る時点では `Map` がまだ無い）。
-- **未実施**: ウォームアップ・事前デコード（2×2）、実機での受け入れ確認（ホイールズームの完走・P3・見た目とラベルの比較）、画素密度の更新（`XamlRoot.Changed`）。
+- **エンジンの組み立て**: `OpenFreeMapVectorMapRenderer` が通信・ディスクキャッシュ（`Cache\Tiles\OpenFreeMapVector`。ラスタと同じくタイルのキャッシュのルートの下に背景ごとのディレクトリを置く。道路名の `Cache\RoadTiles` とは別。容量はパッケージの既定）・`OpenMapTilesStyle`・デコード済みタイルのキャッシュ（128MB 固定）を所有する。破棄は進行中の描画が終わってから行う。
+- **帰属表示**: 「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」を、項目ごとのリンクで示す（`MapAttribution.GetLinks(MapTileSourceType.OpenFreeMapVector)`）。
+- **接続（#295 の PR ④-1）**: `MapTileSourceType.OpenFreeMapVector`（設定の保存値は 3）を追加し、設定の選択肢に出す。**既定は現行ラスタのまま**。`MapPaneService.CreateBackground` が、背景の種類で `RasterMapBackground` と `VectorMapBackground` を作り分ける（ベクターは `MapBackgroundRequest.TryPostToUi` が必須）。`Attach` と `OnPixelDensityChanged` は `IMapBackground` に上げた（背景を作る時点では `Map` がまだ無く、ラスタは何もしない）。`MapPaneViewModel` は背景を地図へ載せた後に `Attach` を呼び、密度は View から受けて保持する。
+- **画素密度の更新**: 密度は XAML（`XamlRoot.RasterizationScale`）からしか分からず、視点の通知は UI スレッド以外から来る。そのため View が読み込み時と `XamlRoot.Changed`（別の表示倍率のモニターへ動かした場合など）で `MapPaneViewModel.UpdatePixelDensity` を呼び、ViewModel が値を保持して背景へ取得関数で渡す。値が変わったときだけ背景へ伝え、ベクターは新しい密度で描き直す。無効な値（非有限・0 以下）は無視する。
+- **未実施**: ウォームアップ・事前デコード（2×2。#295 の PR ④-2）、実機での受け入れ確認（ホイールズームの完走・P3・見た目とラベルの比較）とヘルプ・プライバシー（同 PR ④-3）。
 
 ## 4. スタイル方針
 
@@ -240,7 +241,7 @@ P0 の成果物（手順・基準値・基準画像・許容差）は [poc/READM
 
 ## 8. 製品統合（#295）の範囲
 
-- `MapTileSourceType` に `VectorOpenFreeMap`（必要なら `VectorGsi`）を追加し、設定の選択肢に出す。**最初のリリースは選択式で、既定は現行ラスタのまま。目標は既定のベクター化**（#293 の判定の条件を満たしたら既定化を検討する。選択式を恒久にはしない。現行の OSM ラスタを残すかは、その時点で決める）。
+- `MapTileSourceType` に `OpenFreeMapVector`（必要なら `GsiVector`。#295 の PR ④-1 で `OpenFreeMapVector` を追加済み）を追加し、設定の選択肢に出す。**最初のリリースは選択式で、既定は現行ラスタのまま。目標は既定のベクター化**（#293 の判定の条件を満たしたら既定化を検討する。選択式を恒久にはしない。現行の OSM ラスタを残すかは、その時点で決める）。
 - 初期のスタイルは現行に近い見た目にする。道路名優先のプロファイルは、エンジンの統合が済んでから、選べるスタイルとして別の PR で追加する（§4）。
 - 描画・取得の失敗時の表示（部分的に取得できない、オフライン）。失敗を隠して別の背景へ自動で切り替えない。
 - 帰属表示（OSM、OpenFreeMap、国土地理院）を画面と PNG に出す。

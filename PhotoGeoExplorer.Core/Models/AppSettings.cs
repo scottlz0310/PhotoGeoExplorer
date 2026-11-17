@@ -6,7 +6,8 @@ internal enum MapTileSourceType
 {
     OpenStreetMap = 0,
     EsriWorldImagery = 1,
-    MapboxSatellite = 2
+    MapboxSatellite = 2,
+    OpenFreeMapVector = 3
 }
 
 internal enum PaneLayoutPreset

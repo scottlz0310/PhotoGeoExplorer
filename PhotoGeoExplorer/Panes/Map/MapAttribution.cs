@@ -60,11 +60,6 @@ internal static class MapAttribution
     ];
 
     /// <summary>
-    /// ベクター背景（OpenFreeMap）の帰属項目
-    /// </summary>
-    internal static IReadOnlyList<MapAttributionLink> VectorLinks => OpenFreeMapVectorLinks;
-
-    /// <summary>
     /// 1 つの背景が持つ帰属項目の最大数
     /// </summary>
     internal const int MaxLinkCount = 3;
@@ -84,6 +79,7 @@ internal static class MapAttribution
         {
             MapTileSourceType.EsriWorldImagery => EsriLinks,
             MapTileSourceType.MapboxSatellite => MapboxLinks,
+            MapTileSourceType.OpenFreeMapVector => OpenFreeMapVectorLinks,
             _ => OpenStreetMapLinks
         };
     }

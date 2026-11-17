@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
@@ -87,7 +88,35 @@ public sealed class VectorMapBackgroundTests
         using var background = CreateBackground(out _);
 
         Assert.Equal("OpenFreeMap © OpenMapTiles Data from OpenStreetMap", background.AttributionText);
-        Assert.InRange(MapAttribution.VectorLinks.Count, 1, MapAttribution.MaxLinkCount);
+        Assert.InRange(MapAttribution.GetLinks(MapTileSourceType.OpenFreeMapVector).Count, 1, MapAttribution.MaxLinkCount);
+    }
+
+    [Fact]
+    public async Task PixelDensityChangeRendersTheCurrentViewportAgainAtTheNewDensityAsync()
+    {
+        using var background = CreateBackground(out var renderer);
+        var density = 1.0;
+        background.Attach(CreateMap(width: 400, height: 300), () => density);
+        var first = await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+
+        density = 2.0;
+        background.OnPixelDensityChanged();
+
+        var second = await renderer.NextRequestAsync().ConfigureAwait(true);
+        Assert.Equal(400, first.PixelWidth);
+        Assert.Equal(800, second.PixelWidth);
+        Assert.Equal(first.Zoom + 1, second.Zoom, 9);
+    }
+
+    [Fact]
+    public void PixelDensityChangeBeforeAttachDoesNothing()
+    {
+        using var background = CreateBackground(out var renderer);
+
+        background.OnPixelDensityChanged();
+
+        Assert.Equal(0, renderer.CallCount);
     }
 
     [Fact]

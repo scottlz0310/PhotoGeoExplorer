@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
 using SkiaSharp;
@@ -47,7 +48,7 @@ internal sealed class VectorMapBackground : IMapBackground
         _renderer = renderer;
         _layer = new ViewExtentImageLayer("VectorMapBackground");
         Layers = [_layer.Layer];
-        AttributionText = string.Join(' ', MapAttribution.VectorLinks.Select(link => link.Text));
+        AttributionText = string.Join(' ', MapAttribution.GetLinks(MapTileSourceType.OpenFreeMapVector).Select(link => link.Text));
         _coordinator = new ViewExtentRenderCoordinator<SKImage>(
             RenderAsync,
             tryPostToUi,
@@ -67,9 +68,7 @@ internal sealed class VectorMapBackground : IMapBackground
     /// <summary>
     /// 地図の視点の監視を始め、今の視点で最初の描画を要求する。1 回だけ呼べる。
     /// </summary>
-    /// <param name="map">視点を監視する地図。</param>
-    /// <param name="getPixelDensity">画素密度（物理ピクセル／論理ピクセル）の取得。任意のスレッドから呼ばれる。</param>
-    internal void Attach(Mapsui.Map map, Func<double> getPixelDensity)
+    public void Attach(Mapsui.Map map, Func<double> getPixelDensity)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(getPixelDensity);
@@ -84,6 +83,8 @@ internal sealed class VectorMapBackground : IMapBackground
         map.Navigator.ViewportChanged += OnViewportChanged;
         SubmitCurrentViewport();
     }
+
+    public void OnPixelDensityChanged() => SubmitCurrentViewport();
 
     public async Task<IMapExportLayers> CreateExportLayersAsync(
         Viewport viewport,

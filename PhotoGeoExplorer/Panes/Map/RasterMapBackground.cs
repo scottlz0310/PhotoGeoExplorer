@@ -37,6 +37,15 @@ internal sealed class RasterMapBackground : IMapBackground
 
     public event EventHandler? BusyChanged;
 
+    // タイルは Mapsui の TileLayer が視点に応じて取得する。背景側で視点や密度を扱う必要はない
+    public void Attach(Mapsui.Map map, Func<double> getPixelDensity)
+    {
+    }
+
+    public void OnPixelDensityChanged()
+    {
+    }
+
     public Task<IMapExportLayers> CreateExportLayersAsync(
         Viewport viewport,
         float pixelDensity,

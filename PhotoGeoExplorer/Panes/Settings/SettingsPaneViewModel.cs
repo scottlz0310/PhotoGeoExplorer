@@ -152,6 +152,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         {
             MapTileSourceType.EsriWorldImagery => 1,
             MapTileSourceType.MapboxSatellite => 2,
+            MapTileSourceType.OpenFreeMapVector => 3,
             _ => 0
         };
         set
@@ -160,6 +161,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             {
                 1 => MapTileSourceType.EsriWorldImagery,
                 2 => MapTileSourceType.MapboxSatellite,
+                3 => MapTileSourceType.OpenFreeMapVector,
                 _ => MapTileSourceType.OpenStreetMap
             };
         }

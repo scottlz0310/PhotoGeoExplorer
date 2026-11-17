@@ -74,7 +74,24 @@ internal sealed class MapPaneService : IMapPaneService
         ArgumentNullException.ThrowIfNull(background);
         ArgumentNullException.ThrowIfNull(background.UserAgent);
 
+        if (background.SourceType == MapTileSourceType.OpenFreeMapVector)
+        {
+            return CreateVectorBackground(background);
+        }
+
         return new RasterMapBackground(CreateTileLayer(background), background.SourceType);
+    }
+
+    private VectorMapBackground CreateVectorBackground(MapBackgroundRequest background)
+    {
+        var tryPostToUi = background.TryPostToUi
+            ?? throw new ArgumentException("TryPostToUi is required for the vector background.", nameof(background));
+
+        // ラスタと同じく、タイルのキャッシュのルートの下に背景ごとのディレクトリを置く（形式はラスタと別なので混ざらない）
+        var renderer = new OpenFreeMapVectorMapRenderer(
+            Path.Combine(GetTileCacheRootDirectory(), background.SourceType.ToString()),
+            background.UserAgent);
+        return new VectorMapBackground(renderer, tryPostToUi);
     }
 
     private TileLayer CreateTileLayer(MapBackgroundRequest background)

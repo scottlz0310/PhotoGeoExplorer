@@ -26,6 +26,20 @@ internal interface IMapBackground : IDisposable
     event EventHandler? BusyChanged;
 
     /// <summary>
+    /// 地図へ載せた後に呼ぶ。視点に応じて描き直す背景（ベクター）は、ここで視点の監視と最初の描画を始める。
+    /// ラスタは何もしない。視点の通知は UI スレッド以外から来るため、密度は取得関数で読む。
+    /// </summary>
+    /// <param name="map">背景のレイヤーを載せた地図。</param>
+    /// <param name="getPixelDensity">画素密度（物理ピクセル／論理ピクセル）の取得。任意のスレッドから呼ばれる。</param>
+    void Attach(Mapsui.Map map, Func<double> getPixelDensity);
+
+    /// <summary>
+    /// 画素密度が変わったことを伝える（ウィンドウを別の表示倍率のモニターへ動かした場合など）。
+    /// 視点に応じて描き直す背景は、新しい密度で描き直す。ラスタは何もしない。UI スレッドから呼ぶ。
+    /// </summary>
+    void OnPixelDensityChanged();
+
+    /// <summary>
     /// PNG 保存用のレイヤーを用意する。表示中のレイヤーには触らない。
     /// ラスタは表示中のレイヤーをそのまま返し、ベクターは保存時のビューポートと密度で確定描画した別レイヤーを返す。
     /// </summary>
