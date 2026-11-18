@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json.Nodes;
 using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
@@ -89,6 +90,62 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
                 TerminateApp(app);
             }
         }
+    }
+
+    // 設定でベクター地図（OpenFreeMap）を選んだ状態で起動し、写真を選ぶと、地図に写真ピンが出ること（#295）。
+    // 通信に依存しない（タイルを取得できなくても、ピンは出る）ので、確認するのは「ベクターが選ばれ、ピン表示が退行していない」こと。
+    // 設定は、ベクターの選択だけを書いた状態（ほかは既定）にする。利用者の設定（ペイン配置など）に左右されず、CI（初期設定）と同じ
+    // 条件で動く。利用者の設定ファイルは、アプリの終了後に必ず元へ戻す
+    [E2EFact]
+    public async Task VectorMapBackgroundSelectedInSettingsShowsThePhotoPin()
+    {
+        using var settings = new UserSettingsOverride("mapTileSource", "openFreeMapVector");
+        var logOffset = AppLogFile.GetLength();
+
+        E2ETestData? testData = null;
+        try
+        {
+            testData = await E2ETestData.CreateAsync(_output).ConfigureAwait(true);
+            using var automation = new UIA3Automation();
+            using var app = Application.Launch(testData.StartInfo);
+            try
+            {
+                var window = WaitForMainWindow(app, automation);
+                window.Focus();
+
+                var list = WaitForList(app, automation, window, _output);
+                Retry.WhileTrue(
+                    () => SafeGet(() => list.Items.Length, 0) == 0,
+                    timeout: TimeSpan.FromSeconds(20),
+                    interval: TimeSpan.FromMilliseconds(200),
+                    ignoreException: true);
+
+                list.Focus();
+                var imageItem = WaitForListItemByName(list, "sample.jpg");
+                SelectListItem(imageItem);
+
+                WaitForPreview(window);
+                Assert.True(
+                    TryWaitForMapReady(window),
+                    "Map readiness check failed: MapStatusPanel is still visible after selecting sample.jpg with the vector map background.");
+            }
+            finally
+            {
+                TerminateApp(app);
+            }
+        }
+        finally
+        {
+            if (testData is not null)
+            {
+                await testData.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+
+        Assert.Contains(
+            "Switched map tile source to OpenFreeMapVector (displaying OpenFreeMapVector)",
+            AppLogFile.ReadSince(logOffset),
+            StringComparison.Ordinal);
     }
 
     [E2EFact]
@@ -1991,6 +2048,62 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
         }
 
         item.Click();
+    }
+
+    private static string UserDataDirectory { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PhotoGeoExplorer");
+
+    /// <summary>
+    /// 利用者の settings.json を、指定した 1 項目だけを持つ（ほかは既定になる）ファイルへ一時的に置き換え、破棄で元のバイト列へ
+    /// 戻す（無かったファイルは消す）。アプリは終了時に設定を保存するので、アプリを終了させたあとに破棄すること。
+    /// </summary>
+    private sealed class UserSettingsOverride : IDisposable
+    {
+        private readonly string _path = Path.Combine(UserDataDirectory, "settings.json");
+        private readonly byte[]? _original;
+
+        public UserSettingsOverride(string property, string value)
+        {
+            Directory.CreateDirectory(UserDataDirectory);
+            _original = File.Exists(_path) ? File.ReadAllBytes(_path) : null;
+            var root = new JsonObject { [property] = value };
+            File.WriteAllText(_path, root.ToJsonString());
+        }
+
+        public void Dispose()
+        {
+            if (_original is null)
+            {
+                File.Delete(_path);
+            }
+            else
+            {
+                File.WriteAllBytes(_path, _original);
+            }
+        }
+    }
+
+    /// <summary>アプリのログ（app.log）の、テスト中に追記された部分を読む。</summary>
+    private static class AppLogFile
+    {
+        private static string LogPath { get; } = Path.Combine(UserDataDirectory, "Logs", "app.log");
+
+        public static long GetLength() => File.Exists(LogPath) ? new FileInfo(LogPath).Length : 0;
+
+        public static string ReadSince(long offset)
+        {
+            if (!File.Exists(LogPath))
+            {
+                return string.Empty;
+            }
+
+            // アプリが動いている間もログを書くので、共有で開く。サイズ超過でログが繰り下げられた（短くなった）ときは、全体を読む
+            using var stream = new FileStream(LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            stream.Seek(offset <= stream.Length ? offset : 0, SeekOrigin.Begin);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
     }
 
     private sealed class E2ETestData : IAsyncDisposable
