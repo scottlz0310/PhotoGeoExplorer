@@ -100,7 +100,7 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
     public async Task VectorMapBackgroundSelectedInSettingsShowsThePhotoPin()
     {
         using var settings = new UserSettingsOverride("mapTileSource", "openFreeMapVector");
-        var logOffset = AppLogFile.GetLength();
+        var logTail = AppLogTail.CaptureDefault();
 
         E2ETestData? testData = null;
         try
@@ -144,7 +144,7 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
 
         Assert.Contains(
             "Switched map tile source to OpenFreeMapVector (displaying OpenFreeMapVector)",
-            AppLogFile.ReadSince(logOffset),
+            logTail.ReadAppended(),
             StringComparison.Ordinal);
     }
 
@@ -2081,28 +2081,6 @@ public sealed class AppE2ETests : IClassFixture<AppE2ETests.WarmupFixture>
             {
                 File.WriteAllBytes(_path, _original);
             }
-        }
-    }
-
-    /// <summary>アプリのログ（app.log）の、テスト中に追記された部分を読む。</summary>
-    private static class AppLogFile
-    {
-        private static string LogPath { get; } = Path.Combine(UserDataDirectory, "Logs", "app.log");
-
-        public static long GetLength() => File.Exists(LogPath) ? new FileInfo(LogPath).Length : 0;
-
-        public static string ReadSince(long offset)
-        {
-            if (!File.Exists(LogPath))
-            {
-                return string.Empty;
-            }
-
-            // アプリが動いている間もログを書くので、共有で開く。サイズ超過でログが繰り下げられた（短くなった）ときは、全体を読む
-            using var stream = new FileStream(LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            stream.Seek(offset <= stream.Length ? offset : 0, SeekOrigin.Begin);
-            using var reader = new StreamReader(stream);
-            return reader.ReadToEnd();
         }
     }
 
