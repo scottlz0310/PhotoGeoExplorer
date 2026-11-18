@@ -303,6 +303,69 @@ public sealed class VectorMapBackgroundTests
         Assert.Equal(1, FeatureCount(background));
     }
 
+    [Theory]
+    // 描画と同じ変換（緯度経度・連続ズーム）で中心を渡す。画素密度が高いほどズームは大きい
+    [InlineData(0, 0, WebMercator.ZoomZeroResolution, 1.0, 0, 0, 0)]
+    [InlineData(0, 0, WebMercator.ZoomZeroResolution / 32768, 1.5, 0, 0, 15.584962500721156)]
+    [InlineData(0, 0, WebMercator.ZoomZeroResolution * 2 / 32768, 2.0, 0, 0, 15.0)]
+    public void PrefetchRequestUsesTheCenterAndTheContinuousZoomOfTheView(
+        double centerX,
+        double centerY,
+        double resolution,
+        double density,
+        double expectedLatitude,
+        double expectedLongitude,
+        double expectedZoom)
+    {
+        Assert.True(ViewExtentRequest.TryCreate(centerX, centerY, resolution, 800, 600, density, "test", out var request));
+
+        var prefetch = VectorMapBackground.CreatePrefetchRequest(request);
+
+        Assert.Equal(expectedLatitude, prefetch.CenterLatitude, 9);
+        Assert.Equal(expectedLongitude, prefetch.CenterLongitude, 9);
+        Assert.Equal(expectedZoom, prefetch.Zoom, 9);
+    }
+
+    [Fact]
+    public async Task AViewThatStaysStillIsPrefetchedAfterTheIdleDelayAsync()
+    {
+        var clock = new ManualTimeProvider();
+        var prefetcher = new FakePrefetcher();
+        using var background = CreateBackground(out var renderer, prefetcher, clock);
+        background.Attach(CreateMap(width: 400, height: 300), () => 1.0);
+        var rendered = await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+
+        clock.Advance(ViewExtentPrefetchScheduler.DefaultIdleDelay);
+
+        var prefetch = Assert.Single(prefetcher.Requests);
+        Assert.Equal(rendered.CenterLatitude, prefetch.CenterLatitude, 9);
+        Assert.Equal(rendered.CenterLongitude, prefetch.CenterLongitude, 9);
+        Assert.Equal(rendered.Zoom, prefetch.Zoom, 9);
+    }
+
+    [Fact]
+    public async Task NothingIsPrefetchedWithoutAPrefetcherOrAfterDisposeAsync()
+    {
+        // 事前デコードを持たない背景（ラスタ以外の最小構成）でも描画は続く
+        using (var background = CreateBackground(out var renderer))
+        {
+            background.Attach(CreateMap(width: 400, height: 300), () => 1.0);
+            await renderer.NextRequestAsync().ConfigureAwait(true);
+        }
+
+        var clock = new ManualTimeProvider();
+        var prefetcher = new FakePrefetcher();
+        var disposed = CreateBackground(out var disposedRenderer, prefetcher, clock);
+        disposed.Attach(CreateMap(width: 400, height: 300), () => 1.0);
+        await disposedRenderer.NextRequestAsync().ConfigureAwait(true);
+
+        disposed.Dispose();
+        clock.Advance(ViewExtentPrefetchScheduler.DefaultIdleDelay);
+
+        Assert.Empty(prefetcher.Requests);
+    }
+
     [Fact]
     public void ConstructionRejectsMissingDependencies()
     {
@@ -323,15 +386,18 @@ public sealed class VectorMapBackgroundTests
     public async Task BusyChangedIsRaisedWhileRenderingAsync()
     {
         using var background = CreateBackground(out var renderer);
-        var raised = new ConcurrentQueue<bool>();
-        background.BusyChanged += (_, _) => raised.Enqueue(background.IsBusy);
+        var raised = 0;
+        background.BusyChanged += (_, _) => Interlocked.Increment(ref raised);
 
         background.Attach(CreateMap(width: 400, height: 300), () => 1.0);
         await renderer.NextRequestAsync().ConfigureAwait(true);
-        await WaitUntilAsync(() => !background.IsBusy && FeatureCount(background) == 1).ConfigureAwait(true);
 
-        Assert.Contains(true, raised);
-        Assert.False(raised.Last());
+        // BusyChanged は UI 以外のスレッドから、状態を変えたロックの外で発火する。ハンドラの中で IsBusy を読むと、
+        // すでに次の状態へ変わっていることがある（「忙しくなった」通知のハンドラが、終了後に false を読む）ので、
+        // 値ではなく、忙しくなった・終わったの 2 回の遷移が通知されたことを確かめる
+        await WaitUntilAsync(() => Volatile.Read(ref raised) == 2 && !background.IsBusy && FeatureCount(background) == 1)
+            .ConfigureAwait(true);
+        Assert.Equal(2, Volatile.Read(ref raised));
     }
 
     [Fact]
@@ -407,14 +473,21 @@ public sealed class VectorMapBackgroundTests
         background.Dispose();
     }
 
-    private static VectorMapBackground CreateBackground(out FakeRenderer renderer)
+    private static VectorMapBackground CreateBackground(
+        out FakeRenderer renderer,
+        IVectorMapPrefetcher? prefetcher = null,
+        TimeProvider? timeProvider = null)
     {
         renderer = new FakeRenderer();
-        return new VectorMapBackground(renderer, action =>
-        {
-            action();
-            return true;
-        });
+        return new VectorMapBackground(
+            renderer,
+            action =>
+            {
+                action();
+                return true;
+            },
+            prefetcher,
+            timeProvider);
     }
 
     private static Mapsui.Map CreateMap(double width, double height)
@@ -439,6 +512,19 @@ public sealed class VectorMapBackgroundTests
         {
             Assert.True(DateTime.UtcNow < deadline, "条件が満たされないまま待ち時間を超えた。");
             await Task.Delay(10).ConfigureAwait(true);
+        }
+    }
+
+    private sealed class FakePrefetcher : IVectorMapPrefetcher
+    {
+        private readonly ConcurrentQueue<VectorPrefetchRequest> _requests = new();
+
+        public IReadOnlyCollection<VectorPrefetchRequest> Requests => _requests;
+
+        public Task PrefetchAsync(VectorPrefetchRequest request, CancellationToken cancellationToken = default)
+        {
+            _requests.Enqueue(request);
+            return Task.CompletedTask;
         }
     }
 

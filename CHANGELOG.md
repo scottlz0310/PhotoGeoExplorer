@@ -5,16 +5,21 @@
 ## [Unreleased]
 
 ### 変更
+- `PhotoMapStudio.Rendering` を 0.1.0 から 0.2.0 へ更新した (#295 の PR ④-2)。事前デコード `IVectorMapPrefetcher` が追加された（`SkiaSharp` の版は 4.156.0 のまま）。
 - `SkiaSharp` 系パッケージ（`SkiaSharp`・`Views.WinUI`・`HarfBuzz`・`NativeAssets.WinUI`・`NativeAssets.Win32`）を 3.119.x から 4.156.0 へ明示して引き上げた (#295 の PR ③)。`PhotoMapStudio.Rendering` が 4.156.0 に依存するため。Mapsui 5.1.0 の描画・PNG 保存は #293 の関門で動作確認済み。Web メルカトルのズーム 0 の解像度の定数は `WebMercator` に一本化した
 - 地図の背景を `IMapBackground` で扱う内部構造に変更し、`MapPaneViewModel`・`MapPaneViewControl`・PNG 保存が `TileLayer` に依存しないようにした (#295 の PR ①。見た目・操作・保存される PNG は変わらない)。PNG 保存は、背景が返す保存用レイヤーと写真マーカーなど背景以外のレイヤーを合成して描く。ベクター背景を後から追加できるようにするための土台で、背景の切り替え・読み込み中の保存ボタンの無効化・帰属表示は従来どおり。
 - ターゲットフレームワークを `Directory.Build.props` の `DotNetTargetFramework` に一本化し、全プロジェクトと E2E の exe パス解決がそこを参照するようにした。Renovate の追跡もこの 1 行だけに絞った。これまで追跡漏れだった E2E（`net8.0`）と Core が、他と同じ `net10.0` になる（E2E のために .NET 8 ランタイムが要らなくなる）
 
 ### 追加
+- ベクター地図で、操作が止まって 120 ms 後に、表示範囲の中心を囲む 2×2 枚のタイルを先に取得・デコードするようにした (#295 の PR ④-2)。ズームアウトで未見の隣のタイルが必要になったときに、描画の中でデコードする時間（密集市街地で 1 枚 30 ms 以上）を避ける。描画中は始めず、新しい視点が来たら取り消す。失敗しても描画の中で取得されるため表示は損なわれず、ログにだけ残す。ウォームアップは、実タイルの通信になり意味のある地点も決められないため入れていない。
 - 設定の「地図タイルソース」に **OpenFreeMap（ベクター地図）** を追加 (#295 の PR ④-1)。選ぶと、OpenFreeMap のベクタータイルを表示範囲全体の 1 枚の画像に描いて背景にする（PR ③ の `VectorMapBackground`）。**既定は従来どおり OpenStreetMap で、選ばない限り見た目・操作は変わらない。** ウィンドウを別の表示倍率のモニターへ動かすと、新しい密度で描き直す（`XamlRoot` の変化を ViewModel へ伝える）。タイルのキャッシュは `Cache\Tiles\OpenFreeMapVector`。ズームの段階（0〜19、OpenStreetMap と同じ上限）を Mapsui に与え、写真を選ぶと既定のズームで地図が表示される（与えないと視点の解像度が 0 のまま何も描かれない）。ズームの上下限も与え、ホイールやピンチで際限なく拡大・縮小できないようにする（ラスタと同じ範囲）。この PC で実際に選択して、地図と GPS ピンが表示されることまで確認済み。ホイール・パンの操作、見た目の比較などの実機での受け入れ確認・ウォームアップ・ヘルプとプライバシーの追記は PR ④-2・④-3
 - ベクター地図の背景 `VectorMapBackground` を追加 (#295 の PR ③。PR ④-1 で設定から選べるようになった)。`PhotoMapStudio.Rendering` 0.1.0 で OpenFreeMap のタイルを表示範囲全体の 1 枚の画像に描き、視点の変化に合わせて描き直す。PNG 保存は保存時の視点と密度で確定描画し、タイルが欠けたまま書き出さない。通信・キャッシュ（`Cache\Tiles\OpenFreeMapVector`）・スタイルは `OpenFreeMapVectorMapRenderer` が所有する。帰属表示（OpenFreeMap・OpenMapTiles・OpenStreetMap）を追加
 - ベクター地図の表示範囲画像を扱う内部部品を追加 (#295 の PR ②。製品からはまだ使われず、見た目・操作は変わらない)。描画要求の集約・世代管理・キャンセルを行う `ViewExtentRenderCoordinator`（Mapsui・WinUI 非依存）、参照カウントつきの画像の所有権 `SharedResource`、画像を地理範囲に合わせて Mapsui へ載せる `ViewExtentImageLayer`。Mapsui はアニメーション中（ホイールズームなど）の視点変更を UI スレッド以外で通知するため、コーディネーターは任意のスレッドから例外なく呼べる（PoC ではこの通知で XAML に触れてアニメーションが止まった）
 - ベクター地図レンダラー PoC（#293）の P2 に、実アプリの高 DPI（150%・175%・200%）の計測結果を追加（`docs/Architecture/MapEnhancement/poc/p2/`）。確定描画はどの DPI でも現行より大幅に遅く、フレーム時間も DPI が高いほど現行より悪化することを確認した（50 ms 超の停止は 0）
 - ベクター地図レンダラー PoC（#293）の P2「応答性」の結果を `docs/Architecture/MapEnhancement/poc/p2/` に追加。背景スレッド描画・要求の集約・世代管理・参照カウント・デコード済みキャッシュを、P0 と同じ手順で現行版と比較した（フレーム時間は同等、確定描画は現行より遅い。実装はスパイクブランチ `spike/293-p2`、`main` へはマージしない）
+
+### 修正
+- `VectorMapBackgroundTests.BusyChangedIsRaisedWhileRenderingAsync` が間欠的に失敗する問題を修正（`BusyChanged` は UI 以外のスレッドから、状態を変えたロックの外で発火するため、ハンドラの中で `IsBusy` を読むと既に次の状態へ変わっていた。値ではなく、2 回の遷移が通知されたことを確かめる）。pre-push の全テストを止めていた。
 
 ## [1.11.0] - 2026-11-15
 

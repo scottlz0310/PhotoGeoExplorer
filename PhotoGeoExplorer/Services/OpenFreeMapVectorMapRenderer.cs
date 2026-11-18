@@ -11,14 +11,14 @@ namespace PhotoGeoExplorer.Services;
 
 /// <summary>
 /// OpenFreeMap のベクタータイルを、表示範囲全体の 1 枚の画像として描く。通信・タイルのキャッシュ・スタイル・
-/// デコード済みタイルのキャッシュをこのクラスが所有する。
+/// デコード済みタイルのキャッシュをこのクラスが所有する。描画のほかに、タイルを先に取得・デコードする事前デコードも提供する。
 /// </summary>
 /// <remarks>
 /// 通信するのは描画を呼んだときだけ。<see cref="Dispose"/> は進行中の描画へキャンセルを要求するだけで、依存する資源
 /// （通信・キャッシュ）の破棄は、進行中の描画がすべて終わってから行う（キャンセルの完了前に破棄すると、
 /// 取得処理の終了処理が破棄済みの資源に触れるため）。
 /// </remarks>
-internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IDisposable
+internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IVectorMapPrefetcher, IDisposable
 {
     // 応答のない通信で、描画を待たせ続けない
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
@@ -69,6 +69,20 @@ internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IDispos
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
             return await _renderer.RenderViewAsync(request, linked.Token).ConfigureAwait(false);
+        }
+        finally
+        {
+            ExitCall();
+        }
+    }
+
+    public async Task PrefetchAsync(VectorPrefetchRequest request, CancellationToken cancellationToken = default)
+    {
+        EnterCall();
+        try
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
+            await _renderer.PrefetchAsync(request, linked.Token).ConfigureAwait(false);
         }
         finally
         {
