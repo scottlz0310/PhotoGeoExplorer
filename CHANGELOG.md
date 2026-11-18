@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-18
+
 ### 変更
 - `PhotoMapStudio.Rendering` を 0.1.0 から 0.2.0 へ更新した (#295 の PR ④-2)。事前デコード `IVectorMapPrefetcher` が追加された（`SkiaSharp` の版は 4.156.0 のまま）。
 - `SkiaSharp` 系パッケージ（`SkiaSharp`・`Views.WinUI`・`HarfBuzz`・`NativeAssets.WinUI`・`NativeAssets.Win32`）を 3.119.x から 4.156.0 へ明示して引き上げた (#295 の PR ③)。`PhotoMapStudio.Rendering` が 4.156.0 に依存するため。Mapsui 5.1.0 の描画・PNG 保存は #293 の関門で動作確認済み。Web メルカトルのズーム 0 の解像度の定数は `WebMercator` に一本化した
