@@ -248,12 +248,14 @@
         <li>Click pins to view shooting time, camera, file name, and resolution.</li>
         <li>Clicking a pin selects the corresponding photo in the list.</li>
         <li>Open the location in Google Maps from the pin details.</li>
-        <li>Switch map tiles between OpenStreetMap, Esri WorldImagery (satellite imagery), and Mapbox Satellite (satellite imagery).</li>
-        <li>OpenStreetMap and Esri tiles are cached locally for faster reloading. Mapbox tiles are not stored on the device.</li>
+        <li>Switch map tiles between OpenStreetMap, Esri WorldImagery (satellite imagery), Mapbox Satellite (satellite imagery), and OpenFreeMap (vector map). OpenStreetMap is the default.</li>
+        <li>OpenStreetMap, Esri, and OpenFreeMap tiles are cached locally for faster reloading. Mapbox tiles are not stored on the device.</li>
         <li>Mapbox Satellite requires a public access token (starting with <code>pk.</code>) issued from your own Mapbox account. Enter it under Map in Settings and choose Save to enable the option. Use Test connection to check that the token works.</li>
         <li>The token is stored in Windows Credential Manager and is never written to the settings file or exports. Secret tokens (<code>sk.</code>) cannot be saved.</li>
         <li>Mapbox usage and charges are billed to the account that issued the token. See the <a href="https://www.mapbox.com/pricing" target="_blank" rel="noopener noreferrer">Mapbox pricing page</a> (Raster Tiles API) for the free tier and rates. URL-restricted tokens may not work from a desktop app.</li>
         <li>If Mapbox Satellite is selected but no token is set, OpenStreetMap is shown and a notice appears at the top left of the map.</li>
+        <li>OpenFreeMap (vector map) draws the whole displayed area as a single image from map data. When you first display it or move far away, it takes a moment to fetch the data and draw, and the previous map is scaled in the meantime, so the outer area can be blank. When the network is unavailable, the parts that could not be fetched are left blank.</li>
+        <li>With OpenFreeMap (vector map), when your operation stops, map data near the center of the displayed area is fetched in advance to make the next zoom-out faster.</li>
         <li>The map provider attribution is shown at the bottom right of the map. While Mapbox Satellite is displayed, the Mapbox logo is also shown at the bottom left. Both are included in saved map images.</li>
         <li>When you select a single photo, the address (town name), the nearest road name (a suggestion), and the latitude/longitude of its location are shown to the right of the map title. Click the latitude/longitude to copy it. Choose the items to show from the right-click menu of the header or under Map in Settings.</li>
         <li>The address appears once you import the data for the prefecture under Area data (town names) in Settings (see Settings below). Point at the address to see the small-area code and the census year. When the photo location is outside every small-area boundary, the nearest area within 30 m is shown and the tooltip says so. No address is shown over water such as the sea or lakes.</li>
@@ -344,7 +346,7 @@
       <h2>Privacy</h2>
       <ul>
         <li>Photos and settings are processed locally and not uploaded.</li>
-        <li>Map tiles are fetched from OpenStreetMap and Esri servers. When Mapbox Satellite is selected, tiles are fetched from Mapbox servers.</li>
+        <li>Map tiles are fetched from OpenStreetMap and Esri servers. When OpenFreeMap (vector map) is selected, they are fetched from OpenFreeMap servers, and when Mapbox Satellite is selected, from Mapbox servers.</li>
         <li>The address lookup uses the area data you imported, runs on this device, and does not send the photo location.</li>
         <li>See the privacy policy for details.</li>
       </ul>
