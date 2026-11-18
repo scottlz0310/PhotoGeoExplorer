@@ -158,6 +158,74 @@ public sealed class VectorMapBackgroundTests
         Assert.Equal(expectedResolution, map.Navigator.Viewport.Resolution, 9);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PanByGestureMovesTheViewEvenIfMapsuiLimitedThePanBoundsToASinglePointAsync(bool afterRender)
+    {
+        // 実機で見つかった不具合: 実行中に背景を切り替えた後、Mapsui のパンの範囲が視点の中心の 1 点（Min = Max）になり、
+        // パンできなくなった。範囲を明示すれば、レイヤーから決まる範囲に左右されない
+        using var background = CreateBackground(out var renderer);
+        var map = CreateMap(width: 400, height: 300);
+        map.Layers.Add(background.Layers[0]);
+        var viewport = map.Navigator.Viewport;
+        map.Navigator.OverridePanBounds = new MRect(viewport.CenterX, viewport.CenterY, viewport.CenterX, viewport.CenterY);
+        background.Attach(map, () => 1.0);
+        if (afterRender)
+        {
+            await renderer.NextRequestAsync().ConfigureAwait(true);
+            await WaitUntilAsync(() => FeatureCount(background) == 1 && !background.IsBusy).ConfigureAwait(true);
+        }
+
+        var before = map.Navigator.Viewport.CenterX;
+
+        // 右から左へ 100 px ドラッグ
+        map.Navigator.Manipulate(new Manipulation(new ScreenPosition(100, 150), new ScreenPosition(200, 150), 1.0, 0, 0));
+
+        Assert.NotEqual(before, map.Navigator.Viewport.CenterX);
+    }
+
+    [Fact]
+    public void PanBoundsCoverTheWholeWorldSoThatThePanIsNotLimitedByTheLayers()
+    {
+        using var background = CreateBackground(out _);
+        var map = CreateMap(width: 400, height: 300);
+
+        background.Attach(map, () => 1.0);
+
+        var bounds = Assert.IsType<MRect>(map.Navigator.OverridePanBounds);
+        Assert.Equal(-WebMercator.HalfWorldExtent, bounds.MinX, 6);
+        Assert.Equal(-WebMercator.HalfWorldExtent, bounds.MinY, 6);
+        Assert.Equal(WebMercator.HalfWorldExtent, bounds.MaxX, 6);
+        Assert.Equal(WebMercator.HalfWorldExtent, bounds.MaxY, 6);
+    }
+
+    [Fact]
+    public void DisposeRestoresThePanBoundsOnlyIfItSetThemAndKeepsOnesThatSomeoneElseSet()
+    {
+        var first = CreateBackground(out _);
+        var map = CreateMap(width: 400, height: 300);
+        first.Attach(map, () => 1.0);
+        Assert.NotNull(map.Navigator.OverridePanBounds);
+        first.Dispose();
+        Assert.Null(map.Navigator.OverridePanBounds);
+
+        // 背景を入れ替えた直後（新しい背景が Attach 済み）に、古い背景を破棄しても、新しい背景の設定を消さない
+        var old = CreateBackground(out _);
+        old.Attach(map, () => 1.0);
+        using var replacement = CreateBackground(out _);
+        replacement.Attach(map, () => 1.0);
+        var replacementBounds = map.Navigator.OverridePanBounds;
+        old.Dispose();
+        Assert.Same(replacementBounds, map.Navigator.OverridePanBounds);
+
+        // 他の呼び出し側が設定した値は消さない
+        var others = new MRect(-1, -1, 1, 1);
+        map.Navigator.OverridePanBounds = others;
+        replacement.Dispose();
+        Assert.Same(others, map.Navigator.OverridePanBounds);
+    }
+
     [Fact]
     public void AttachSetsTheZoomLimitsAndDisposeRestoresThem()
     {

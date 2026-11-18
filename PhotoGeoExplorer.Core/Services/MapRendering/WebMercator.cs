@@ -12,6 +12,9 @@ internal static class WebMercator
     /// <summary>球面メルカトルの地球半径（m）。</summary>
     internal const double EarthRadius = 6378137.0;
 
+    /// <summary>世界全体の範囲の、中心から端までの距離（m。赤道上の半周）。東西・南北とも ±この値が世界の範囲になる。</summary>
+    internal const double HalfWorldExtent = Math.PI * EarthRadius;
+
     /// <summary>
     /// ズームレベル 0 から <paramref name="maxLevel"/> までの、各レベルの解像度（m/論理ピクセル）。レベルが 1 上がるごとに半分になる。
     /// </summary>
