@@ -7,7 +7,7 @@ namespace PhotoGeoExplorer.Services.MapRendering;
 /// Mapsui にも描画エンジンにも依存しない。
 /// <list type="bullet">
 /// <item>描画が実行中の間は始めない（描画と CPU を取り合うため）。描画が終わるまで、待ち時間ごとに確認し直す。</item>
-/// <item>直前に済ませたタイルと同じ（取得ズームと中心のタイルが同じ）なら、繰り返さない。</item>
+/// <item>直前に済ませた 2×2 枚と同じ（取得ズームと、先読みする 2×2 の起点が同じ）なら、繰り返さない。</item>
 /// <item>新しい視点が来たら、実行中の事前デコードを取り消す（その視点の先読みは、もう古い）。</item>
 /// </list>
 /// <see cref="Notify"/> は任意のスレッドから呼べ、破棄後は何もしない。Mapsui はアニメーション中の視点変更を
@@ -89,17 +89,26 @@ internal sealed class ViewExtentPrefetchScheduler : IDisposable
         }
     }
 
-    /// <summary>事前デコードの単位。取得ズームと、視点の中心が属するタイル（連続ズームの切り捨てで求める）。</summary>
-    internal static (int Zoom, long X, long Y) GetTileKey(ViewExtentRequest request)
+    /// <summary>
+    /// 事前デコードの単位。取得ズーム（連続ズームの切り捨て）と、先読みする 2×2 枚の左上のタイル。
+    /// </summary>
+    /// <remarks>
+    /// 描画エンジンは、中心のタイル座標 t に対して floor(t − 0.5) とその次の列・行を選ぶ（中心が属するタイルと、中心から
+    /// 最も近い隣）。中心が同じタイルの中でも、半分を越えると対象が変わるため、中心のタイルではなく 2×2 の起点で判定する
+    /// （中心のタイルで判定すると、半タイルを越えて東西・南北の隣が変わっても先読みが省かれる）。
+    /// 描画エンジンは取得元の最大ズームで頭打ちにするが、ここでは頭打ちにしない。最大ズームを超える間は、同じタイルを
+    /// 余分に先読みすることがある（デコード済みのキャッシュに当たるので軽い）が、先読みが省かれることはない。
+    /// </remarks>
+    internal static (int Zoom, long X, long Y) GetPrefetchKey(ViewExtentRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var zoom = Math.Max(0, (int)Math.Floor(WebMercator.ZoomFromResolution(request.Resolution, request.PixelDensity)));
         var tiles = Math.Pow(2, zoom);
         var circumference = 2 * Math.PI * WebMercator.EarthRadius;
-        var x = (long)Math.Floor((request.CenterX + (circumference / 2)) / circumference * tiles);
-        var y = (long)Math.Floor(((circumference / 2) - request.CenterY) / circumference * tiles);
-        return (zoom, x, y);
+        var tileX = (request.CenterX + (circumference / 2)) / circumference * tiles;
+        var tileY = ((circumference / 2) - request.CenterY) / circumference * tiles;
+        return (zoom, (long)Math.Floor(tileX - 0.5), (long)Math.Floor(tileY - 0.5));
     }
 
     private void OnTimer(object? state)
@@ -120,7 +129,7 @@ internal sealed class ViewExtentPrefetchScheduler : IDisposable
                 return;
             }
 
-            if (GetTileKey(latest) == _lastDone)
+            if (GetPrefetchKey(latest) == _lastDone)
             {
                 return;
             }
@@ -151,7 +160,7 @@ internal sealed class ViewExtentPrefetchScheduler : IDisposable
         catch (Exception exception)
 #pragma warning restore CA1031
         {
-            // 同じタイルで失敗し続けて記録があふれないよう、タイルが変わるまで再試行しない
+            // 同じ 2×2 で失敗し続けて記録があふれないよう、2×2 が変わるまで再試行しない
             finished = true;
             _prefetchFailed(request, exception);
         }
@@ -170,7 +179,7 @@ internal sealed class ViewExtentPrefetchScheduler : IDisposable
                 _running = null;
                 if (finished && !_disposed)
                 {
-                    _lastDone = GetTileKey(request);
+                    _lastDone = GetPrefetchKey(request);
                 }
             }
         }
