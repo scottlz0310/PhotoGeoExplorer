@@ -44,6 +44,16 @@ internal sealed class VectorMapBackground : IMapBackground
     // （最小＝最後の段階の半分、最大＝最初の段階）と同じにして、ラスタ（OpenStreetMap）と操作の範囲を揃える
     private readonly MMinMax _zoomBounds;
 
+    // パンの範囲も、レイヤーからは決まらない。Mapsui はレイヤーの範囲から自動で決めるが、ベクター背景のレイヤーの範囲は
+    // 直前に描いた 1 枚（＝表示範囲）で、実行中に背景を切り替えた後は、パンできる範囲が視点の中心の 1 点（Min = Max）になり、
+    // 何をしてもパンできなくなる（実機で確認）。世界全体を明示して、レイヤーに依存させない。ズームの上下限と同じく、
+    // 自分が設定した値のときだけ破棄で戻す（背景の差し替えで、新しい背景の設定を消さない）
+    private readonly MRect _panBounds = new(
+        -WebMercator.HalfWorldExtent,
+        -WebMercator.HalfWorldExtent,
+        WebMercator.HalfWorldExtent,
+        WebMercator.HalfWorldExtent);
+
     private readonly IVectorMapRenderer _renderer;
     private readonly ViewExtentImageLayer _layer;
     private readonly ViewExtentRenderCoordinator<SKImage> _coordinator;
@@ -117,6 +127,7 @@ internal sealed class VectorMapBackground : IMapBackground
         _getPixelDensity = getPixelDensity;
         map.Navigator.OverrideResolutions = _zoomResolutions;
         map.Navigator.OverrideZoomBounds = _zoomBounds;
+        map.Navigator.OverridePanBounds = _panBounds;
         map.Navigator.ViewportChanged += OnViewportChanged;
         SubmitCurrentViewport();
     }
@@ -172,6 +183,11 @@ internal sealed class VectorMapBackground : IMapBackground
             if (ReferenceEquals(map.Navigator.OverrideZoomBounds, _zoomBounds))
             {
                 map.Navigator.OverrideZoomBounds = null;
+            }
+
+            if (ReferenceEquals(map.Navigator.OverridePanBounds, _panBounds))
+            {
+                map.Navigator.OverridePanBounds = null;
             }
         }
 
