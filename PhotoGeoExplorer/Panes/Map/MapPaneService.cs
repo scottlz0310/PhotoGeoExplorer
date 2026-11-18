@@ -91,7 +91,7 @@ internal sealed class MapPaneService : IMapPaneService
         var renderer = new OpenFreeMapVectorMapRenderer(
             Path.Combine(GetTileCacheRootDirectory(), background.SourceType.ToString()),
             background.UserAgent);
-        return new VectorMapBackground(renderer, tryPostToUi);
+        return new VectorMapBackground(renderer, tryPostToUi, renderer);
     }
 
     private TileLayer CreateTileLayer(MapBackgroundRequest background)

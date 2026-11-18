@@ -47,6 +47,7 @@ internal sealed class VectorMapBackground : IMapBackground
     private readonly IVectorMapRenderer _renderer;
     private readonly ViewExtentImageLayer _layer;
     private readonly ViewExtentRenderCoordinator<SKImage> _coordinator;
+    private readonly ViewExtentPrefetchScheduler? _prefetchScheduler;
     private Mapsui.Map? _map;
     private Func<double>? _getPixelDensity;
     private bool _wasIncomplete;
@@ -54,7 +55,17 @@ internal sealed class VectorMapBackground : IMapBackground
 
     /// <param name="renderer">描画エンジン。この背景が所有し、破棄のときに（<see cref="IDisposable"/> なら）破棄する。</param>
     /// <param name="tryPostToUi">処理を UI スレッドへ渡す。渡せなかったら false。</param>
-    internal VectorMapBackground(IVectorMapRenderer renderer, Func<Action, bool> tryPostToUi)
+    /// <param name="prefetcher">
+    /// 操作が止まったときに、中心付近のタイルを先に取得・デコードする。<paramref name="renderer"/> と同じデコード済みキャッシュを
+    /// 共有していること（別のキャッシュへ入れても描画に効かない）。<see langword="null"/> なら事前デコードをしない。
+    /// 破棄は <paramref name="renderer"/> の破棄に含まれる前提で、この背景は破棄しない。
+    /// </param>
+    /// <param name="timeProvider">事前デコードの待ち時間の計測に使う時計。テストで差し替える（<see langword="null"/> なら既定）。</param>
+    internal VectorMapBackground(
+        IVectorMapRenderer renderer,
+        Func<Action, bool> tryPostToUi,
+        IVectorMapPrefetcher? prefetcher = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(tryPostToUi);
@@ -70,6 +81,15 @@ internal sealed class VectorMapBackground : IMapBackground
             _layer.Show,
             OnRenderFailed);
         _coordinator.BusyChanged += OnCoordinatorBusyChanged;
+        if (prefetcher is not null)
+        {
+            _prefetchScheduler = new ViewExtentPrefetchScheduler(
+                (request, cancellationToken) => prefetcher.PrefetchAsync(CreatePrefetchRequest(request), cancellationToken),
+                () => _coordinator.IsBusy,
+                OnPrefetchFailed,
+                ViewExtentPrefetchScheduler.DefaultIdleDelay,
+                timeProvider);
+        }
     }
 
     public IReadOnlyList<ILayer> Layers { get; }
@@ -156,6 +176,7 @@ internal sealed class VectorMapBackground : IMapBackground
         }
 
         _coordinator.BusyChanged -= OnCoordinatorBusyChanged;
+        _prefetchScheduler?.Dispose();
         _coordinator.Dispose();
         _layer.Dispose();
         (_renderer as IDisposable)?.Dispose();
@@ -185,6 +206,19 @@ internal sealed class VectorMapBackground : IMapBackground
         };
     }
 
+    /// <summary>
+    /// 表示範囲の描画要求を、事前デコードの入力（中心の緯度経度と連続ズーム）へ変換する。
+    /// </summary>
+    internal static VectorPrefetchRequest CreatePrefetchRequest(ViewExtentRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return new VectorPrefetchRequest(
+            WebMercator.ToLatitude(request.CenterY),
+            WebMercator.ToLongitude(request.CenterX),
+            WebMercator.ZoomFromResolution(request.Resolution, request.PixelDensity));
+    }
+
     private async Task<SKImage> RenderAsync(ViewExtentRequest request, CancellationToken cancellationToken)
     {
         using var result = await _renderer
@@ -212,6 +246,10 @@ internal sealed class VectorMapBackground : IMapBackground
     private static void OnRenderFailed(ViewExtentRequest request, Exception exception)
         => AppLog.Error("Failed to render the vector map.", exception);
 
+    // 事前デコードは最適化で、失敗しても描画の中で取得・デコードされる。表示は損なわれないので、記録だけ残す
+    private static void OnPrefetchFailed(ViewExtentRequest request, Exception exception)
+        => AppLog.Error("Failed to prefetch the vector map tiles.", exception);
+
     private void OnViewportChanged(object? sender, EventArgs e) => SubmitCurrentViewport();
 
     private void SubmitCurrentViewport()
@@ -233,6 +271,7 @@ internal sealed class VectorMapBackground : IMapBackground
                 out var request))
         {
             _coordinator.Submit(request);
+            _prefetchScheduler?.Notify(request);
         }
     }
 

@@ -17,6 +17,8 @@ public sealed class OpenFreeMapVectorMapRendererTests
 
     private static readonly VectorViewRequest TokyoRequest = new(35.681, 139.767, 15, 256, 256);
 
+    private static readonly VectorPrefetchRequest TokyoPrefetchRequest = new(35.681, 139.767, 15);
+
     [Theory]
     [InlineData("", UserAgent)]
     [InlineData(" ", UserAgent)]
@@ -105,6 +107,52 @@ public sealed class OpenFreeMapVectorMapRendererTests
 
             await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => renderer.RenderViewAsync(TokyoRequest, CancellationToken.None)).ConfigureAwait(true);
+        }).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task APrefetchFailureFromTheDeliverySourceIsNotHiddenAsync()
+    {
+        await WithTemporaryDirectoryAsync(async directory =>
+        {
+            using var handler = new FixedStatusHandler(HttpStatusCode.ServiceUnavailable);
+            using var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent, handler);
+
+            await Assert.ThrowsAnyAsync<Exception>(
+                () => renderer.PrefetchAsync(TokyoPrefetchRequest, CancellationToken.None)).ConfigureAwait(true);
+
+            Assert.True(handler.RequestCount > 0);
+        }).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task DisposeCancelsAPrefetchThatTheCallerDidNotCancelAsync()
+    {
+        await WithTemporaryDirectoryAsync(async directory =>
+        {
+            using var handler = new HeldResponseHandler();
+            var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent, handler);
+
+            var prefetch = renderer.PrefetchAsync(TokyoPrefetchRequest, CancellationToken.None);
+            await handler.Started.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+
+            renderer.Dispose();
+            handler.Release();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => prefetch).ConfigureAwait(true);
+        }).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task PrefetchAfterDisposeIsRejectedAsync()
+    {
+        await WithTemporaryDirectoryAsync(async directory =>
+        {
+            var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent);
+            renderer.Dispose();
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => renderer.PrefetchAsync(TokyoPrefetchRequest, CancellationToken.None)).ConfigureAwait(true);
         }).ConfigureAwait(true);
     }
 
