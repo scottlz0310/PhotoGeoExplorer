@@ -43,6 +43,7 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
     private readonly IGeoExportUi _ui;
     private readonly PhotoRoadNameResolver? _roadNameResolver;
     private readonly Func<bool>? _suggestRoadNames;
+    private readonly Func<Action<int>, IProgress<int>> _createProgress;
     private CancellationTokenSource? _cancellation;
     private RoadNameLookup? _roadNames;
     private bool _isBusy;
@@ -54,7 +55,8 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         IGeoExportService exportService,
         IGeoExportUi ui,
         PhotoRoadNameResolver? roadNameResolver = null,
-        Func<bool>? suggestRoadNames = null)
+        Func<bool>? suggestRoadNames = null,
+        Func<Action<int>, IProgress<int>>? createProgress = null)
     {
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         _recordLoader = recordLoader ?? throw new ArgumentNullException(nameof(recordLoader));
@@ -62,6 +64,7 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         _ui = ui ?? throw new ArgumentNullException(nameof(ui));
         _roadNameResolver = roadNameResolver;
         _suggestRoadNames = suggestRoadNames;
+        _createProgress = createProgress ?? (report => new Progress<int>(report));
         ExportCsvCommand = new RelayCommand(ExportCsvAsync, CanExport);
         CopyByAreaCommand = new RelayCommand(CopyByAreaAsync, CanExport);
         ExportRenamedCommand = new RelayCommand(ExportRenamedAsync, CanExport);
@@ -183,12 +186,26 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
             async (records, cancellationToken) =>
             {
                 var plan = buildPlan(records);
-                var progress = new Progress<int>(done => ProgressText = LocalizationService.Format("GeoExport.Progress.Copying", done, plan.Count));
+                var copyingActive = true;
+                var progress = _createProgress(done =>
+                {
+                    if (Volatile.Read(ref copyingActive))
+                    {
+                        ProgressText = LocalizationService.Format("GeoExport.Progress.Copying", done, plan.Count);
+                    }
+                });
                 ProgressText = LocalizationService.Format("GeoExport.Progress.Copying", 0, plan.Count);
-                var result = await _exportService
-                    .CopyAsync(plan, destination, _ui.ResolveConflictAsync, progress, cancellationToken)
-                    .ConfigureAwait(true);
-                Report(result);
+                try
+                {
+                    var result = await _exportService
+                        .CopyAsync(plan, destination, _ui.ResolveConflictAsync, progress, cancellationToken)
+                        .ConfigureAwait(true);
+                    Report(result);
+                }
+                finally
+                {
+                    Volatile.Write(ref copyingActive, false);
+                }
             }).ConfigureAwait(true);
     }
 
@@ -238,9 +255,25 @@ internal sealed class GeoExportViewModel : BindableBase, IDisposable
         ProgressText = LocalizationService.Format("GeoExport.Progress.Loading", 0, paths.Count);
         try
         {
-            var loadProgress = new Progress<int>(done => ProgressText = LocalizationService.Format("GeoExport.Progress.Loading", done, paths.Count));
+            var loadingActive = true;
+            var loadProgress = _createProgress(done =>
+            {
+                if (Volatile.Read(ref loadingActive))
+                {
+                    ProgressText = LocalizationService.Format("GeoExport.Progress.Loading", done, paths.Count);
+                }
+            });
             _roadNames = _roadNameResolver?.CreateLookup(_suggestRoadNames?.Invoke() ?? false);
-            var records = await _recordLoader.LoadAsync(paths, loadProgress, cancellation.Token, _roadNames).ConfigureAwait(true);
+            IReadOnlyList<PhotoGeoRecord> records;
+            try
+            {
+                records = await _recordLoader.LoadAsync(paths, loadProgress, cancellation.Token, _roadNames).ConfigureAwait(true);
+            }
+            finally
+            {
+                Volatile.Write(ref loadingActive, false);
+            }
+
             await operation(records, cancellation.Token).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
