@@ -386,15 +386,18 @@ public sealed class VectorMapBackgroundTests
     public async Task BusyChangedIsRaisedWhileRenderingAsync()
     {
         using var background = CreateBackground(out var renderer);
-        var raised = new ConcurrentQueue<bool>();
-        background.BusyChanged += (_, _) => raised.Enqueue(background.IsBusy);
+        var raised = 0;
+        background.BusyChanged += (_, _) => Interlocked.Increment(ref raised);
 
         background.Attach(CreateMap(width: 400, height: 300), () => 1.0);
         await renderer.NextRequestAsync().ConfigureAwait(true);
-        await WaitUntilAsync(() => !background.IsBusy && FeatureCount(background) == 1).ConfigureAwait(true);
 
-        Assert.Contains(true, raised);
-        Assert.False(raised.Last());
+        // BusyChanged は UI 以外のスレッドから、状態を変えたロックの外で発火する。ハンドラの中で IsBusy を読むと、
+        // すでに次の状態へ変わっていることがある（「忙しくなった」通知のハンドラが、終了後に false を読む）ので、
+        // 値ではなく、忙しくなった・終わったの 2 回の遷移が通知されたことを確かめる
+        await WaitUntilAsync(() => Volatile.Read(ref raised) == 2 && !background.IsBusy && FeatureCount(background) == 1)
+            .ConfigureAwait(true);
+        Assert.Equal(2, Volatile.Read(ref raised));
     }
 
     [Fact]
