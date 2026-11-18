@@ -301,6 +301,56 @@ public class GeoExportViewModelTests
     }
 
     [Fact]
+    public async Task LateProgressReportsAfterCompletionDoNotRestoreProgressText()
+    {
+        var capturedProgresses = new List<IProgress<int>>();
+        using var fixture = new Fixture
+        {
+            Folder = "/dest",
+            CreateProgress = report =>
+            {
+                var progress = new SynchronousProgress(report);
+                capturedProgresses.Add(progress);
+                return progress;
+            }
+        };
+        fixture.Select("/p/a.jpg");
+
+        await fixture.ViewModel.CopyByAreaAsync().ConfigureAwait(true);
+
+        Assert.Equal(2, capturedProgresses.Count);
+        Assert.Equal(string.Empty, fixture.ViewModel.ProgressText);
+
+        var notificationsAfterCompletion = 0;
+        fixture.ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(GeoExportViewModel.ProgressText))
+            {
+                notificationsAfterCompletion++;
+            }
+        };
+
+        // SynchronizationContext.Post や ThreadPool 経由でフェーズ完了後に遅れて届いた進捗通知は無視する。
+        capturedProgresses[0].Report(1);
+        capturedProgresses[1].Report(1);
+
+        Assert.Equal(string.Empty, fixture.ViewModel.ProgressText);
+        Assert.Equal(0, notificationsAfterCompletion);
+    }
+
+    [Fact]
+    public async Task DefaultProgressFactoryWorksWithoutInjectedFactory()
+    {
+        using var fixture = new Fixture { CsvPath = "/out/list.csv", CreateProgress = null };
+        fixture.Select("/p/a.jpg");
+
+        await fixture.ViewModel.ExportCsvAsync().ConfigureAwait(true);
+
+        Assert.Equal(string.Empty, fixture.ViewModel.ProgressText);
+        Assert.False(fixture.ViewModel.IsBusy);
+    }
+
+    [Fact]
     public void ConstructorRejectsNullArguments()
     {
         var workspace = new WorkspaceState();
@@ -342,8 +392,11 @@ public class GeoExportViewModelTests
                 Service,
                 Ui,
                 new PhotoRoadNameResolver(RoadStore, RoadSuggester, _ => 1000L),
-                () => SuggestRoadNames));
+                () => SuggestRoadNames,
+                CreateProgress));
         }
+
+        public Func<Action<int>, IProgress<int>>? CreateProgress { get; init; } = report => new SynchronousProgress(report);
 
         public FakeRoadStore RoadStore { get; } = new();
 
@@ -554,5 +607,10 @@ public class GeoExportViewModelTests
             CsvRecords = records;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class SynchronousProgress(Action<int> report) : IProgress<int>
+    {
+        public void Report(int value) => report(value);
     }
 }

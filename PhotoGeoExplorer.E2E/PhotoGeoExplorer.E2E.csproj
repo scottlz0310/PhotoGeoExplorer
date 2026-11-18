@@ -21,6 +21,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\PhotoGeoExplorer.Core\PhotoGeoExplorer.Core.csproj" />
+  </ItemGroup>
+
   <!-- 起動対象アプリの出力フォルダー名を、TFM の定義元（Directory.Build.props）から引くために埋め込む -->
   <ItemGroup>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
