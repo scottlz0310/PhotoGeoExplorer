@@ -61,11 +61,11 @@
   <!-- PhotoMapStudio.Rendering は SkiaSharp 4.156.0 に依存する。Mapsui 5.1.0 は 3.119.x の Skia 系を引くため、
        版の不一致で実行時に失敗しないよう、Skia 系は同じ版を明示する（Renovate は C# の依存関係として一括で更新する） -->
   <ItemGroup>
-    <PackageReference Include="SkiaSharp" Version="4.156.0" />
-    <PackageReference Include="SkiaSharp.Views.WinUI" Version="4.156.0" />
-    <PackageReference Include="SkiaSharp.HarfBuzz" Version="4.156.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.WinUI" Version="4.156.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.156.0" />
+    <PackageReference Include="SkiaSharp" Version="4.156.1" />
+    <PackageReference Include="SkiaSharp.Views.WinUI" Version="4.156.1" />
+    <PackageReference Include="SkiaSharp.HarfBuzz" Version="4.156.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.WinUI" Version="4.156.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.156.1" />
   </ItemGroup>
 
   <ItemGroup>
