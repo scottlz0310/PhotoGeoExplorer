@@ -50,10 +50,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
-    <PackageReference Include="Mapsui" Version="5.1.0" />
-    <PackageReference Include="Mapsui.WinUI" Version="5.1.0" />
-    <PackageReference Include="Mapsui.Nts" Version="5.1.0" />
-    <PackageReference Include="Mapsui.Rendering.Skia" Version="5.1.0" />
+    <PackageReference Include="Mapsui" Version="5.2.0" />
+    <PackageReference Include="Mapsui.WinUI" Version="5.2.0" />
+    <PackageReference Include="Mapsui.Nts" Version="5.2.0" />
+    <PackageReference Include="Mapsui.Rendering.Skia" Version="5.2.0" />
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
     <PackageReference Include="PhotoMapStudio.Rendering" Version="0.2.0" />
   </ItemGroup>
