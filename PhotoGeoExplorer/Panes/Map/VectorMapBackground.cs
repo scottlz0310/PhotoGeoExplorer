@@ -216,6 +216,8 @@ internal sealed class VectorMapBackground : IMapBackground
             request.ImageWidth,
             request.ImageHeight)
         {
+            // ズームと画像寸法は物理ピクセル。文字・線幅など、スタイルの大きさを画面上（論理ピクセル）で一定にするため、画素密度も伝える
+            PixelRatio = request.PixelDensity,
             AllowIncompleteMaps = allowIncompleteMaps,
             BandCount = DefaultBandCount,
             ParallelLabels = true,

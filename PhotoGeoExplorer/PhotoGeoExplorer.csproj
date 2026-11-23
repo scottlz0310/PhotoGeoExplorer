@@ -55,11 +55,11 @@
     <PackageReference Include="Mapsui.Nts" Version="5.2.0" />
     <PackageReference Include="Mapsui.Rendering.Skia" Version="5.2.0" />
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
-    <PackageReference Include="PhotoMapStudio.Rendering" Version="0.2.0" />
+    <PackageReference Include="PhotoMapStudio.Rendering" Version="0.3.0" />
   </ItemGroup>
 
-  <!-- PhotoMapStudio.Rendering は SkiaSharp 4.156.0 に依存する。Mapsui 5.1.0 は 3.119.x の Skia 系を引くため、
-       版の不一致で実行時に失敗しないよう、Skia 系は同じ版を明示する（Renovate は C# の依存関係として一括で更新する） -->
+  <!-- Mapsui が引く Skia 系の版と PhotoMapStudio.Rendering が依存する版が食い違うと、実行時に失敗し得る。
+       そのため Skia 系は、Rendering の依存に合わせた同じ版を明示する（Renovate は C# の依存関係として一括で更新する） -->
   <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="4.157.0" />
     <PackageReference Include="SkiaSharp.Views.WinUI" Version="4.157.0" />

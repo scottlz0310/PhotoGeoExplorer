@@ -51,6 +51,9 @@ public sealed class VectorMapBackgroundTests
         Assert.Equal(expectedZoom, view.Zoom, 9);
         Assert.Equal(expectedWidth, view.PixelWidth);
         Assert.Equal(expectedHeight, view.PixelHeight);
+
+        // 画素密度も伝える（伝えないと、文字・線幅が物理ピクセルで固定のため、密度が高いほど画面上で小さくなる）
+        Assert.Equal(density, view.PixelRatio);
     }
 
     [Fact]
