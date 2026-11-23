@@ -215,11 +215,16 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void ReportPixelDensity()
     {
-        if (_viewModel is not null && ((IMapControl)MapControl).GetPixelDensity() is { } pixelDensity)
+        if (_viewModel is not null && GetPixelDensity() is { } pixelDensity)
         {
             _viewModel.UpdatePixelDensity(pixelDensity);
         }
     }
+
+    // Mapsui の MapControl.GetPixelDensity() は「描画面の画素幅 ÷ 表示幅」で、表示倍率の変更の直後は 2 つの値の更新が
+    // 追いつかず、古い値や中途半端な比になる（XamlRoot.Changed で読むと、その後も訂正されない）。
+    // 表示倍率の変更の時点で更新済みの XamlRoot.RasterizationScale を、画素密度の唯一の取得元にする
+    private double? GetPixelDensity() => XamlRoot?.RasterizationScale;
 
     private void DetachViewModel()
     {
@@ -381,9 +386,9 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         var viewModel = _viewModel ?? throw new InvalidOperationException("The map pane view model is not attached.");
         var viewport = MapControl.Map.Navigator.Viewport;
-        var pixelDensity = ((IMapControl)MapControl).GetPixelDensity()
+        var pixelDensity = GetPixelDensity()
             ?? throw new InvalidOperationException("Map pixel density is not available.");
-        return viewModel.CaptureMapImageAsync(viewport, pixelDensity, cancellationToken);
+        return viewModel.CaptureMapImageAsync(viewport, (float)pixelDensity, cancellationToken);
     }
 
     private void OnMapHeaderRightTapped(object sender, RightTappedRoutedEventArgs e)
