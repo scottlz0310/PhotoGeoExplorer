@@ -4,11 +4,11 @@ This app requires the .NET Desktop Runtime to run. It is automatically provided 
 It targets Windows 10/11 and renders maps using WinUI 3 and Mapsui.","PhotoGeoExplorer は、GPS 情報（ジオタグ）を含む写真を地図上に表示し、撮影場所から写真を整理・探索できる Windows デスクトップアプリです。
 このアプリを実行するには .NET Desktop Runtime が必要です。Microsoft Store からのインストール時に自動的に提供されます。
 Windows 10/11 を対象とし、WinUI 3 と Mapsui で地図を描画します。"
-ReleaseNotes,3,テキスト,,"Release Notes (v1.12.0)
-- New: Added OpenFreeMap (vector map) as a selectable map tile source in Settings (the default remains OpenStreetMap). It renders tiles to match each monitor's display scaling cleanly and prefetches surrounding tiles when panning or zooming stops
-- Improved: Target framework definitions and SkiaSharp dependencies are unified, and map pan/zoom bounds and background export/progress notifications are fixed","リリースノート（v1.12.0）
-- 新機能: 設定の「地図タイルソース」に「OpenFreeMap（ベクター地図）」を追加しました（既定は OpenStreetMap のままです）。モニターの表示倍率に合わせて鮮明に描き直し、操作が止まると周辺タイルを先読みします
-- 改善: ベクター地図のパン・ズーム範囲の制約や地図画像保存（PNG）、進捗表示の不具合修正、ターゲットフレームワーク定義の一本化を行いました"
+ReleaseNotes,3,テキスト,,"Release Notes (v1.12.1)
+- Fixed: With OpenFreeMap (vector map), text and road widths now stay about the same size on screen at every Windows display scaling level (100-200%), including when the scaling is changed while the app is running
+- Improved: The vector map shows more detail, such as mountain peaks with elevations, color-coded place markers, forest textures, bus stops and stations, ropeways and house numbers (the default remains OpenStreetMap)","リリースノート（v1.12.1）
+- 修正: ベクター地図（OpenFreeMap）で、Windows の表示倍率（100〜200%）によらず文字と道路の太さが画面上でほぼ一定になり、実行中に表示倍率を変えた場合も正しく描き直されるようにしました
+- 改善: ベクター地図の表現を拡充しました（山頂と標高、施設の分類別の色、森の樹木の模様、バス停・駅、ロープウェイ、番地など。既定は OpenStreetMap のままです）"
 Title,4,テキスト,,PhotoGeoExplorer,PhotoGeoExplorer
 ShortTitle,5,テキスト,,Explore Photos on a Map,写真を地図で整理・探索
 SortTitle,6,テキスト,,,
