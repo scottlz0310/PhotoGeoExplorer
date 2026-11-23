@@ -22,16 +22,10 @@ public static partial class PixelDensitySourceTests
         var sources = Directory.EnumerateFiles(appDirectory, "*.cs", SearchOption.AllDirectories)
             .Where(path => !IsBuildOutput(path))
             .ToList();
-        var violations = new List<string>();
-        foreach (var path in sources)
-        {
-            // 理由を説明するコメントが API 名に触れるため、コメント行は対象にしない
-            var code = File.ReadLines(path).Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal));
-            if (code.Any(ReceiverQualifiedGetPixelDensityPattern().IsMatch))
-            {
-                violations.Add(Path.GetFileName(path));
-            }
-        }
+        var violations = sources
+            .Where(path => CallsGetPixelDensityOnAnotherObject(File.ReadAllText(path)))
+            .Select(Path.GetFileName)
+            .ToList();
 
         Assert.NotEmpty(sources);
         Assert.True(
@@ -40,6 +34,7 @@ public static partial class PixelDensitySourceTests
             + "XamlRoot.RasterizationScale を使ってください）: " + string.Join(", ", violations));
     }
 
+    // 実際のソース走査（上のテスト）と同じ経路（コメントの除去 → 複数行にまたがる照合 → 自前の呼び出しの除外）を通す
     [Theory]
     [InlineData("var density = ((IMapControl)MapControl).GetPixelDensity();")]
     [InlineData("var density = ((IMapControl)map).GetPixelDensity() ?? 1;")]
@@ -49,26 +44,55 @@ public static partial class PixelDensitySourceTests
     [InlineData("IMapControl control = MapControl; var density = control.GetPixelDensity();")]
     [InlineData("var density = GetControl()!.GetPixelDensity();")]
     [InlineData("var density = controls[0].GetPixelDensity();")]
-    public static void ThePatternDetectsCallsOnAnotherObject(string code)
-        => Assert.Matches(ReceiverQualifiedGetPixelDensityPattern(), code);
+    [InlineData("var density = mapControl\n    .GetPixelDensity();")]
+    [InlineData("var density = mapControl?\r\n    .GetPixelDensity();")]
+    [InlineData("var density = mapControl\r\n    ?.GetPixelDensity();")]
+    [InlineData("// MapControl.GetPixelDensity() は使わない\nvar density = control.GetPixelDensity();")]
+    [InlineData("var url = \"https://example.com/\"; var density = control.GetPixelDensity();")]
+    public static void TheScanDetectsCallsOnAnotherObject(string source)
+        => Assert.True(CallsGetPixelDensityOnAnotherObject(source));
 
     [Theory]
     [InlineData("private double GetPixelDensity() => Volatile.Read(ref _pixelDensity);")]
     [InlineData("private double? GetPixelDensity() => XamlRoot?.RasterizationScale;")]
     [InlineData("if (_viewModel is not null && GetPixelDensity() is { } pixelDensity)")]
+    [InlineData("if (_viewModel is not null && this.GetPixelDensity() is { } pixelDensity)")]
+    [InlineData("var density = this\n    .GetPixelDensity();")]
     [InlineData("newBackground.Attach(_map, GetPixelDensity);")]
     [InlineData("_getPixelDensity = getPixelDensity;")]
     [InlineData("var density = XamlRoot.RasterizationScale;")]
-    public static void ThePatternIgnoresTheOwnMethodAndOtherMembers(string code)
-        => Assert.DoesNotMatch(ReceiverQualifiedGetPixelDensityPattern(), code);
+    [InlineData("// Mapsui の MapControl.GetPixelDensity() は更新が追いつかない")]
+    [InlineData("/* mapControl.GetPixelDensity() は使わない */ var density = GetPixelDensity();")]
+    [InlineData("/*\n * control.GetPixelDensity() の説明\n */\nvar density = GetPixelDensity();")]
+    [InlineData("var density = GetPixelDensity(); // MapControl.GetPixelDensity() は使わない")]
+    public static void TheScanIgnoresTheOwnMethodCommentsAndOtherMembers(string source)
+        => Assert.False(CallsGetPixelDensityOnAnotherObject(source));
+
+    /// <summary>
+    /// ソースが、他のオブジェクトに対する <c>GetPixelDensity()</c> の呼び出しを含むか。
+    /// コメントは対象にしない（理由を説明するコメントが API 名に触れるため）。自前のメソッド（View・ViewModel の private な
+    /// <c>GetPixelDensity</c>）は、レシーバーなしか <c>this</c> / <c>base</c> で呼ぶので許容し、Mapsui の MapControl / IMapControl の値は、
+    /// 名前に依らず（フィールド名・ローカル変数名が何であっても）、<c>.</c>・<c>?.</c>、キャスト・インデクサー・<c>!</c> の後、
+    /// 複数行にまたがる呼び出しも検出する
+    /// </summary>
+    internal static bool CallsGetPixelDensityOnAnotherObject(string source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        var code = CommentPattern().Replace(source, " ");
+        return ReceiverQualifiedCallPattern().Matches(code)
+            .Any(match => match.Groups["receiver"].Value is not ("this" or "base"));
+    }
 
     private static bool IsBuildOutput(string path)
         => path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
             || path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
 
-    // レシーバー付きの GetPixelDensity の呼び出し（`.`・`?.`、キャスト・ローカル変数・インデクサー・`!` の後を含む）。
-    // 自前のメソッド（View・ViewModel の private な GetPixelDensity）は、レシーバーなしで呼ぶので対象外。
-    // Mapsui の MapControl / IMapControl の値は、名前に依らず（フィールド名・ローカル変数名が何であっても）検出する
-    [GeneratedRegex(@"[\w\)\]!]\s*\??\s*\.\s*GetPixelDensity\s*\(")]
-    private static partial Regex ReceiverQualifiedGetPixelDensityPattern();
+    // ブロックコメントと行コメント。URL の `://` を行コメントと取り違えないよう、直前が `:` や `"` の `//` は対象にしない
+    [GeneratedRegex(@"/\*.*?\*/|(?<![:""])//[^\r\n]*", RegexOptions.Singleline)]
+    private static partial Regex CommentPattern();
+
+    // レシーバー付きの呼び出し。レシーバーは、識別子、または `)` `]` `!`（キャスト・インデクサー・null 許容の後）で終わる式
+    [GeneratedRegex(@"(?<receiver>[\w\)\]!]+)\s*\??\s*\.\s*GetPixelDensity\s*\(")]
+    private static partial Regex ReceiverQualifiedCallPattern();
 }
