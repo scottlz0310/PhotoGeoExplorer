@@ -16,7 +16,7 @@ namespace PhotoGeoExplorer.Tests;
 public static partial class PixelDensitySourceTests
 {
     [Fact]
-    public static void AppCodeDoesNotReadThePixelDensityFromTheMapsuiMapControl()
+    public static void AppCodeDoesNotCallGetPixelDensityOnAnotherObject()
     {
         var appDirectory = Path.Combine(RepositoryPaths.FindRoot(), "PhotoGeoExplorer");
         var sources = Directory.EnumerateFiles(appDirectory, "*.cs", SearchOption.AllDirectories)
@@ -27,7 +27,7 @@ public static partial class PixelDensitySourceTests
         {
             // 理由を説明するコメントが API 名に触れるため、コメント行は対象にしない
             var code = File.ReadLines(path).Where(line => !line.TrimStart().StartsWith("//", StringComparison.Ordinal));
-            if (code.Any(MapControlPixelDensityPattern().IsMatch))
+            if (code.Any(ReceiverQualifiedGetPixelDensityPattern().IsMatch))
             {
                 violations.Add(Path.GetFileName(path));
             }
@@ -36,7 +36,7 @@ public static partial class PixelDensitySourceTests
         Assert.NotEmpty(sources);
         Assert.True(
             violations.Count == 0,
-            "Mapsui の MapControl.GetPixelDensity() を使っています（表示倍率の変更の直後は古い値を返します。"
+            "GetPixelDensity() を他のオブジェクトから呼んでいます（Mapsui の MapControl の値は、表示倍率の変更の直後は古い値を返します。"
             + "XamlRoot.RasterizationScale を使ってください）: " + string.Join(", ", violations));
     }
 
@@ -45,23 +45,30 @@ public static partial class PixelDensitySourceTests
     [InlineData("var density = ((IMapControl)map).GetPixelDensity() ?? 1;")]
     [InlineData("var density = MapControl.GetPixelDensity();")]
     [InlineData("var density = _mapControl . GetPixelDensity ( );")]
-    public static void ThePatternDetectsReadsFromTheMapControl(string code)
-        => Assert.Matches(MapControlPixelDensityPattern(), code);
+    [InlineData("var density = mapControl?.GetPixelDensity();")]
+    [InlineData("IMapControl control = MapControl; var density = control.GetPixelDensity();")]
+    [InlineData("var density = GetControl()!.GetPixelDensity();")]
+    [InlineData("var density = controls[0].GetPixelDensity();")]
+    public static void ThePatternDetectsCallsOnAnotherObject(string code)
+        => Assert.Matches(ReceiverQualifiedGetPixelDensityPattern(), code);
 
     [Theory]
     [InlineData("private double GetPixelDensity() => Volatile.Read(ref _pixelDensity);")]
     [InlineData("private double? GetPixelDensity() => XamlRoot?.RasterizationScale;")]
+    [InlineData("if (_viewModel is not null && GetPixelDensity() is { } pixelDensity)")]
+    [InlineData("newBackground.Attach(_map, GetPixelDensity);")]
     [InlineData("_getPixelDensity = getPixelDensity;")]
-    [InlineData("var density = background.GetPixelDensity();")]
     [InlineData("var density = XamlRoot.RasterizationScale;")]
-    public static void ThePatternIgnoresOtherPixelDensityMembers(string code)
-        => Assert.DoesNotMatch(MapControlPixelDensityPattern(), code);
+    public static void ThePatternIgnoresTheOwnMethodAndOtherMembers(string code)
+        => Assert.DoesNotMatch(ReceiverQualifiedGetPixelDensityPattern(), code);
 
     private static bool IsBuildOutput(string path)
         => path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
             || path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
 
-    // Mapsui の描画コントロール（MapControl / IMapControl）に対する GetPixelDensity の呼び出し
-    [GeneratedRegex(@"(?:IMapControl\s*\)\s*\w+\s*\)|\b\w*MapControl)\s*\.\s*GetPixelDensity\s*\(", RegexOptions.IgnoreCase)]
-    private static partial Regex MapControlPixelDensityPattern();
+    // レシーバー付きの GetPixelDensity の呼び出し（`.`・`?.`、キャスト・ローカル変数・インデクサー・`!` の後を含む）。
+    // 自前のメソッド（View・ViewModel の private な GetPixelDensity）は、レシーバーなしで呼ぶので対象外。
+    // Mapsui の MapControl / IMapControl の値は、名前に依らず（フィールド名・ローカル変数名が何であっても）検出する
+    [GeneratedRegex(@"[\w\)\]!]\s*\??\s*\.\s*GetPixelDensity\s*\(")]
+    private static partial Regex ReceiverQualifiedGetPixelDensityPattern();
 }
