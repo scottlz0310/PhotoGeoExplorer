@@ -28,7 +28,9 @@ namespace PhotoGeoExplorer.Tests;
 
 public sealed class RasterMapBackgroundTests
 {
-    private static readonly byte[] ValidTilePngBytes = CreateSolidPngBytes(SKColors.ForestGreen);
+    private static readonly byte[] ValidTilePngBytes = CreateSolidPngBytes(SKColors.ForestGreen, 256, 256);
+    private static readonly byte[] ValidBlueTilePngBytes = CreateSolidPngBytes(SKColors.RoyalBlue, 256, 256);
+    private static readonly byte[] ValidPatternTilePngBytes = CreatePatternPngBytes(256, 256);
 
     [Theory]
     [InlineData(MapTileSourceType.OpenStreetMap, MapAttribution.OpenStreetMapText)]
@@ -182,11 +184,31 @@ public sealed class RasterMapBackgroundTests
         Assert.DoesNotContain(infoLogs, line => line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal));
     }
 
-    [Theory]
-    [InlineData(new byte[] { 1, 2, 3, 4 })]
-    [InlineData(new byte[0])]
-    public async Task StartupApplierDoesNotEmitCompletionOrAdvanceSeqWhenRasterTilesAreUndecodableWithRealSkiaRendererAsync(byte[] invalidPayload)
+    public static IEnumerable<object[]> UndecodableTilePayloads()
     {
+        yield return [new byte[] { 1, 2, 3, 4 }, false, true];
+        yield return [Array.Empty<byte>(), false, true];
+        // 256×256 の青い PNG の先頭 62 バイトだけ（IHDR から寸法は読めるが IDAT が途中切断されピクセル未描画）
+        yield return [ValidBlueTilePngBytes[..Math.Min(62, ValidBlueTilePngBytes.Length)], true, true];
+        // 複数行の IDAT を持つ 256×256 PNG を中間で切断した不完全データ（部分描画されても完全デコードではない）
+        yield return [ValidPatternTilePngBytes[..(ValidPatternTilePngBytes.Length / 2)], true, false];
+    }
+
+    [Theory]
+    [MemberData(nameof(UndecodableTilePayloads))]
+    public async Task StartupApplierDoesNotEmitCompletionOrAdvanceSeqWhenRasterTilesAreUndecodableWithRealSkiaRendererAsync(
+        byte[] invalidPayload,
+        bool expectsHeaderDimensionsReadable,
+        bool expectsWhiteCenter)
+    {
+        if (expectsHeaderDimensionsReadable)
+        {
+            using var headerImage = SKImage.FromEncodedData(invalidPayload);
+            Assert.NotNull(headerImage);
+            Assert.Equal(256, headerImage.Width);
+            Assert.Equal(256, headerImage.Height);
+        }
+
         var tileSource = KnownTileSources.Create(KnownTileSource.OpenStreetMap);
         var dataChangedReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var layer = new TileLayer(
@@ -223,10 +245,14 @@ public sealed class RasterMapBackgroundTests
         await dataChangedReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
         await WaitUntilAsync(() => !background.IsBusy && HasAllViewportFeatures(layer, map.Navigator.Viewport)).ConfigureAwait(true);
 
-        // 実 Skia レンダラーで描画してもデコード不能タイルは描かれず白地のままで、完了通知も採番も行われない
+        // 実 Skia レンダラーで描画しても、デコード不能・途中切断タイルでは完了通知も採番も行われない
         var centerPixel = RenderToSkiaCenterPixel(renderer, map);
 
-        Assert.Equal(SKColors.White, centerPixel);
+        if (expectsWhiteCenter)
+        {
+            Assert.Equal(SKColors.White, centerPixel);
+        }
+
         Assert.False(background.IsBusy);
         Assert.Equal(0, Volatile.Read(ref frameRenderedCount));
         Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
@@ -478,11 +504,27 @@ public sealed class RasterMapBackgroundTests
     private static RasterFeature CreateValidRasterFeature(TileInfo tile)
         => new(new MRaster(ValidTilePngBytes, tile.Extent.ToMRect()));
 
-    private static byte[] CreateSolidPngBytes(SKColor color)
+    private static byte[] CreateSolidPngBytes(SKColor color, int width, int height)
     {
-        using var surface = SKSurface.Create(new SKImageInfo(8, 8, SKColorType.Rgba8888, SKAlphaType.Premul));
+        using var surface = SKSurface.Create(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
         surface.Canvas.Clear(color);
         using var image = surface.Snapshot();
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
+
+    private static byte[] CreatePatternPngBytes(int width, int height)
+    {
+        using var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                bitmap.SetPixel(x, y, new SKColor((byte)((x * 7 + y * 13) & 0xFF), (byte)((x * 11 ^ y * 5) & 0xFF), (byte)((x + y * 3) & 0xFF)));
+            }
+        }
+
+        using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         return data.ToArray();
     }

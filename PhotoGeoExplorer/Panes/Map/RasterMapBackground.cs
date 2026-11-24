@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BruTile;
@@ -23,6 +25,7 @@ namespace PhotoGeoExplorer.Panes.Map;
 internal sealed class RasterMapBackground : IMapBackground
 {
     private readonly TileLayer _layer;
+    private readonly ConditionalWeakTable<MRaster, StrongBox<bool>> _decodedValidityCache = new();
     private Mapsui.Map? _map;
     private long _dirtyVersion;
     private long _notifiedVersion;
@@ -262,9 +265,11 @@ internal sealed class RasterMapBackground : IMapBackground
         return true;
     }
 
-    // 描画開始前に TileCache 経由でデコード結果を検証する。有効なタイルはキャッシュに残るため
-    // 直後の MapRenderer.Render でそのまま再利用され、LRU 世代も MapRenderer 側で最新化される。
-    private static bool IsDecodableRaster(MRaster raster, RenderService renderService)
+    // 描画開始前に TileCache 経由でデコード結果を検証する。SKImage.FromEncodedData は遅延デコードのため、
+    // ヘッダーだけ読める途中で切れた PNG でも寸法付きの SKImage を返し得る。SKCodec.GetPixels で
+    // ピクセルの完全デコード成功（SKCodecResult.Success）まで確認し、結果は MRaster 単位でキャッシュする。
+    // 有効なタイルは TileCache に残るため直後の MapRenderer.Render で再利用され、LRU 世代も最新化される。
+    private bool IsDecodableRaster(MRaster raster, RenderService renderService)
     {
         if (raster.Data.Length == 0)
         {
@@ -272,7 +277,37 @@ internal sealed class RasterMapBackground : IMapBackground
         }
 
         var entry = renderService.TileCache.GetOrAdd(raster, RasterStyleRenderer.ToTileCacheEntry, currentIteration: 0);
-        return entry?.Data is SKImage { Width: > 0, Height: > 0 } or SKPicture;
+        if (entry?.Data is SKPicture picture)
+        {
+            return picture.CullRect.Width > 0 && picture.CullRect.Height > 0;
+        }
+
+        if (entry?.Data is not SKImage { Width: > 0, Height: > 0 })
+        {
+            return false;
+        }
+
+        return _decodedValidityCache
+            .GetValue(raster, static key => new StrongBox<bool>(VerifyFullPixelDecode(key.Data)))
+            .Value;
+    }
+
+    private static bool VerifyFullPixelDecode(byte[] data)
+    {
+        using var stream = new MemoryStream(data, writable: false);
+        using var codec = SKCodec.Create(stream, out var codecResult);
+        if (codecResult != SKCodecResult.Success || codec.Info.Width <= 0 || codec.Info.Height <= 0)
+        {
+            return false;
+        }
+
+        var decodeInfo = new SKImageInfo(
+            codec.Info.Width,
+            codec.Info.Height,
+            SKColorType.Rgba8888,
+            SKAlphaType.Premul);
+        using var bitmap = new SKBitmap(decodeInfo);
+        return codec.GetPixels(decodeInfo, bitmap.GetPixels()) == SKCodecResult.Success;
     }
 
     private static bool MatchesTileExtent(MRect actual, Extent expected)
