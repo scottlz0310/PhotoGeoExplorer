@@ -293,15 +293,19 @@ public sealed class MapPaneViewModelBackgroundTests
             var moveResult = await viewModel.ViewController.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 17.5)).ConfigureAwait(true);
             Assert.True(moveResult.Succeeded);
             Assert.Equal(17, moveResult.Status.StyleZoom);
+            Assert.Equal("z17.5", viewModel.ZoomIndicator.ZoomText);
             Assert.Equal(1, dispatcher.RunAsyncCount);
-            Assert.Equal(1, dispatcher.TryEnqueueCount);
+            Assert.True(dispatcher.TryEnqueueCount >= 1);
 
             viewModel.UpdatePixelDensity(1.5);
             Assert.Equal(1.5, viewModel.ViewController.CurrentStatus.PixelDensity);
             Assert.Equal(1200, viewModel.ViewController.CurrentStatus.ViewportSize.PhysicalWidth);
+            Assert.NotNull(viewModel.ZoomIndicator.ZoomToolTip);
 
             viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
             Assert.Equal("OpenFreeMapVector", viewModel.ViewController.CurrentStatus.TileSource.Displayed);
+            Assert.Equal("z17.5", viewModel.ZoomIndicator.ZoomText);
+            Assert.NotNull(viewModel.ZoomIndicator.ZoomToolTip);
             var nextBackground = service.Created[1];
             var nextCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
             Assert.NotNull(nextCompleted);

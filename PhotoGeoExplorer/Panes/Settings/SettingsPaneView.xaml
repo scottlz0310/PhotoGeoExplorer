@@ -192,6 +192,11 @@
                             IsChecked="{Binding MapHeader.ShowCoordinates, Mode=TwoWay}"
                             AutomationProperties.AutomationId="SettingsMapHeaderShowCoordinates" />
                         <CheckBox
+                            x:Uid="SettingsPaneMapHeaderShowZoom"
+                            Content="ズームレベルを表示"
+                            IsChecked="{Binding MapHeader.ShowZoom, Mode=TwoWay}"
+                            AutomationProperties.AutomationId="SettingsMapHeaderShowZoom" />
+                        <CheckBox
                             x:Uid="SettingsPaneMapHeaderIncludePrefecture"
                             Content="住所表記に都道府県名を含める"
                             IsChecked="{Binding MapHeader.IncludePrefecture, Mode=TwoWay}"

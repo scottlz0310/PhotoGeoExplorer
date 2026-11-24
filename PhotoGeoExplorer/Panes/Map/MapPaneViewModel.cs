@@ -97,6 +97,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _mapImageService = mapImageService ?? throw new ArgumentNullException(nameof(mapImageService));
         _dispatcherQueueAccessor = dispatcherQueueAccessor ?? DispatcherQueue.GetForCurrentThread;
         _uiDispatcher = uiDispatcher ?? new UiDispatcher();
+        ZoomIndicator = new MapZoomIndicatorViewModel(_viewController, LocationInfo.DisplaySettings, _uiDispatcher);
         _markerPresenter = new MapMarkerPresenter(_service);
         Title = "Map";
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
@@ -238,6 +239,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     /// </summary>
     public MapLocationInfoViewModel LocationInfo { get; }
 
+    /// <summary>
+    /// 地図ヘッダーに表示する現在の論理ズームレベル（#364）
+    /// </summary>
+    public MapZoomIndicatorViewModel ZoomIndicator { get; }
+
     /// <summary>字地名の地域データが無い地域の写真を選んだときの、ダウンロードの案内と取得</summary>
     public AreaDataAcquisitionViewModel AreaDataAcquisition { get; }
 
@@ -332,6 +338,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _mapUpdateCts?.Dispose();
         _mapUpdateCts = null;
         LocationInfo.Clear();
+        ZoomIndicator.Dispose();
 
         _markerLayer?.Dispose();
         _markerLayer = null;

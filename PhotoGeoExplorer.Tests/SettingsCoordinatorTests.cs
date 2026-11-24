@@ -118,6 +118,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
             ShowMapHeaderAddress = false,
             ShowMapHeaderRoadName = false,
             ShowMapHeaderCoordinates = false,
+            ShowMapHeaderZoom = false,
             MapHeaderIncludePrefecture = true
         };
         await context.SettingsService.SaveAsync(persisted).ConfigureAwait(true);
@@ -129,6 +130,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.False(display.ShowAddress);
         Assert.False(display.ShowRoadName);
         Assert.False(display.ShowCoordinates);
+        Assert.False(display.ShowZoom);
         Assert.True(display.IncludePrefecture);
     }
 
@@ -191,6 +193,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.True(saved.ShowMapHeaderAddress);
         Assert.True(saved.ShowMapHeaderRoadName);
         Assert.True(saved.ShowMapHeaderCoordinates);
+        Assert.True(saved.ShowMapHeaderZoom);
         Assert.False(saved.MapHeaderIncludePrefecture);
     }
 
@@ -202,6 +205,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
         context.Coordinator.MapHeaderDisplay.ShowAddress = false;
         context.Coordinator.MapHeaderDisplay.ShowRoadName = false;
         context.Coordinator.MapHeaderDisplay.ShowCoordinates = false;
+        context.Coordinator.MapHeaderDisplay.ShowZoom = false;
         context.Coordinator.MapHeaderDisplay.IncludePrefecture = true;
 
         context.Debounce.Elapse();
@@ -210,6 +214,7 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.False(saved.ShowMapHeaderAddress);
         Assert.False(saved.ShowMapHeaderRoadName);
         Assert.False(saved.ShowMapHeaderCoordinates);
+        Assert.False(saved.ShowMapHeaderZoom);
         Assert.True(saved.MapHeaderIncludePrefecture);
     }
 

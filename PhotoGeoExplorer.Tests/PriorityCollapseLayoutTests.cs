@@ -50,6 +50,45 @@ public class PriorityCollapseLayoutTests
         Assert.Equal(expected, Describe(widths));
     }
 
+    // ズームレベルを追加した 4 項目の並び: 字地名(100) │ 道路名(150) │ 緯度経度(120) │ ズーム(40)。区切りは幅 10
+    [Theory]
+    [InlineData(double.PositiveInfinity, true, true, true, true, "100,10,150,10,120,10,40")]
+    [InlineData(488, true, true, true, true, "100,10,150,10,120,10,40")]
+    // 1. まずズーム（priority 4）を緯度経度より先に非表示にする（直前の区切りも消える）
+    [InlineData(487, true, true, true, true, "100,10,150,10,120,-,-")]
+    [InlineData(422, true, true, true, true, "100,10,150,10,120,-,-")]
+    // 2. 次に緯度経度（priority 3）を非表示にする
+    [InlineData(421, true, true, true, true, "100,10,150,-,-,-,-")]
+    // 3. 道路名（priority 2）を詰める
+    [InlineData(200, true, true, true, true, "100,10,74,-,-,-,-")]
+    // 4. 写真未選択（ズームのみ表示）は区切りなしでズームだけ出る
+    [InlineData(500, false, false, false, true, "-,-,-,-,-,-,40")]
+    // 5. 緯度経度が非表示・ズーム表示のときは道路名とズームの間に区切りが 1 本だけ出る
+    [InlineData(500, true, true, false, true, "100,10,150,10,-,-,40")]
+    public void ComputeCollapsesZoomBeforeCoordinates(
+        double availableWidth,
+        bool hasAreaName,
+        bool hasRoadName,
+        bool hasCoordinates,
+        bool hasZoom,
+        string expected)
+    {
+        var items = new[]
+        {
+            new PriorityCollapseItem(100, Priority: 1, PriorityCollapseMode.Trim, IsPresent: hasAreaName),
+            new PriorityCollapseItem(10, IsSeparator: true),
+            new PriorityCollapseItem(150, Priority: 2, PriorityCollapseMode.Trim, IsPresent: hasRoadName),
+            new PriorityCollapseItem(10, IsSeparator: true),
+            new PriorityCollapseItem(120, Priority: 3, PriorityCollapseMode.Hide, IsPresent: hasCoordinates),
+            new PriorityCollapseItem(10, IsSeparator: true),
+            new PriorityCollapseItem(40, Priority: 4, PriorityCollapseMode.Hide, IsPresent: hasZoom)
+        };
+
+        var widths = PriorityCollapseLayout.Compute(items, availableWidth, Spacing, MinTrimmedWidth);
+
+        Assert.Equal(expected, Describe(widths));
+    }
+
     [Fact]
     public void ComputeNeverCollapsesItemsInKeepMode()
     {

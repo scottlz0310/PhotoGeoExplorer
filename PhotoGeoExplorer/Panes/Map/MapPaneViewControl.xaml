@@ -28,6 +28,11 @@
                     x:Uid="MapHeaderMenuShowCoordinates"
                     Text="Show latitude and longitude"
                     Click="OnMapHeaderMenuItemClicked" />
+                <ToggleMenuFlyoutItem
+                    x:Name="MapHeaderMenuShowZoom"
+                    x:Uid="MapHeaderMenuShowZoom"
+                    Text="Show zoom level"
+                    Click="OnMapHeaderMenuItemClicked" />
                 <MenuFlyoutSeparator />
                 <ToggleMenuFlyoutItem
                     x:Name="MapHeaderMenuIncludePrefecture"
@@ -234,6 +239,20 @@
                     Visibility="{Binding LocationInfo.CoordinatesVisibility, Mode=OneWay}"
                     ToolTipService.ToolTip="Click to copy the latitude and longitude"
                     AutomationProperties.AutomationId="MapHeaderCoordinates" />
+                <TextBlock
+                    x:Name="MapHeaderCoordinatesSeparator"
+                    VerticalAlignment="Center"
+                    Opacity="0.4"
+                    Text="│" />
+                <TextBlock
+                    x:Name="MapHeaderZoomText"
+                    VerticalAlignment="Center"
+                    FontSize="12"
+                    Opacity="0.8"
+                    Text="{Binding ZoomIndicator.ZoomText, Mode=OneWay}"
+                    Visibility="{Binding ZoomIndicator.ZoomVisibility, Mode=OneWay}"
+                    ToolTipService.ToolTip="{Binding ZoomIndicator.ZoomToolTip, Mode=OneWay}"
+                    AutomationProperties.AutomationId="MapHeaderZoom" />
             </local:PriorityCollapsePanel>
             <Button
                 Grid.Column="2"

@@ -492,6 +492,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             ShowMapHeaderAddress = MapHeaderDisplay.ShowAddress,
             ShowMapHeaderRoadName = MapHeaderDisplay.ShowRoadName,
             ShowMapHeaderCoordinates = MapHeaderDisplay.ShowCoordinates,
+            ShowMapHeaderZoom = MapHeaderDisplay.ShowZoom,
             MapHeaderIncludePrefecture = MapHeaderDisplay.IncludePrefecture,
             AreaDataDownloadMode = _mapPaneViewModel.AreaDataAcquisition.Mode,
             ShowQuickStartOnStartup = _showQuickStartOnStartup,
