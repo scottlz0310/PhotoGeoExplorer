@@ -11,6 +11,7 @@ using Mapsui.Layers;
 using Mapsui.Manipulations;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Services.E2E;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
 using SkiaSharp;
@@ -544,6 +545,111 @@ public sealed class VectorMapBackgroundTests
         background.Dispose();
     }
 
+    [Fact]
+    public async Task StartupApplierDoesNotEmitCompletionOrAdvanceSeqWhenVectorRenderFailsAsync()
+    {
+        using var background = CreateBackground(out var renderer);
+        using var map = CreateMap(width: 800, height: 600);
+        var controller = new MapViewController();
+        var frameRenderedCount = 0;
+
+        background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
+        background.FrameRendered += (_, _) =>
+        {
+            Interlocked.Increment(ref frameRenderedCount);
+            controller.NotifyFrameRendered();
+        };
+
+        // 起動直後の描画は失敗させる
+        renderer.FailNextCall = true;
+        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
+        background.Attach(map, () => 1.0);
+        await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+
+        Assert.Equal(0, Volatile.Read(ref frameRenderedCount));
+        Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
+
+        // 起動時指定（案 A）の移動後の描画も失敗させる
+        var infoLogs = new List<string>();
+        var errorLogs = new List<string>();
+        renderer.FailNextCall = true;
+
+        using var applier = new E2EMapStartupApplier(controller, infoLogs.Add, errorLogs.Add);
+        await applier.ApplyAsync(new MapViewTarget(43.768436, 142.362436, 17.5)).ConfigureAwait(true);
+        await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+
+        // 描画失敗で非ビジーに戻っても、FrameRendered・RenderedSeq・完了 JSON ログのいずれも発生しない
+        Assert.Equal(0, Volatile.Read(ref frameRenderedCount));
+        Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
+        Assert.DoesNotContain(infoLogs, line => line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal));
+        Assert.Empty(errorLogs);
+    }
+
+    [Fact]
+    public async Task StartupApplierEmitsCompletionOnceOnlyAfterTargetViewportFrameIsShownAsync()
+    {
+        using var background = CreateBackground(out var renderer);
+        using var map = CreateMap(width: 800, height: 600);
+        var controller = new MapViewController();
+
+        background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
+        background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
+
+        // 初期描画を完了させる（RenderedSeq = 1）
+        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
+        background.Attach(map, () => 1.0);
+        await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy && controller.CurrentStatus.RenderedSeq == 1).ConfigureAwait(true);
+
+        // 案 A で別位置へ移動し、新ビューポートの描画が完了した時点で RenderedSeq = 2 と完了 JSON が 1 回出力される
+        var infoLogs = new List<string>();
+        using var applier = new E2EMapStartupApplier(controller, infoLogs.Add);
+        await applier.ApplyAsync(new MapViewTarget(43.768436, 142.362436, 17.5)).ConfigureAwait(true);
+        await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy && controller.CurrentStatus.RenderedSeq == 2).ConfigureAwait(true);
+
+        var statusLines = infoLogs.FindAll(line => line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal));
+        Assert.Single(statusLines);
+        Assert.Contains("\"renderedSeq\":2", statusLines[0], StringComparison.Ordinal);
+        Assert.Contains("\"styleZoom\":17", statusLines[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StaleOverlappingFrameDoesNotAdvanceRenderedSeqWhenLatestViewportRenderFailsAsync()
+    {
+        using var background = CreateBackground(out var renderer);
+        using var map = CreateMap(width: 800, height: 600);
+        var controller = new MapViewController();
+
+        background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
+        background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
+
+        // 最初の描画をブロックして実行中に保つ
+        var firstGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        renderer.BlockNextCall = firstGate.Task;
+
+        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
+        background.Attach(map, () => 1.0);
+        await renderer.NextRequestAsync().ConfigureAwait(true);
+
+        // 範囲が重なる新しい視点へ移動し、その新視点の描画は失敗させる
+        renderer.FailNextCall = true;
+        var infoLogs = new List<string>();
+        using var applier = new E2EMapStartupApplier(controller, infoLogs.Add);
+        await applier.ApplyAsync(new MapViewTarget(0.001, 0.001, 15.0)).ConfigureAwait(true);
+
+        // 古いフレームを完了させてから新視点の失敗を待つ
+        firstGate.SetResult();
+        await renderer.NextRequestAsync().ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+
+        // 古い過渡フレームは最新要求と一致しないため採番も完了ログも行われない
+        Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
+        Assert.DoesNotContain(infoLogs, line => line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal));
+    }
+
     private static VectorMapBackground CreateBackground(
         out FakeRenderer renderer,
         IVectorMapPrefetcher? prefetcher = null,
@@ -610,23 +716,41 @@ public sealed class VectorMapBackgroundTests
 
         public bool FailNextCall { get; set; }
 
+        public Task? BlockNextCall { get; set; }
+
         public int UnavailableTileCount { get; set; }
 
-        public Task<VectorViewResult> RenderViewAsync(VectorViewRequest request, CancellationToken cancellationToken = default)
+        public async Task<VectorViewResult> RenderViewAsync(VectorViewRequest request, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _callCount);
-            _requests.Add(request, cancellationToken);
-            if (FailNextCall)
+            var shouldFail = FailNextCall;
+            if (shouldFail)
             {
                 FailNextCall = false;
+            }
+
+            var gate = BlockNextCall;
+            if (gate is not null)
+            {
+                BlockNextCall = null;
+            }
+
+            _requests.Add(request, cancellationToken);
+            if (gate is not null)
+            {
+                await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (shouldFail)
+            {
                 throw new InvalidOperationException("描画の失敗（テスト）");
             }
 
             using var bitmap = new SKBitmap(request.PixelWidth, request.PixelHeight);
-            return Task.FromResult(new VectorViewResult(
+            return new VectorViewResult(
                 SKImage.FromBitmap(bitmap),
                 requestedTileCount: 4,
-                unavailableTileCount: UnavailableTileCount));
+                unavailableTileCount: UnavailableTileCount);
         }
 
         public Task<VectorViewRequest> NextRequestAsync()

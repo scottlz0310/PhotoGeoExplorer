@@ -130,4 +130,52 @@ public sealed class MapViewStatusTests
         Assert.False(root.GetProperty("isBusy").GetBoolean());
         Assert.Equal(7, root.GetProperty("renderedSeq").GetInt64());
     }
+
+    [Theory]
+    [InlineData(double.NaN, 0.0, 1.0)]
+    [InlineData(0.0, double.PositiveInfinity, 1.0)]
+    [InlineData(0.0, 0.0, 0.0)]
+    [InlineData(0.0, 0.0, -1.0)]
+    public void CreateHandlesNonFiniteCenterAndNonPositiveDensitySafely(double centerX, double centerY, double pixelDensity)
+    {
+        var status = MapViewStatus.Create(
+            hasSize: true,
+            centerX: centerX,
+            centerY: centerY,
+            resolution: WebMercator.ResolutionFromLogicalZoom(14.0),
+            widthDip: 800,
+            heightDip: 600,
+            pixelDensity: pixelDensity,
+            configuredTileSource: MapTileSourceType.OpenStreetMap,
+            displayedTileSource: MapTileSourceType.OpenStreetMap,
+            attributionText: string.Empty,
+            isBusy: false,
+            renderedSeq: 0);
+
+        Assert.Equal(1.0, status.PixelDensity);
+        if (!double.IsFinite(centerX) || !double.IsFinite(centerY))
+        {
+            Assert.False(status.HasValidViewport);
+            Assert.Null(status.Center);
+        }
+        else
+        {
+            Assert.True(status.HasValidViewport);
+        }
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("43.0,142.0")]
+    [InlineData("not-a-number,142.0,14")]
+    [InlineData("43.0,not-a-number,14")]
+    [InlineData("43.0,142.0,not-a-number")]
+    public void MapViewTargetTryParseReturnsFalseWithDiagnosticMessage(string? raw)
+    {
+        var ok = MapViewTarget.TryParse(raw, out _, out var error);
+
+        Assert.False(ok);
+        Assert.False(string.IsNullOrWhiteSpace(error));
+    }
 }

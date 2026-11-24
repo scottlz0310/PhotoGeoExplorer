@@ -185,6 +185,82 @@ public sealed class E2EMapControlTests
         Assert.Single(statusLines);
     }
 
+    [Fact]
+    public async Task StartupApplierDoesNotLogWhenBusyClearsWithoutFrameRender()
+    {
+        var controller = new FakeMapViewController(CreateStatus(35.0, 139.0, 12.0, isBusy: false, renderedSeq: 3))
+        {
+            StayBusyOnSetView = true,
+            AdvanceSeqOnSetView = false
+        };
+        var infoLogs = new List<string>();
+
+        using var applier = new E2EMapStartupApplier(controller, infoLogs.Add);
+        await applier.ApplyAsync(new MapViewTarget(43.768436, 142.362436, 16.0));
+
+        // 描画失敗で RenderedSeq が進まずに IsBusy が false へ戻ったケース
+        controller.FailRendering();
+
+        Assert.DoesNotContain(infoLogs, line => line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task StartupApplierLogsErrorWhenSetViewFailsAndThrowsAfterDispose()
+    {
+        var controller = new FakeMapViewController(MapViewStatus.Empty) { FailSetView = true };
+        var errorLogs = new List<string>();
+
+        var applier = new E2EMapStartupApplier(controller, logError: errorLogs.Add);
+        await applier.ApplyAsync(new MapViewTarget(43.768436, 142.362436, 16.0));
+
+        Assert.Single(errorLogs);
+
+        applier.Dispose();
+        applier.Dispose();
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => applier.ApplyAsync(new MapViewTarget(43.0, 142.0, 14.0)));
+    }
+
+    [Fact]
+    public async Task NamedPipeServerRejectsOversizedLineAndAcceptsSubsequentConnections()
+    {
+        var controller = new FakeMapViewController(CreateStatus(35.681236, 139.767125, 14.0, isBusy: false, renderedSeq: 1));
+        var pipeName = $"PhotoGeoExplorer.E2E.Test.{Guid.NewGuid():N}";
+        var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        Assert.Equal("PhotoGeoExplorer.E2E.42", E2EMapControlServer.BuildPipeName(42));
+
+        using var server = new E2EMapControlServer(controller, pipeName);
+        Assert.Equal(pipeName, server.PipeName);
+
+        using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
+        {
+            await client.ConnectAsync(5000);
+            using var reader = new StreamReader(client, utf8NoBom, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
+            using var writer = new StreamWriter(client, utf8NoBom, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
+
+            await writer.WriteLineAsync(new string('x', E2EMapControlProtocol.MaxRequestLineLength + 10));
+            var errorLine = await reader.ReadLineAsync();
+            Assert.NotNull(errorLine);
+            using var doc = JsonDocument.Parse(errorLine);
+            Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+        }
+
+        // 超過切断後も次の接続で通常コマンドが処理できる
+        using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
+        {
+            await client.ConnectAsync(5000);
+            using var reader = new StreamReader(client, utf8NoBom, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
+            using var writer = new StreamWriter(client, utf8NoBom, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
+
+            await writer.WriteLineAsync("""{"command":"status"}""");
+            var okLine = await reader.ReadLineAsync();
+            Assert.NotNull(okLine);
+            using var doc = JsonDocument.Parse(okLine);
+            Assert.True(doc.RootElement.GetProperty("ok").GetBoolean());
+        }
+
+        server.Dispose();
+    }
+
     private static MapViewStatus CreateStatus(double latitude, double longitude, double zoom, bool isBusy, long renderedSeq)
         => MapViewStatus.Create(
             hasSize: true,
@@ -213,6 +289,10 @@ public sealed class E2EMapControlTests
 
         internal bool StayBusyOnSetView { get; init; }
 
+        internal bool AdvanceSeqOnSetView { get; init; } = true;
+
+        internal bool FailSetView { get; init; }
+
         public MapViewStatus CurrentStatus => _status;
 
         public event EventHandler<MapViewStatus>? StatusChanged;
@@ -220,12 +300,18 @@ public sealed class E2EMapControlTests
         public Task<MapViewCommandResult> SetViewAsync(MapViewTarget target, CancellationToken cancellationToken = default)
         {
             SetViewCalls++;
+            if (FailSetView)
+            {
+                return Task.FromResult(new MapViewCommandResult(false, _status, "Simulated failure."));
+            }
+
+            var nextSeq = !StayBusyOnSetView && AdvanceSeqOnSetView ? _status.RenderedSeq + 1 : _status.RenderedSeq;
             _status = CreateStatus(
                 target.Latitude,
                 target.Longitude,
                 target.Zoom,
                 isBusy: StayBusyOnSetView,
-                renderedSeq: _status.RenderedSeq);
+                renderedSeq: nextSeq);
             StatusChanged?.Invoke(this, _status);
             return Task.FromResult(new MapViewCommandResult(true, _status));
         }
@@ -233,6 +319,12 @@ public sealed class E2EMapControlTests
         internal void CompleteRendering()
         {
             _status = _status with { IsBusy = false, RenderedSeq = _status.RenderedSeq + 1 };
+            StatusChanged?.Invoke(this, _status);
+        }
+
+        internal void FailRendering()
+        {
+            _status = _status with { IsBusy = false };
             StatusChanged?.Invoke(this, _status);
         }
     }

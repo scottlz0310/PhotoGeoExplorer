@@ -113,7 +113,8 @@ public sealed partial class MainWindow : Window, IDisposable
             areaNameResolver: _areaNameResolver,
             roadNameSuggester: _roadNameSuggester,
             roadNameConfirmationStore: _roadNameConfirmationStore,
-            areaDataAcquisition: areaDataAcquisition);
+            areaDataAcquisition: areaDataAcquisition,
+            uiDispatcher: new UiDispatcher());
         // 書き出しは、設定の道路名表示（地図ヘッダーと共通）がオンのときだけ、未確定の写真の道路名の候補を通信して求める
         var headerSettings = _mapPaneViewModel.LocationInfo.DisplaySettings;
         _geoExportViewModel = new GeoExportViewModel(

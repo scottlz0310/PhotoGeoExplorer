@@ -113,11 +113,6 @@ internal sealed class MapViewController : IMapViewController
             _configuredTileSource = configuredTileSource;
             _displayedTileSource = displayedTileSource;
             _attributionText = attributionText ?? string.Empty;
-            if (_isBusy && !isBusy)
-            {
-                _renderedSeq++;
-            }
-
             _isBusy = isBusy;
             changedSnapshot = UpdateSnapshotIfChangedLocked();
         }
@@ -158,12 +153,31 @@ internal sealed class MapViewController : IMapViewController
                 return;
             }
 
-            if (_isBusy && !isBusy)
+            _isBusy = isBusy;
+            changedSnapshot = UpdateSnapshotIfChangedLocked();
+        }
+
+        if (changedSnapshot is not null)
+        {
+            RaiseStatusChanged(changedSnapshot);
+        }
+    }
+
+    /// <summary>
+    /// 現在の対象ビューポートに対するフレーム反映が完了したことを記録し、<see cref="MapViewStatus.RenderedSeq"/> を進める。
+    /// 描画失敗や古い過渡フレームでは呼び出さない。
+    /// </summary>
+    internal void NotifyFrameRendered()
+    {
+        MapViewStatus? changedSnapshot = null;
+        lock (_gate)
+        {
+            if (_map is null || _pendingTarget is not null)
             {
-                _renderedSeq++;
+                return;
             }
 
-            _isBusy = isBusy;
+            _renderedSeq++;
             changedSnapshot = UpdateSnapshotIfChangedLocked();
         }
 

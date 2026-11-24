@@ -91,6 +91,7 @@ internal sealed class VectorMapBackground : IMapBackground
             _layer.Show,
             OnRenderFailed);
         _coordinator.BusyChanged += OnCoordinatorBusyChanged;
+        _coordinator.LatestFrameShown += OnCoordinatorLatestFrameShown;
         if (prefetcher is not null)
         {
             _prefetchScheduler = new ViewExtentPrefetchScheduler(
@@ -109,6 +110,8 @@ internal sealed class VectorMapBackground : IMapBackground
     public bool IsBusy => _coordinator.IsBusy;
 
     public event EventHandler? BusyChanged;
+
+    public event EventHandler? FrameRendered;
 
     /// <summary>
     /// 地図の視点の監視を始め、今の視点で最初の描画を要求する。1 回だけ呼べる。
@@ -192,6 +195,7 @@ internal sealed class VectorMapBackground : IMapBackground
         }
 
         _coordinator.BusyChanged -= OnCoordinatorBusyChanged;
+        _coordinator.LatestFrameShown -= OnCoordinatorLatestFrameShown;
         _prefetchScheduler?.Dispose();
         _coordinator.Dispose();
         _layer.Dispose();
@@ -295,6 +299,9 @@ internal sealed class VectorMapBackground : IMapBackground
 
     private void OnCoordinatorBusyChanged(object? sender, EventArgs e)
         => BusyChanged?.Invoke(this, EventArgs.Empty);
+
+    private void OnCoordinatorLatestFrameShown(object? sender, ViewExtentFrame<SKImage> frame)
+        => FrameRendered?.Invoke(this, EventArgs.Empty);
 
     private sealed class ExportLayers(ViewExtentImageLayer layer) : IMapExportLayers
     {

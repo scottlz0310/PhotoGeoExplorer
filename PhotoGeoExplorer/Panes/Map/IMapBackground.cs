@@ -25,6 +25,9 @@ internal interface IMapBackground : IDisposable
     /// <summary><see cref="IsBusy"/> が変化したとき。任意のスレッドから呼ばれる。</summary>
     event EventHandler? BusyChanged;
 
+    /// <summary>最新の表示範囲に対するフレームの反映が完了したときに発火する。描画失敗や古い過渡フレームでは発火しない。</summary>
+    event EventHandler? FrameRendered;
+
     /// <summary>
     /// 地図へ載せた後に呼ぶ。視点に応じて描き直す背景（ベクター）は、ここで視点の監視と最初の描画を始める。
     /// ラスタは何もしない。視点の通知は UI スレッド以外から来るため、密度は取得関数で読む。

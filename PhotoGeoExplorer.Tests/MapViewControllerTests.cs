@@ -109,7 +109,7 @@ public sealed class MapViewControllerTests
     }
 
     [Fact]
-    public void UpdateBusyIncrementsRenderedSeqOnlyOnTrueToFalseTransition()
+    public void UpdateBusyDoesNotIncrementRenderedSeqAndNotifyFrameRenderedAdvancesIt()
     {
         using var map = new Map();
         map.Navigator.SetSize(400, 300);
@@ -118,16 +118,17 @@ public sealed class MapViewControllerTests
 
         Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
 
+        // 描画失敗などでフレーム反映なしに Busy が解除されても RenderedSeq は増えない
         controller.UpdateBusy(true);
         Assert.True(controller.CurrentStatus.IsBusy);
         Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
 
         controller.UpdateBusy(false);
         Assert.False(controller.CurrentStatus.IsBusy);
-        Assert.Equal(1, controller.CurrentStatus.RenderedSeq);
+        Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
 
-        // 既に false の状態で再度 false になっても増えない
-        controller.UpdateBusy(false);
+        // 対象ビューポートのフレーム反映通知で初めて採番が進む
+        controller.NotifyFrameRendered();
         Assert.Equal(1, controller.CurrentStatus.RenderedSeq);
 
         controller.UpdateBusy(true);
@@ -136,9 +137,34 @@ public sealed class MapViewControllerTests
             MapTileSourceType.OpenStreetMap,
             "© OpenStreetMap contributors",
             isBusy: false);
-        Assert.Equal(2, controller.CurrentStatus.RenderedSeq);
+        Assert.Equal(1, controller.CurrentStatus.RenderedSeq);
         Assert.Equal("MapboxSatellite", controller.CurrentStatus.TileSource.Configured);
         Assert.Equal("OpenStreetMap", controller.CurrentStatus.TileSource.Displayed);
+
+        controller.NotifyFrameRendered();
+        Assert.Equal(2, controller.CurrentStatus.RenderedSeq);
+    }
+
+    [Fact]
+    public async Task NotifyFrameRenderedIsIgnoredWhilePendingTargetIsUnapplied()
+    {
+        using var map = new Map();
+        var controller = new MapViewController();
+        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap", 1.0, isBusy: false);
+
+        // サイズ未確定のため保留になる
+        var result = await controller.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 17.5));
+        Assert.True(result.Succeeded);
+        Assert.False(result.Status.HasValidViewport);
+
+        // 保留中のフレーム反映通知は無視される
+        controller.NotifyFrameRendered();
+        Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
+
+        // サイズ確定で保留ターゲットが適用された後の通知だけが採番される
+        map.Navigator.SetSize(800, 600);
+        controller.NotifyFrameRendered();
+        Assert.Equal(1, controller.CurrentStatus.RenderedSeq);
     }
 
     [Fact]

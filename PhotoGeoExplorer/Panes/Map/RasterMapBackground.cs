@@ -17,6 +17,7 @@ namespace PhotoGeoExplorer.Panes.Map;
 internal sealed class RasterMapBackground : IMapBackground
 {
     private readonly TileLayer _layer;
+    private int _wasBusy;
     private bool _disposed;
 
     internal RasterMapBackground(TileLayer layer, MapTileSourceType sourceType)
@@ -24,6 +25,7 @@ internal sealed class RasterMapBackground : IMapBackground
         ArgumentNullException.ThrowIfNull(layer);
 
         _layer = layer;
+        _wasBusy = layer.Busy ? 1 : 0;
         Layers = [layer];
         AttributionText = string.Join(' ', MapAttribution.GetLinks(sourceType).Select(link => link.Text));
         _layer.PropertyChanged += OnLayerPropertyChanged;
@@ -36,6 +38,8 @@ internal sealed class RasterMapBackground : IMapBackground
     public bool IsBusy => _layer.Busy;
 
     public event EventHandler? BusyChanged;
+
+    public event EventHandler? FrameRendered;
 
     // タイルは Mapsui の TileLayer が視点に応じて取得する。背景側で視点や密度を扱う必要はない
     public void Attach(Mapsui.Map map, Func<double> getPixelDensity)
@@ -69,9 +73,18 @@ internal sealed class RasterMapBackground : IMapBackground
 
     private void OnLayerPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(TileLayer.Busy))
+        if (e.PropertyName != nameof(TileLayer.Busy))
         {
-            BusyChanged?.Invoke(this, EventArgs.Empty);
+            return;
         }
+
+        var isBusy = _layer.Busy;
+        var previousBusy = Interlocked.Exchange(ref _wasBusy, isBusy ? 1 : 0) == 1;
+        if (previousBusy && !isBusy)
+        {
+            FrameRendered?.Invoke(this, EventArgs.Empty);
+        }
+
+        BusyChanged?.Invoke(this, EventArgs.Empty);
     }
 }

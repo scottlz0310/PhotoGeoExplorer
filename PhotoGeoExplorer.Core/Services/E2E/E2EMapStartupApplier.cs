@@ -4,7 +4,8 @@ namespace PhotoGeoExplorer.Services.E2E;
 
 /// <summary>
 /// 起動時の環境変数で指定された地図表示（#363 案 A）を適用し、
-/// 描画完了（<see cref="MapViewStatus.HasValidViewport"/> かつ非ビジー）時点で状態 JSON を 1 回ログ出力する。
+/// 対象ビューポートのフレームが反映されて非ビジーになった時点で状態 JSON を 1 回ログ出力する。
+/// 描画失敗時は <see cref="MapViewStatus.RenderedSeq"/> が進まないため完了ログを出力しない。
 /// </summary>
 internal sealed class E2EMapStartupApplier : IDisposable
 {
@@ -14,6 +15,7 @@ internal sealed class E2EMapStartupApplier : IDisposable
     private readonly Action<string> _logInfo;
     private readonly Action<string> _logError;
     private readonly Lock _gate = new();
+    private long _baselineRenderedSeq;
     private bool _subscribed;
     private bool _logged;
     private bool _disposed;
@@ -34,6 +36,13 @@ internal sealed class E2EMapStartupApplier : IDisposable
 
         _logInfo($"[E2E][MapView] Applying startup map view: lat={target.Latitude}, lon={target.Longitude}, zoom={target.Zoom}");
 
+        // 移動前のフレーム反映と区別するため、SetViewAsync の直前の RenderedSeq を基準にする。
+        var baselineSeq = _controller.CurrentStatus.RenderedSeq;
+        lock (_gate)
+        {
+            _baselineRenderedSeq = baselineSeq;
+        }
+
         var result = await _controller.SetViewAsync(target, cancellationToken).ConfigureAwait(false);
         if (!result.Succeeded)
         {
@@ -42,7 +51,7 @@ internal sealed class E2EMapStartupApplier : IDisposable
         }
 
         // 移動前の古い状態を誤って出力しないよう、SetViewAsync 完了後に購読を開始し、
-        // 直後に CurrentStatus を再確認して Busy → Idle 遷移の取りこぼしを防ぐ。
+        // 直後に CurrentStatus を再確認してフレーム反映・非ビジー遷移の取りこぼしを防ぐ。
         lock (_gate)
         {
             if (_disposed || _logged)
@@ -88,7 +97,7 @@ internal sealed class E2EMapStartupApplier : IDisposable
         var shouldLog = false;
         lock (_gate)
         {
-            if (!_disposed && !_logged)
+            if (!_disposed && !_logged && status.RenderedSeq > _baselineRenderedSeq)
             {
                 _logged = true;
                 shouldLog = true;

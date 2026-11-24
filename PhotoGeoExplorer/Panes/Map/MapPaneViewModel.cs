@@ -39,6 +39,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private readonly ISecretStore _secretStore;
     private readonly FolderPickerHistory _saveFolderHistory = new();
     private readonly Func<DispatcherQueue?> _dispatcherQueueAccessor;
+    private readonly IUiDispatcher _uiDispatcher;
     private DispatcherQueue? _dispatcherQueue;
     private double _pixelDensity = 1.0;
     private int _backgroundGeneration;
@@ -84,7 +85,8 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         IAreaNameResolver? areaNameResolver = null,
         IRoadNameSuggester? roadNameSuggester = null,
         IRoadNameConfirmationStore? roadNameConfirmationStore = null,
-        AreaDataAcquisitionViewModel? areaDataAcquisition = null)
+        AreaDataAcquisitionViewModel? areaDataAcquisition = null,
+        IUiDispatcher? uiDispatcher = null)
     {
         LocationInfo = new MapLocationInfoViewModel(areaNameResolver, roadNameSuggester, roadNameConfirmationStore);
         AreaDataAcquisition = areaDataAcquisition ?? new AreaDataAcquisitionViewModel();
@@ -93,6 +95,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         _mapImageService = mapImageService ?? throw new ArgumentNullException(nameof(mapImageService));
         _dispatcherQueueAccessor = dispatcherQueueAccessor ?? DispatcherQueue.GetForCurrentThread;
+        _uiDispatcher = uiDispatcher ?? new UiDispatcher();
         _markerPresenter = new MapMarkerPresenter(_service);
         Title = "Map";
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
@@ -335,6 +338,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         if (_background is not null)
         {
             _background.BusyChanged -= OnBackgroundBusyChanged;
+            _background.FrameRendered -= OnBackgroundFrameRendered;
             _background.Dispose();
             _background = null;
         }
@@ -605,6 +609,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         if (_background is { } oldBackground)
         {
             oldBackground.BusyChanged -= OnBackgroundBusyChanged;
+            oldBackground.FrameRendered -= OnBackgroundFrameRendered;
             foreach (var layer in oldBackground.Layers)
             {
                 map.Layers.Remove(layer);
@@ -620,6 +625,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
 
         newBackground.BusyChanged += OnBackgroundBusyChanged;
+        newBackground.FrameRendered += OnBackgroundFrameRendered;
         _background = newBackground;
     }
 
@@ -628,6 +634,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _viewController.UpdateBusy(IsBackgroundBusy);
         BackgroundBusyChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    private void OnBackgroundFrameRendered(object? sender, EventArgs e)
+        => _viewController.NotifyFrameRendered();
 
     /// <summary>
     /// 現在のビューポートを、背景を保存用に差し替えて PNG に描く。表示中のレイヤーには触らない
@@ -682,8 +691,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         var (map, mapBackground, markerLayer) = _service.InitializeMap(background);
 
         _background = mapBackground;
-        _background.BusyChanged += OnBackgroundBusyChanged;
-        mapBackground.Attach(map, GetPixelDensity);
         _viewController.Attach(
             map,
             _currentTileSource,
@@ -693,6 +700,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             mapBackground.IsBusy,
             HideStatusOnUiThread,
             InvokeOnUiThreadAsync);
+        _background.BusyChanged += OnBackgroundBusyChanged;
+        _background.FrameRendered += OnBackgroundFrameRendered;
+        mapBackground.Attach(map, GetPixelDensity);
         _markerLayer = markerLayer;
         _attributionPresenter.Attach(map, background.SourceType);
         _ = LoadAttributionImagesAsync(map);
@@ -774,58 +784,16 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
     private void HideStatusOnUiThread()
     {
-        var dispatcherQueue = _dispatcherQueue;
-        if (dispatcherQueue is null || dispatcherQueue.HasThreadAccess)
+        if (!_uiDispatcher.TryEnqueue(HideStatus))
         {
             HideStatus();
-            return;
         }
-
-        _ = dispatcherQueue.TryEnqueue(HideStatus);
     }
 
-    private async Task InvokeOnUiThreadAsync(Action action, CancellationToken cancellationToken)
+    private Task InvokeOnUiThreadAsync(Action action, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        var dispatcherQueue = _dispatcherQueue;
-        if (dispatcherQueue is null || dispatcherQueue.HasThreadAccess)
-        {
-            action();
-            return;
-        }
-
-        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var registration = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
-        await using var _ = registration.ConfigureAwait(false);
-
-        var enqueued = dispatcherQueue.TryEnqueue(() =>
-        {
-            try
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    tcs.TrySetCanceled(cancellationToken);
-                    return;
-                }
-
-                action();
-                tcs.TrySetResult(true);
-            }
-#pragma warning disable CA1031 // TaskCompletionSource へ例外を伝播させて呼び出し元へ返す
-            catch (Exception ex)
-            {
-                tcs.TrySetException(ex);
-            }
-#pragma warning restore CA1031
-        });
-
-        if (!enqueued)
-        {
-            throw new InvalidOperationException("Failed to enqueue map view update on the UI thread.");
-        }
-
-        await tcs.Task.ConfigureAwait(false);
+        return _uiDispatcher.RunAsync(action).WaitAsync(cancellationToken);
     }
 
     private string? ReadMapboxAccessToken()
