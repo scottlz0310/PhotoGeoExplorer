@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
+using Mapsui.Rendering;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services;
@@ -282,7 +283,7 @@ public sealed class MapPaneViewModelBackgroundTests
             Assert.Equal(0, viewModel.ViewController.CurrentStatus.RenderedSeq);
 
             // FrameRendered は BeginMapRender → 描画完了経由で採番される
-            var initialCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray());
+            var initialCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
             Assert.NotNull(initialCompleted);
             Assert.Equal(0, viewModel.ViewController.CurrentStatus.RenderedSeq);
             initialCompleted!();
@@ -302,7 +303,7 @@ public sealed class MapPaneViewModelBackgroundTests
             viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
             Assert.Equal("OpenFreeMapVector", viewModel.ViewController.CurrentStatus.TileSource.Displayed);
             var nextBackground = service.Created[1];
-            var nextCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray());
+            var nextCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
             Assert.NotNull(nextCompleted);
             nextCompleted!();
             Assert.Equal(2, viewModel.ViewController.CurrentStatus.RenderedSeq);
@@ -391,7 +392,7 @@ public sealed class MapPaneViewModelBackgroundTests
 
         public void OnPixelDensityChanged() => PixelDensityChangedCount++;
 
-        public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers)
+        public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
         {
             BeginMapRenderCount++;
             return RaiseFrameRendered;

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Layers;
+using Mapsui.Rendering;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
@@ -143,9 +144,10 @@ internal sealed class VectorMapBackground : IMapBackground
 
     public void OnPixelDensityChanged() => SubmitCurrentViewport();
 
-    public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers)
+    public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
     {
         ArgumentNullException.ThrowIfNull(layers);
+        ArgumentNullException.ThrowIfNull(renderService);
 
         if (_disposed
             || _map is not { } map

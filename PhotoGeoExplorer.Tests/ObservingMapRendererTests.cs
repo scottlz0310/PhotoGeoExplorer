@@ -18,7 +18,7 @@ public sealed class ObservingMapRendererTests
     public void ConstructorRejectsNullArguments()
     {
         var inner = new FakeMapRenderer();
-        Assert.Throws<ArgumentNullException>(() => new ObservingMapRenderer(null!, (_, _) => null));
+        Assert.Throws<ArgumentNullException>(() => new ObservingMapRenderer(null!, (_, _, _) => null));
         Assert.Throws<ArgumentNullException>(() => new ObservingMapRenderer(inner, null!));
     }
 
@@ -32,7 +32,7 @@ public sealed class ObservingMapRendererTests
         };
         var renderer = new ObservingMapRenderer(
             inner,
-            (viewport, layers) =>
+            (viewport, layers, _) =>
             {
                 events.Add($"starting:{viewport.Width}x{viewport.Height}:{layers.Count}");
                 return () => events.Add("completed");
@@ -53,7 +53,7 @@ public sealed class ObservingMapRendererTests
         {
             OnRender = () => throw new InvalidOperationException("render failed")
         };
-        var renderer = new ObservingMapRenderer(inner, (_, _) => () => completed = true);
+        var renderer = new ObservingMapRenderer(inner, (_, _, _) => () => completed = true);
         using var renderService = new RenderService();
 
         Assert.Throws<InvalidOperationException>(
@@ -68,7 +68,7 @@ public sealed class ObservingMapRendererTests
         var inner = new FakeMapRenderer();
         var renderer = new ObservingMapRenderer(
             inner,
-            (_, _) =>
+            (_, _, _) =>
             {
                 observerCalled = true;
                 return () => { };
@@ -91,7 +91,7 @@ public sealed class ObservingMapRendererTests
     public void DelegatesAllOtherRendererMembersToInnerRenderer()
     {
         var inner = new FakeMapRenderer();
-        var renderer = new ObservingMapRenderer(inner, (_, _) => null);
+        var renderer = new ObservingMapRenderer(inner, (_, _, _) => null);
         var viewport = new Viewport(0, 0, 1, 0, 200, 100);
         using var layer = new MemoryLayer { Name = "bg" };
         var feature = new PointFeature(0, 0);

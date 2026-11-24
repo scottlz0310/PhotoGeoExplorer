@@ -11,6 +11,7 @@ using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Nts;
 using Mapsui.Projections;
+using Mapsui.Rendering;
 using Mapsui.Styles;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -629,10 +630,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         Volatile.Write(ref _background, newBackground);
     }
 
-    internal Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers)
+    internal Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
     {
         var background = Volatile.Read(ref _background);
-        return background?.BeginMapRender(viewport, layers);
+        return background?.BeginMapRender(viewport, layers, renderService);
     }
 
     private void OnBackgroundBusyChanged(object? sender, EventArgs e)

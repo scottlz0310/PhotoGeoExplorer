@@ -18,11 +18,11 @@ namespace PhotoGeoExplorer.Panes.Map;
 internal sealed class ObservingMapRenderer : IMapRenderer
 {
     private readonly IMapRenderer _inner;
-    private readonly Func<Viewport, IReadOnlyList<ILayer>, Action?> _onRenderStarting;
+    private readonly Func<Viewport, IReadOnlyList<ILayer>, RenderService, Action?> _onRenderStarting;
 
     internal ObservingMapRenderer(
         IMapRenderer inner,
-        Func<Viewport, IReadOnlyList<ILayer>, Action?> onRenderStarting)
+        Func<Viewport, IReadOnlyList<ILayer>, RenderService, Action?> onRenderStarting)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _onRenderStarting = onRenderStarting ?? throw new ArgumentNullException(nameof(onRenderStarting));
@@ -50,9 +50,10 @@ internal sealed class ObservingMapRenderer : IMapRenderer
         CoordinateSpace coordinateSpace = CoordinateSpace.World)
     {
         ArgumentNullException.ThrowIfNull(layers);
+        ArgumentNullException.ThrowIfNull(renderService);
 
         var layerSnapshot = layers as IReadOnlyList<ILayer> ?? layers.ToList();
-        var onCompleted = dirtyRegion is null ? _onRenderStarting(viewport, layerSnapshot) : null;
+        var onCompleted = dirtyRegion is null ? _onRenderStarting(viewport, layerSnapshot, renderService) : null;
         _inner.Render(target, viewport, layerSnapshot, widgets, renderService, background, dirtyRegion, coordinateSpace);
         onCompleted?.Invoke();
     }

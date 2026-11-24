@@ -9,6 +9,7 @@ using Mapsui.Extensions;
 using Mapsui.Fetcher;
 using Mapsui.Layers;
 using Mapsui.Nts;
+using Mapsui.Rendering;
 using Mapsui.Rendering.Skia;
 using Mapsui.Styles;
 using Mapsui.UI;
@@ -58,8 +59,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             restoreMapStatus: UpdateMapStatusFromViewModel);
     }
 
-    private Action? OnMapRenderStarting(Viewport viewport, System.Collections.Generic.IReadOnlyList<ILayer> layers)
-        => _viewModel?.BeginMapRender(viewport, layers);
+    private Action? OnMapRenderStarting(Viewport viewport, System.Collections.Generic.IReadOnlyList<ILayer> layers, RenderService renderService)
+        => _viewModel?.BeginMapRender(viewport, layers, renderService);
 
     internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
 

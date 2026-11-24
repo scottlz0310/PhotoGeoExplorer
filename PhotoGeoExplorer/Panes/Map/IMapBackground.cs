@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
+using Mapsui.Rendering;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
@@ -32,7 +33,7 @@ internal interface IMapBackground : IDisposable
     /// 地図描画の開始直前に呼ばれる。対象ビューポートのフレーム反映完了を通知すべき条件を満たす場合は、
     /// 描画完了直後に呼び出すコールバックを返す。未準備・古いビューポート・通知済みの場合は <see langword="null"/> を返す。
     /// </summary>
-    Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers);
+    Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService);
 
     /// <summary>
     /// 地図へ載せた後に呼ぶ。視点に応じて描き直す背景（ベクター）は、ここで視点の監視と最初の描画を始める。

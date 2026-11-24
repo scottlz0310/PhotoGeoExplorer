@@ -691,7 +691,7 @@ public sealed class VectorMapBackgroundTests
     }
 
     private static void SimulateMapRender(VectorMapBackground background, Mapsui.Map map)
-        => background.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray())?.Invoke();
+        => background.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService)?.Invoke();
 
     private static VectorMapBackground CreateBackground(
         out FakeRenderer renderer,

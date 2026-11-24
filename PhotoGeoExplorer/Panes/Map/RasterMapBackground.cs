@@ -9,8 +9,11 @@ using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Fetcher;
 using Mapsui.Layers;
+using Mapsui.Rendering;
+using Mapsui.Rendering.Skia;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
+using SkiaSharp;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
@@ -66,9 +69,10 @@ internal sealed class RasterMapBackground : IMapBackground
     {
     }
 
-    public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers)
+    public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
     {
         ArgumentNullException.ThrowIfNull(layers);
+        ArgumentNullException.ThrowIfNull(renderService);
 
         if (_disposed)
         {
@@ -84,7 +88,7 @@ internal sealed class RasterMapBackground : IMapBackground
         if (!ContainsLayer(layers, _layer)
             || _layer.Busy
             || !MatchesCurrentViewport(viewport)
-            || !HasRenderedViewportTiles(viewport))
+            || !HasRenderedViewportTiles(viewport, renderService))
         {
             return null;
         }
@@ -155,7 +159,7 @@ internal sealed class RasterMapBackground : IMapBackground
             || Volatile.Read(ref _dirtyVersion) != renderedVersion
             || _layer.Busy
             || !MatchesCurrentViewport(renderedViewport)
-            || !HasRenderedViewportTiles(renderedViewport))
+            || !HasRenderedViewportTiles(renderedViewport, renderService: null))
         {
             return;
         }
@@ -194,9 +198,10 @@ internal sealed class RasterMapBackground : IMapBackground
     }
 
     // Mapsui の TileFetchPlanner はキャッシュ追加後、DataChanged による再描画要求より先に Busy を解除し、
-    // 取得失敗時も Busy を false に戻す。描画開始・完了の両時点で対象ビューポートに必要な全タイルの
-    // RasterFeature が揃っていることを検証し、画面への反映後にのみ完了を通知する。
-    private bool HasRenderedViewportTiles(Viewport viewport)
+    // 取得失敗時も Busy を false に戻す。また RasterStyleRenderer は画像をデコードできない場合でも
+    // 例外を握りつぶして復帰するため、対象ビューポートに必要な全タイルが描画可能な画像として
+    // デコードできることまで検証し、画面への反映後にのみ完了を通知する。
+    private bool HasRenderedViewportTiles(Viewport viewport, RenderService? renderService)
     {
         if (!viewport.HasSize() || !double.IsFinite(viewport.Resolution) || viewport.Resolution <= 0)
         {
@@ -229,27 +234,45 @@ internal sealed class RasterMapBackground : IMapBackground
             return false;
         }
 
-        var rasterExtents = _layer
+        var rasterFeatures = _layer
             .GetFeatures(viewportExtent, viewport.Resolution)
             .OfType<RasterFeature>()
-            .Select(feature => feature.Extent)
-            .Where(extent => extent is not null)
+            .Where(feature => feature.Extent is not null && feature.Raster is not null)
             .ToList();
 
-        if (rasterExtents.Count < requiredTiles.Count)
+        if (rasterFeatures.Count < requiredTiles.Count)
         {
             return false;
         }
 
         foreach (var tile in requiredTiles)
         {
-            if (!rasterExtents.Any(extent => MatchesTileExtent(extent!, tile.Extent)))
+            var matched = rasterFeatures.FirstOrDefault(feature => MatchesTileExtent(feature.Extent!, tile.Extent));
+            if (matched is null)
+            {
+                return false;
+            }
+
+            if (renderService is not null && !IsDecodableRaster(matched.Raster!, renderService))
             {
                 return false;
             }
         }
 
         return true;
+    }
+
+    // 描画開始前に TileCache 経由でデコード結果を検証する。有効なタイルはキャッシュに残るため
+    // 直後の MapRenderer.Render でそのまま再利用され、LRU 世代も MapRenderer 側で最新化される。
+    private static bool IsDecodableRaster(MRaster raster, RenderService renderService)
+    {
+        if (raster.Data.Length == 0)
+        {
+            return false;
+        }
+
+        var entry = renderService.TileCache.GetOrAdd(raster, RasterStyleRenderer.ToTileCacheEntry, currentIteration: 0);
+        return entry?.Data is SKImage { Width: > 0, Height: > 0 } or SKPicture;
     }
 
     private static bool MatchesTileExtent(MRect actual, Extent expected)
