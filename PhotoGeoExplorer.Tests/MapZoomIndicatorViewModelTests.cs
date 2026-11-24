@@ -239,6 +239,36 @@ public sealed class MapZoomIndicatorViewModelTests
     }
 
     [Fact]
+    public void EnablingShowZoomInterleavedWithQueuedStatusUpdatesKeepsLatestZoomAndToolTip()
+    {
+        var controller = new FakeMapViewController(MapViewStatus.Empty);
+        var settings = new MapHeaderDisplaySettings { ShowZoom = false };
+        var dispatcher = new TestUiDispatcher(deferEnqueue: true);
+
+        using var viewModel = new MapZoomIndicatorViewModel(
+            controller,
+            settings,
+            dispatcher,
+            getLocalizedString: CreateLocalizer("ja-JP"));
+
+        // 表示オフの状態から z14.0 通知 → 表示オン → z17.0 通知（DPI・背景も更新）の順にキューへ積む
+        controller.Publish(CreateStatus(WebMercator.ResolutionFromLogicalZoom(14.0), 1.0, MapTileSourceType.OpenStreetMap));
+        settings.ShowZoom = true;
+        controller.Publish(CreateStatus(WebMercator.ResolutionFromLogicalZoom(17.0), 1.5, MapTileSourceType.OpenFreeMapVector));
+
+        dispatcher.FlushQueuedActions();
+
+        Assert.Equal(17.0, controller.CurrentStatus.Zoom!.Value, precision: 6);
+        Assert.Equal("z17.0", viewModel.ZoomText);
+        Assert.Equal(Visibility.Visible, viewModel.ZoomVisibility);
+        Assert.NotNull(viewModel.ZoomToolTip);
+        Assert.Contains("17.0", viewModel.ZoomToolTip, StringComparison.Ordinal);
+        Assert.Contains("z17", viewModel.ZoomToolTip, StringComparison.Ordinal);
+        Assert.Contains("150%", viewModel.ZoomToolTip, StringComparison.Ordinal);
+        Assert.Contains("OpenFreeMap", viewModel.ZoomToolTip, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ConstructorRejectsInvalidArguments()
     {
         var controller = new FakeMapViewController(MapViewStatus.Empty);

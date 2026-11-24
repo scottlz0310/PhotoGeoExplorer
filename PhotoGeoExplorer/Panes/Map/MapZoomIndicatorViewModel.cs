@@ -199,6 +199,24 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
             return;
         }
 
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+        }
+
+        if (_uiDispatcher.TryEnqueue(ApplyLatestStatusImmediatelyOnUiThread))
+        {
+            return;
+        }
+
+        ApplyLatestStatusImmediatelyOnUiThread();
+    }
+
+    private void ApplyLatestStatusImmediatelyOnUiThread()
+    {
         MapViewStatus latest;
         lock (_gate)
         {
@@ -207,12 +225,11 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
                 return;
             }
 
+            _hasPendingUpdate = false;
+            _timerRunning = false;
+            _throttleTimer?.Stop();
+            _lastAppliedAt = _timeProvider.GetUtcNow();
             latest = _latestStatus;
-        }
-
-        if (_uiDispatcher.TryEnqueue(() => ApplyStatusOnUiThread(latest)))
-        {
-            return;
         }
 
         ApplyStatusOnUiThread(latest);
