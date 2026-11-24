@@ -11,6 +11,7 @@ using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Nts;
 using Mapsui.Projections;
+using Mapsui.Rendering;
 using Mapsui.Styles;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -18,6 +19,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 
@@ -34,9 +36,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private readonly WorkspaceState _workspaceState;
     private readonly MapMarkerPresenter _markerPresenter;
     private readonly MapAttributionPresenter _attributionPresenter = new();
+    private readonly MapViewController _viewController = new();
     private readonly ISecretStore _secretStore;
     private readonly FolderPickerHistory _saveFolderHistory = new();
     private readonly Func<DispatcherQueue?> _dispatcherQueueAccessor;
+    private readonly IUiDispatcher _uiDispatcher;
     private DispatcherQueue? _dispatcherQueue;
     private double _pixelDensity = 1.0;
     private int _backgroundGeneration;
@@ -82,7 +86,8 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         IAreaNameResolver? areaNameResolver = null,
         IRoadNameSuggester? roadNameSuggester = null,
         IRoadNameConfirmationStore? roadNameConfirmationStore = null,
-        AreaDataAcquisitionViewModel? areaDataAcquisition = null)
+        AreaDataAcquisitionViewModel? areaDataAcquisition = null,
+        IUiDispatcher? uiDispatcher = null)
     {
         LocationInfo = new MapLocationInfoViewModel(areaNameResolver, roadNameSuggester, roadNameConfirmationStore);
         AreaDataAcquisition = areaDataAcquisition ?? new AreaDataAcquisitionViewModel();
@@ -91,6 +96,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
         _mapImageService = mapImageService ?? throw new ArgumentNullException(nameof(mapImageService));
         _dispatcherQueueAccessor = dispatcherQueueAccessor ?? DispatcherQueue.GetForCurrentThread;
+        _uiDispatcher = uiDispatcher ?? new UiDispatcher();
         _markerPresenter = new MapMarkerPresenter(_service);
         Title = "Map";
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
@@ -223,6 +229,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     internal event EventHandler? BackgroundBusyChanged;
 
     /// <summary>
+    /// Mapsui に依存しない地図の表示状態の参照・操作契約（#362 / #363 / #364）
+    /// </summary>
+    internal IMapViewController ViewController => _viewController;
+
+    /// <summary>
     /// 地図ヘッダーに表示する撮影位置情報
     /// </summary>
     public MapLocationInfoViewModel LocationInfo { get; }
@@ -325,13 +336,15 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _markerLayer?.Dispose();
         _markerLayer = null;
 
-        if (_background is not null)
+        var existingBackground = Interlocked.Exchange(ref _background, null);
+        if (existingBackground is not null)
         {
-            _background.BusyChanged -= OnBackgroundBusyChanged;
-            _background.Dispose();
-            _background = null;
+            existingBackground.BusyChanged -= OnBackgroundBusyChanged;
+            existingBackground.FrameRendered -= OnBackgroundFrameRendered;
+            existingBackground.Dispose();
         }
 
+        _viewController.Detach();
         _map?.Dispose();
         Map = null;
     }
@@ -580,6 +593,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             CurrentTileSource = newSource;
             _attributionPresenter.Update(background.SourceType);
             BackgroundNotice = notice;
+            _viewController.UpdateTileSource(newSource, background.SourceType, newBackground.AttributionText, newBackground.IsBusy);
 
             _map.Refresh();
             AppLog.Info($"Switched map tile source to {newSource} (displaying {background.SourceType})");
@@ -593,9 +607,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     // 新しい背景を先に作ってから差し替える。作成に失敗しても、表示中の背景は変わらない
     private void ReplaceBackground(Mapsui.Map map, IMapBackground newBackground)
     {
-        if (_background is { } oldBackground)
+        if (Volatile.Read(ref _background) is { } oldBackground)
         {
             oldBackground.BusyChanged -= OnBackgroundBusyChanged;
+            oldBackground.FrameRendered -= OnBackgroundFrameRendered;
             foreach (var layer in oldBackground.Layers)
             {
                 map.Layers.Remove(layer);
@@ -611,11 +626,24 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
 
         newBackground.BusyChanged += OnBackgroundBusyChanged;
-        _background = newBackground;
+        newBackground.FrameRendered += OnBackgroundFrameRendered;
+        Volatile.Write(ref _background, newBackground);
+    }
+
+    internal Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
+    {
+        var background = Volatile.Read(ref _background);
+        return background?.BeginMapRender(viewport, layers, renderService);
     }
 
     private void OnBackgroundBusyChanged(object? sender, EventArgs e)
-        => BackgroundBusyChanged?.Invoke(this, EventArgs.Empty);
+    {
+        _viewController.UpdateBusy(IsBackgroundBusy);
+        BackgroundBusyChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnBackgroundFrameRendered(object? sender, EventArgs e)
+        => _viewController.NotifyFrameRendered();
 
     /// <summary>
     /// 現在のビューポートを、背景を保存用に差し替えて PNG に描く。表示中のレイヤーには触らない
@@ -669,8 +697,18 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         var background = CreateBackgroundRequest(_currentTileSource, out var notice);
         var (map, mapBackground, markerLayer) = _service.InitializeMap(background);
 
-        _background = mapBackground;
-        _background.BusyChanged += OnBackgroundBusyChanged;
+        Volatile.Write(ref _background, mapBackground);
+        _viewController.Attach(
+            map,
+            _currentTileSource,
+            background.SourceType,
+            mapBackground.AttributionText,
+            GetPixelDensity(),
+            mapBackground.IsBusy,
+            HideStatusOnUiThread,
+            InvokeOnUiThreadAsync);
+        mapBackground.BusyChanged += OnBackgroundBusyChanged;
+        mapBackground.FrameRendered += OnBackgroundFrameRendered;
         mapBackground.Attach(map, GetPixelDensity);
         _markerLayer = markerLayer;
         _attributionPresenter.Attach(map, background.SourceType);
@@ -747,7 +785,22 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
 
         Volatile.Write(ref _pixelDensity, pixelDensity);
+        _viewController.UpdatePixelDensity(pixelDensity);
         _background?.OnPixelDensityChanged();
+    }
+
+    private void HideStatusOnUiThread()
+    {
+        if (!_uiDispatcher.TryEnqueue(HideStatus))
+        {
+            HideStatus();
+        }
+    }
+
+    private Task InvokeOnUiThreadAsync(Action action, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return _uiDispatcher.RunAsync(action).WaitAsync(cancellationToken);
     }
 
     private string? ReadMapboxAccessToken()

@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
+using Mapsui.Extensions;
 using Mapsui.Layers;
+using Mapsui.Rendering;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
@@ -58,8 +60,13 @@ internal sealed class VectorMapBackground : IMapBackground
     private readonly ViewExtentImageLayer _layer;
     private readonly ViewExtentRenderCoordinator<SKImage> _coordinator;
     private readonly ViewExtentPrefetchScheduler? _prefetchScheduler;
+    private readonly Lock _renderStateGate = new();
     private Mapsui.Map? _map;
     private Func<double>? _getPixelDensity;
+    private ViewExtentRequest? _latestSubmittedRequest;
+    private ViewExtentRequest? _shownLatestRequest;
+    private long _shownLatestGeneration;
+    private long _notifiedGeneration;
     private bool _wasIncomplete;
     private bool _disposed;
 
@@ -91,6 +98,7 @@ internal sealed class VectorMapBackground : IMapBackground
             _layer.Show,
             OnRenderFailed);
         _coordinator.BusyChanged += OnCoordinatorBusyChanged;
+        _coordinator.LatestFrameShown += OnCoordinatorLatestFrameShown;
         if (prefetcher is not null)
         {
             _prefetchScheduler = new ViewExtentPrefetchScheduler(
@@ -109,6 +117,8 @@ internal sealed class VectorMapBackground : IMapBackground
     public bool IsBusy => _coordinator.IsBusy;
 
     public event EventHandler? BusyChanged;
+
+    public event EventHandler? FrameRendered;
 
     /// <summary>
     /// 地図の視点の監視を始め、今の視点で最初の描画を要求する。1 回だけ呼べる。
@@ -133,6 +143,49 @@ internal sealed class VectorMapBackground : IMapBackground
     }
 
     public void OnPixelDensityChanged() => SubmitCurrentViewport();
+
+    public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
+    {
+        ArgumentNullException.ThrowIfNull(layers);
+        ArgumentNullException.ThrowIfNull(renderService);
+
+        if (_disposed
+            || _map is not { } map
+            || _getPixelDensity is not { } getPixelDensity
+            || !ContainsLayer(layers, _layer.Layer)
+            || !MatchesCurrentViewport(map, viewport))
+        {
+            return null;
+        }
+
+        if (!ViewExtentRequest.TryCreate(
+                viewport.CenterX,
+                viewport.CenterY,
+                viewport.Resolution,
+                viewport.Width,
+                viewport.Height,
+                getPixelDensity(),
+                SourceKey,
+                out var renderedRequest))
+        {
+            return null;
+        }
+
+        long generation;
+        lock (_renderStateGate)
+        {
+            if (_shownLatestGeneration <= _notifiedGeneration
+                || !MatchesRequest(_latestSubmittedRequest, renderedRequest)
+                || !MatchesRequest(_shownLatestRequest, renderedRequest))
+            {
+                return null;
+            }
+
+            generation = _shownLatestGeneration;
+        }
+
+        return () => CompleteMapRender(generation, renderedRequest, viewport);
+    }
 
     public async Task<IMapExportLayers> CreateExportLayersAsync(
         Viewport viewport,
@@ -192,6 +245,7 @@ internal sealed class VectorMapBackground : IMapBackground
         }
 
         _coordinator.BusyChanged -= OnCoordinatorBusyChanged;
+        _coordinator.LatestFrameShown -= OnCoordinatorLatestFrameShown;
         _prefetchScheduler?.Dispose();
         _coordinator.Dispose();
         _layer.Dispose();
@@ -288,6 +342,11 @@ internal sealed class VectorMapBackground : IMapBackground
                 SourceKey,
                 out var request))
         {
+            lock (_renderStateGate)
+            {
+                _latestSubmittedRequest = request;
+            }
+
             _coordinator.Submit(request);
             _prefetchScheduler?.Notify(request);
         }
@@ -295,6 +354,69 @@ internal sealed class VectorMapBackground : IMapBackground
 
     private void OnCoordinatorBusyChanged(object? sender, EventArgs e)
         => BusyChanged?.Invoke(this, EventArgs.Empty);
+
+    private void OnCoordinatorLatestFrameShown(object? sender, ViewExtentFrame<SKImage> frame)
+    {
+        lock (_renderStateGate)
+        {
+            _shownLatestRequest = frame.Request;
+            _shownLatestGeneration = frame.Generation;
+        }
+    }
+
+    private void CompleteMapRender(long renderedGeneration, ViewExtentRequest renderedRequest, Viewport renderedViewport)
+    {
+        if (_disposed
+            || _map is not { } map
+            || !MatchesCurrentViewport(map, renderedViewport))
+        {
+            return;
+        }
+
+        lock (_renderStateGate)
+        {
+            if (_shownLatestGeneration != renderedGeneration
+                || _notifiedGeneration >= renderedGeneration
+                || !MatchesRequest(_latestSubmittedRequest, renderedRequest)
+                || !MatchesRequest(_shownLatestRequest, renderedRequest))
+            {
+                return;
+            }
+
+            _notifiedGeneration = renderedGeneration;
+        }
+
+        FrameRendered?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static bool MatchesRequest(ViewExtentRequest? candidate, ViewExtentRequest expected)
+        => candidate is not null
+            && candidate.CenterX == expected.CenterX
+            && candidate.CenterY == expected.CenterY
+            && candidate.Resolution == expected.Resolution
+            && candidate.WidthDip == expected.WidthDip
+            && candidate.HeightDip == expected.HeightDip
+            && candidate.PixelDensity == expected.PixelDensity
+            && string.Equals(candidate.SourceKey, expected.SourceKey, StringComparison.Ordinal);
+
+    private static bool MatchesCurrentViewport(Mapsui.Map map, Viewport renderedViewport)
+    {
+        var current = map.Navigator.Viewport;
+        return current.HasSize() && current == renderedViewport;
+    }
+
+    private static bool ContainsLayer(IReadOnlyList<ILayer> layers, ILayer target)
+    {
+        for (var i = 0; i < layers.Count; i++)
+        {
+            if (ReferenceEquals(layers[i], target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private sealed class ExportLayers(ViewExtentImageLayer layer) : IMapExportLayers
     {

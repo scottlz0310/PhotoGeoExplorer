@@ -7,9 +7,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
+using Mapsui.Rendering;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Xunit;
@@ -251,6 +253,75 @@ public sealed class MapPaneViewModelBackgroundTests
             () => viewModel.CaptureMapImageAsync(new Viewport(0, 0, 1, 0, 100, 50), 1f, CancellationToken.None)).ConfigureAwait(true);
     }
 
+    [Fact]
+    public async Task ViewControllerTracksFrameRenderBusyTileSourceAndSetViewAsync()
+    {
+        var service = new FakeBackgroundMapPaneService();
+        var dispatcher = new RecordingUiDispatcher();
+        var viewModel = new MapPaneViewModel(
+            service,
+            new WorkspaceState(),
+            new RecordingImageService(),
+            static () => null,
+            new InMemorySecretStore(),
+            uiDispatcher: dispatcher);
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+
+        try
+        {
+            typeof(MapPaneViewModel).GetMethod("InitializeMapCore", flags)!.Invoke(viewModel, null);
+            typeof(MapPaneViewModel).GetField("_isMapInitialized", flags)!.SetValue(viewModel, true);
+            var map = Assert.IsType<Mapsui.Map>(viewModel.Map);
+            map.Navigator.SetSize(800, 600);
+            var initialBackground = Assert.Single(service.Created);
+
+            // Busy → 非Busy だけでは RenderedSeq は増えない
+            initialBackground.SetBusy(true);
+            Assert.True(viewModel.ViewController.CurrentStatus.IsBusy);
+            initialBackground.SetBusy(false);
+            Assert.False(viewModel.ViewController.CurrentStatus.IsBusy);
+            Assert.Equal(0, viewModel.ViewController.CurrentStatus.RenderedSeq);
+
+            // FrameRendered は BeginMapRender → 描画完了経由で採番される
+            var initialCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
+            Assert.NotNull(initialCompleted);
+            Assert.Equal(0, viewModel.ViewController.CurrentStatus.RenderedSeq);
+            initialCompleted!();
+            Assert.Equal(1, viewModel.ViewController.CurrentStatus.RenderedSeq);
+
+            // SetViewAsync は注入した IUiDispatcher 経由で UI スレッド実行される
+            var moveResult = await viewModel.ViewController.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 17.5)).ConfigureAwait(true);
+            Assert.True(moveResult.Succeeded);
+            Assert.Equal(17, moveResult.Status.StyleZoom);
+            Assert.Equal(1, dispatcher.RunAsyncCount);
+            Assert.Equal(1, dispatcher.TryEnqueueCount);
+
+            viewModel.UpdatePixelDensity(1.5);
+            Assert.Equal(1.5, viewModel.ViewController.CurrentStatus.PixelDensity);
+            Assert.Equal(1200, viewModel.ViewController.CurrentStatus.ViewportSize.PhysicalWidth);
+
+            viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
+            Assert.Equal("OpenFreeMapVector", viewModel.ViewController.CurrentStatus.TileSource.Displayed);
+            var nextBackground = service.Created[1];
+            var nextCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
+            Assert.NotNull(nextCompleted);
+            nextCompleted!();
+            Assert.Equal(2, viewModel.ViewController.CurrentStatus.RenderedSeq);
+            Assert.Equal(1, initialBackground.BeginMapRenderCount);
+            Assert.Equal(1, nextBackground.BeginMapRenderCount);
+
+            // 旧背景からの通知は無視される
+            initialBackground.RaiseFrameRendered();
+            Assert.Equal(2, viewModel.ViewController.CurrentStatus.RenderedSeq);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+
+        Assert.False(viewModel.ViewController.CurrentStatus.HasValidViewport);
+    }
+
     private static MapPaneViewModel CreateInitializedViewModel(
         FakeBackgroundMapPaneService service,
         RecordingImageService imageService,
@@ -292,6 +363,8 @@ public sealed class MapPaneViewModelBackgroundTests
 
         public int PixelDensityChangedCount { get; private set; }
 
+        public int BeginMapRenderCount { get; private set; }
+
         IReadOnlyList<ILayer> IMapBackground.Layers => Layers;
 
         public string AttributionText => string.Empty;
@@ -300,11 +373,15 @@ public sealed class MapPaneViewModelBackgroundTests
 
         public event EventHandler? BusyChanged;
 
+        public event EventHandler? FrameRendered;
+
         public void SetBusy(bool busy)
         {
             _busy = busy;
             BusyChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        public void RaiseFrameRendered() => FrameRendered?.Invoke(this, EventArgs.Empty);
 
         public void Attach(Mapsui.Map map, Func<double> getPixelDensity)
         {
@@ -314,6 +391,12 @@ public sealed class MapPaneViewModelBackgroundTests
         }
 
         public void OnPixelDensityChanged() => PixelDensityChangedCount++;
+
+        public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
+        {
+            BeginMapRenderCount++;
+            return RaiseFrameRendered;
+        }
 
         public Task<IMapExportLayers> CreateExportLayersAsync(Viewport viewport, float pixelDensity, CancellationToken cancellationToken)
         {
@@ -339,7 +422,20 @@ public sealed class MapPaneViewModelBackgroundTests
         public List<MapBackgroundRequest> Requests { get; } = [];
 
         public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
-            => throw new NotSupportedException();
+        {
+            Requests.Add(background);
+            var created = new FakeBackground();
+            Created.Add(created);
+            var map = new Mapsui.Map();
+            foreach (var layer in created.Layers)
+            {
+                map.Layers.Add(layer);
+            }
+
+            var marker = new MemoryLayer { Name = "PhotoMarkers", Features = Array.Empty<IFeature>() };
+            map.Layers.Add(marker);
+            return (map, created, marker);
+        }
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
@@ -384,5 +480,32 @@ public sealed class MapPaneViewModelBackgroundTests
 
         public Task SavePngAsync(Stream pngStream, string filePath, CancellationToken cancellationToken)
             => throw new NotSupportedException();
+    }
+
+    private sealed class RecordingUiDispatcher : IUiDispatcher
+    {
+        public bool IsAvailable => true;
+
+        public int RunAsyncCount { get; private set; }
+
+        public int TryEnqueueCount { get; private set; }
+
+        public Task RunAsync(Action action)
+        {
+            RunAsyncCount++;
+            action();
+            return Task.CompletedTask;
+        }
+
+        public Task<T> EnqueueAsync<T>(Func<Task<T>> asyncFunc) => asyncFunc();
+
+        public bool TryEnqueue(Action action)
+        {
+            TryEnqueueCount++;
+            action();
+            return true;
+        }
+
+        public IUiDispatcherTimer? CreateTimer() => null;
     }
 }

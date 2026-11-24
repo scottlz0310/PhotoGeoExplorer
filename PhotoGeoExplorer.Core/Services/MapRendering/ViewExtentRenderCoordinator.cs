@@ -71,6 +71,9 @@ internal sealed class ViewExtentRenderCoordinator<T> : IDisposable
     /// <summary><see cref="IsBusy"/> が変化したとき。任意のスレッドから呼ばれる。</summary>
     public event EventHandler? BusyChanged;
 
+    /// <summary>最新の要求に対応するフレームが UI へ反映された直後に発火する。描画失敗・キャンセル・古い過渡フレームでは発火しない。</summary>
+    public event EventHandler<ViewExtentFrame<T>>? LatestFrameShown;
+
     /// <summary>描画を要求する。破棄後は何もしない。</summary>
     public void Submit(ViewExtentRequest request)
     {
@@ -259,6 +262,17 @@ internal sealed class ViewExtentRenderCoordinator<T> : IDisposable
             {
                 frame.Image.Release();
                 throw;
+            }
+
+            bool isLatest;
+            lock (_gate)
+            {
+                isLatest = !_disposed && _latest is not null && frame.Generation == _latest.Generation;
+            }
+
+            if (isLatest)
+            {
+                LatestFrameShown?.Invoke(this, frame);
             }
         }
         finally

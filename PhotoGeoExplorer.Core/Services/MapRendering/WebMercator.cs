@@ -12,6 +12,9 @@ internal static class WebMercator
     /// <summary>球面メルカトルの地球半径（m）。</summary>
     internal const double EarthRadius = 6378137.0;
 
+    /// <summary>Web メルカトルで表現できる最大の緯度（度）。</summary>
+    internal const double MaxLatitude = 85.05112877980659;
+
     /// <summary>世界全体の範囲の、中心から端までの距離（m。赤道上の半周）。東西・南北とも ±この値が世界の範囲になる。</summary>
     internal const double HalfWorldExtent = Math.PI * EarthRadius;
 
@@ -29,6 +32,34 @@ internal static class WebMercator
 
     /// <summary>南北方向の座標（m）から緯度（度）を求める。</summary>
     internal static double ToLatitude(double y) => Math.Atan(Math.Sinh(y / EarthRadius)) * (180.0 / Math.PI);
+
+    /// <summary>経度（度）から東西方向の座標（m）を求める。</summary>
+    internal static double FromLongitude(double longitude) => EarthRadius * longitude * (Math.PI / 180.0);
+
+    /// <summary>緯度（度）から南北方向の座標（m）を求める。Web メルカトルの表現上限（±<see cref="MaxLatitude"/>）へ丸める。</summary>
+    internal static double FromLatitude(double latitude)
+    {
+        var clamped = Math.Clamp(latitude, -MaxLatitude, MaxLatitude);
+        return EarthRadius * Math.Log(Math.Tan((Math.PI / 4.0) + (clamped * Math.PI / 360.0)));
+    }
+
+    /// <summary>
+    /// 表示解像度（m/論理ピクセル）から、設定 <c>mapDefaultZoomLevel</c> と同じ尺度の論理ズーム（連続値）を求める。
+    /// </summary>
+    internal static double LogicalZoomFromResolution(double resolution)
+        => Math.Log2(ZoomZeroResolution / resolution);
+
+    /// <summary>
+    /// 論理ズーム（連続値）から表示解像度（m/論理ピクセル）を求める。
+    /// </summary>
+    internal static double ResolutionFromLogicalZoom(double logicalZoom)
+        => ZoomZeroResolution / Math.Pow(2.0, logicalZoom);
+
+    /// <summary>
+    /// 論理ズーム（連続値）から、ベクタースタイルが条件判定に使う整数ズームを求める。
+    /// </summary>
+    internal static int StyleZoomFromLogicalZoom(double logicalZoom)
+        => (int)Math.Floor(logicalZoom);
 
     /// <summary>
     /// 表示解像度（m/論理ピクセル）と画素密度から、256px タイルを物理ピクセルで数えた連続ズームを求める。
