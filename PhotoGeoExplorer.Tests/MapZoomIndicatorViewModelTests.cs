@@ -269,6 +269,111 @@ public sealed class MapZoomIndicatorViewModelTests
     }
 
     [Fact]
+    public void OutOfOrderMapViewControllerNotificationDoesNotOverwriteNewerZoomOrToolTip()
+    {
+        using var map = new Mapsui.Map();
+        map.Navigator.SetSize(800, 600);
+        map.Navigator.CenterOnAndZoomTo(
+            new Mapsui.MPoint(WebMercator.FromLongitude(142.362436), WebMercator.FromLatitude(43.768436)),
+            WebMercator.ResolutionFromLogicalZoom(14.0));
+
+        var controller = new MapViewController();
+        controller.Attach(
+            map,
+            MapTileSourceType.OpenStreetMap,
+            MapTileSourceType.OpenStreetMap,
+            "Test",
+            pixelDensity: 1.0,
+            isBusy: false);
+
+        var settings = new MapHeaderDisplaySettings { ShowZoom = false };
+        var dispatcher = new TestUiDispatcher(deferEnqueue: true);
+
+        // UpdateBusy が z14.0 のスナップショットを確定してロック解放した直後、
+        // ViewModel へ古い通知が届く前に表示 ON と z17.0 への移動（DPI・背景更新含む）が割り込む順序を再現する
+        var injected = false;
+        controller.StatusChanged += (_, status) =>
+        {
+            if (injected || !status.IsBusy)
+            {
+                return;
+            }
+
+            injected = true;
+            settings.ShowZoom = true;
+            controller.UpdatePixelDensity(1.5);
+            controller.UpdateTileSource(
+                MapTileSourceType.OpenFreeMapVector,
+                MapTileSourceType.OpenFreeMapVector,
+                "Test",
+                isBusy: true);
+            var moveResult = controller.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 17.0)).GetAwaiter().GetResult();
+            Assert.True(moveResult.Succeeded);
+        };
+
+        using var viewModel = new MapZoomIndicatorViewModel(
+            controller,
+            settings,
+            dispatcher,
+            getLocalizedString: CreateLocalizer("ja-JP"));
+
+        controller.UpdateBusy(true);
+        Assert.True(injected);
+
+        dispatcher.FlushQueuedActions();
+
+        Assert.Equal(17.0, controller.CurrentStatus.Zoom!.Value, precision: 6);
+        Assert.Equal("z17.0", viewModel.ZoomText);
+        Assert.Equal(Visibility.Visible, viewModel.ZoomVisibility);
+        Assert.NotNull(viewModel.ZoomToolTip);
+        Assert.Contains("17.0", viewModel.ZoomToolTip, StringComparison.Ordinal);
+        Assert.Contains("z17", viewModel.ZoomToolTip, StringComparison.Ordinal);
+        Assert.Contains("150%", viewModel.ZoomToolTip, StringComparison.Ordinal);
+        Assert.Contains("OpenFreeMap", viewModel.ZoomToolTip, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ThrottledUpdateUsesCurrentStatusEvenWhenOlderNotificationArrivesLast()
+    {
+        var clock = new ManualTimeProvider();
+        var controller = new FakeMapViewController(MapViewStatus.Empty);
+        var settings = new MapHeaderDisplaySettings();
+        var dispatcher = new TestUiDispatcher();
+
+        using var viewModel = new MapZoomIndicatorViewModel(
+            controller,
+            settings,
+            dispatcher,
+            clock,
+            TimeSpan.FromMilliseconds(50),
+            CreateLocalizer("ja-JP"));
+
+        var status14 = CreateStatus(WebMercator.ResolutionFromLogicalZoom(14.0), 1.0, MapTileSourceType.OpenStreetMap);
+        var status17 = CreateStatus(WebMercator.ResolutionFromLogicalZoom(17.0), 1.5, MapTileSourceType.OpenFreeMapVector);
+
+        // 初回反映（z14.0）後、50ms 以内に z17.0 へ更新され、さらに古い z14.0 通知が遅れて届く
+        controller.Publish(status14);
+        Assert.Equal("z14.0", viewModel.ZoomText);
+
+        clock.Advance(TimeSpan.FromMilliseconds(10));
+        controller.Publish(status17);
+        clock.Advance(TimeSpan.FromMilliseconds(10));
+        controller.RaiseStaleNotification(status14);
+
+        Assert.NotNull(dispatcher.Timer);
+        Assert.True(dispatcher.Timer.IsRunning);
+
+        clock.Advance(TimeSpan.FromMilliseconds(40));
+        dispatcher.Timer.RaiseTick();
+
+        Assert.Equal("z17.0", viewModel.ZoomText);
+        Assert.NotNull(viewModel.ZoomToolTip);
+        Assert.Contains("17.0", viewModel.ZoomToolTip, StringComparison.Ordinal);
+        Assert.Contains("150%", viewModel.ZoomToolTip, StringComparison.Ordinal);
+        Assert.Contains("OpenFreeMap", viewModel.ZoomToolTip, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ConstructorRejectsInvalidArguments()
     {
         var controller = new FakeMapViewController(MapViewStatus.Empty);
@@ -331,6 +436,9 @@ public sealed class MapZoomIndicatorViewModelTests
             CurrentStatus = status;
             StatusChanged?.Invoke(this, status);
         }
+
+        public void RaiseStaleNotification(MapViewStatus staleStatus)
+            => StatusChanged?.Invoke(this, staleStatus);
 
         public Task<MapViewCommandResult> SetViewAsync(MapViewTarget target, CancellationToken cancellationToken = default)
             => Task.FromResult(new MapViewCommandResult(true, CurrentStatus));

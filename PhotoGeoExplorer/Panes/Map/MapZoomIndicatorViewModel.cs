@@ -26,7 +26,6 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
     private readonly TimeSpan _throttleInterval;
     private readonly Func<string, string> _getLocalizedString;
     private readonly Lock _gate = new();
-    private MapViewStatus _latestStatus;
     private IUiDispatcherTimer? _throttleTimer;
     private DateTimeOffset? _lastAppliedAt;
     private bool _hasPendingUpdate;
@@ -55,10 +54,9 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
             throw new ArgumentOutOfRangeException(nameof(throttleInterval), "Throttle interval must be non-negative.");
         }
 
-        _latestStatus = _controller.CurrentStatus;
         _controller.StatusChanged += OnViewStatusChanged;
         _displaySettings.PropertyChanged += OnDisplaySettingsChanged;
-        ApplyStatusOnUiThread(_latestStatus);
+        ApplyStatusOnUiThread(_controller.CurrentStatus);
     }
 
     public string ZoomText
@@ -170,7 +168,6 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
                 return;
             }
 
-            _latestStatus = status;
             _hasPendingUpdate = true;
             shouldEnqueue = !_dispatchQueued;
             if (shouldEnqueue)
@@ -217,7 +214,6 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
 
     private void ApplyLatestStatusImmediatelyOnUiThread()
     {
-        MapViewStatus latest;
         lock (_gate)
         {
             if (_disposed)
@@ -229,15 +225,14 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
             _timerRunning = false;
             _throttleTimer?.Stop();
             _lastAppliedAt = _timeProvider.GetUtcNow();
-            latest = _latestStatus;
         }
 
-        ApplyStatusOnUiThread(latest);
+        // MapViewController はロック解放後に通知するため、通知引数の到着順ではなく常に最新の CurrentStatus を参照する
+        ApplyStatusOnUiThread(_controller.CurrentStatus);
     }
 
     private void HandleQueuedUpdateOnUiThread()
     {
-        MapViewStatus statusToApply;
         lock (_gate)
         {
             _dispatchQueued = false;
@@ -265,15 +260,13 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
 
             _hasPendingUpdate = false;
             _lastAppliedAt = now;
-            statusToApply = _latestStatus;
         }
 
-        ApplyStatusOnUiThread(statusToApply);
+        ApplyStatusOnUiThread(_controller.CurrentStatus);
     }
 
     private void OnThrottleTimerTick(object? sender, EventArgs e)
     {
-        MapViewStatus statusToApply;
         lock (_gate)
         {
             _timerRunning = false;
@@ -285,10 +278,9 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
 
             _hasPendingUpdate = false;
             _lastAppliedAt = _timeProvider.GetUtcNow();
-            statusToApply = _latestStatus;
         }
 
-        ApplyStatusOnUiThread(statusToApply);
+        ApplyStatusOnUiThread(_controller.CurrentStatus);
     }
 
     private IUiDispatcherTimer? EnsureThrottleTimerLocked()
