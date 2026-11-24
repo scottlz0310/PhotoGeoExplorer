@@ -605,15 +605,36 @@ public sealed class VectorMapBackgroundTests
 
         // 案 A で別位置へ移動し、新ビューポートの描画が完了した時点で RenderedSeq = 2 と完了 JSON が 1 回出力される
         var infoLogs = new List<string>();
-        using var applier = new E2EMapStartupApplier(controller, infoLogs.Add);
+        var statusLogged = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var applier = new E2EMapStartupApplier(
+            controller,
+            line =>
+            {
+                lock (infoLogs)
+                {
+                    infoLogs.Add(line);
+                }
+
+                if (line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal))
+                {
+                    statusLogged.TrySetResult(line);
+                }
+            });
         await applier.ApplyAsync(new MapViewTarget(43.768436, 142.362436, 17.5)).ConfigureAwait(true);
         await renderer.NextRequestAsync().ConfigureAwait(true);
+        var statusLine = await statusLogged.Task.WaitAsync(Timeout).ConfigureAwait(true);
         await WaitUntilAsync(() => !background.IsBusy && controller.CurrentStatus.RenderedSeq == 2).ConfigureAwait(true);
 
-        var statusLines = infoLogs.FindAll(line => line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal));
+        List<string> statusLines;
+        lock (infoLogs)
+        {
+            statusLines = infoLogs.FindAll(line => line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal));
+        }
+
         Assert.Single(statusLines);
-        Assert.Contains("\"renderedSeq\":2", statusLines[0], StringComparison.Ordinal);
-        Assert.Contains("\"styleZoom\":17", statusLines[0], StringComparison.Ordinal);
+        Assert.Equal(statusLine, statusLines[0]);
+        Assert.Contains("\"renderedSeq\":2", statusLine, StringComparison.Ordinal);
+        Assert.Contains("\"styleZoom\":17", statusLine, StringComparison.Ordinal);
     }
 
     [Fact]
