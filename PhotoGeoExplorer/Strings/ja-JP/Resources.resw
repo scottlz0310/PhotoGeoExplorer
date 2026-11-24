@@ -1073,6 +1073,9 @@
   <data name="MapHeaderMenuShowCoordinates.Text" xml:space="preserve">
     <value>緯度・経度を表示</value>
   </data>
+  <data name="MapHeaderMenuShowZoom.Text" xml:space="preserve">
+    <value>ズームレベルを表示</value>
+  </data>
   <data name="MapHeaderMenuIncludePrefecture.Text" xml:space="preserve">
     <value>住所表記に都道府県名を含める</value>
   </data>
@@ -1088,11 +1091,38 @@
   <data name="SettingsPaneMapHeaderShowCoordinates.Content" xml:space="preserve">
     <value>緯度・経度を表示</value>
   </data>
+  <data name="SettingsPaneMapHeaderShowZoom.Content" xml:space="preserve">
+    <value>ズームレベルを表示</value>
+  </data>
   <data name="SettingsPaneMapHeaderIncludePrefecture.Content" xml:space="preserve">
     <value>住所表記に都道府県名を含める</value>
   </data>
   <data name="SettingsPaneMapHeaderDescription.Text" xml:space="preserve">
-    <value>選択した写真（1 枚）の撮影位置を、地図ペインのヘッダーに表示します。地図ヘッダーの右クリックメニューからも切り替えられます。</value>
+    <value>選択した写真（1 枚）の撮影位置や地図のズームレベルを、地図ペインのヘッダーに表示します。地図ヘッダーの右クリックメニューからも切り替えられます。</value>
+  </data>
+  <data name="MapZoom.ToolTip.ZoomLine" xml:space="preserve">
+    <value>論理ズーム: {0}（スタイル基準: z{1}）</value>
+  </data>
+  <data name="MapZoom.ToolTip.PixelDensityLine" xml:space="preserve">
+    <value>画素密度: {0}% ({1}x)</value>
+  </data>
+  <data name="MapZoom.ToolTip.BackgroundLine" xml:space="preserve">
+    <value>背景: {0}</value>
+  </data>
+  <data name="MapZoom.ToolTip.BackgroundFallbackLine" xml:space="preserve">
+    <value>背景: {0}（設定 {1} の代替表示）</value>
+  </data>
+  <data name="MapZoom.TileSource.OpenStreetMap" xml:space="preserve">
+    <value>OpenStreetMap（道路地図）</value>
+  </data>
+  <data name="MapZoom.TileSource.EsriWorldImagery" xml:space="preserve">
+    <value>Esri World Imagery（衛星地図）</value>
+  </data>
+  <data name="MapZoom.TileSource.MapboxSatellite" xml:space="preserve">
+    <value>Mapbox Satellite（衛星地図）</value>
+  </data>
+  <data name="MapZoom.TileSource.OpenFreeMapVector" xml:space="preserve">
+    <value>OpenFreeMap（ベクター地図）</value>
   </data>
   <data name="Message.CoordinatesCopied" xml:space="preserve">
     <value>緯度・経度をコピーしました:</value>

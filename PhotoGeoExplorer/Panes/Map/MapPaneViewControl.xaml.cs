@@ -113,7 +113,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         }
     }
 
-    // 幅が足りないときは、緯度経度を非表示 → 道路名を末尾省略 → 字地名を末尾省略の順に省略する。
+    // 幅が足りないときは、ズームレベルを非表示 → 緯度経度を非表示 → 道路名を末尾省略 → 字地名を末尾省略の順に省略する。
     // XAML では指定できないため、ここで設定する（理由は PriorityCollapsePanel を参照）
     private void ConfigureMapHeaderCollapse()
     {
@@ -122,6 +122,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         MapHeaderLocationPanel.SetOverflow(MapHeaderRoad, PriorityCollapseMode.Trim, priority: 2);
         MapHeaderLocationPanel.SetSeparator(MapHeaderRoadSeparator);
         MapHeaderLocationPanel.SetOverflow(MapHeaderCoordinatesButton, PriorityCollapseMode.Hide, priority: 3);
+        MapHeaderLocationPanel.SetSeparator(MapHeaderCoordinatesSeparator);
+        MapHeaderLocationPanel.SetOverflow(MapHeaderZoomText, PriorityCollapseMode.Hide, priority: 4);
     }
 
     internal void ConfigureMapImageExport(IDialogService dialogService)
@@ -413,6 +415,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         MapHeaderMenuShowAddress.IsChecked = settings.ShowAddress;
         MapHeaderMenuShowRoadName.IsChecked = settings.ShowRoadName;
         MapHeaderMenuShowCoordinates.IsChecked = settings.ShowCoordinates;
+        MapHeaderMenuShowZoom.IsChecked = settings.ShowZoom;
         MapHeaderMenuIncludePrefecture.IsChecked = settings.IncludePrefecture;
     }
 
@@ -426,6 +429,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         settings.ShowAddress = MapHeaderMenuShowAddress.IsChecked;
         settings.ShowRoadName = MapHeaderMenuShowRoadName.IsChecked;
         settings.ShowCoordinates = MapHeaderMenuShowCoordinates.IsChecked;
+        settings.ShowZoom = MapHeaderMenuShowZoom.IsChecked;
         settings.IncludePrefecture = MapHeaderMenuIncludePrefecture.IsChecked;
     }
 

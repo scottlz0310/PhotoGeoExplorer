@@ -49,6 +49,7 @@ internal sealed class AppSettings
     public bool ShowMapHeaderAddress { get; set; } = true;
     public bool ShowMapHeaderRoadName { get; set; } = true;
     public bool ShowMapHeaderCoordinates { get; set; } = true;
+    public bool ShowMapHeaderZoom { get; set; } = true;
     public bool MapHeaderIncludePrefecture { get; set; }
     /// <summary>字地名の地域データが無い地域の写真を選んだときの動作（確認する・確認せずに取得する・何もしない）</summary>
     public AreaDataDownloadMode AreaDataDownloadMode { get; set; } = AreaDataDownloadMode.Ask;

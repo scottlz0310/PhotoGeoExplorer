@@ -13,6 +13,7 @@ internal sealed class MapHeaderDisplaySettings : BindableBase
     private bool _showAddress;
     private bool _showRoadName;
     private bool _showCoordinates;
+    private bool _showZoom;
     private bool _includePrefecture;
 
     public MapHeaderDisplaySettings()
@@ -38,6 +39,12 @@ internal sealed class MapHeaderDisplaySettings : BindableBase
         set => SetProperty(ref _showCoordinates, value);
     }
 
+    public bool ShowZoom
+    {
+        get => _showZoom;
+        set => SetProperty(ref _showZoom, value);
+    }
+
     public bool IncludePrefecture
     {
         get => _includePrefecture;
@@ -51,6 +58,7 @@ internal sealed class MapHeaderDisplaySettings : BindableBase
         ShowAddress = settings.ShowMapHeaderAddress;
         ShowRoadName = settings.ShowMapHeaderRoadName;
         ShowCoordinates = settings.ShowMapHeaderCoordinates;
+        ShowZoom = settings.ShowMapHeaderZoom;
         IncludePrefecture = settings.MapHeaderIncludePrefecture;
     }
 

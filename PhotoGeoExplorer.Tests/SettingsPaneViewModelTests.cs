@@ -360,6 +360,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         viewModel.Theme = ThemePreference.Dark;
         viewModel.MapDefaultZoomLevel = 16;
         viewModel.MapHeader.ShowCoordinates = false;
+        viewModel.MapHeader.ShowZoom = false;
         viewModel.MapHeader.IncludePrefecture = true;
 
         viewModel.ResetCommand.Execute(null);
@@ -379,6 +380,7 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.True(viewModel.MapHeader.ShowAddress);
         Assert.True(viewModel.MapHeader.ShowRoadName);
         Assert.True(viewModel.MapHeader.ShowCoordinates);
+        Assert.True(viewModel.MapHeader.ShowZoom);
         Assert.False(viewModel.MapHeader.IncludePrefecture);
     }
 
