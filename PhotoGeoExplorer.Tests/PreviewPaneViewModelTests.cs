@@ -1,5 +1,6 @@
 using System;
 using PhotoGeoExplorer.Panes.Preview;
+using PhotoGeoExplorer.Services.PanZoom;
 using PhotoGeoExplorer.State;
 using Xunit;
 
@@ -15,41 +16,6 @@ public class PreviewPaneViewModelTests
         public System.Threading.Tasks.Task<Microsoft.UI.Xaml.Media.Imaging.BitmapImage?> LoadImageAsync(string filePath)
         {
             return System.Threading.Tasks.Task.FromResult<Microsoft.UI.Xaml.Media.Imaging.BitmapImage?>(null);
-        }
-
-        public float CalculateFitZoomFactor(
-            double imageWidth,
-            double imageHeight,
-            double viewportWidth,
-            double viewportHeight,
-            float minZoom,
-            float maxZoom)
-        {
-            if (imageWidth <= 0 || imageHeight <= 0 || viewportWidth <= 0 || viewportHeight <= 0)
-            {
-                return 1.0f;
-            }
-
-            var scaleX = viewportWidth / imageWidth;
-            var scaleY = viewportHeight / imageHeight;
-            var target = (float)Math.Min(scaleX, scaleY);
-            return Math.Clamp(target, minZoom, maxZoom);
-        }
-
-        public float CalculateDpiCorrectedZoom(
-            float currentZoom,
-            double oldScale,
-            double newScale,
-            float minZoom,
-            float maxZoom)
-        {
-            if (oldScale <= 0 || newScale <= 0)
-            {
-                return currentZoom;
-            }
-
-            var correctedZoom = (float)(currentZoom * oldScale / newScale);
-            return Math.Clamp(correctedZoom, minZoom, maxZoom);
         }
 
         public System.Threading.Tasks.Task<PhotoGeoExplorer.Models.PhotoMetadata?> GetMetadataAsync(
@@ -100,201 +66,174 @@ public class PreviewPaneViewModelTests
         Assert.Equal(Microsoft.UI.Xaml.Visibility.Visible, vm.PlaceholderVisibility);
     }
 
-    [Fact]
-    public void FitToWindowDefaultValue()
+    private const double Precision = 9;
+
+    private static PreviewPaneViewModel CreateLaidOut(
+        double viewportWidth = 800,
+        double viewportHeight = 600,
+        double imageWidth = 800,
+        double imageHeight = 600)
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-
-        // Act
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-
-        // Assert
-        Assert.True(vm.FitToWindow);
+        var vm = new PreviewPaneViewModel(new MockPreviewPaneService(), new WorkspaceState());
+        vm.OnViewportSizeChanged(viewportWidth, viewportHeight);
+        vm.OnImageOpened(imageWidth, imageHeight);
+        return vm;
     }
 
     [Fact]
-    public void ZoomFactorDefaultValue()
+    public void PanZoomStartsFitted()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
+        var vm = new PreviewPaneViewModel(new MockPreviewPaneService(), new WorkspaceState());
 
-        // Act
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-
-        // Assert
-        Assert.Equal(1.0f, vm.ZoomFactor);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
     }
 
     [Fact]
-    public void ExecuteFitSetsFitToWindowTrue()
+    public void ZoomInCommandMagnifiesAroundTheViewportCenter()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.FitToWindow = false;
+        var vm = CreateLaidOut();
+        var center = new PanZoomPoint(400, 300);
+        var contentBefore = vm.PanZoom.Transform.ToContent(center);
 
-        // Act
-        vm.FitCommand.Execute(null);
-
-        // Assert
-        Assert.True(vm.FitToWindow);
-    }
-
-    [Fact]
-    public void ExecuteFitRaisesFitRequested()
-    {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.FitToWindow = false;
-        var raised = false;
-        vm.FitRequested += (_, _) => raised = true;
-
-        // Act
-        vm.FitCommand.Execute(null);
-
-        // Assert
-        Assert.True(raised);
-    }
-
-    [Fact]
-    public void ExecuteZoomInIncrementsZoomFactor()
-    {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        var initialZoom = vm.ZoomFactor;
-
-        // Act
         vm.ZoomInCommand.Execute(null);
 
-        // Assert
-        Assert.True(vm.ZoomFactor > initialZoom);
-        Assert.False(vm.FitToWindow);
+        Assert.Equal(1.2, vm.PanZoom.Transform.Scale, Precision);
+        var viewAfter = vm.PanZoom.Transform.ToView(contentBefore);
+        Assert.Equal(center.X, viewAfter.X, Precision);
+        Assert.Equal(center.Y, viewAfter.Y, Precision);
     }
 
     [Fact]
-    public void ExecuteZoomOutDecrementsZoomFactor()
+    public void ZoomOutCommandReversesZoomInAndStopsAtFit()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.ZoomFactor = 2.0f;
+        var vm = CreateLaidOut();
+        vm.ZoomInCommand.Execute(null);
 
-        // Act
+        vm.ZoomOutCommand.Execute(null);
         vm.ZoomOutCommand.Execute(null);
 
-        // Assert
-        Assert.True(vm.ZoomFactor < 2.0f);
-        Assert.False(vm.FitToWindow);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
     }
 
     [Fact]
-    public void AdjustZoomMultipliesZoomFactor()
+    public void ZoomInCommandStopsAtTheMaximumScale()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.ZoomFactor = 1.0f;
+        var vm = CreateLaidOut();
 
-        // Act
-        vm.AdjustZoom(2.0f);
+        for (var i = 0; i < 30; i++)
+        {
+            vm.ZoomInCommand.Execute(null);
+        }
 
-        // Assert
-        Assert.Equal(2.0f, vm.ZoomFactor);
-        Assert.False(vm.FitToWindow);
+        Assert.Equal(6.0, vm.PanZoom.Transform.Scale, Precision);
     }
 
     [Fact]
-    public void AdjustZoomClampsToMinZoom()
+    public void FitCommandReturnsToTheFittedState()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.ZoomFactor = 0.2f;
+        var vm = CreateLaidOut();
+        vm.ZoomInCommand.Execute(null);
+        vm.PanZoom.PanBy(-50, -30);
 
-        // Act
-        vm.AdjustZoom(0.1f); // 0.2 * 0.1 = 0.02 -> クランプされて 0.1
+        vm.FitCommand.Execute(null);
 
-        // Assert
-        Assert.Equal(0.1f, vm.ZoomFactor);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
     }
 
     [Fact]
-    public void AdjustZoomClampsToMaxZoom()
+    public void ZoomCommandsAreIgnoredUntilTheImageSizeIsKnown()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.ZoomFactor = 5.0f;
+        var vm = new PreviewPaneViewModel(new MockPreviewPaneService(), new WorkspaceState());
+        vm.OnViewportSizeChanged(800, 600);
 
-        // Act
-        vm.AdjustZoom(2.0f); // 5.0 * 2.0 = 10.0 -> クランプされて 6.0
+        vm.ZoomInCommand.Execute(null);
 
-        // Assert
-        Assert.Equal(6.0f, vm.ZoomFactor);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
     }
 
     [Fact]
-    public void OnRasterizationScaleChangedUpdatesDpiScale()
+    public void OnImageOpenedResetsAnExistingZoomToFit()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.RasterizationScale = 1.0;
+        var vm = CreateLaidOut();
+        vm.ZoomInCommand.Execute(null);
+        vm.ZoomInCommand.Execute(null);
 
-        // Act
-        vm.OnRasterizationScaleChanged(1.5);
+        vm.OnImageOpened(1920, 1080);
 
-        // Assert
-        Assert.Equal(1.5, vm.RasterizationScale);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+    }
+
+    [Theory]
+    [InlineData(1600, 1200)]
+    [InlineData(400, 300)]
+    public void OnViewportSizeChangedKeepsTheZoomAndTheViewedPosition(double newWidth, double newHeight)
+    {
+        var vm = CreateLaidOut();
+        vm.PanZoom.ZoomAt(3.0, new PanZoomPoint(700, 500));
+        var centerBefore = NormalizedViewportCenter(vm.PanZoom);
+
+        vm.OnViewportSizeChanged(newWidth, newHeight);
+
+        var centerAfter = NormalizedViewportCenter(vm.PanZoom);
+        Assert.Equal(3.0, vm.PanZoom.Transform.Scale, Precision);
+        Assert.Equal(centerBefore.X, centerAfter.X, Precision);
+        Assert.Equal(centerBefore.Y, centerAfter.Y, Precision);
     }
 
     [Fact]
-    public void OnRasterizationScaleChangedWithFitToWindowDoesNotCorrectZoom()
+    public void OnImageReplacedResetsTheZoomAndUsesTheKnownSize()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.FitToWindow = true;
-        vm.ZoomFactor = 2.0f;
-        vm.RasterizationScale = 1.0;
+        var vm = CreateLaidOut();
+        vm.ZoomInCommand.Execute(null);
+        vm.PanZoom.PanBy(-40, -20);
 
-        // Act
-        vm.OnRasterizationScaleChanged(1.5);
+        vm.OnImageReplaced(1920, 1080);
 
-        // Assert - FitToWindow モードではズームファクター補正しない
-        Assert.Equal(2.0f, vm.ZoomFactor);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+        // 寸法が使われている（拡大できる）。1920x1080 は 800x600 に幅いっぱいで収まる
+        Assert.Equal(new PanZoomRect(0, 75, 800, 450), vm.PanZoom.ContentBounds);
+        vm.ZoomInCommand.Execute(null);
+        Assert.Equal(1.2, vm.PanZoom.Transform.Scale, Precision);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1280, 0)]
+    [InlineData(0, 960)]
+    public void OnImageReplacedWithoutAKnownSizeKeepsTheLayoutEmptyUntilTheImageOpens(double pixelWidth, double pixelHeight)
+    {
+        var vm = CreateLaidOut();
+        vm.ZoomInCommand.Execute(null);
+
+        vm.OnImageReplaced(pixelWidth, pixelHeight);
+
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+        Assert.True(vm.PanZoom.ContentBounds.IsEmpty);
+        vm.ZoomInCommand.Execute(null);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+
+        vm.OnImageOpened(1280, 960);
+
+        Assert.False(vm.PanZoom.ContentBounds.IsEmpty);
     }
 
     [Fact]
-    public void OnRasterizationScaleChangedWithoutFitToWindowCorrectsZoom()
+    public void OnImageReplacedBeforeTheViewportIsKnownAppliesTheSizeOnceTheViewportArrives()
     {
-        // Arrange
-        var service = new MockPreviewPaneService();
-        var workspaceState = new WorkspaceState();
-        var vm = new PreviewPaneViewModel(service, workspaceState);
-        vm.FitToWindow = false;
-        vm.ZoomFactor = 2.0f;
-        vm.RasterizationScale = 1.0;
+        var vm = new PreviewPaneViewModel(new MockPreviewPaneService(), new WorkspaceState());
 
-        // Act
-        vm.OnRasterizationScaleChanged(1.5);
+        vm.OnImageReplaced(1280, 960);
+        vm.OnViewportSizeChanged(800, 600);
 
-        // Assert - 2.0 * 1.0 / 1.5 = 1.333...
-        Assert.InRange(vm.ZoomFactor, 1.33f, 1.34f);
+        Assert.Equal(new PanZoomRect(0, 0, 800, 600), vm.PanZoom.ContentBounds);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+    }
+
+    private static PanZoomPoint NormalizedViewportCenter(PanZoomController controller)
+    {
+        var content = controller.Transform.ToContent(new PanZoomPoint(controller.Viewport.Width / 2, controller.Viewport.Height / 2));
+        var bounds = controller.ContentBounds;
+        return new PanZoomPoint((content.X - bounds.X) / bounds.Width, (content.Y - bounds.Y) / bounds.Height);
     }
 
     [Fact]

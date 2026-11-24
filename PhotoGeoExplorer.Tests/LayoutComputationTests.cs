@@ -437,36 +437,6 @@ public sealed class LayoutComputationTests
     }
 
     [Fact]
-    public void PreviewPaneComputationHelpersReturnExpectedResults()
-    {
-        Assert.False(PreviewPaneViewControl.HasMeaningfulRasterizationScaleChange(1.0, 1.00001));
-        Assert.True(PreviewPaneViewControl.HasMeaningfulRasterizationScaleChange(1.0, 1.01));
-        Assert.True(PreviewPaneViewControl.ShouldRetryFit(0, 200, 2));
-        Assert.False(PreviewPaneViewControl.ShouldRetryFit(300, 200, 2));
-        Assert.False(PreviewPaneViewControl.ShouldRetryFit(0, 200, 0));
-        Assert.False(PreviewPaneViewControl.HasZoomFactorChanged(2.0, 2.00001));
-        Assert.True(PreviewPaneViewControl.HasZoomFactorChanged(2.0, 2.1));
-
-        var zoomOffsets = PreviewPaneViewControl.CalculateZoomOffsets(
-            currentZoom: 2.0,
-            horizontalOffset: 10,
-            verticalOffset: 20,
-            cursorX: 30,
-            cursorY: 40,
-            targetZoom: 3.0);
-        var dragOffsets = PreviewPaneViewControl.CalculateDragOffsets(
-            dragStartHorizontalOffset: 100,
-            dragStartVerticalOffset: 200,
-            deltaX: 15,
-            deltaY: -20);
-
-        Assert.Equal(30, zoomOffsets.TargetOffsetX);
-        Assert.Equal(50, zoomOffsets.TargetOffsetY);
-        Assert.Equal(85, dragOffsets.HorizontalOffset);
-        Assert.Equal(220, dragOffsets.VerticalOffset);
-    }
-
-    [Fact]
     public void PaneLayoutChangedEventArgsStoresConstructorValues()
     {
         var args = new PaneLayoutChangedEventArgs(

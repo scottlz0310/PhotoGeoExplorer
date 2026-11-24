@@ -460,6 +460,52 @@ public sealed class PanZoomControllerTests
         Assert.True(new PanZoomRect(x, y, 800, 600).IsEmpty);
     }
 
+    [Theory]
+    [InlineData(0.0, 0.0, 1.0, 0.0, 0.0, true)]
+    [InlineData(10.5, -3.0, 0.5, -20.0, 8.0, true)]
+    [InlineData(0.0, 0.0, 0.0, 0.0, 0.0, false)]
+    [InlineData(0.0, 0.0, -1.0, 0.0, 0.0, false)]
+    [InlineData(0.0, 0.0, double.NaN, 0.0, 0.0, false)]
+    [InlineData(0.0, 0.0, double.PositiveInfinity, 0.0, 0.0, false)]
+    [InlineData(double.NaN, 0.0, 1.0, 0.0, 0.0, false)]
+    [InlineData(0.0, double.PositiveInfinity, 1.0, 0.0, 0.0, false)]
+    [InlineData(0.0, 0.0, 1.0, double.NaN, 0.0, false)]
+    [InlineData(0.0, 0.0, 1.0, 0.0, double.NegativeInfinity, false)]
+    public void IsValidManipulationAcceptsOnlyValuesThatManipulateAccepts(
+        double pivotX,
+        double pivotY,
+        double scaleFactor,
+        double translationX,
+        double translationY,
+        bool expected)
+    {
+        var pivot = new PanZoomPoint(pivotX, pivotY);
+
+        Assert.Equal(expected, PanZoomController.IsValidManipulation(pivot, scaleFactor, translationX, translationY));
+
+        // 受け付けない値は Manipulate が拒否し、受け付ける値は例外にならない（検証関数と本体の食い違いを防ぐ）
+        var controller = CreateFitted();
+        if (expected)
+        {
+            controller.Manipulate(pivot, scaleFactor, translationX, translationY);
+        }
+        else
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => controller.Manipulate(pivot, scaleFactor, translationX, translationY));
+        }
+    }
+
+    [Theory]
+    [InlineData(0.0, 0.0, true)]
+    [InlineData(-5.5, 120.0, true)]
+    [InlineData(double.NaN, 0.0, false)]
+    [InlineData(0.0, double.PositiveInfinity, false)]
+    [InlineData(double.NegativeInfinity, 1.0, false)]
+    public void IsValidPointRequiresFiniteCoordinates(double x, double y, bool expected)
+    {
+        Assert.Equal(expected, PanZoomController.IsValidPoint(new PanZoomPoint(x, y)));
+    }
+
     private static PanZoomPoint NormalizedViewportCenter(PanZoomController controller)
     {
         var content = controller.Transform.ToContent(new PanZoomPoint(controller.Viewport.Width / 2, controller.Viewport.Height / 2));

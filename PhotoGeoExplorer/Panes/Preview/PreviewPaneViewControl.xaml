@@ -77,30 +77,22 @@
             Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
             CornerRadius="6">
             <Grid>
-                <ScrollViewer
-                    x:Name="PreviewScrollViewer"
-                    ZoomMode="Enabled"
-                    MinZoomFactor="0.1"
-                    MaxZoomFactor="6"
-                    HorizontalScrollMode="Disabled"
-                    VerticalScrollMode="Disabled"
-                    IsScrollInertiaEnabled="False"
-                    HorizontalScrollBarVisibility="Auto"
-                    VerticalScrollBarVisibility="Auto"
-                    SizeChanged="OnScrollViewerSizeChanged"
-                    PointerWheelChanged="OnPointerWheelChanged"
-                    PointerPressed="OnPointerPressed"
-                    PointerMoved="OnPointerMoved"
-                    PointerReleased="OnPointerReleased"
-                    PointerCaptureLost="OnPointerCaptureLost">
+                <!-- ズーム・パンは PanZoomController の変換を Image の RenderTransform に反映して表現する。Transparent は余白でも入力を受けるため -->
+                <Grid
+                    x:Name="PreviewViewport"
+                    Background="Transparent"
+                    SizeChanged="OnViewportSizeChanged">
                     <Image
                         x:Name="PreviewImage"
                         Source="{Binding CurrentImage}"
                         Stretch="Uniform"
                         AutomationProperties.AutomationId="PreviewImage"
-                        ImageOpened="OnImageOpened"
-                        SizeChanged="OnImageSizeChanged"/>
-                </ScrollViewer>
+                        ImageOpened="OnImageOpened">
+                        <Image.RenderTransform>
+                            <CompositeTransform x:Name="PreviewImageTransform"/>
+                        </Image.RenderTransform>
+                    </Image>
+                </Grid>
                 <TextBlock
                     Text="Select a photo to preview."
                     Visibility="{Binding PlaceholderVisibility}"

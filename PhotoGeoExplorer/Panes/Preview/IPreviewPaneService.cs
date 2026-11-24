@@ -7,7 +7,7 @@ namespace PhotoGeoExplorer.Panes.Preview;
 
 /// <summary>
 /// Preview Pane専用のサービスインターフェース
-/// 画像ロード、フィッティング計算などの処理を定義
+/// 画像ロードなどの処理を定義
 /// </summary>
 internal interface IPreviewPaneService
 {
@@ -25,38 +25,4 @@ internal interface IPreviewPaneService
     /// <param name="cancellationToken">キャンセルトークン</param>
     /// <returns>PhotoMetadata オブジェクト</returns>
     Task<PhotoMetadata?> GetMetadataAsync(string filePath, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// ビューポートに画像をフィットさせるズームファクターを計算
-    /// </summary>
-    /// <param name="imageWidth">画像の幅（ピクセル）</param>
-    /// <param name="imageHeight">画像の高さ（ピクセル）</param>
-    /// <param name="viewportWidth">ビューポートの幅（DIP）</param>
-    /// <param name="viewportHeight">ビューポートの高さ（DIP）</param>
-    /// <param name="minZoom">最小ズームファクター</param>
-    /// <param name="maxZoom">最大ズームファクター</param>
-    /// <returns>計算されたズームファクター</returns>
-    float CalculateFitZoomFactor(
-        double imageWidth,
-        double imageHeight,
-        double viewportWidth,
-        double viewportHeight,
-        float minZoom,
-        float maxZoom);
-
-    /// <summary>
-    /// DPI スケーリング変更時のズームファクター補正を計算
-    /// </summary>
-    /// <param name="currentZoom">現在のズームファクター</param>
-    /// <param name="oldScale">変更前の DPI スケール</param>
-    /// <param name="newScale">変更後の DPI スケール</param>
-    /// <param name="minZoom">最小ズームファクター</param>
-    /// <param name="maxZoom">最大ズームファクター</param>
-    /// <returns>補正されたズームファクター</returns>
-    float CalculateDpiCorrectedZoom(
-        float currentZoom,
-        double oldScale,
-        double newScale,
-        float minZoom,
-        float maxZoom);
 }

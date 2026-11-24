@@ -30,7 +30,8 @@ public partial class CoverageExclusionRatchetTests
         ["PhotoGeoExplorer/Panes/FileBrowser/FileBrowserDialogs.cs"] = "View 層の UI 構築ヘルパー。WinRT 型を直接生成する（#171）",
         ["PhotoGeoExplorer/Panes/FileBrowser/FileBrowserDragDropHandler.cs"] = "View 層の UI 構築ヘルパー。WinRT 型を直接生成する（#171）",
         ["PhotoGeoExplorer/Panes/FileBrowser/FileBrowserMenuBuilder.cs"] = "View 層の UI 構築ヘルパー。WinRT 型を直接生成する（#171）",
-        ["PhotoGeoExplorer/Panes/Map/PriorityCollapsePanel.cs"] = "WinUI の Panel。測定・配置は単体テストできない。幅の割り当ては PriorityCollapseLayout に分けてテストしている"
+        ["PhotoGeoExplorer/Panes/Map/PriorityCollapsePanel.cs"] = "WinUI の Panel。測定・配置は単体テストできない。幅の割り当ては PriorityCollapseLayout に分けてテストしている",
+        ["PhotoGeoExplorer/Services/PanZoom/PanZoomInputAdapter.cs"] = "View 層の入力配線。ManipulationMode とポインターイベントは実ウィンドウが必要で単体テストできない。変換ロジックは Core の PanZoomController に分けてテストしている（#370）"
     };
 
     // [ExcludeFromCodeCoverage] を付けてよい型・メンバー。キーは型の完全名、メンバーは「型の完全名.メンバー名」

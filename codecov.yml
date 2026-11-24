@@ -46,5 +46,9 @@ ignore:
   # WinUI Panel (measure/arrange only). The width allocation lives in
   # PriorityCollapseLayout, which stays tracked (#303).
   - "PhotoGeoExplorer/Panes/Map/PriorityCollapsePanel.cs"
+  # View-layer input wiring (ManipulationMode and pointer events need a real
+  # window). The pan/zoom math lives in PanZoomController (Core), which stays
+  # tracked and is unit-tested (#370).
+  - "PhotoGeoExplorer/Services/PanZoom/PanZoomInputAdapter.cs"
   # The ignore list is pinned by CoverageExclusionRatchetTests. Update its
   # allowlist (with a reason) when changing this list (#303).
