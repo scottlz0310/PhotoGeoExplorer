@@ -20,6 +20,9 @@ internal sealed class PanZoomController
     private PanZoomRect _contentBounds;
     private PanZoomTransform _transform = PanZoomTransform.Identity;
 
+    // レイアウトが空になった間も、見ていたコンテンツ上の位置を覚えておく（コンテンツの縦横比に対する 0〜1 の値）
+    private PanZoomPoint? _pendingCenter;
+
     /// <param name="minScale">最小倍率。ウィンドウに合わせた状態（1）以下</param>
     /// <param name="maxScale">最大倍率。ウィンドウに合わせた状態（1）以上</param>
     internal PanZoomController(double minScale, double maxScale)
@@ -65,18 +68,19 @@ internal sealed class PanZoomController
             ? default
             : CalculateFitBounds(viewport, contentSize);
 
-        var preserved = _viewport.IsEmpty || _contentBounds.IsEmpty || newBounds.IsEmpty
-            ? (PanZoomPoint?)null
-            : NormalizeCenter();
+        // 空の間は、空になる直前に退避した中心を引き継ぐ。別の大きさで戻っても、見ていた位置へ戻せる
+        var preserved = CanOperate ? NormalizeCenter() : _pendingCenter;
 
         _viewport = viewport;
         _contentBounds = newBounds;
 
         if (newBounds.IsEmpty)
         {
+            _pendingCenter = preserved;
             return;
         }
 
+        _pendingCenter = null;
         if (preserved is not { } center)
         {
             Apply(Clamp(_transform));
@@ -95,13 +99,20 @@ internal sealed class PanZoomController
     /// <summary>
     /// ウィンドウに合わせた状態（倍率 1・中央）に戻す
     /// </summary>
-    internal void Fit() => Apply(PanZoomTransform.Identity);
+    internal void Fit()
+    {
+        _pendingCenter = null;
+        Apply(PanZoomTransform.Identity);
+    }
 
     /// <summary>
     /// 表示座標での移動量だけパンする
     /// </summary>
     internal void PanBy(double deltaX, double deltaY)
     {
+        RequireFinite(deltaX, nameof(deltaX));
+        RequireFinite(deltaY, nameof(deltaY));
+
         if (!CanOperate)
         {
             return;
@@ -117,13 +128,29 @@ internal sealed class PanZoomController
     /// <summary>
     /// 指定した表示座標を動かさずに、倍率を factor 倍する（上下限で丸める）
     /// </summary>
-    internal void ZoomAt(double factor, PanZoomPoint anchor) => Manipulate(anchor, factor, 0, 0);
+    internal void ZoomAt(double factor, PanZoomPoint anchor)
+    {
+        RequireFinitePositive(factor, nameof(factor));
+        RequireFinite(anchor, nameof(anchor));
+
+        ApplyManipulation(anchor, factor, 0, 0);
+    }
 
     /// <summary>
     /// ビューポートの中心を動かさずに、倍率を factor 倍する
     /// </summary>
     internal void ZoomAtCenter(double factor)
-        => ZoomAt(factor, new PanZoomPoint(_viewport.Width / 2, _viewport.Height / 2));
+    {
+        RequireFinitePositive(factor, nameof(factor));
+
+        // 空や非有限のビューポートは中心が定まらないため、操作できる状態になってから座標を求める
+        if (!CanOperate)
+        {
+            return;
+        }
+
+        ZoomAt(factor, new PanZoomPoint(_viewport.Width / 2, _viewport.Height / 2));
+    }
 
     /// <summary>
     /// ホイールの回転量を倍率に換算して、カーソル位置を基準にズームする。
@@ -131,12 +158,15 @@ internal sealed class PanZoomController
     /// </summary>
     internal void ZoomByWheel(double wheelDelta, double factorPerNotch, PanZoomPoint anchor)
     {
-        if (!double.IsFinite(factorPerNotch) || factorPerNotch <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(factorPerNotch), factorPerNotch, "Factor per notch must be finite and positive.");
-        }
+        RequireFinite(wheelDelta, nameof(wheelDelta));
+        RequireFinitePositive(factorPerNotch, nameof(factorPerNotch));
+        RequireFinite(anchor, nameof(anchor));
 
-        ZoomAt(Math.Pow(factorPerNotch, wheelDelta / WheelNotch), anchor);
+        // 有限の回転量でも累乗が溢れる（Infinity）か 0 に潰れることがある。どちらも上下限で丸まる向きなので、有限の端へ寄せる
+        var factor = Math.Pow(factorPerNotch, wheelDelta / WheelNotch);
+        factor = double.IsPositiveInfinity(factor) ? double.MaxValue : Math.Max(factor, double.Epsilon);
+
+        ApplyManipulation(anchor, factor, 0, 0);
     }
 
     /// <summary>
@@ -145,11 +175,16 @@ internal sealed class PanZoomController
     /// </summary>
     internal void Manipulate(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
     {
-        if (!double.IsFinite(scaleFactor) || scaleFactor <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(scaleFactor), scaleFactor, "Scale factor must be finite and positive.");
-        }
+        RequireFinitePositive(scaleFactor, nameof(scaleFactor));
+        RequireFinite(pivot, nameof(pivot));
+        RequireFinite(translationX, nameof(translationX));
+        RequireFinite(translationY, nameof(translationY));
 
+        ApplyManipulation(pivot, scaleFactor, translationX, translationY);
+    }
+
+    private void ApplyManipulation(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
+    {
         if (!CanOperate)
         {
             return;
@@ -162,6 +197,31 @@ internal sealed class PanZoomController
             newScale,
             pivot.X - (pivot.X - _transform.TranslateX) * effectiveFactor + translationX,
             pivot.Y - (pivot.Y - _transform.TranslateY) * effectiveFactor + translationY)));
+    }
+
+    // NaN や Infinity が変換に入ると、以後の計算がすべて NaN になり Fit() まで復帰できない。入口で拒否する
+    private static void RequireFinite(double value, string paramName)
+    {
+        if (!double.IsFinite(value))
+        {
+            throw new ArgumentOutOfRangeException(paramName, value, "Value must be finite.");
+        }
+    }
+
+    private static void RequireFinite(PanZoomPoint value, string paramName)
+    {
+        if (!double.IsFinite(value.X) || !double.IsFinite(value.Y))
+        {
+            throw new ArgumentOutOfRangeException(paramName, value, "Point coordinates must be finite.");
+        }
+    }
+
+    private static void RequireFinitePositive(double value, string paramName)
+    {
+        if (!double.IsFinite(value) || value <= 0)
+        {
+            throw new ArgumentOutOfRangeException(paramName, value, "Value must be finite and positive.");
+        }
     }
 
     private bool CanOperate => !_viewport.IsEmpty && !_contentBounds.IsEmpty;

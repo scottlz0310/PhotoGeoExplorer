@@ -223,6 +223,16 @@ public sealed class PanZoomControllerTests
     }
 
     [Fact]
+    public void ZoomAtCenterRejectsAnInvalidFactorEvenBeforeTheLayoutIsKnown()
+    {
+        var controller = new PanZoomController(1.0, 6.0);
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => controller.ZoomAtCenter(double.NaN));
+
+        Assert.Equal("factor", exception.ParamName);
+    }
+
+    [Fact]
     public void FitReturnsToIdentityAndRaisesChanged()
     {
         var controller = CreateFitted();
@@ -301,6 +311,153 @@ public sealed class PanZoomControllerTests
         controller.SetLayout(new PanZoomSize(1280, 720), new PanZoomSize(800, 600));
 
         Assert.Equal(PanZoomTransform.Identity, controller.Transform);
+    }
+
+    [Theory]
+    [InlineData(1600, 1200)]
+    [InlineData(400, 300)]
+    [InlineData(1000, 600)]
+    public void SetLayoutRestoresTheCenterWhenReturningFromAnEmptyLayoutAtADifferentSize(double newWidth, double newHeight)
+    {
+        var controller = CreateFitted();
+        controller.ZoomAt(3.0, new PanZoomPoint(700, 500));
+        var centerBefore = NormalizedViewportCenter(controller);
+
+        controller.SetLayout(new PanZoomSize(0, 0), new PanZoomSize(800, 600));
+        controller.SetLayout(new PanZoomSize(newWidth, newHeight), new PanZoomSize(800, 600));
+
+        var centerAfter = NormalizedViewportCenter(controller);
+        Assert.Equal(centerBefore.X, centerAfter.X, Precision);
+        Assert.Equal(centerBefore.Y, centerAfter.Y, Precision);
+        Assert.Equal(3.0, controller.Transform.Scale, Precision);
+    }
+
+    [Fact]
+    public void SetLayoutKeepsThePendingCenterAcrossConsecutiveEmptyLayouts()
+    {
+        var controller = CreateFitted();
+        controller.ZoomAt(3.0, new PanZoomPoint(700, 500));
+        var centerBefore = NormalizedViewportCenter(controller);
+
+        controller.SetLayout(new PanZoomSize(0, 0), new PanZoomSize(800, 600));
+        controller.SetLayout(new PanZoomSize(1200, 900), new PanZoomSize(0, 0));
+        controller.SetLayout(new PanZoomSize(0, 0), new PanZoomSize(0, 0));
+        controller.SetLayout(new PanZoomSize(1600, 1200), new PanZoomSize(800, 600));
+
+        var centerAfter = NormalizedViewportCenter(controller);
+        Assert.Equal(centerBefore.X, centerAfter.X, Precision);
+        Assert.Equal(centerBefore.Y, centerAfter.Y, Precision);
+    }
+
+    [Fact]
+    public void FitWhileTheLayoutIsEmptyDiscardsThePendingCenter()
+    {
+        var controller = CreateFitted();
+        controller.ZoomAt(3.0, new PanZoomPoint(700, 500));
+        controller.SetLayout(new PanZoomSize(0, 0), new PanZoomSize(800, 600));
+
+        controller.Fit();
+        controller.SetLayout(new PanZoomSize(1600, 1200), new PanZoomSize(800, 600));
+
+        Assert.Equal(PanZoomTransform.Identity, controller.Transform);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void NonFiniteInputsAreRejectedWithoutCorruptingTheTransform(double value)
+    {
+        var controller = CreateFitted();
+        controller.ZoomAt(3.0, new PanZoomPoint(200, 150));
+        var before = controller.Transform;
+        var changes = RecordChanges(controller);
+        var anchor = new PanZoomPoint(100, 100);
+
+        var rejected = new (Action Call, string ParamName)[]
+        {
+            (() => controller.PanBy(value, 0), "deltaX"),
+            (() => controller.PanBy(0, value), "deltaY"),
+            (() => controller.ZoomAt(1.5, new PanZoomPoint(value, 0)), "anchor"),
+            (() => controller.ZoomAt(1.5, new PanZoomPoint(0, value)), "anchor"),
+            (() => controller.ZoomByWheel(value, 1.1, anchor), "wheelDelta"),
+            (() => controller.ZoomByWheel(120, 1.1, new PanZoomPoint(value, 0)), "anchor"),
+            (() => controller.Manipulate(new PanZoomPoint(value, 0), 1.0, 0, 0), "pivot"),
+            (() => controller.Manipulate(new PanZoomPoint(0, value), 1.0, 0, 0), "pivot"),
+            (() => controller.Manipulate(anchor, 1.0, value, 0), "translationX"),
+            (() => controller.Manipulate(anchor, 1.0, 0, value), "translationY"),
+        };
+
+        foreach (var (call, paramName) in rejected)
+        {
+            var exception = Assert.Throws<ArgumentOutOfRangeException>(call);
+            Assert.Equal(paramName, exception.ParamName);
+        }
+
+        Assert.Equal(before, controller.Transform);
+        Assert.Empty(changes);
+    }
+
+    [Theory]
+    [InlineData(1e10, 6.0)]
+    [InlineData(1e300, 6.0)]
+    [InlineData(-1e10, 1.0)]
+    [InlineData(-1e300, 1.0)]
+    public void ZoomByWheelWithAnExtremeFiniteDeltaClampsToTheScaleLimits(double wheelDelta, double expectedScale)
+    {
+        var controller = CreateFitted();
+        controller.ZoomAtCenter(2.0);
+
+        controller.ZoomByWheel(wheelDelta, 1.1, new PanZoomPoint(300, 200));
+
+        Assert.Equal(expectedScale, controller.Transform.Scale, Precision);
+        Assert.True(double.IsFinite(controller.Transform.TranslateX));
+        Assert.True(double.IsFinite(controller.Transform.TranslateY));
+    }
+
+    [Theory]
+    [InlineData(double.PositiveInfinity, 600.0, 800.0, 600.0)]
+    [InlineData(double.NaN, 600.0, 800.0, 600.0)]
+    [InlineData(800.0, 600.0, double.PositiveInfinity, 600.0)]
+    [InlineData(1e308, 1e308, 1e-308, 1e-308)]
+    public void SetLayoutWithNonFiniteOrOverflowingSizesKeepsTheTransformFinite(
+        double viewportWidth,
+        double viewportHeight,
+        double contentWidth,
+        double contentHeight)
+    {
+        var controller = CreateFitted();
+        controller.ZoomAt(3.0, new PanZoomPoint(200, 150));
+        var before = controller.Transform;
+
+        controller.SetLayout(new PanZoomSize(viewportWidth, viewportHeight), new PanZoomSize(contentWidth, contentHeight));
+        controller.PanBy(50, 50);
+        controller.ZoomAtCenter(1.5);
+
+        Assert.True(controller.ContentBounds.IsEmpty);
+        Assert.Equal(before, controller.Transform);
+    }
+
+    [Theory]
+    [InlineData(800.0, 600.0, false)]
+    [InlineData(0.0, 600.0, true)]
+    [InlineData(800.0, -1.0, true)]
+    [InlineData(double.NaN, 600.0, true)]
+    [InlineData(double.PositiveInfinity, 600.0, true)]
+    [InlineData(800.0, double.NegativeInfinity, true)]
+    public void SizeAndRectTreatNonPositiveAndNonFiniteDimensionsAsEmpty(double width, double height, bool expectedEmpty)
+    {
+        Assert.Equal(expectedEmpty, new PanZoomSize(width, height).IsEmpty);
+        Assert.Equal(expectedEmpty, new PanZoomRect(0, 0, width, height).IsEmpty);
+    }
+
+    [Theory]
+    [InlineData(double.NaN, 0.0)]
+    [InlineData(double.PositiveInfinity, 0.0)]
+    [InlineData(0.0, double.NegativeInfinity)]
+    public void RectTreatsNonFinitePositionsAsEmpty(double x, double y)
+    {
+        Assert.True(new PanZoomRect(x, y, 800, 600).IsEmpty);
     }
 
     private static PanZoomPoint NormalizedViewportCenter(PanZoomController controller)
