@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### 追加
+- E2E・自律検証向けに、地図の表示位置（緯度・経度）と論理ズーム（小数可）を直接指定し、現在状態（`center`・`zoom`・`styleZoom`・`pixelDensity`・`viewportSize`・`tileSource`・`isBusy`・`renderedSeq`）を取得できる検証用の入口を追加した (#363)。
+  - **起動時指定（案 A）**: 環境変数 `PHOTO_GEO_EXPLORER_E2E_MAP_VIEW="緯度,経度,ズーム"` を設定して起動すると、利用者の設定ファイルを書き換えずに地図をその位置・ズームへ移動し、描画完了（有効ビューポートかつ非ビジー）時点で状態 JSON（`[E2E][MapStatus] ...`）を `app.log` に 1 行出力する。
+  - **実行中操作チャンネル（案 B）**: 環境変数 `PHOTO_GEO_EXPLORER_E2E_CONTROL=1`（または `true`）を指定したときだけ、現在のログオンユーザーのみ接続可能なローカル専用名前付きパイプ（`\\.\pipe\PhotoGeoExplorer.E2E.<pid>`）を開き、1 行 JSON コマンド（`status` / `view`）を受け付ける。環境変数を指定しない通常起動ではコードパスごと動作しない。
+  - 地図状態の取得・操作契約を Mapsui 非依存の `IMapViewController` / `MapViewStatus` に切り出し、今後の地図ヘッダーのズーム表示（#364）とも状態を共有できるようにした。
+
 ### 変更
 - `PhotoMapStudio.Rendering` を 0.4.0 から 0.4.1 へ更新し、ベクター地図（OpenFreeMap）における林道・水路の表現を改善した（photo-map-studio #150）。
   - 林道（`class=track`）を白い実線から濃い茶色の破線に変更し、舗装路との交差部で舗装路の中塗りを隠さない描画順とした。

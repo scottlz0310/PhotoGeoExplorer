@@ -60,4 +60,58 @@ public sealed class WebMercatorTests
     {
         Assert.Equal(expected, WebMercator.ZoomFromResolution(resolution, pixelDensity), 9);
     }
+
+    [Theory]
+    [InlineData(0.0, 0.0)]
+    [InlineData(139.767, 35.681)]
+    [InlineData(-122.4194, 37.7749)]
+    [InlineData(142.362436, 43.768436)]
+    [InlineData(-180.0, -85.0)]
+    [InlineData(180.0, 85.0)]
+    public void FromLongitudeAndFromLatitudeRoundTripWithInverse(double longitude, double latitude)
+    {
+        var x = WebMercator.FromLongitude(longitude);
+        var y = WebMercator.FromLatitude(latitude);
+
+        Assert.Equal(longitude, WebMercator.ToLongitude(x), 9);
+        Assert.Equal(latitude, WebMercator.ToLatitude(y), 9);
+    }
+
+    [Theory]
+    [InlineData(90.0, WebMercator.MaxLatitude)]
+    [InlineData(-90.0, -WebMercator.MaxLatitude)]
+    public void FromLatitudeClampsPolarValuesToWebMercatorBounds(double inputLatitude, double expectedClampedLatitude)
+    {
+        var y = WebMercator.FromLatitude(inputLatitude);
+
+        Assert.True(double.IsFinite(y));
+        Assert.Equal(expectedClampedLatitude, WebMercator.ToLatitude(y), 6);
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(8.0)]
+    [InlineData(14.0)]
+    [InlineData(16.5)]
+    [InlineData(18.6)]
+    [InlineData(22.0)]
+    public void LogicalZoomAndResolutionRoundTrip(double logicalZoom)
+    {
+        var resolution = WebMercator.ResolutionFromLogicalZoom(logicalZoom);
+
+        Assert.True(resolution > 0);
+        Assert.Equal(logicalZoom, WebMercator.LogicalZoomFromResolution(resolution), 9);
+    }
+
+    [Theory]
+    [InlineData(0.0, 0)]
+    [InlineData(14.0, 14)]
+    [InlineData(15.99, 15)]
+    [InlineData(16.0, 16)]
+    [InlineData(17.5, 17)]
+    [InlineData(18.9, 18)]
+    public void StyleZoomFromLogicalZoomFloorsToIntegerZoom(double logicalZoom, int expectedStyleZoom)
+    {
+        Assert.Equal(expectedStyleZoom, WebMercator.StyleZoomFromLogicalZoom(logicalZoom));
+    }
 }

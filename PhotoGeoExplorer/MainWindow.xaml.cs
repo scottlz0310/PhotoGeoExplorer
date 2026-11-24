@@ -17,6 +17,7 @@ using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.AreaNames;
 using PhotoGeoExplorer.Services.AreaTree;
+using PhotoGeoExplorer.Services.E2E;
 using PhotoGeoExplorer.Services.Export;
 using PhotoGeoExplorer.Services.RoadNames;
 using PhotoGeoExplorer.State;
@@ -55,6 +56,8 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly MainWindowLayoutCoordinator _layoutCoordinator;
     private readonly CrashReportDialogService _crashReportDialogService;
     private readonly UpdateCheckDialogService _updateCheckDialogService;
+    private E2EMapStartupApplier? _e2eMapStartupApplier;
+    private E2EMapControlServer? _e2eMapControlServer;
     internal FileBrowserPaneViewModel FileBrowserPaneViewModel => _fileBrowserPaneViewModel;
     internal GeoExportViewModel GeoExportViewModel => _geoExportViewModel;
 
@@ -220,6 +223,30 @@ public sealed partial class MainWindow : Window, IDisposable
         _viewModel.WorkspaceState.NotificationRequested += OnWorkspaceNotificationRequested;
     }
 
+    private async Task InitializeE2EMapVerificationAsync()
+    {
+        if (E2EOptions.IsControlChannelEnabled())
+        {
+            _e2eMapControlServer = new E2EMapControlServer(
+                _mapPaneViewModel.ViewController,
+                logInfo: AppLog.Info,
+                logError: message => AppLog.Error(message));
+        }
+
+        if (E2EOptions.TryGetStartupMapView(out var target, out var error))
+        {
+            _e2eMapStartupApplier = new E2EMapStartupApplier(
+                _mapPaneViewModel.ViewController,
+                AppLog.Info,
+                message => AppLog.Error(message));
+            await _e2eMapStartupApplier.ApplyAsync(target).ConfigureAwait(true);
+        }
+        else if (error is not null)
+        {
+            AppLog.Error($"[E2E][MapView] Invalid {E2EOptions.MapViewVariable}: {error}");
+        }
+    }
+
     private void OnPreviewMaximizeChanged(object? sender, bool maximize)
     {
         _layoutCoordinator.TogglePreviewMaximize(maximize);
@@ -246,6 +273,7 @@ public sealed partial class MainWindow : Window, IDisposable
             await _settingsCoordinator.LoadAsync().ConfigureAwait(true);
             await _startupCoordinator.ApplyStartupAsync().ConfigureAwait(true);
             await _fileBrowserPaneViewModel.InitializeAsync().ConfigureAwait(true);
+            await InitializeE2EMapVerificationAsync().ConfigureAwait(true);
         }
         finally
         {
@@ -537,6 +565,12 @@ public sealed partial class MainWindow : Window, IDisposable
             _viewModel.WorkspaceState.PhotoSelectionRequested -= OnWorkspacePhotoSelectionRequested;
             _viewModel.WorkspaceState.NotificationRequested -= OnWorkspaceNotificationRequested;
             _fileBrowserPaneViewModel.PropertyChanged -= OnFileBrowserPanePropertyChanged;
+
+            // E2E 検証用の入口を先に停止し、破棄済みの地図状態へアクセスさせない
+            _e2eMapControlServer?.Dispose();
+            _e2eMapControlServer = null;
+            _e2eMapStartupApplier?.Dispose();
+            _e2eMapStartupApplier = null;
 
             // MapPaneViewModel のクリーンアップ
             _mapPaneViewModel.Cleanup();

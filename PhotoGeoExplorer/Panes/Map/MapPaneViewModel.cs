@@ -18,6 +18,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 
@@ -34,6 +35,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private readonly WorkspaceState _workspaceState;
     private readonly MapMarkerPresenter _markerPresenter;
     private readonly MapAttributionPresenter _attributionPresenter = new();
+    private readonly MapViewController _viewController = new();
     private readonly ISecretStore _secretStore;
     private readonly FolderPickerHistory _saveFolderHistory = new();
     private readonly Func<DispatcherQueue?> _dispatcherQueueAccessor;
@@ -223,6 +225,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     internal event EventHandler? BackgroundBusyChanged;
 
     /// <summary>
+    /// Mapsui に依存しない地図の表示状態の参照・操作契約（#362 / #363 / #364）
+    /// </summary>
+    internal IMapViewController ViewController => _viewController;
+
+    /// <summary>
     /// 地図ヘッダーに表示する撮影位置情報
     /// </summary>
     public MapLocationInfoViewModel LocationInfo { get; }
@@ -332,6 +339,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             _background = null;
         }
 
+        _viewController.Detach();
         _map?.Dispose();
         Map = null;
     }
@@ -580,6 +588,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             CurrentTileSource = newSource;
             _attributionPresenter.Update(background.SourceType);
             BackgroundNotice = notice;
+            _viewController.UpdateTileSource(newSource, background.SourceType, newBackground.AttributionText, newBackground.IsBusy);
 
             _map.Refresh();
             AppLog.Info($"Switched map tile source to {newSource} (displaying {background.SourceType})");
@@ -615,7 +624,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     }
 
     private void OnBackgroundBusyChanged(object? sender, EventArgs e)
-        => BackgroundBusyChanged?.Invoke(this, EventArgs.Empty);
+    {
+        _viewController.UpdateBusy(IsBackgroundBusy);
+        BackgroundBusyChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     /// <summary>
     /// 現在のビューポートを、背景を保存用に差し替えて PNG に描く。表示中のレイヤーには触らない
@@ -672,6 +684,15 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _background = mapBackground;
         _background.BusyChanged += OnBackgroundBusyChanged;
         mapBackground.Attach(map, GetPixelDensity);
+        _viewController.Attach(
+            map,
+            _currentTileSource,
+            background.SourceType,
+            mapBackground.AttributionText,
+            GetPixelDensity(),
+            mapBackground.IsBusy,
+            HideStatusOnUiThread,
+            InvokeOnUiThreadAsync);
         _markerLayer = markerLayer;
         _attributionPresenter.Attach(map, background.SourceType);
         _ = LoadAttributionImagesAsync(map);
@@ -747,7 +768,64 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
 
         Volatile.Write(ref _pixelDensity, pixelDensity);
+        _viewController.UpdatePixelDensity(pixelDensity);
         _background?.OnPixelDensityChanged();
+    }
+
+    private void HideStatusOnUiThread()
+    {
+        var dispatcherQueue = _dispatcherQueue;
+        if (dispatcherQueue is null || dispatcherQueue.HasThreadAccess)
+        {
+            HideStatus();
+            return;
+        }
+
+        _ = dispatcherQueue.TryEnqueue(HideStatus);
+    }
+
+    private async Task InvokeOnUiThreadAsync(Action action, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var dispatcherQueue = _dispatcherQueue;
+        if (dispatcherQueue is null || dispatcherQueue.HasThreadAccess)
+        {
+            action();
+            return;
+        }
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var registration = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+        await using var _ = registration.ConfigureAwait(false);
+
+        var enqueued = dispatcherQueue.TryEnqueue(() =>
+        {
+            try
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    tcs.TrySetCanceled(cancellationToken);
+                    return;
+                }
+
+                action();
+                tcs.TrySetResult(true);
+            }
+#pragma warning disable CA1031 // TaskCompletionSource へ例外を伝播させて呼び出し元へ返す
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+#pragma warning restore CA1031
+        });
+
+        if (!enqueued)
+        {
+            throw new InvalidOperationException("Failed to enqueue map view update on the UI thread.");
+        }
+
+        await tcs.Task.ConfigureAwait(false);
     }
 
     private string? ReadMapboxAccessToken()
