@@ -9,6 +9,7 @@ using Mapsui.Extensions;
 using Mapsui.Fetcher;
 using Mapsui.Layers;
 using Mapsui.Nts;
+using Mapsui.Rendering.Skia;
 using Mapsui.Styles;
 using Mapsui.UI;
 using Mapsui.UI.WinUI;
@@ -49,12 +50,16 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     public MapPaneViewControl()
     {
         InitializeComponent();
+        MapControl.SetMapRenderer(new ObservingMapRenderer(new MapRenderer(), OnMapRenderStarting));
         ConfigureMapHeaderCollapse();
         _exifLocationPicker = new MapExifLocationPicker(
             canPick: () => _map is not null,
             hideMapStatus: HideMapStatusForExifPick,
             restoreMapStatus: UpdateMapStatusFromViewModel);
     }
+
+    private Action? OnMapRenderStarting(Viewport viewport, System.Collections.Generic.IReadOnlyList<ILayer> layers)
+        => _viewModel?.BeginMapRender(viewport, layers);
 
     internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -9,8 +10,12 @@ using BruTile.Predefined;
 using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Layers;
+using Mapsui.Manipulations;
+using Mapsui.Rendering;
+using Mapsui.Styles;
 using Mapsui.Tiling.Extensions;
 using Mapsui.Tiling.Layers;
+using Mapsui.Widgets;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services.E2E;
@@ -69,6 +74,7 @@ public sealed class RasterMapBackgroundTests
 
         Assert.Equal(0, raised);
         Assert.Equal(1, layer.DisposeCount);
+        Assert.Null(background.BeginMapRender(new Viewport(0, 0, 1, 0, 512, 512), [layer]));
     }
 
     [Fact]
@@ -144,6 +150,7 @@ public sealed class RasterMapBackgroundTests
         using var background = new RasterMapBackground(layer, MapTileSourceType.OpenStreetMap);
         using var map = CreateMapWithLayer(layer, 512, 512);
         var controller = new MapViewController();
+        var renderer = new ObservingMapRenderer(new StubMapRenderer(), background.BeginMapRender);
         var frameRenderedCount = 0;
 
         background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
@@ -162,6 +169,7 @@ public sealed class RasterMapBackgroundTests
 
         _ = await errorNotified.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
         await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+        RenderCurrentViewport(renderer, map);
 
         Assert.False(background.IsBusy);
         Assert.Equal(0, Volatile.Read(ref frameRenderedCount));
@@ -175,6 +183,7 @@ public sealed class RasterMapBackgroundTests
         var tileSource = KnownTileSources.Create(KnownTileSource.OpenStreetMap);
         var failTargetLevel = 0;
         var targetLevel = 16;
+        var lowZoomDataChanged = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var targetLevelErrorNotified = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var layer = new TileLayer(
             tileSource,
@@ -189,6 +198,11 @@ public sealed class RasterMapBackgroundTests
             });
         layer.DataChanged += (_, args) =>
         {
+            if (Volatile.Read(ref failTargetLevel) == 0 && args.Error is null)
+            {
+                lowZoomDataChanged.TrySetResult();
+            }
+
             if (Volatile.Read(ref failTargetLevel) == 1 && args.Error is not null)
             {
                 targetLevelErrorNotified.TrySetResult(args.Error);
@@ -198,6 +212,7 @@ public sealed class RasterMapBackgroundTests
         using var background = new RasterMapBackground(layer, MapTileSourceType.OpenStreetMap);
         using var map = CreateMapWithLayer(layer, 512, 512);
         var controller = new MapViewController();
+        var renderer = new ObservingMapRenderer(new StubMapRenderer(), background.BeginMapRender);
 
         background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
         background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
@@ -205,9 +220,12 @@ public sealed class RasterMapBackgroundTests
         controller.Attach(map, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
 
-        // 先に低ズーム（z10）のタイルをキャッシュに入れておく
+        // 先に低ズーム（z10）のタイルをキャッシュに入れて実描画を完了させておく
         await controller.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 10.0)).ConfigureAwait(true);
-        await WaitUntilAsync(() => !background.IsBusy && controller.CurrentStatus.RenderedSeq >= 1).ConfigureAwait(true);
+        await lowZoomDataChanged.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy && HasAllViewportFeatures(layer, map.Navigator.Viewport)).ConfigureAwait(true);
+        RenderCurrentViewport(renderer, map);
+        Assert.Equal(1, controller.CurrentStatus.RenderedSeq);
         var seqAfterLowZoom = controller.CurrentStatus.RenderedSeq;
 
         // z16 へ移動し、z16 タイル取得をすべて失敗させる（z10 のフォールバックタイルだけが存在する状態）
@@ -218,23 +236,39 @@ public sealed class RasterMapBackgroundTests
 
         _ = await targetLevelErrorNotified.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
         await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+        RenderCurrentViewport(renderer, map);
 
-        // フォールバックタイルだけでは採番も完了ログも行われない
+        // フォールバックタイルだけでは実描画しても採番・完了ログは行われない
         Assert.False(background.IsBusy);
         Assert.Equal(seqAfterLowZoom, controller.CurrentStatus.RenderedSeq);
         Assert.DoesNotContain(infoLogs, line => line.StartsWith(E2EMapStartupApplier.StatusLogPrefix, StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task StartupApplierEmitsCompletionOnceWhenAllRasterViewportTilesSucceedAsync()
+    public async Task StartupApplierWaitsForMapRenderEvenAfterAllRasterTilesAreFetchedAndNotBusyAsync()
     {
         var tileSource = KnownTileSources.Create(KnownTileSource.OpenStreetMap);
+        var dataChangedReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var layer = new TileLayer(
             tileSource,
             fetchTileAsFeature: tile => Task.FromResult<IFeature?>(CreateDummyRasterFeature(tile)));
+        layer.DataChanged += (_, args) =>
+        {
+            if (args.Error is null)
+            {
+                dataChangedReceived.TrySetResult();
+            }
+        };
+
         using var background = new RasterMapBackground(layer, MapTileSourceType.OpenStreetMap);
         using var map = CreateMapWithLayer(layer, 512, 512);
         var controller = new MapViewController();
+        long? seqDuringInnerRender = null;
+        var innerRenderer = new StubMapRenderer
+        {
+            OnRender = () => seqDuringInnerRender = controller.CurrentStatus.RenderedSeq
+        };
+        var renderer = new ObservingMapRenderer(innerRenderer, background.BeginMapRender);
 
         background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
         background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
@@ -261,8 +295,40 @@ public sealed class RasterMapBackgroundTests
 
         await applier.ApplyAsync(new MapViewTarget(43.768436, 142.362436, 16.0)).ConfigureAwait(true);
 
+        // 全タイルがキャッシュに入り Busy が false・DataChanged 到達済みでも、描画反映前は完了通知しない
+        await dataChangedReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy && HasAllViewportFeatures(layer, map.Navigator.Viewport)).ConfigureAwait(true);
+
+        Assert.False(background.IsBusy);
+        Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
+        Assert.False(statusLogged.Task.IsCompleted);
+
+        // 対象外レイヤー・古いビューポート・部分再描画では完了通知されない
+        using var otherLayer = new MemoryLayer { Name = "other" };
+        renderer.Render(new object(), map.Navigator.Viewport, [otherLayer], [], map.RenderService);
+        var staleViewport = new Viewport(0, 0, map.Navigator.Viewport.Resolution, 0, 512, 512);
+        renderer.Render(new object(), staleViewport, map.Layers, [], map.RenderService);
+        renderer.Render(
+            new object(),
+            map.Navigator.Viewport,
+            map.Layers,
+            [],
+            map.RenderService,
+            dirtyRegion: new MRect(0, 0, 10, 10));
+
+        Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
+        Assert.False(statusLogged.Task.IsCompleted);
+
+        // 対象ビューポートの全画面描画が完了した直後に初めて採番・完了 JSON ログ出力される
+        RenderCurrentViewport(renderer, map);
+
         var statusLine = await statusLogged.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
-        await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
+        Assert.Equal(0, seqDuringInnerRender);
+        Assert.Equal(1, controller.CurrentStatus.RenderedSeq);
+
+        // 同じ状態のまま再描画されても重複採番されない
+        RenderCurrentViewport(renderer, map);
+        Assert.Equal(1, controller.CurrentStatus.RenderedSeq);
 
         List<string> statusLines;
         lock (infoLogs)
@@ -272,9 +338,48 @@ public sealed class RasterMapBackgroundTests
 
         Assert.Single(statusLines);
         Assert.Equal(statusLine, statusLines[0]);
-        Assert.False(background.IsBusy);
-        Assert.True(controller.CurrentStatus.RenderedSeq >= 1);
+        Assert.Contains("\"renderedSeq\":1", statusLine, StringComparison.Ordinal);
         Assert.Contains("\"styleZoom\":16", statusLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RenderInterruptedByViewportChangeDoesNotNotifyStaleFrameCompletionAsync()
+    {
+        var tileSource = KnownTileSources.Create(KnownTileSource.OpenStreetMap);
+        var dataChangedReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var layer = new TileLayer(
+            tileSource,
+            fetchTileAsFeature: tile => Task.FromResult<IFeature?>(CreateDummyRasterFeature(tile)));
+        layer.DataChanged += (_, args) =>
+        {
+            if (args.Error is null)
+            {
+                dataChangedReceived.TrySetResult();
+            }
+        };
+
+        using var background = new RasterMapBackground(layer, MapTileSourceType.OpenStreetMap);
+        using var map = CreateMapWithLayer(layer, 512, 512);
+        var controller = new MapViewController();
+        background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
+        background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
+        controller.Attach(map, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
+        background.Attach(map, () => 1.0);
+
+        await controller.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 16.0)).ConfigureAwait(true);
+        await dataChangedReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
+        await WaitUntilAsync(() => !background.IsBusy && HasAllViewportFeatures(layer, map.Navigator.Viewport)).ConfigureAwait(true);
+
+        // 描画中に別ビューポートへ移動した場合、旧ビューポート描画の完了コールバックは見送られる
+        var innerRenderer = new StubMapRenderer
+        {
+            OnRender = () => map.Navigator.CenterOnAndZoomTo(new MPoint(0, 0), WebMercator.ResolutionFromLogicalZoom(12.0), duration: 0)
+        };
+        var renderer = new ObservingMapRenderer(innerRenderer, background.BeginMapRender);
+
+        RenderCurrentViewport(renderer, map);
+
+        Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
     }
 
     private static Mapsui.Map CreateMapWithLayer(TileLayer layer, double width, double height)
@@ -283,6 +388,25 @@ public sealed class RasterMapBackgroundTests
         map.Layers.Add(layer);
         map.Navigator.SetSize(width, height);
         return map;
+    }
+
+    private static void RenderCurrentViewport(ObservingMapRenderer renderer, Mapsui.Map map)
+        => renderer.Render(new object(), map.Navigator.Viewport, map.Layers, map.Widgets, map.RenderService);
+
+    private static bool HasAllViewportFeatures(TileLayer layer, Viewport viewport)
+    {
+        var schema = layer.TileSource?.Schema;
+        var extent = viewport.ToExtent();
+        if (schema is null || extent is null)
+        {
+            return false;
+        }
+
+        var clipped = new Extent(extent.MinX, extent.MinY, extent.MaxX, extent.MaxY).Intersect(schema.Extent);
+        var levelId = BruTile.Utilities.GetNearestLevel(schema.Resolutions, viewport.Resolution);
+        var requiredCount = schema.GetTileInfos(clipped, levelId).Count();
+        var actualCount = layer.GetFeatures(extent, viewport.Resolution).OfType<RasterFeature>().Count();
+        return requiredCount > 0 && actualCount >= requiredCount;
     }
 
     private static RasterFeature CreateDummyRasterFeature(TileInfo tile)
@@ -317,6 +441,55 @@ public sealed class RasterMapBackgroundTests
             DisposeCount++;
             base.Dispose(disposing);
         }
+    }
+
+    private sealed class StubMapRenderer : IMapRenderer
+    {
+        public Action? OnRender { get; set; }
+
+        public void UpdateDrawables(Viewport viewport, ILayer layer, RenderService renderService)
+        {
+        }
+
+        public IDrawable? CreateDrawableForFeature(Viewport viewport, ILayer layer, IFeature feature, IStyle style, RenderService renderService)
+            => null;
+
+        public void Render(
+            object target,
+            Viewport viewport,
+            IEnumerable<ILayer> layers,
+            IEnumerable<IWidget> widgets,
+            RenderService renderService,
+            Color? background = null,
+            MRect? dirtyRegion = null,
+            CoordinateSpace coordinateSpace = CoordinateSpace.World)
+            => OnRender?.Invoke();
+
+        public MemoryStream RenderToBitmapStream(
+            Viewport viewport,
+            IEnumerable<ILayer> layers,
+            RenderService renderService,
+            Color? background = null,
+            float pixelDensity = 1,
+            IEnumerable<IWidget>? widgets = null,
+            RenderFormat renderFormat = RenderFormat.Png,
+            int quality = 100)
+            => new();
+
+        public bool TryGetWidgetRenderer(Type widgetType, out IWidgetRenderer? widgetRenderer)
+        {
+            widgetRenderer = null;
+            return false;
+        }
+
+        public bool TryGetStyleRenderer(Type styleType, out IStyleRenderer? styleRenderer)
+        {
+            styleRenderer = null;
+            return false;
+        }
+
+        public MapInfo GetMapInfo(ScreenPosition screenPosition, Viewport viewport, IEnumerable<ILayer> layers, RenderService renderService, int margin = 0)
+            => new(screenPosition, new MPoint(0, 0), viewport.Resolution);
     }
 
     private sealed class TestExportLayers(ILayer[] layers) : IMapExportLayers

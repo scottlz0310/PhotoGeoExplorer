@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using BruTile;
 using Mapsui;
 using Mapsui.Extensions;
+using Mapsui.Fetcher;
 using Mapsui.Layers;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
@@ -20,7 +21,8 @@ internal sealed class RasterMapBackground : IMapBackground
 {
     private readonly TileLayer _layer;
     private Mapsui.Map? _map;
-    private int _wasBusy;
+    private long _dirtyVersion;
+    private long _notifiedVersion;
     private bool _disposed;
 
     internal RasterMapBackground(TileLayer layer, MapTileSourceType sourceType)
@@ -28,10 +30,10 @@ internal sealed class RasterMapBackground : IMapBackground
         ArgumentNullException.ThrowIfNull(layer);
 
         _layer = layer;
-        _wasBusy = layer.Busy ? 1 : 0;
         Layers = [layer];
         AttributionText = string.Join(' ', MapAttribution.GetLinks(sourceType).Select(link => link.Text));
         _layer.PropertyChanged += OnLayerPropertyChanged;
+        _layer.DataChanged += OnLayerDataChanged;
     }
 
     public IReadOnlyList<ILayer> Layers { get; }
@@ -50,11 +52,44 @@ internal sealed class RasterMapBackground : IMapBackground
         ArgumentNullException.ThrowIfNull(getPixelDensity);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        Volatile.Write(ref _map, map);
+        var previous = Interlocked.Exchange(ref _map, map);
+        if (previous is not null)
+        {
+            previous.Navigator.ViewportChanged -= OnViewportChanged;
+        }
+
+        map.Navigator.ViewportChanged += OnViewportChanged;
+        MarkRenderPending();
     }
 
     public void OnPixelDensityChanged()
     {
+    }
+
+    public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers)
+    {
+        ArgumentNullException.ThrowIfNull(layers);
+
+        if (_disposed)
+        {
+            return null;
+        }
+
+        var version = Volatile.Read(ref _dirtyVersion);
+        if (version == Volatile.Read(ref _notifiedVersion))
+        {
+            return null;
+        }
+
+        if (!ContainsLayer(layers, _layer)
+            || _layer.Busy
+            || !MatchesCurrentViewport(viewport)
+            || !HasRenderedViewportTiles(viewport))
+        {
+            return null;
+        }
+
+        return () => CompleteMapRender(version, viewport);
     }
 
     public Task<IMapExportLayers> CreateExportLayersAsync(
@@ -74,7 +109,13 @@ internal sealed class RasterMapBackground : IMapBackground
         }
 
         _disposed = true;
-        Volatile.Write(ref _map, null);
+        var map = Interlocked.Exchange(ref _map, null);
+        if (map is not null)
+        {
+            map.Navigator.ViewportChanged -= OnViewportChanged;
+        }
+
+        _layer.DataChanged -= OnLayerDataChanged;
         _layer.PropertyChanged -= OnLayerPropertyChanged;
         _layer.Dispose();
     }
@@ -86,20 +127,48 @@ internal sealed class RasterMapBackground : IMapBackground
             return;
         }
 
-        var isBusy = _layer.Busy;
-        var previousBusy = Interlocked.Exchange(ref _wasBusy, isBusy ? 1 : 0) == 1;
-        if (previousBusy && !isBusy && HasRenderedViewportTiles())
+        if (_layer.Busy)
         {
-            FrameRendered?.Invoke(this, EventArgs.Empty);
+            MarkRenderPending();
         }
 
         BusyChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    // Mapsui の TileFetchPlanner は最後のタイル取得が例外で失敗した場合も Busy を false に戻す。
-    // 空の地図や低ズームのフォールバックタイルを完了扱いにしないよう、対象ビューポートの解像度で
-    // 必要な全タイルの RasterFeature がレイヤーに反映されていることを検証する。
-    private bool HasRenderedViewportTiles()
+    private void OnLayerDataChanged(object? sender, DataChangedEventArgs e)
+    {
+        if (e.Error is null)
+        {
+            MarkRenderPending();
+        }
+    }
+
+    private void OnViewportChanged(object? sender, ViewportChangedEventArgs e)
+        => MarkRenderPending();
+
+    private void MarkRenderPending()
+        => Interlocked.Increment(ref _dirtyVersion);
+
+    private void CompleteMapRender(long renderedVersion, Viewport renderedViewport)
+    {
+        if (_disposed
+            || Volatile.Read(ref _dirtyVersion) != renderedVersion
+            || _layer.Busy
+            || !MatchesCurrentViewport(renderedViewport)
+            || !HasRenderedViewportTiles(renderedViewport))
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _notifiedVersion, renderedVersion) == renderedVersion)
+        {
+            return;
+        }
+
+        FrameRendered?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool MatchesCurrentViewport(Viewport renderedViewport)
     {
         var map = Volatile.Read(ref _map);
         if (map is null)
@@ -107,7 +176,28 @@ internal sealed class RasterMapBackground : IMapBackground
             return false;
         }
 
-        var viewport = map.Navigator.Viewport;
+        var current = map.Navigator.Viewport;
+        return current.HasSize() && current == renderedViewport;
+    }
+
+    private static bool ContainsLayer(IReadOnlyList<ILayer> layers, ILayer target)
+    {
+        for (var i = 0; i < layers.Count; i++)
+        {
+            if (ReferenceEquals(layers[i], target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Mapsui の TileFetchPlanner はキャッシュ追加後、DataChanged による再描画要求より先に Busy を解除し、
+    // 取得失敗時も Busy を false に戻す。描画開始・完了の両時点で対象ビューポートに必要な全タイルの
+    // RasterFeature が揃っていることを検証し、画面への反映後にのみ完了を通知する。
+    private bool HasRenderedViewportTiles(Viewport viewport)
+    {
         if (!viewport.HasSize() || !double.IsFinite(viewport.Resolution) || viewport.Resolution <= 0)
         {
             return false;

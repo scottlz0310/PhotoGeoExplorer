@@ -335,12 +335,12 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         _markerLayer?.Dispose();
         _markerLayer = null;
 
-        if (_background is not null)
+        var existingBackground = Interlocked.Exchange(ref _background, null);
+        if (existingBackground is not null)
         {
-            _background.BusyChanged -= OnBackgroundBusyChanged;
-            _background.FrameRendered -= OnBackgroundFrameRendered;
-            _background.Dispose();
-            _background = null;
+            existingBackground.BusyChanged -= OnBackgroundBusyChanged;
+            existingBackground.FrameRendered -= OnBackgroundFrameRendered;
+            existingBackground.Dispose();
         }
 
         _viewController.Detach();
@@ -606,7 +606,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     // 新しい背景を先に作ってから差し替える。作成に失敗しても、表示中の背景は変わらない
     private void ReplaceBackground(Mapsui.Map map, IMapBackground newBackground)
     {
-        if (_background is { } oldBackground)
+        if (Volatile.Read(ref _background) is { } oldBackground)
         {
             oldBackground.BusyChanged -= OnBackgroundBusyChanged;
             oldBackground.FrameRendered -= OnBackgroundFrameRendered;
@@ -626,7 +626,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         newBackground.BusyChanged += OnBackgroundBusyChanged;
         newBackground.FrameRendered += OnBackgroundFrameRendered;
-        _background = newBackground;
+        Volatile.Write(ref _background, newBackground);
+    }
+
+    internal Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers)
+    {
+        var background = Volatile.Read(ref _background);
+        return background?.BeginMapRender(viewport, layers);
     }
 
     private void OnBackgroundBusyChanged(object? sender, EventArgs e)
@@ -690,7 +696,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         var background = CreateBackgroundRequest(_currentTileSource, out var notice);
         var (map, mapBackground, markerLayer) = _service.InitializeMap(background);
 
-        _background = mapBackground;
+        Volatile.Write(ref _background, mapBackground);
         _viewController.Attach(
             map,
             _currentTileSource,
@@ -700,8 +706,8 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             mapBackground.IsBusy,
             HideStatusOnUiThread,
             InvokeOnUiThreadAsync);
-        _background.BusyChanged += OnBackgroundBusyChanged;
-        _background.FrameRendered += OnBackgroundFrameRendered;
+        mapBackground.BusyChanged += OnBackgroundBusyChanged;
+        mapBackground.FrameRendered += OnBackgroundFrameRendered;
         mapBackground.Attach(map, GetPixelDensity);
         _markerLayer = markerLayer;
         _attributionPresenter.Attach(map, background.SourceType);

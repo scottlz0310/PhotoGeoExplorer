@@ -25,8 +25,14 @@ internal interface IMapBackground : IDisposable
     /// <summary><see cref="IsBusy"/> が変化したとき。任意のスレッドから呼ばれる。</summary>
     event EventHandler? BusyChanged;
 
-    /// <summary>最新の表示範囲に対するフレームの反映が完了したときに発火する。描画失敗や古い過渡フレームでは発火しない。</summary>
+    /// <summary>最新の表示範囲に対するフレームの画面描画（反映）が完了したときに発火する。描画失敗・タイル欠損・古い過渡フレーム・描画反映前では発火しない。</summary>
     event EventHandler? FrameRendered;
+
+    /// <summary>
+    /// 地図描画の開始直前に呼ばれる。対象ビューポートのフレーム反映完了を通知すべき条件を満たす場合は、
+    /// 描画完了直後に呼び出すコールバックを返す。未準備・古いビューポート・通知済みの場合は <see langword="null"/> を返す。
+    /// </summary>
+    Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers);
 
     /// <summary>
     /// 地図へ載せた後に呼ぶ。視点に応じて描き直す背景（ベクター）は、ここで視点の監視と最初の描画を始める。

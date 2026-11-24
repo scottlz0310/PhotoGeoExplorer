@@ -281,8 +281,11 @@ public sealed class MapPaneViewModelBackgroundTests
             Assert.False(viewModel.ViewController.CurrentStatus.IsBusy);
             Assert.Equal(0, viewModel.ViewController.CurrentStatus.RenderedSeq);
 
-            // FrameRendered のみで採番される
-            initialBackground.RaiseFrameRendered();
+            // FrameRendered は BeginMapRender → 描画完了経由で採番される
+            var initialCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray());
+            Assert.NotNull(initialCompleted);
+            Assert.Equal(0, viewModel.ViewController.CurrentStatus.RenderedSeq);
+            initialCompleted!();
             Assert.Equal(1, viewModel.ViewController.CurrentStatus.RenderedSeq);
 
             // SetViewAsync は注入した IUiDispatcher 経由で UI スレッド実行される
@@ -299,8 +302,12 @@ public sealed class MapPaneViewModelBackgroundTests
             viewModel.SwitchTileSource(MapTileSourceType.OpenFreeMapVector);
             Assert.Equal("OpenFreeMapVector", viewModel.ViewController.CurrentStatus.TileSource.Displayed);
             var nextBackground = service.Created[1];
-            nextBackground.RaiseFrameRendered();
+            var nextCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray());
+            Assert.NotNull(nextCompleted);
+            nextCompleted!();
             Assert.Equal(2, viewModel.ViewController.CurrentStatus.RenderedSeq);
+            Assert.Equal(1, initialBackground.BeginMapRenderCount);
+            Assert.Equal(1, nextBackground.BeginMapRenderCount);
 
             // 旧背景からの通知は無視される
             initialBackground.RaiseFrameRendered();
@@ -355,6 +362,8 @@ public sealed class MapPaneViewModelBackgroundTests
 
         public int PixelDensityChangedCount { get; private set; }
 
+        public int BeginMapRenderCount { get; private set; }
+
         IReadOnlyList<ILayer> IMapBackground.Layers => Layers;
 
         public string AttributionText => string.Empty;
@@ -381,6 +390,12 @@ public sealed class MapPaneViewModelBackgroundTests
         }
 
         public void OnPixelDensityChanged() => PixelDensityChangedCount++;
+
+        public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers)
+        {
+            BeginMapRenderCount++;
+            return RaiseFrameRendered;
+        }
 
         public Task<IMapExportLayers> CreateExportLayersAsync(Viewport viewport, float pixelDensity, CancellationToken cancellationToken)
         {
