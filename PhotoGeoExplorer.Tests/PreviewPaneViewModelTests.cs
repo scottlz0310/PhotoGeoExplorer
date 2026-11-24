@@ -180,6 +180,55 @@ public class PreviewPaneViewModelTests
         Assert.Equal(centerBefore.Y, centerAfter.Y, Precision);
     }
 
+    [Fact]
+    public void OnImageReplacedResetsTheZoomAndUsesTheKnownSize()
+    {
+        var vm = CreateLaidOut();
+        vm.ZoomInCommand.Execute(null);
+        vm.PanZoom.PanBy(-40, -20);
+
+        vm.OnImageReplaced(1920, 1080);
+
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+        // 寸法が使われている（拡大できる）。1920x1080 は 800x600 に幅いっぱいで収まる
+        Assert.Equal(new PanZoomRect(0, 75, 800, 450), vm.PanZoom.ContentBounds);
+        vm.ZoomInCommand.Execute(null);
+        Assert.Equal(1.2, vm.PanZoom.Transform.Scale, Precision);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1280, 0)]
+    [InlineData(0, 960)]
+    public void OnImageReplacedWithoutAKnownSizeKeepsTheLayoutEmptyUntilTheImageOpens(double pixelWidth, double pixelHeight)
+    {
+        var vm = CreateLaidOut();
+        vm.ZoomInCommand.Execute(null);
+
+        vm.OnImageReplaced(pixelWidth, pixelHeight);
+
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+        Assert.True(vm.PanZoom.ContentBounds.IsEmpty);
+        vm.ZoomInCommand.Execute(null);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+
+        vm.OnImageOpened(1280, 960);
+
+        Assert.False(vm.PanZoom.ContentBounds.IsEmpty);
+    }
+
+    [Fact]
+    public void OnImageReplacedBeforeTheViewportIsKnownAppliesTheSizeOnceTheViewportArrives()
+    {
+        var vm = new PreviewPaneViewModel(new MockPreviewPaneService(), new WorkspaceState());
+
+        vm.OnImageReplaced(1280, 960);
+        vm.OnViewportSizeChanged(800, 600);
+
+        Assert.Equal(new PanZoomRect(0, 0, 800, 600), vm.PanZoom.ContentBounds);
+        Assert.Equal(PanZoomTransform.Identity, vm.PanZoom.Transform);
+    }
+
     private static PanZoomPoint NormalizedViewportCenter(PanZoomController controller)
     {
         var content = controller.Transform.ToContent(new PanZoomPoint(controller.Viewport.Width / 2, controller.Viewport.Height / 2));

@@ -83,13 +83,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             {
                 PlaceholderVisibility = value is null ? Visibility.Visible : Visibility.Collapsed;
                 OnPropertyChanged(nameof(HasImage));
-                ResetView();
-
-                // 読み込み済みの BitmapImage を渡すと ImageOpened は発火しないため、寸法が分かっていればここで使う
-                if (value is { PixelWidth: > 0, PixelHeight: > 0 })
-                {
-                    OnImageOpened(value.PixelWidth, value.PixelHeight);
-                }
+                OnImageReplaced(value?.PixelWidth ?? 0, value?.PixelHeight ?? 0);
             }
         }
     }
@@ -169,6 +163,25 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     {
         _viewportSize = new PanZoomSize(viewportWidth, viewportHeight);
         PanZoom.SetLayout(_viewportSize, _imageSize);
+    }
+
+    /// <summary>
+    /// 表示する画像が別のもの（または画像なし）に替わったときに呼ばれる。前の画像の拡大状態は引き継がない。
+    /// 寸法が分かっていなければ（読み込み前）空のままにして、<see cref="OnImageOpened"/> を待つ
+    /// </summary>
+    /// <remarks>
+    /// 読み込み済みの BitmapImage を Image.Source に渡すと ImageOpened は発火しないため、替わった時点で寸法が分かっていればここで使う
+    /// </remarks>
+    internal void OnImageReplaced(double pixelWidth, double pixelHeight)
+    {
+        _imageSize = default;
+        PanZoom.SetLayout(_viewportSize, _imageSize);
+        PanZoom.Fit();
+
+        if (pixelWidth > 0 && pixelHeight > 0)
+        {
+            OnImageOpened(pixelWidth, pixelHeight);
+        }
     }
 
     /// <summary>
@@ -352,14 +365,6 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         }
 
         return parts.Count > 0 ? string.Join(" | ", parts) : null;
-    }
-
-    // 別の画像（または画像なし）に替わったら、前の画像の拡大状態を引き継がない。寸法は ImageOpened で分かるまで空にする
-    private void ResetView()
-    {
-        _imageSize = default;
-        PanZoom.SetLayout(_viewportSize, _imageSize);
-        PanZoom.Fit();
     }
 
     private Task ExecuteFitAsync()

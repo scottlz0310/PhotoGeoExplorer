@@ -199,6 +199,20 @@ internal sealed class PanZoomController
             pivot.Y - (pivot.Y - _transform.TranslateY) * effectiveFactor + translationY)));
     }
 
+    /// <summary>
+    /// ジェスチャー 1 回分の入力が <see cref="Manipulate"/> に渡してよい値かを返す。
+    /// OS やデバイス由来の値は信頼できないため、アダプタは不正なフレームを例外ではなく無視で扱うときに使う
+    /// </summary>
+    internal static bool IsValidManipulation(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
+        => IsValidPoint(pivot)
+            && double.IsFinite(scaleFactor) && scaleFactor > 0
+            && double.IsFinite(translationX) && double.IsFinite(translationY);
+
+    /// <summary>
+    /// 座標が有限かを返す
+    /// </summary>
+    internal static bool IsValidPoint(PanZoomPoint point) => double.IsFinite(point.X) && double.IsFinite(point.Y);
+
     // NaN や Infinity が変換に入ると、以後の計算がすべて NaN になり Fit() まで復帰できない。入口で拒否する
     private static void RequireFinite(double value, string paramName)
     {

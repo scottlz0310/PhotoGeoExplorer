@@ -71,9 +71,9 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         _inputAdapter = new PanZoomInputAdapter(PreviewViewport, viewModel.PanZoom, PreviewPaneViewModel.WheelFactorPerNotch);
         ApplyTransform(viewModel.PanZoom.Transform);
 
-        // 表示領域の大きさや画像の読み込みは、ViewModel の接続より先に通知済みのことがあるため、いまの状態を渡す
+        // 表示領域の大きさは ViewModel の接続より先に通知済みのことがあるため、いまの大きさを渡す。
+        // 画像の寸法は ViewModel が保持している。ペインの付け替えで再接続されても、拡大状態は保つ
         viewModel.OnViewportSizeChanged(PreviewViewport.ActualWidth, PreviewViewport.ActualHeight);
-        NotifyImageOpened();
     }
 
     private void DetachViewModel()
@@ -112,11 +112,6 @@ internal sealed partial class PreviewPaneViewControl : UserControl
     }
 
     private void OnImageOpened(object sender, RoutedEventArgs e)
-    {
-        NotifyImageOpened();
-    }
-
-    private void NotifyImageOpened()
     {
         if (PreviewImage.Source is BitmapImage { PixelWidth: > 0, PixelHeight: > 0 } bitmap)
         {

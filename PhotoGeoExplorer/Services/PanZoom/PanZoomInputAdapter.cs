@@ -14,12 +14,20 @@ internal sealed class PanZoomInputAdapter
     private readonly UIElement _target;
     private readonly PanZoomController _controller;
     private readonly double _wheelFactorPerNotch;
+    private readonly ManipulationModes _previousManipulationMode;
+    private bool _isAttached = true;
 
     internal PanZoomInputAdapter(UIElement target, PanZoomController controller, double wheelFactorPerNotch)
     {
         _target = target ?? throw new ArgumentNullException(nameof(target));
         _controller = controller ?? throw new ArgumentNullException(nameof(controller));
+        if (!double.IsFinite(wheelFactorPerNotch) || wheelFactorPerNotch <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(wheelFactorPerNotch), wheelFactorPerNotch, "Factor per notch must be finite and positive.");
+        }
+
         _wheelFactorPerNotch = wheelFactorPerNotch;
+        _previousManipulationMode = target.ManipulationMode;
 
         _target.ManipulationMode = ManipulationModes.Scale
             | ManipulationModes.ScaleInertia
@@ -31,19 +39,32 @@ internal sealed class PanZoomInputAdapter
     }
 
     /// <summary>
-    /// 入力の受け取りをやめて、要素の設定を元に戻す
+    /// 入力の受け取りをやめて、接続前の <c>ManipulationMode</c> に戻す。2 回目以降は何もしない
     /// </summary>
     internal void Detach()
     {
+        if (!_isAttached)
+        {
+            return;
+        }
+
+        _isAttached = false;
         _target.ManipulationDelta -= OnManipulationDelta;
         _target.PointerWheelChanged -= OnPointerWheelChanged;
-        _target.ManipulationMode = ManipulationModes.System;
+        _target.ManipulationMode = _previousManipulationMode;
     }
 
     private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
     {
         var delta = e.Delta;
-        _controller.Manipulate(new PanZoomPoint(e.Position.X, e.Position.Y), delta.Scale, delta.Translation.X, delta.Translation.Y);
+        var pivot = new PanZoomPoint(e.Position.X, e.Position.Y);
+
+        // OS・デバイス由来の値は信頼できない。異常なフレームは、例外でアプリを落とさず無視する
+        if (PanZoomController.IsValidManipulation(pivot, delta.Scale, delta.Translation.X, delta.Translation.Y))
+        {
+            _controller.Manipulate(pivot, delta.Scale, delta.Translation.X, delta.Translation.Y);
+        }
+
         e.Handled = true;
     }
 
@@ -55,7 +76,12 @@ internal sealed class PanZoomInputAdapter
             return;
         }
 
-        _controller.ZoomByWheel(point.Properties.MouseWheelDelta, _wheelFactorPerNotch, new PanZoomPoint(point.Position.X, point.Position.Y));
+        var anchor = new PanZoomPoint(point.Position.X, point.Position.Y);
+        if (PanZoomController.IsValidPoint(anchor))
+        {
+            _controller.ZoomByWheel(point.Properties.MouseWheelDelta, _wheelFactorPerNotch, anchor);
+        }
+
         e.Handled = true;
     }
 }
