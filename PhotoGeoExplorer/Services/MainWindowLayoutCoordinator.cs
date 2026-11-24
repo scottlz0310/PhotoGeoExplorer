@@ -105,7 +105,6 @@ internal sealed class MainWindowLayoutCoordinator
 
         _paneLayoutHostService.ApplyLayout(preset, region1View, region2View, region3View);
         _placesPaneShownChanged(IsPlacesPaneShown(region1View, region2View, region3View));
-        _previewPaneControl.RequestRefitIfNeeded();
     }
 
     public void TogglePreviewMaximize(bool maximize)

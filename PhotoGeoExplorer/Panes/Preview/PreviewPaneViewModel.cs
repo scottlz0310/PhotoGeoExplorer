@@ -8,6 +8,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.PanZoom;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 
@@ -15,14 +16,20 @@ namespace PhotoGeoExplorer.Panes.Preview;
 
 /// <summary>
 /// Preview Pane の ViewModel
-/// 画像プレビューの状態管理、ズーム/パン制御、ナビゲーションを実装
+/// 画像プレビューの状態管理、ズーム/パンの変換（<see cref="PanZoom"/>）の保持、ナビゲーションを実装
 /// </summary>
 internal sealed class PreviewPaneViewModel : PaneViewModelBase
 {
-    private const float MinZoomFactor = 0.1f;
-    private const float MaxZoomFactor = 6.0f;
-    private const float ZoomInMultiplier = 1.2f;
-    private const float ZoomOutMultiplier = 1f / 1.2f;
+    // 倍率 1 が「ウィンドウに合わせた」状態。それより縮小はしない
+    private const double MinScale = 1.0;
+    private const double MaxScale = 6.0;
+    private const double ZoomButtonFactor = 1.2;
+
+    /// <summary>
+    /// ホイール 1 ノッチあたりのズーム係数
+    /// </summary>
+    internal const double WheelFactorPerNotch = 1.1;
+
     private const int ClassNotRegisteredHresult = unchecked((int)0x80040154);
 
     private readonly IPreviewPaneService _service;
@@ -34,9 +41,8 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private Visibility _placeholderVisibility = Visibility.Visible;
     private string? _metadataSummary;
     private Visibility _metadataVisibility = Visibility.Collapsed;
-    private bool _fitToWindow = true;
-    private float _zoomFactor = 1.0f;
-    private double _rasterizationScale = 1.0;
+    private PanZoomSize _viewportSize;
+    private PanZoomSize _imageSize;
     private string? _currentFilePath;
 
     public PreviewPaneViewModel()
@@ -77,9 +83,12 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             {
                 PlaceholderVisibility = value is null ? Visibility.Visible : Visibility.Collapsed;
                 OnPropertyChanged(nameof(HasImage));
-                if (value is not null)
+                ResetView();
+
+                // 読み込み済みの BitmapImage を渡すと ImageOpened は発火しないため、寸法が分かっていればここで使う
+                if (value is { PixelWidth: > 0, PixelHeight: > 0 })
                 {
-                    FitToWindow = true;
+                    OnImageOpened(value.PixelWidth, value.PixelHeight);
                 }
             }
         }
@@ -124,31 +133,9 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     public bool HasImage => CurrentImage is not null;
 
     /// <summary>
-    /// ウィンドウにフィットさせるモードかどうか
+    /// ズーム・パンの変換。入力（ホイール・ジェスチャー・ボタン）は View のアダプタがここへ渡し、View は変更通知を受けて描画に反映する
     /// </summary>
-    public bool FitToWindow
-    {
-        get => _fitToWindow;
-        set => SetProperty(ref _fitToWindow, value);
-    }
-
-    /// <summary>
-    /// 現在のズームファクター
-    /// </summary>
-    public float ZoomFactor
-    {
-        get => _zoomFactor;
-        set => SetProperty(ref _zoomFactor, value);
-    }
-
-    /// <summary>
-    /// 現在の DPI スケール
-    /// </summary>
-    public double RasterizationScale
-    {
-        get => _rasterizationScale;
-        set => SetProperty(ref _rasterizationScale, value);
-    }
+    internal PanZoomController PanZoom { get; } = new(MinScale, MaxScale);
 
     /// <summary>
     /// フィットコマンド
@@ -175,100 +162,29 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     /// </summary>
     public ICommand PreviousCommand => _previousCommand;
 
-    public event EventHandler? FitRequested;
-
     /// <summary>
-    /// ScrollViewer のビューポートサイズが変更されたときに呼ばれる
+    /// 表示領域（DIP）の大きさが変わったときに呼ばれる。拡大状態と見ている位置は保たれる
     /// </summary>
-    public void OnViewportSizeChanged(
-        double viewportWidth,
-        double viewportHeight,
-        double imageDisplayWidth,
-        double imageDisplayHeight)
+    public void OnViewportSizeChanged(double viewportWidth, double viewportHeight)
     {
-        if (FitToWindow && CurrentImage is not null)
-        {
-            var imageWidth = imageDisplayWidth > 0 ? imageDisplayWidth : CurrentImage.PixelWidth;
-            var imageHeight = imageDisplayHeight > 0 ? imageDisplayHeight : CurrentImage.PixelHeight;
-            var newZoom = _service.CalculateFitZoomFactor(
-                imageWidth,
-                imageHeight,
-                viewportWidth,
-                viewportHeight,
-                MinZoomFactor,
-                MaxZoomFactor);
-            ZoomFactor = newZoom;
-        }
+        _viewportSize = new PanZoomSize(viewportWidth, viewportHeight);
+        PanZoom.SetLayout(_viewportSize, _imageSize);
     }
 
     /// <summary>
-    /// 画像が読み込まれたときに呼ばれる
+    /// 画像が読み込まれて、ピクセル寸法が分かったときに呼ばれる
     /// </summary>
-    public void OnImageOpened(
-        double viewportWidth,
-        double viewportHeight,
-        double imageDisplayWidth,
-        double imageDisplayHeight)
+    public void OnImageOpened(double pixelWidth, double pixelHeight)
     {
-        FitToWindow = true;
-        OnViewportSizeChanged(viewportWidth, viewportHeight, imageDisplayWidth, imageDisplayHeight);
+        _imageSize = new PanZoomSize(pixelWidth, pixelHeight);
+        PanZoom.SetLayout(_viewportSize, _imageSize);
+        PanZoom.Fit();
     }
 
     /// <summary>
-    /// ズーム操作（乗算）
+    /// ウィンドウに合わせた状態へ戻す
     /// </summary>
-    public void AdjustZoom(float multiplier)
-    {
-        FitToWindow = false;
-        var newZoom = ZoomFactor * multiplier;
-        ZoomFactor = Math.Clamp(newZoom, MinZoomFactor, MaxZoomFactor);
-    }
-
-    /// <summary>
-    /// ホイールズーム操作（カーソル位置を基準にズーム）
-    /// </summary>
-    public void ZoomAtPoint(int wheelDelta, double viewportWidth, double viewportHeight)
-    {
-        FitToWindow = false;
-        var multiplier = wheelDelta > 0 ? 1.1f : 1f / 1.1f;
-        var newZoom = ZoomFactor * multiplier;
-        ZoomFactor = Math.Clamp(newZoom, MinZoomFactor, MaxZoomFactor);
-    }
-
-    /// <summary>
-    /// DPI スケーリングが変更されたときに呼ばれる
-    /// </summary>
-    public void OnRasterizationScaleChanged(double newScale)
-    {
-        if (Math.Abs(newScale - RasterizationScale) < 0.0001)
-        {
-            return;
-        }
-
-        AppLog.Info($"RasterizationScale changed: {RasterizationScale} -> {newScale}");
-
-        if (FitToWindow)
-        {
-            // FitToWindow モードの場合は、後で再計算されるのでスケールだけ更新
-            RasterizationScale = newScale;
-            return;
-        }
-
-        // ユーザーが手動でズームしている場合は、ZoomFactor を補正して視覚的サイズを維持
-        if (RasterizationScale > 0)
-        {
-            var correctedZoom = _service.CalculateDpiCorrectedZoom(
-                ZoomFactor,
-                RasterizationScale,
-                newScale,
-                MinZoomFactor,
-                MaxZoomFactor);
-            ZoomFactor = correctedZoom;
-            AppLog.Info($"Preview zoom corrected: {ZoomFactor} -> {correctedZoom}");
-        }
-
-        RasterizationScale = newScale;
-    }
+    public void Fit() => PanZoom.Fit();
 
     protected override void OnCleanup()
     {
@@ -438,23 +354,29 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         return parts.Count > 0 ? string.Join(" | ", parts) : null;
     }
 
+    // 別の画像（または画像なし）に替わったら、前の画像の拡大状態を引き継がない。寸法は ImageOpened で分かるまで空にする
+    private void ResetView()
+    {
+        _imageSize = default;
+        PanZoom.SetLayout(_viewportSize, _imageSize);
+        PanZoom.Fit();
+    }
+
     private Task ExecuteFitAsync()
     {
-        FitToWindow = true;
-        FitRequested?.Invoke(this, EventArgs.Empty);
-        // ビューポートサイズは View 側から OnViewportSizeChanged で通知される
+        Fit();
         return Task.CompletedTask;
     }
 
     private Task ExecuteZoomInAsync()
     {
-        AdjustZoom(ZoomInMultiplier);
+        PanZoom.ZoomAtCenter(ZoomButtonFactor);
         return Task.CompletedTask;
     }
 
     private Task ExecuteZoomOutAsync()
     {
-        AdjustZoom(ZoomOutMultiplier);
+        PanZoom.ZoomAtCenter(1.0 / ZoomButtonFactor);
         return Task.CompletedTask;
     }
 
