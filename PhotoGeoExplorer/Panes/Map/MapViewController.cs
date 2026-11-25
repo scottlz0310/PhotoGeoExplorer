@@ -1,21 +1,19 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Mapsui;
-using Mapsui.Extensions;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services.MapRendering;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
 /// <summary>
-/// <see cref="IMapViewController"/> の Mapsui 実装。
-/// Mapsui の <see cref="Navigator"/> への変換と状態スナップショットの構築をここに閉じ込める（#362 / #363 / #364）。
+/// <see cref="IMapViewController"/> の実装。地図ライブラリの型は知らない。
+/// 地図表示面（<see cref="IMapSurface"/>）への変換と状態スナップショットの構築をここに閉じ込める（#362 / #363 / #364）。
 /// </summary>
 internal sealed class MapViewController : IMapViewController
 {
     private readonly Lock _gate = new();
-    private Mapsui.Map? _map;
+    private IMapSurface? _surface;
     private Action? _onViewApplied;
     private Func<Action, CancellationToken, Task>? _invokeOnUiThreadAsync;
     private MapTileSourceType _configuredTileSource = MapTileSourceType.OpenStreetMap;
@@ -41,7 +39,7 @@ internal sealed class MapViewController : IMapViewController
     public event EventHandler<MapViewStatus>? StatusChanged;
 
     internal void Attach(
-        Mapsui.Map map,
+        IMapSurface surface,
         MapTileSourceType configuredTileSource,
         MapTileSourceType displayedTileSource,
         string attributionText,
@@ -50,14 +48,14 @@ internal sealed class MapViewController : IMapViewController
         Action? onViewApplied = null,
         Func<Action, CancellationToken, Task>? invokeOnUiThreadAsync = null)
     {
-        ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(surface);
 
-        Mapsui.Map? previousMap;
+        IMapSurface? previousSurface;
         MapViewStatus snapshot;
         lock (_gate)
         {
-            previousMap = _map;
-            _map = map;
+            previousSurface = _surface;
+            _surface = surface;
             _configuredTileSource = configuredTileSource;
             _displayedTileSource = displayedTileSource;
             _attributionText = attributionText ?? string.Empty;
@@ -69,23 +67,23 @@ internal sealed class MapViewController : IMapViewController
             snapshot = RebuildSnapshotLocked();
         }
 
-        if (previousMap is not null)
+        if (previousSurface is not null)
         {
-            previousMap.Navigator.ViewportChanged -= OnViewportChanged;
+            previousSurface.ViewChanged -= OnViewChanged;
         }
 
-        map.Navigator.ViewportChanged += OnViewportChanged;
+        surface.ViewChanged += OnViewChanged;
         RaiseStatusChanged(snapshot);
     }
 
     internal void Detach()
     {
-        Mapsui.Map? previousMap;
+        IMapSurface? previousSurface;
         MapViewStatus snapshot;
         lock (_gate)
         {
-            previousMap = _map;
-            _map = null;
+            previousSurface = _surface;
+            _surface = null;
             _onViewApplied = null;
             _invokeOnUiThreadAsync = null;
             _pendingTarget = null;
@@ -93,9 +91,9 @@ internal sealed class MapViewController : IMapViewController
             snapshot = RebuildSnapshotLocked();
         }
 
-        if (previousMap is not null)
+        if (previousSurface is not null)
         {
-            previousMap.Navigator.ViewportChanged -= OnViewportChanged;
+            previousSurface.ViewChanged -= OnViewChanged;
         }
 
         RaiseStatusChanged(snapshot);
@@ -172,7 +170,7 @@ internal sealed class MapViewController : IMapViewController
         MapViewStatus? changedSnapshot = null;
         lock (_gate)
         {
-            if (_map is null || _pendingTarget is not null)
+            if (_surface is null || _pendingTarget is not null)
             {
                 return;
             }
@@ -196,17 +194,17 @@ internal sealed class MapViewController : IMapViewController
             return new MapViewCommandResult(false, CurrentStatus, validationError);
         }
 
-        Mapsui.Map? map;
+        IMapSurface? surface;
         Action? onViewApplied;
         Func<Action, CancellationToken, Task>? invokeOnUiThreadAsync;
         lock (_gate)
         {
-            map = _map;
+            surface = _surface;
             onViewApplied = _onViewApplied;
             invokeOnUiThreadAsync = _invokeOnUiThreadAsync;
         }
 
-        if (map is null)
+        if (surface is null)
         {
             return new MapViewCommandResult(false, CurrentStatus, "The map is not initialized.");
         }
@@ -216,12 +214,12 @@ internal sealed class MapViewController : IMapViewController
         {
             lock (_gate)
             {
-                if (!ReferenceEquals(_map, map))
+                if (!ReferenceEquals(_surface, surface))
                 {
                     return;
                 }
 
-                if (!map.Navigator.Viewport.HasSize())
+                if (!surface.View.HasSize)
                 {
                     // 初回レイアウト前は解像度適用が反映されない場合があるため、サイズ確定時に再適用する
                     _pendingTarget = validated;
@@ -232,7 +230,7 @@ internal sealed class MapViewController : IMapViewController
                 }
             }
 
-            ApplyTargetToMap(map, validated);
+            ApplyTargetToSurface(surface, validated);
             onViewApplied?.Invoke();
             applied = true;
         }
@@ -268,16 +266,16 @@ internal sealed class MapViewController : IMapViewController
         return new MapViewCommandResult(true, snapshot);
     }
 
-    private void OnViewportChanged(object? sender, EventArgs e)
+    private void OnViewChanged(object? sender, EventArgs e)
     {
-        Mapsui.Map? mapToApply;
+        IMapSurface? surfaceToApply;
         MapViewTarget target;
         Action? onViewApplied;
         MapViewStatus? changedSnapshot = null;
 
         lock (_gate)
         {
-            if (TryTakePendingTargetLocked(out mapToApply, out target, out onViewApplied))
+            if (TryTakePendingTargetLocked(out surfaceToApply, out target, out onViewApplied))
             {
                 // ロックの外で適用する
             }
@@ -287,9 +285,9 @@ internal sealed class MapViewController : IMapViewController
             }
         }
 
-        if (mapToApply is not null)
+        if (surfaceToApply is not null)
         {
-            ApplyTargetToMap(mapToApply, target);
+            ApplyTargetToSurface(surfaceToApply, target);
             onViewApplied?.Invoke();
             lock (_gate)
             {
@@ -304,33 +302,31 @@ internal sealed class MapViewController : IMapViewController
     }
 
     private bool TryTakePendingTargetLocked(
-        out Mapsui.Map? map,
+        out IMapSurface? surface,
         out MapViewTarget target,
         out Action? onViewApplied)
     {
-        if (_map is { } currentMap && _pendingTarget is { } pending && currentMap.Navigator.Viewport.HasSize())
+        if (_surface is { } currentSurface && _pendingTarget is { } pending && currentSurface.View.HasSize)
         {
-            map = currentMap;
+            surface = currentSurface;
             target = pending;
             onViewApplied = _onViewApplied;
             _pendingTarget = null;
             return true;
         }
 
-        map = null;
+        surface = null;
         target = default;
         onViewApplied = null;
         return false;
     }
 
-    private static void ApplyTargetToMap(Mapsui.Map map, MapViewTarget target)
+    private static void ApplyTargetToSurface(IMapSurface surface, MapViewTarget target)
     {
-        var center = new MPoint(
-            WebMercator.FromLongitude(target.Longitude),
-            WebMercator.FromLatitude(target.Latitude));
+        var centerX = WebMercator.FromLongitude(target.Longitude);
+        var centerY = WebMercator.FromLatitude(target.Latitude);
         var resolution = WebMercator.ResolutionFromLogicalZoom(target.Zoom);
-        map.Navigator.CenterOnAndZoomTo(center, resolution, duration: 0);
-        map.Refresh();
+        surface.SetView(centerX, centerY, resolution);
     }
 
     private MapViewStatus? UpdateSnapshotIfChangedLocked()
@@ -342,7 +338,7 @@ internal sealed class MapViewController : IMapViewController
 
     private MapViewStatus RebuildSnapshotLocked()
     {
-        if (_map is null)
+        if (_surface is null)
         {
             _currentStatus = MapViewStatus.Create(
                 hasSize: false,
@@ -360,14 +356,14 @@ internal sealed class MapViewController : IMapViewController
             return _currentStatus;
         }
 
-        var viewport = _map.Navigator.Viewport;
+        var view = _surface.View;
         _currentStatus = MapViewStatus.Create(
-            hasSize: viewport.HasSize(),
-            centerX: viewport.CenterX,
-            centerY: viewport.CenterY,
-            resolution: viewport.Resolution,
-            widthDip: viewport.Width,
-            heightDip: viewport.Height,
+            hasSize: view.HasSize,
+            centerX: view.CenterX,
+            centerY: view.CenterY,
+            resolution: view.Resolution,
+            widthDip: view.WidthDip,
+            heightDip: view.HeightDip,
             pixelDensity: _pixelDensity,
             configuredTileSource: _configuredTileSource,
             displayedTileSource: _displayedTileSource,

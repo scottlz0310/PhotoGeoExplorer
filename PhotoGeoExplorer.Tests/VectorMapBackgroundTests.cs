@@ -11,6 +11,7 @@ using Mapsui.Layers;
 using Mapsui.Manipulations;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services.E2E;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
@@ -563,7 +564,7 @@ public sealed class VectorMapBackgroundTests
 
         // 起動直後の描画は失敗させる
         renderer.FailNextCall = true;
-        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
         await renderer.NextRequestAsync().ConfigureAwait(true);
         await WaitUntilAsync(() => !background.IsBusy).ConfigureAwait(true);
@@ -602,7 +603,7 @@ public sealed class VectorMapBackgroundTests
         background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
 
         // 初期描画を完了させる（レイヤー反映だけでは採番されず、実描画完了で RenderedSeq = 1）
-        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
         await renderer.NextRequestAsync().ConfigureAwait(true);
         await WaitUntilAsync(() => !background.IsBusy && FeatureCount(background) == 1).ConfigureAwait(true);
@@ -669,7 +670,7 @@ public sealed class VectorMapBackgroundTests
         var firstGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         renderer.BlockNextCall = firstGate.Task;
 
-        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
         await renderer.NextRequestAsync().ConfigureAwait(true);
 

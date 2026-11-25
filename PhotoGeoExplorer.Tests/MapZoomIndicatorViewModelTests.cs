@@ -8,6 +8,7 @@ using System.Xml.Linq;
 using Microsoft.UI.Xaml;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.State;
@@ -279,7 +280,7 @@ public sealed class MapZoomIndicatorViewModelTests
 
         var controller = new MapViewController();
         controller.Attach(
-            map,
+            new MapsuiMapSurface(map),
             MapTileSourceType.OpenStreetMap,
             MapTileSourceType.OpenStreetMap,
             "Test",

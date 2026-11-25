@@ -18,6 +18,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.State;
@@ -706,7 +707,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         Volatile.Write(ref _background, mapBackground);
         _viewController.Attach(
-            map,
+            new MapsuiMapSurface(map),
             _currentTileSource,
             background.SourceType,
             mapBackground.AttributionText,

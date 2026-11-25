@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Mapsui;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services.MapRendering;
 using Xunit;
 
@@ -28,7 +29,7 @@ public sealed class MapViewControllerTests
         var viewAppliedCount = 0;
 
         controller.Attach(
-            map,
+            new MapsuiMapSurface(map),
             MapTileSourceType.OpenFreeMapVector,
             MapTileSourceType.OpenFreeMapVector,
             "OpenFreeMap",
@@ -62,7 +63,7 @@ public sealed class MapViewControllerTests
         controller.StatusChanged += (_, status) => observed.Add(status);
 
         controller.Attach(
-            map,
+            new MapsuiMapSurface(map),
             MapTileSourceType.OpenStreetMap,
             MapTileSourceType.OpenStreetMap,
             "© OpenStreetMap contributors",
@@ -98,7 +99,7 @@ public sealed class MapViewControllerTests
 
         using var map = new Map();
         map.Navigator.SetSize(400, 300);
-        controller.Attach(map, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, string.Empty, 1.0, isBusy: false);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, string.Empty, 1.0, isBusy: false);
 
         var outOfRange = await controller.SetViewAsync(new MapViewTarget(95.0, 139.0, 14.0));
         Assert.False(outOfRange.Succeeded);
@@ -114,7 +115,7 @@ public sealed class MapViewControllerTests
         using var map = new Map();
         map.Navigator.SetSize(400, 300);
         var controller = new MapViewController();
-        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap", 1.0, isBusy: false);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap", 1.0, isBusy: false);
 
         Assert.Equal(0, controller.CurrentStatus.RenderedSeq);
 
@@ -150,7 +151,7 @@ public sealed class MapViewControllerTests
     {
         using var map = new Map();
         var controller = new MapViewController();
-        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap", 1.0, isBusy: false);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap", 1.0, isBusy: false);
 
         // サイズ未確定のため保留になる
         var result = await controller.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 17.5));
@@ -173,7 +174,7 @@ public sealed class MapViewControllerTests
         using var map = new Map();
         map.Navigator.SetSize(500, 400);
         var controller = new MapViewController();
-        controller.Attach(map, MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap", 1.0, isBusy: false);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap", 1.0, isBusy: false);
 
         var resolution = WebMercator.ResolutionFromLogicalZoom(17.2);
         map.Navigator.CenterOnAndZoomTo(new MPoint(WebMercator.FromLongitude(142.36), WebMercator.FromLatitude(43.76)), resolution);

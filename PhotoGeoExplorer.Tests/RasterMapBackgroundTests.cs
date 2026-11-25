@@ -19,6 +19,7 @@ using Mapsui.Tiling.Layers;
 using Mapsui.Widgets;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services.E2E;
 using PhotoGeoExplorer.Services.MapRendering;
 using SkiaSharp;
@@ -167,7 +168,7 @@ public sealed class RasterMapBackgroundTests
             controller.NotifyFrameRendered();
         };
 
-        controller.Attach(map, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
 
         var infoLogs = new List<string>();
@@ -235,7 +236,7 @@ public sealed class RasterMapBackgroundTests
             controller.NotifyFrameRendered();
         };
 
-        controller.Attach(map, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
 
         var infoLogs = new List<string>();
@@ -299,7 +300,7 @@ public sealed class RasterMapBackgroundTests
         background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
         background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
 
-        controller.Attach(map, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
 
         // 先に低ズーム（z10）のタイルをキャッシュに入れて実描画を完了させておく
@@ -355,7 +356,7 @@ public sealed class RasterMapBackgroundTests
         background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
         background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
 
-        controller.Attach(map, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
 
         var infoLogs = new List<string>();
@@ -448,7 +449,7 @@ public sealed class RasterMapBackgroundTests
         var controller = new MapViewController();
         background.BusyChanged += (_, _) => controller.UpdateBusy(background.IsBusy);
         background.FrameRendered += (_, _) => controller.NotifyFrameRendered();
-        controller.Attach(map, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
+        controller.Attach(new MapsuiMapSurface(map), MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, background.AttributionText, 1.0, background.IsBusy);
         background.Attach(map, () => 1.0);
 
         await controller.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 16.0)).ConfigureAwait(true);
