@@ -61,7 +61,7 @@ public class MapPaneViewModelTests
 
         // Assert
         Assert.False(viewModel.IsMapInitialized);
-        Assert.Null(viewModel.Map);
+        Assert.Null(viewModel.Surface);
         Assert.Equal(MapTileSourceType.OpenStreetMap, viewModel.CurrentTileSource);
         Assert.Equal(14, viewModel.MapDefaultZoomLevel);
         Assert.False(viewModel.IsMapImageSaving);
@@ -317,7 +317,7 @@ public class MapPaneViewModelTests
         viewModel.Cleanup();
 
         // Assert
-        Assert.Null(viewModel.Map);
+        Assert.Null(viewModel.Surface);
     }
 
     [Fact]
@@ -455,7 +455,7 @@ public class MapPaneViewModelTests
 
         // Assert: 破棄済みの表示面へマーカーが書き込まれていない(no-op)こと
         Assert.Empty(surface.Markers);
-        Assert.Null(viewModel.Map);
+        Assert.Null(viewModel.Surface);
     }
 
     [Fact]
@@ -772,27 +772,23 @@ ext{index}.jpg", isFolder: false))
 
     private static TileLayer GetBaseTileLayer(MapPaneViewModel viewModel)
     {
-        var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
-        var map = Assert.IsType<Mapsui.Map>(mapField!.GetValue(viewModel));
+        var surface = Assert.IsType<MapsuiMapSurface>(viewModel.Surface);
+        var map = surface.Map;
         return Assert.IsType<TileLayer>(map.Layers.First());
     }
 
     private static MapsuiMapSurface SetMapInitializedForTest(MapPaneViewModel viewModel)
     {
-        var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
         var surfaceField = typeof(MapPaneViewModel).GetField("_surface", BindingFlags.Instance | BindingFlags.NonPublic);
         var isMapInitializedField = typeof(MapPaneViewModel).GetField("_isMapInitialized", BindingFlags.Instance | BindingFlags.NonPublic);
 
-        Assert.NotNull(mapField);
         Assert.NotNull(surfaceField);
         Assert.NotNull(isMapInitializedField);
 
 #pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
-        var map = new Mapsui.Map();
-        var surface = new MapsuiMapSurface(map);
+        var surface = MapsuiMapSurface.Create();
 #pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
 
-        mapField!.SetValue(viewModel, map);
         surfaceField!.SetValue(viewModel, surface);
         isMapInitializedField!.SetValue(viewModel, true);
         return surface;
@@ -822,7 +818,7 @@ ext{index}.jpg", isFolder: false))
 
         public Task LoadCalled => _loadCalled.Task;
 
-        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+        public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -890,7 +886,7 @@ ext{index}.jpg", isFolder: false))
 
         public void CompleteLoad(PhotoMetadata? metadata) => _loadCompletion.TrySetResult(metadata);
 
-        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+        public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -925,7 +921,7 @@ ext{index}.jpg", isFolder: false))
 
         public Task LoadStarted => _loadStarted.Task;
 
-        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+        public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -1006,7 +1002,7 @@ ext{index}.jpg", isFolder: false))
         private readonly object _gate = new();
         private readonly List<PendingLoad> _loads = new();
 
-        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+        public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)
@@ -1083,7 +1079,7 @@ ext{index}.jpg", isFolder: false))
             _onLoadCompleting = onLoadCompleting;
         }
 
-        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+        public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }

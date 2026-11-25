@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:PhotoGeoExplorer.Panes.Map"
-    xmlns:mapsui="using:Mapsui.UI.WinUI"
+    xmlns:mapsuiadapter="using:PhotoGeoExplorer.Panes.Map.MapsuiAdapter"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     DataContextChanged="OnDataContextChanged"
     Loaded="OnLoaded"
@@ -271,15 +271,9 @@
         <Grid Grid.Row="1" Margin="0,8,0,0">
             <Border Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="6" />
             <Grid x:Name="MapHost">
-                <mapsui:MapControl
-                    x:Name="MapControl"
-                    AutomationProperties.AutomationId="MapControl"
-                    Info="OnMapInfoReceived"
-                    SizeChanged="OnMapControlSizeChanged"
-                    PointerCaptureLost="OnMapPointerCaptureLost"
-                    PointerMoved="OnMapPointerMoved"
-                    PointerPressed="OnMapPointerPressed"
-                    PointerReleased="OnMapPointerReleased" />
+                <mapsuiadapter:MapsuiMapView
+                    x:Name="MapView"
+                    SizeChanged="OnMapControlSizeChanged" />
             </Grid>
             <Border
                 Margin="8"

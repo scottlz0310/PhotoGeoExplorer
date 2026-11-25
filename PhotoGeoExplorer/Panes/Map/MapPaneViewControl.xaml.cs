@@ -4,21 +4,12 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Mapsui;
-using Mapsui.Extensions;
-using Mapsui.Fetcher;
-using Mapsui.Layers;
-using Mapsui.Rendering;
-using Mapsui.Rendering.Skia;
-using Mapsui.UI;
-using Mapsui.UI.WinUI;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using PhotoGeoExplorer.Models;
-using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using Windows.ApplicationModel.DataTransfer;
@@ -33,7 +24,6 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private IDialogService _dialogService = null!;
     private MapPaneViewModel? _viewModel;
     private XamlRoot? _observedXamlRoot;
-    private Mapsui.Map? _map;
     private PhotoMetadata? _flyoutMetadata;
     private bool _mapRectangleSelecting;
     private GeoPoint? _mapRectangleStart;
@@ -42,16 +32,13 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     public MapPaneViewControl()
     {
         InitializeComponent();
-        MapControl.SetMapRenderer(new ObservingMapRenderer(new MapRenderer(), OnMapRenderStarting));
         ConfigureMapHeaderCollapse();
+        ConnectMapView();
         _exifLocationPicker = new MapExifLocationPicker(
-            canPick: () => _map is not null,
+            canPick: () => MapView.Surface is not null,
             hideMapStatus: HideMapStatusForExifPick,
             restoreMapStatus: UpdateMapStatusFromViewModel);
     }
-
-    private Action? OnMapRenderStarting(Viewport viewport, System.Collections.Generic.IReadOnlyList<ILayer> layers, RenderService renderService)
-        => (_viewModel?.Surface as MapsuiMapSurface)?.BeginMapRender(viewport, layers, renderService);
 
     internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
 
@@ -134,7 +121,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     }
 
     private string DescribeState()
-        => $"hasViewModel={_viewModel is not null}, hasMap={_map is not null}";
+        => $"hasViewModel={_viewModel is not null}, hasSurface={MapView.Surface is not null}";
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
     {
@@ -151,11 +138,10 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
         _exifLocationPicker.Cancel();
         StopObservingXamlRoot();
-        UnsubscribeFromMapState(_map);
         _viewModel?.UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);
         AbortRectangleSelection();
         DetachViewModel();
-        _map = null;
+        MapView.Surface = null;
     }
 
     private void AttachViewModel(MapPaneViewModel? viewModel)
@@ -255,7 +241,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
-        if (propertyName == nameof(MapPaneViewModel.Map))
+        if (propertyName == nameof(MapPaneViewModel.Surface))
         {
             ApplyMapFromViewModel();
             if (!_exifLocationPicker.IsStatusRestorePending)
@@ -281,59 +267,35 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void ApplyMapFromViewModel()
     {
-        SetMap(_viewModel?.Map);
-    }
-
-    private void SetMap(Mapsui.Map? map)
-    {
-        if (ReferenceEquals(_map, map))
+        var surface = _viewModel?.Surface;
+        if (ReferenceEquals(MapView.Surface, surface))
         {
             return;
         }
 
-        _viewModel?.Surface?.ClearSelectionRectangle();
-        UnsubscribeFromMapState(_map);
-        _map = map;
-        if (map is not null)
-        {
-            MapControl.Map = map;
-            SubscribeToMapState(map);
-        }
-
+        MapView.Surface?.ClearSelectionRectangle();
+        MapView.Surface = surface;
         UpdateMapImageSaveState();
     }
 
-    private void SubscribeToMapState(Mapsui.Map map)
+    // MapView のイベントを購読する。ポインタ入力は、地図の要素そのもので受ける（矩形選択・EXIF 位置ピック）
+    private void ConnectMapView()
     {
-        map.DataChanged += OnMapDataChanged;
-        map.Navigator.ViewportChanged += OnMapViewportChanged;
-        map.Layers.Changed += OnMapLayersChanged;
+        MapView.MarkerClicked += OnMarkerClicked;
+        MapView.MapStateChanged += OnMapStateChanged;
+        MapView.InputElement.PointerCaptureLost += OnMapPointerCaptureLost;
+        MapView.InputElement.PointerMoved += OnMapPointerMoved;
+        MapView.InputElement.PointerPressed += OnMapPointerPressed;
+        MapView.InputElement.PointerReleased += OnMapPointerReleased;
     }
 
-    private void UnsubscribeFromMapState(Mapsui.Map? map)
-    {
-        if (map is null)
-        {
-            return;
-        }
-
-        map.DataChanged -= OnMapDataChanged;
-        map.Navigator.ViewportChanged -= OnMapViewportChanged;
-        map.Layers.Changed -= OnMapLayersChanged;
-    }
-
-    private void OnMapDataChanged(object? sender, DataChangedEventArgs e)
-        => QueueMapImageSaveStateUpdate();
-
-    // タイルソース切替はベースレイヤーを差し替えるだけで Map インスタンスを変えないため、
+    // データ・視点・レイヤー構成のどれが変わっても保存可否を再評価する。
+    // タイルソース切替はベースレイヤーを差し替えるだけで地図のインスタンスを変えないため、
     // レイヤー構成の変化を捉えないと Busy 購読が破棄済みの旧レイヤーに残る。
-    private void OnMapLayersChanged(object sender, LayerCollectionChangedEventArgs args)
+    private void OnMapStateChanged(object? sender, EventArgs e)
         => QueueMapImageSaveStateUpdate();
 
     private void OnBackgroundBusyChanged(object? sender, EventArgs e)
-        => QueueMapImageSaveStateUpdate();
-
-    private void OnMapViewportChanged(object? sender, ViewportChangedEventArgs e)
         => QueueMapImageSaveStateUpdate();
 
     private void OnMapControlSizeChanged(object sender, SizeChangedEventArgs e)
@@ -352,8 +314,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void UpdateMapImageSaveState()
     {
-        var map = _map;
-        var hasValidViewport = map?.Navigator.Viewport.HasSize() == true;
+
+        var hasValidViewport = MapView.Surface?.View.HasSize == true;
         var isTileLoading = _viewModel?.IsBackgroundBusy == true;
         _viewModel?.UpdateMapImageSaveState(hasValidViewport, isTileLoading);
     }
@@ -548,14 +510,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         return true;
     }
 
-    private void OnMapInfoReceived(object? sender, MapInfoEventArgs e)
+    private void OnMarkerClicked(object? sender, MapMarker marker)
     {
-        var marker = MapsuiMarkerHitTest.FindMarker(MapControl.Map, e);
-        if (marker is null)
-        {
-            return;
-        }
-
         _viewModel?.RequestPhotoFocus(marker.Item.FilePath);
         ShowMarkerFlyout(marker.Item, marker.Metadata);
     }
@@ -593,7 +549,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         }
 
         FlyoutGoogleMapsLink.Content = LocalizationService.GetString("Flyout.GoogleMapsButton.Content");
-        MarkerFlyout.ShowAt(MapControl);
+        MarkerFlyout.ShowAt(MapView.InputElement);
     }
 
     private async void OnGoogleMapsLinkClicked(object sender, RoutedEventArgs e)
@@ -631,12 +587,12 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnMapPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (MapControl is null || _map is null)
+        if (_viewModel?.Surface is null)
         {
             return;
         }
 
-        var point = e.GetCurrentPoint(MapControl);
+        var point = e.GetCurrentPoint(MapView.InputElement);
         if (_exifLocationPicker.IsPicking)
         {
             if (_exifLocationPicker.HandlePointerPressed(
@@ -670,14 +626,14 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         _viewModel?.Surface?.LockPan();
         _mapRectangleSelecting = true;
         _mapRectangleStart = geoStart;
-        MapControl.CapturePointer(e.Pointer);
+        MapView.InputElement.CapturePointer(e.Pointer);
         e.Handled = true;
     }
 
     private void OnMapPointerMoved(object sender, PointerRoutedEventArgs e)
     {
         var rectangleStart = _mapRectangleStart;
-        if (!_mapRectangleSelecting || MapControl is null || _map is null || rectangleStart is null)
+        if (!_mapRectangleSelecting || _viewModel?.Surface is null || rectangleStart is null)
         {
             return;
         }
@@ -694,7 +650,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnMapPointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (MapControl is null || _map is null)
+        if (_viewModel?.Surface is null)
         {
             return;
         }
@@ -702,7 +658,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         if (_exifLocationPicker.IsPicking)
         {
             if (_exifLocationPicker.HandlePointerReleased(
-                e.GetCurrentPoint(MapControl).Position,
+                e.GetCurrentPoint(MapView.InputElement).Position,
                 () => GetGeoPosition(e)))
             {
                 e.Handled = true;
@@ -713,7 +669,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         var rectangleStart = _mapRectangleStart;
         _mapRectangleSelecting = false;
         _mapRectangleStart = null;
-        MapControl.ReleasePointerCapture(e.Pointer);
+        MapView.InputElement.ReleasePointerCapture(e.Pointer);
         var surface = _viewModel?.Surface;
         surface?.RestorePan();
 
@@ -758,16 +714,15 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return null;
         }
 
-        var screenPosition = e.GetCurrentPoint(MapControl).Position;
+        var screenPosition = e.GetCurrentPoint(MapView.InputElement).Position;
         return surface.TryGetGeoPosition(screenPosition.X, screenPosition.Y, out var position) ? position : null;
     }
 
     public void Dispose()
     {
-        UnsubscribeFromMapState(_map);
         AbortRectangleSelection();
         DetachViewModel();
-        _map = null;
+        MapView.Surface = null;
         GC.SuppressFinalize(this);
     }
 

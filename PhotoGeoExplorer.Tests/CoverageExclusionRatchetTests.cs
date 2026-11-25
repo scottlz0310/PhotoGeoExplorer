@@ -40,6 +40,7 @@ public partial class CoverageExclusionRatchetTests
         ["PhotoGeoExplorer.App"] = "アプリの起動処理。WinUI の実行環境が必要",
         ["PhotoGeoExplorer.MainWindow"] = "Shell のウィンドウ。WinUI の実行環境が必要",
         ["PhotoGeoExplorer.Program"] = "エントリーポイント",
+        ["PhotoGeoExplorer.Panes.Map.MapsuiAdapter.MapsuiMapView"] = "Mapsui の MapControl を包む UI 配線。実ウィンドウが必要。表示面の型の確認・状態の購読・マーカーの判定は MapsuiMapSurface.From・MapsuiMapStateSubscription・MapsuiMarkerHitTest に分けてテストしている（#362）",
         ["PhotoGeoExplorer.Services.CrashReportDialogService"] = "ダイアログの表示。実ウィンドウが必要",
         ["PhotoGeoExplorer.Services.DialogService.ShowMapImageSaveFilePickerAsync"] = "OS の保存ダイアログ。実ウィンドウとユーザー操作が必要",
         ["PhotoGeoExplorer.Services.HelpHtmlWindowController"] = "ヘルプウィンドウの制御。実ウィンドウが必要",

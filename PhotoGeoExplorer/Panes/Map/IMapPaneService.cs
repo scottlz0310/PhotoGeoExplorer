@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Mapsui;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.ViewModels;
 
@@ -17,8 +16,8 @@ internal interface IMapPaneService
     /// 地図オブジェクトを初期化する
     /// </summary>
     /// <param name="background">背景地図レイヤーの生成要求</param>
-    /// <returns>初期化された地図オブジェクト、背景、表示面</returns>
-    (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background);
+    /// <returns>背景と表示面（表示面が地図を持つ）</returns>
+    (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background);
 
     /// <summary>
     /// 背景を作成する。呼び出し側が破棄する

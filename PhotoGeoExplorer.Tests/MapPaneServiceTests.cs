@@ -28,17 +28,17 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var (map, background, surface) = service.InitializeMap(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
+            var (background, surface) = service.InitializeMap(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
 
             // Assert
-            Assert.NotNull(map);
+            var map = Assert.IsType<MapsuiMapSurface>(surface).Map;
             Assert.NotNull(background);
             Assert.NotNull(surface);
             Assert.Equal(1, map.Layers.Count); // マーカーレイヤーだけ（背景のレイヤーは表示面の ReplaceBackground が載せる）
             Assert.Equal(MapsuiMapSurface.MarkerLayerName, map.Layers.Last().Name);
 
             // Cleanup
-            map.Dispose();
+            surface.Dispose();
         }
         finally
         {

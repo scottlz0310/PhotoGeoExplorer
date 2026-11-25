@@ -37,7 +37,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private double _pixelDensity = 1.0;
     private int _backgroundGeneration;
     private string _backgroundNotice = string.Empty;
-    private Mapsui.Map? _map;
     private IMapBackground? _background;
     private IMapSurface? _surface;
     private MapTileSourceType _currentTileSource = MapTileSourceType.OpenStreetMap;
@@ -96,18 +95,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     }
 
     /// <summary>
-    /// 地図オブジェクト（UI スレッドでのみアクセス可能）
-    /// </summary>
-    public Mapsui.Map? Map
-    {
-        get => _map;
-        private set => SetProperty(ref _map, value);
-    }
-
-    /// <summary>
     /// 地図の表示面（Mapsui の型を出さない窓口）。地図が初期化されるまでは <see langword="null"/>
     /// </summary>
-    internal IMapSurface? Surface => _surface;
+    internal IMapSurface? Surface
+    {
+        get => _surface;
+        private set => SetProperty(ref _surface, value);
+    }
 
     /// <summary>
     /// 地図の初期化状態
@@ -337,8 +331,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         LocationInfo.Clear();
         ZoomIndicator.Dispose();
 
-        _surface?.Dispose();
-        _surface = null;
 
         var existingBackground = Interlocked.Exchange(ref _background, null);
         if (existingBackground is not null)
@@ -349,8 +341,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
 
         _viewController.Detach();
-        _map?.Dispose();
-        Map = null;
+        var surface = _surface;
+        Surface = null;
+        surface?.Dispose();
     }
 
     /// <summary>
@@ -661,13 +654,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
     private void InitializeMapCore()
     {
-        if (_map is not null)
+        if (_surface is not null)
         {
             return;
         }
 
         var background = CreateBackgroundRequest(_currentTileSource, out var notice);
-        var (map, mapBackground, surface) = _service.InitializeMap(background);
+        var (mapBackground, surface) = _service.InitializeMap(background);
 
         _viewController.Attach(
             surface,
@@ -681,11 +674,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         SwapBackground(mapBackground);
         surface.PixelDensity = GetPixelDensity();
         surface.ReplaceBackground(mapBackground);
-        _surface = surface;
         BackgroundNotice = notice;
 
-        // Map プロパティ経由で _map を更新し、PropertyChanged を発火させる
-        Map = map;
+        // Surface プロパティ経由で更新し、PropertyChanged を発火させる（View が地図を接続する）
+        Surface = surface;
         HideStatus();
         AppLog.Info("Map initialized in MapPaneViewModel.");
     }
