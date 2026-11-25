@@ -35,6 +35,21 @@ public sealed class MapsuiMapStateSubscriptionTests
     }
 
     [Fact]
+    public void DataChangeIsRelayed()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+        using var layer = new MemoryLayer { Name = "data" };
+        map.Layers.Add(layer);
+        var count = 0;
+        using var subscription = new MapsuiMapStateSubscription(surface, () => count++);
+
+        layer.DataHasChanged();
+
+        Assert.True(count > 0);
+    }
+
+    [Fact]
     public void NothingIsRelayedAfterDispose()
     {
         using var map = new Map();

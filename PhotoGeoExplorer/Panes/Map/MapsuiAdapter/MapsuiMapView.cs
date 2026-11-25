@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Mapsui;
 using Mapsui.Layers;
 using Mapsui.Rendering;
@@ -19,7 +20,8 @@ namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 /// WinUI の要素を持つため単体テストしにくい。テストできる判断（表示面の型の確認・状態の購読）は
 /// <see cref="MapsuiMapSurface.From"/>・<see cref="MapsuiMapStateSubscription"/>・<see cref="MapsuiMarkerHitTest"/> へ切り出してある。
 /// </remarks>
-[System.Diagnostics.CodeAnalysis.SuppressMessage(
+[ExcludeFromCodeCoverage(Justification = "WinUI の MapControl を包む UI 配線で、実ウィンドウが必要なため。テストできる判断は MapsuiMapSurface.From・MapsuiMapStateSubscription・MapsuiMarkerHitTest へ切り出して、追跡している。")]
+[SuppressMessage(
     "Design",
     "CA1001:Types that own disposable fields should be disposable",
     Justification = "MapControl は XAML の要素として、このコントロールの寿命と同じ。従来も View が破棄していなかった（地図は表示面が破棄する）。")]
