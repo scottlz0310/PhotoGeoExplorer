@@ -1,53 +1,41 @@
 using System;
-using Mapsui;
-using Mapsui.Layers;
-using Mapsui.Nts;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Services.MapRendering;
 using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
 
 public sealed class MapPaneSelectionHelperTests
 {
-    [Fact]
-    public void SelectPhotosInRectangleReturnsEmptyWhenFeaturesIsNull()
-    {
-        var bounds = new MRect(0, 0, 10, 10);
+    private static readonly GeoPoint LowerLeft = new(Latitude: 0, Longitude: 0);
+    private static readonly GeoPoint UpperRight = new(Latitude: 20, Longitude: 20);
 
-        var result = MapPaneSelectionHelper.SelectPhotosInRectangle(null, bounds, "PhotoItem");
+    [Fact]
+    public void SelectPhotosInRectangleReturnsEmptyWhenMarkersIsNull()
+    {
+        var result = MapPaneSelectionHelper.SelectPhotosInRectangle(null, LowerLeft, UpperRight);
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public void SelectPhotosInRectangleThrowsWhenPhotoItemKeyIsEmpty()
-    {
-        var bounds = new MRect(0, 0, 10, 10);
-
-        Assert.Throws<ArgumentException>(() =>
-            MapPaneSelectionHelper.SelectPhotosInRectangle(Array.Empty<IFeature>(), bounds, string.Empty));
-    }
-
-    [Fact]
     public void SelectPhotosInRectangleReturnsUniquePhotoItemsInBounds()
     {
-        var bounds = new MRect(0, 0, 20, 20);
         var first = CreatePhotoItem(@"C:\Photos\a.jpg");
         var duplicateWithDifferentCase = CreatePhotoItem(@"C:\Photos\A.JPG");
         var second = CreatePhotoItem(@"C:\Photos\b.jpg");
         var outOfBounds = CreatePhotoItem(@"C:\Photos\c.jpg");
 
-        var features = new IFeature[]
+        var markers = new[]
         {
-            CreatePointFeature(10, 10, first),
-            CreatePointFeature(15, 15, duplicateWithDifferentCase),
-            CreatePointFeature(20, 20, second),
-            CreatePointFeature(100, 100, outOfBounds),
-            CreatePointFeatureWithoutPhotoItem(12, 12)
+            CreateMarker(10, 10, first),
+            CreateMarker(15, 15, duplicateWithDifferentCase),
+            CreateMarker(20, 20, second),
+            CreateMarker(80, 80, outOfBounds)
         };
 
-        var result = MapPaneSelectionHelper.SelectPhotosInRectangle(features, bounds, "PhotoItem");
+        var result = MapPaneSelectionHelper.SelectPhotosInRectangle(markers, LowerLeft, UpperRight);
 
         Assert.Collection(
             result,
@@ -58,18 +46,50 @@ public sealed class MapPaneSelectionHelperTests
     [Fact]
     public void SelectPhotosInRectangleIncludesBoundaryPoints()
     {
-        var bounds = new MRect(0, 0, 20, 20);
-        var minPointItem = CreatePhotoItem(@"C:\Photos\min.jpg");
-        var maxPointItem = CreatePhotoItem(@"C:\Photos\max.jpg");
-        var features = new IFeature[]
+        var markers = new[]
         {
-            CreatePointFeature(0, 0, minPointItem),
-            CreatePointFeature(20, 20, maxPointItem)
+            CreateMarker(0, 0, CreatePhotoItem(@"C:\Photos\min.jpg")),
+            CreateMarker(20, 20, CreatePhotoItem(@"C:\Photos\max.jpg"))
         };
 
-        var result = MapPaneSelectionHelper.SelectPhotosInRectangle(features, bounds, "PhotoItem");
+        var result = MapPaneSelectionHelper.SelectPhotosInRectangle(markers, LowerLeft, UpperRight);
 
         Assert.Equal(2, result.Count);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 20, 20)]
+    [InlineData(20, 20, 0, 0)]
+    [InlineData(0, 20, 20, 0)]
+    [InlineData(20, 0, 0, 20)]
+    public void SelectPhotosInRectangleAcceptsCornersInAnyOrder(
+        double latitude1,
+        double longitude1,
+        double latitude2,
+        double longitude2)
+    {
+        var markers = new[] { CreateMarker(10, 10, CreatePhotoItem(@"C:\Photos\a.jpg")) };
+
+        var result = MapPaneSelectionHelper.SelectPhotosInRectangle(
+            markers,
+            new GeoPoint(latitude1, longitude1),
+            new GeoPoint(latitude2, longitude2));
+
+        Assert.Single(result);
+    }
+
+    [Theory]
+    [InlineData(10, 25)]
+    [InlineData(25, 10)]
+    [InlineData(-1, 10)]
+    [InlineData(10, -1)]
+    public void SelectPhotosInRectangleExcludesMarkersOutsideOnEitherAxis(double latitude, double longitude)
+    {
+        var markers = new[] { CreateMarker(latitude, longitude, CreatePhotoItem(@"C:\Photos\a.jpg")) };
+
+        var result = MapPaneSelectionHelper.SelectPhotosInRectangle(markers, LowerLeft, UpperRight);
+
+        Assert.Empty(result);
     }
 
     [Fact]
@@ -116,15 +136,9 @@ public sealed class MapPaneSelectionHelperTests
             pixelHeight: 3000);
     }
 
-    private static PointFeature CreatePointFeature(double x, double y, PhotoItem photoItem)
+    private static MapMarker CreateMarker(double latitude, double longitude, PhotoItem photoItem)
     {
-        var feature = new PointFeature(new MPoint(x, y));
-        feature["PhotoItem"] = photoItem;
-        return feature;
-    }
-
-    private static PointFeature CreatePointFeatureWithoutPhotoItem(double x, double y)
-    {
-        return new PointFeature(new MPoint(x, y));
+        var metadata = new PhotoMetadata(DateTimeOffset.UtcNow, null, null, latitude, longitude);
+        return new MapMarker(latitude, longitude, photoItem, metadata, PinImagePath: null);
     }
 }

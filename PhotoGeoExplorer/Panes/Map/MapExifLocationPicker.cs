@@ -1,8 +1,7 @@
 using System;
 using System.Threading.Tasks;
-using Mapsui;
-using Mapsui.Projections;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.MapRendering;
 using Windows.Foundation;
 
 namespace PhotoGeoExplorer.Panes.Map;
@@ -76,11 +75,11 @@ internal sealed class MapExifLocationPicker : IExifLocationPicker
 
     /// <summary>
     /// ピック中のポインタ解放を処理する。押下位置からの移動がしきい値内（クリック扱い）であれば
-    /// ワールド座標を経緯度へ変換してピックを完了する。戻り値はイベントを Handled にすべきかどうか。
+    /// その位置（緯度・経度）でピックを完了する。戻り値はイベントを Handled にすべきかどうか。
     /// </summary>
-    public bool HandlePointerReleased(Point currentPosition, Func<MPoint?> getWorldPosition)
+    public bool HandlePointerReleased(Point currentPosition, Func<GeoPoint?> getGeoPosition)
     {
-        ArgumentNullException.ThrowIfNull(getWorldPosition);
+        ArgumentNullException.ThrowIfNull(getGeoPosition);
 
         if (!_isPointerActive)
         {
@@ -100,14 +99,13 @@ internal sealed class MapExifLocationPicker : IExifLocationPicker
             return false;
         }
 
-        var worldPosition = getWorldPosition();
-        if (worldPosition is null)
+        var geoPosition = getGeoPosition();
+        if (geoPosition is null)
         {
             return false;
         }
 
-        var lonLat = SphericalMercator.ToLonLat(worldPosition);
-        Complete(lonLat.Y, lonLat.X);
+        Complete(geoPosition.Value.Latitude, geoPosition.Value.Longitude);
         return true;
     }
 

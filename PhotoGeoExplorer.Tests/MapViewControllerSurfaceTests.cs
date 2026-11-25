@@ -15,7 +15,7 @@ public sealed class MapViewControllerSurfaceTests
     [Fact]
     public async Task SetViewAsyncPassesWebMercatorCenterAndResolutionToTheSurface()
     {
-        var surface = new FakeMapSurface { View = SizedView(800, 600) };
+        using var surface = new FakeMapSurface { View = SizedView(800, 600) };
         var controller = CreateController(surface);
 
         var result = await controller.SetViewAsync(new MapViewTarget(43.768436, 142.362436, 16.0));
@@ -30,7 +30,7 @@ public sealed class MapViewControllerSurfaceTests
     [Fact]
     public async Task SetViewAsyncBeforeTheSurfaceHasSizeIsAppliedWhenTheViewChanges()
     {
-        var surface = new FakeMapSurface();
+        using var surface = new FakeMapSurface();
         var controller = CreateController(surface);
 
         var result = await controller.SetViewAsync(new MapViewTarget(35.681236, 139.767125, 14.0));
@@ -49,7 +49,7 @@ public sealed class MapViewControllerSurfaceTests
     [Fact]
     public void ViewChangeUpdatesTheStatusFromTheSurfaceView()
     {
-        var surface = new FakeMapSurface { View = SizedView(500, 400) };
+        using var surface = new FakeMapSurface { View = SizedView(500, 400) };
         var controller = CreateController(surface);
         MapViewStatus? observed = null;
         controller.StatusChanged += (_, status) => observed = status;
@@ -74,7 +74,7 @@ public sealed class MapViewControllerSurfaceTests
     [Fact]
     public void DetachStopsListeningToTheSurface()
     {
-        var surface = new FakeMapSurface { View = SizedView(500, 400) };
+        using var surface = new FakeMapSurface { View = SizedView(500, 400) };
         var controller = CreateController(surface);
         var notifications = 0;
         controller.Detach();
@@ -91,8 +91,8 @@ public sealed class MapViewControllerSurfaceTests
     [Fact]
     public void AttachingAnotherSurfaceReleasesThePreviousOne()
     {
-        var first = new FakeMapSurface { View = SizedView(500, 400) };
-        var second = new FakeMapSurface { View = SizedView(300, 200) };
+        using var first = new FakeMapSurface { View = SizedView(500, 400) };
+        using var second = new FakeMapSurface { View = SizedView(300, 200) };
         var controller = CreateController(first);
 
         controller.Attach(second, MapTileSourceType.OpenStreetMap, MapTileSourceType.OpenStreetMap, string.Empty, 1.0, isBusy: false);
@@ -111,28 +111,4 @@ public sealed class MapViewControllerSurfaceTests
 
     private static MapViewState SizedView(double width, double height)
         => new(HasSize: true, CenterX: 0, CenterY: 0, Resolution: 10, WidthDip: width, HeightDip: height);
-
-    private sealed class FakeMapSurface : IMapSurface
-    {
-        private EventHandler? _viewChanged;
-
-        internal System.Collections.Generic.List<(double CenterX, double CenterY, double Resolution)> SetViewCalls { get; } = [];
-
-        internal int SubscriberCount => _viewChanged?.GetInvocationList().Length ?? 0;
-
-        public MapViewState View { get; set; }
-
-        public event EventHandler? ViewChanged
-        {
-            add => _viewChanged += value;
-            remove => _viewChanged -= value;
-        }
-
-        public void SetView(double centerX, double centerY, double resolution)
-        {
-            SetViewCalls.Add((centerX, centerY, resolution));
-        }
-
-        internal void RaiseViewChanged() => _viewChanged?.Invoke(this, EventArgs.Empty);
-    }
 }

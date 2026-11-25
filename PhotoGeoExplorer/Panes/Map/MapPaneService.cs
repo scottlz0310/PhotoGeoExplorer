@@ -5,9 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BruTile.Cache;
 using Mapsui;
-using Mapsui.Layers;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.ViewModels;
 
@@ -45,7 +45,7 @@ internal sealed class MapPaneService : IMapPaneService
     }
 
     /// <inheritdoc/>
-    public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+    public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
     {
         ArgumentNullException.ThrowIfNull(background);
 
@@ -57,15 +57,10 @@ internal sealed class MapPaneService : IMapPaneService
             map.Layers.Add(layer);
         }
 
-        var markerLayer = new MemoryLayer
-        {
-            Name = "PhotoMarkers",
-            Features = Array.Empty<IFeature>(),
-            Style = null
-        };
-        map.Layers.Add(markerLayer);
+        // 写真マーカーのレイヤーは、表示面が背景の上へ追加する
+        var surface = new MapsuiMapSurface(map);
 
-        return (map, mapBackground, markerLayer);
+        return (map, mapBackground, surface);
     }
 
     /// <inheritdoc/>

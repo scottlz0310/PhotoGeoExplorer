@@ -1,8 +1,7 @@
 using System;
 using System.Threading.Tasks;
-using Mapsui;
-using Mapsui.Projections;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Services.MapRendering;
 using Windows.Foundation;
 using Xunit;
 
@@ -93,23 +92,22 @@ public sealed class MapExifLocationPickerTests
     }
 
     [Fact]
-    public async Task HandlePointerReleasedCompletesPickWithLonLat()
+    public async Task HandlePointerReleasedCompletesPickWithTheGeoPosition()
     {
         var harness = new PickerHarness();
         var pickTask = harness.Picker.PickExifLocationAsync();
-        var worldPosition = new MPoint(15557238.0, 4257415.0);
-        var expected = SphericalMercator.ToLonLat(worldPosition);
+        var position = new GeoPoint(35.681236, 139.767125);
 
         harness.Picker.HandlePointerPressed(true, false, new Point(100, 100));
-        var handled = harness.Picker.HandlePointerReleased(new Point(103, 98), () => worldPosition);
+        var handled = harness.Picker.HandlePointerReleased(new Point(103, 98), () => position);
 
         Assert.True(handled);
         Assert.False(harness.Picker.IsPicking);
         Assert.Equal(1, harness.RestoreCallCount);
         var result = await pickTask.ConfigureAwait(true);
         Assert.NotNull(result);
-        Assert.Equal(expected.Y, result.Value.Latitude);
-        Assert.Equal(expected.X, result.Value.Longitude);
+        Assert.Equal(position.Latitude, result.Value.Latitude);
+        Assert.Equal(position.Longitude, result.Value.Longitude);
     }
 
     [Theory]
@@ -124,7 +122,7 @@ public sealed class MapExifLocationPickerTests
         harness.Picker.HandlePointerPressed(true, false, new Point(100, 100));
         var handled = harness.Picker.HandlePointerReleased(
             new Point(100 + deltaX, 100 + deltaY),
-            () => new MPoint(0, 0));
+            () => new GeoPoint(0, 0));
 
         Assert.False(handled);
         Assert.True(harness.Picker.IsPicking);
@@ -137,7 +135,7 @@ public sealed class MapExifLocationPickerTests
         var harness = new PickerHarness();
         _ = harness.Picker.PickExifLocationAsync();
 
-        var handled = harness.Picker.HandlePointerReleased(new Point(0, 0), () => new MPoint(0, 0));
+        var handled = harness.Picker.HandlePointerReleased(new Point(0, 0), () => new GeoPoint(0, 0));
 
         Assert.False(handled);
         Assert.True(harness.Picker.IsPicking);
@@ -184,13 +182,13 @@ public sealed class MapExifLocationPickerTests
 
         harness.Picker.HandlePointerPressed(true, false, new Point(100, 100));
         harness.Picker.HandlePointerCaptureLost();
-        var handledAfterLost = harness.Picker.HandlePointerReleased(new Point(100, 100), () => new MPoint(0, 0));
+        var handledAfterLost = harness.Picker.HandlePointerReleased(new Point(100, 100), () => new GeoPoint(0, 0));
 
         Assert.False(handledAfterLost);
         Assert.True(harness.Picker.IsPicking);
 
         harness.Picker.HandlePointerPressed(true, false, new Point(50, 50));
-        var handledRetry = harness.Picker.HandlePointerReleased(new Point(50, 50), () => new MPoint(0, 0));
+        var handledRetry = harness.Picker.HandlePointerReleased(new Point(50, 50), () => new GeoPoint(0, 0));
 
         Assert.True(handledRetry);
         Assert.NotNull(await pickTask.ConfigureAwait(true));

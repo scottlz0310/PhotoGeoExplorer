@@ -10,6 +10,7 @@ using Mapsui.Layers;
 using Mapsui.Rendering;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.State;
@@ -335,10 +336,10 @@ public sealed class MapPaneViewModelBackgroundTests
         var viewModel = new MapPaneViewModel(service, new WorkspaceState(), imageService, static () => null, new InMemorySecretStore());
         var flags = BindingFlags.Instance | BindingFlags.NonPublic;
         map = new Mapsui.Map();
-        marker = new MemoryLayer { Name = "PhotoMarkers", Features = Array.Empty<IFeature>() };
-        map.Layers.Add(marker);
+        var surface = new MapsuiMapSurface(map);
+        marker = map.Layers.OfType<MemoryLayer>().Single(layer => layer.Name == MapsuiMapSurface.MarkerLayerName);
         typeof(MapPaneViewModel).GetField("_map", flags)!.SetValue(viewModel, map);
-        typeof(MapPaneViewModel).GetField("_markerLayer", flags)!.SetValue(viewModel, marker);
+        typeof(MapPaneViewModel).GetField("_surface", flags)!.SetValue(viewModel, surface);
         typeof(MapPaneViewModel).GetField("_isMapInitialized", flags)!.SetValue(viewModel, true);
         return viewModel;
     }
@@ -425,7 +426,7 @@ public sealed class MapPaneViewModelBackgroundTests
 
         public List<MapBackgroundRequest> Requests { get; } = [];
 
-        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             Requests.Add(background);
             var created = new FakeBackground();
@@ -436,9 +437,8 @@ public sealed class MapPaneViewModelBackgroundTests
                 map.Layers.Add(layer);
             }
 
-            var marker = new MemoryLayer { Name = "PhotoMarkers", Features = Array.Empty<IFeature>() };
-            map.Layers.Add(marker);
-            return (map, created, marker);
+            var surface = new MapsuiMapSurface(map);
+            return (map, created, surface);
         }
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)

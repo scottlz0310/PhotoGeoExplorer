@@ -279,8 +279,9 @@ public sealed class MapZoomIndicatorViewModelTests
             WebMercator.ResolutionFromLogicalZoom(14.0));
 
         var controller = new MapViewController();
+        using var surface = new MapsuiMapSurface(map);
         controller.Attach(
-            new MapsuiMapSurface(map),
+            surface,
             MapTileSourceType.OpenStreetMap,
             MapTileSourceType.OpenStreetMap,
             "Test",

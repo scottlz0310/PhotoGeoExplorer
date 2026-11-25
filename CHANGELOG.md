@@ -7,6 +7,7 @@
 ### 変更
 - 背景地図の定義（種類・描画方式・Mapbox トークンの要否・帰属表示）を `MapBackgroundCatalog` へ一本化した (#362)。生成・設定画面の選択肢の位置・帰属表示が、散在していた `MapTileSourceType` の分岐ではなく同じ一覧を参照する。挙動は変わらない（設定ファイルの保存値 0〜3 も同じ）。国土地理院タイル (#368) と地図画像保存ダイアログ (#366) の共通の土台になる。
 - 地図の視点（中心・解像度・大きさ）を、地図ライブラリに依存しない `MapViewState` と表示面の契約 `IMapSurface` に切り出した (#362)。`MapViewController`（#363・#364 の状態の出所）は Mapsui の型を知らなくなり、Mapsui との変換は `MapsuiAdapter` の `MapsuiMapSurface` に閉じ込めた。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の第 1 段。
+- 地図の写真マーカー・矩形選択・パン固定・座標変換を、地図ライブラリに依存しない表示面の契約 `IMapSurface`（`MapMarker`・`GeoPoint`）に移した (#362)。マーカーのスタイル・レイヤー・ヒット判定の取り出しは `MapsuiAdapter` の `MapsuiMapSurface` に閉じ込め、ViewModel・`MapMarkerPresenter`・`MapPaneSelectionHelper`・`MapExifLocationPicker` は Mapsui の型を知らなくなった。矩形選択は緯度・経度のまま比べる。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の第 2 段。
 
 ## [1.13.0] - 2026-11-25
 
