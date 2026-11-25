@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using BruTile.Cache;
-using Mapsui;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
@@ -52,12 +51,7 @@ internal sealed class MapPaneService : IMapPaneService
         // レイヤー生成が失敗したときに Map を取り残さないよう、先に背景を作る。
         var mapBackground = CreateBackground(background);
         var map = new Mapsui.Map();
-        foreach (var layer in mapBackground.Layers)
-        {
-            map.Layers.Add(layer);
-        }
-
-        // 写真マーカーのレイヤーは、表示面が背景の上へ追加する
+        // 背景のレイヤーと写真マーカーのレイヤーは、表示面が地図へ載せる
         var surface = new MapsuiMapSurface(map);
 
         return (map, mapBackground, surface);

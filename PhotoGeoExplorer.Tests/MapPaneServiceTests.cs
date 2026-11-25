@@ -34,7 +34,7 @@ public class MapPaneServiceTests
             Assert.NotNull(map);
             Assert.NotNull(background);
             Assert.NotNull(surface);
-            Assert.Equal(2, map.Layers.Count); // タイルレイヤー + マーカーレイヤー
+            Assert.Equal(1, map.Layers.Count); // マーカーレイヤーだけ（背景のレイヤーは表示面の ReplaceBackground が載せる）
             Assert.Equal(MapsuiMapSurface.MarkerLayerName, map.Layers.Last().Name);
 
             // Cleanup
@@ -68,7 +68,7 @@ public class MapPaneServiceTests
         {
             // Act
             using var background = service.CreateBackground(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
-            var layer = Assert.IsType<TileLayer>(Assert.Single(background.Layers));
+            var layer = Assert.IsType<TileLayer>(Assert.Single(((IMapsuiBackground)background).Layers));
 
             // Assert
             Assert.Equal("OpenStreetMap", layer.Name);
@@ -92,7 +92,7 @@ public class MapPaneServiceTests
         {
             // Act
             using var background = service.CreateBackground(new MapBackgroundRequest(MapTileSourceType.EsriWorldImagery, userAgent));
-            var layer = Assert.IsType<TileLayer>(Assert.Single(background.Layers));
+            var layer = Assert.IsType<TileLayer>(Assert.Single(((IMapsuiBackground)background).Layers));
 
             // Assert
             Assert.Equal("Esri WorldImagery", layer.Name);
@@ -118,7 +118,7 @@ public class MapPaneServiceTests
                 new MapBackgroundRequest(MapTileSourceType.OpenFreeMapVector, "PhotoGeoExplorer/Test", TryPostToUi: _ => true));
 
             Assert.IsType<VectorMapBackground>(background);
-            Assert.Single(background.Layers);
+            Assert.Single(((IMapsuiBackground)background).Layers);
             Assert.Equal("OpenFreeMap © OpenMapTiles Data from OpenStreetMap", background.AttributionText);
         }
         finally
@@ -179,7 +179,7 @@ public class MapPaneServiceTests
         {
             // Act
             using var background = service.CreateBackground(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
-            var layer = Assert.IsType<TileLayer>(Assert.Single(background.Layers));
+            var layer = Assert.IsType<TileLayer>(Assert.Single(((IMapsuiBackground)background).Layers));
 
             // Assert
             Assert.Equal("OpenStreetMap", layer.Name);

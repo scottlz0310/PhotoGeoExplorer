@@ -6,9 +6,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Mapsui;
-using Mapsui.Layers;
-using Mapsui.Rendering;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -31,7 +28,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private readonly IMapImageService _mapImageService;
     private readonly WorkspaceState _workspaceState;
     private readonly MapMarkerPresenter _markerPresenter;
-    private readonly MapAttributionPresenter _attributionPresenter = new();
     private readonly MapViewController _viewController = new();
     private readonly ISecretStore _secretStore;
     private readonly FolderPickerHistory _saveFolderHistory = new();
@@ -587,7 +583,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     /// </summary>
     public void SwitchTileSource(MapTileSourceType newSource)
     {
-        if (_map is null || !IsMapInitialized)
+        if (_surface is null || !IsMapInitialized)
         {
             return;
         }
@@ -596,14 +592,13 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         {
             var background = CreateBackgroundRequest(newSource, out var notice);
             var newBackground = _service.CreateBackground(background);
-            ReplaceBackground(_map, newBackground);
-            newBackground.Attach(_map, GetPixelDensity);
+            var oldBackground = SwapBackground(newBackground);
+            _surface.ReplaceBackground(newBackground);
+            oldBackground?.Dispose();
             CurrentTileSource = newSource;
-            _attributionPresenter.Update(background.SourceType);
             BackgroundNotice = notice;
             _viewController.UpdateTileSource(newSource, background.SourceType, newBackground.AttributionText, newBackground.IsBusy);
 
-            _map.Refresh();
             AppLog.Info($"Switched map tile source to {newSource} (displaying {background.SourceType})");
         }
         catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
@@ -612,36 +607,21 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
     }
 
-    // 新しい背景を先に作ってから差し替える。作成に失敗しても、表示中の背景は変わらない
-    private void ReplaceBackground(Mapsui.Map map, IMapBackground newBackground)
+    // 新しい背景を先に作ってから差し替える。作成に失敗しても、表示中の背景は変わらない。
+    // 通知の購読は、新しい背景を地図へ載せる（描画を始める）前に付け替える。古い背景は、表示面が外したあとに呼び出し側が破棄する
+    private IMapBackground? SwapBackground(IMapBackground newBackground)
     {
-        if (Volatile.Read(ref _background) is { } oldBackground)
+        var oldBackground = Volatile.Read(ref _background);
+        if (oldBackground is not null)
         {
             oldBackground.BusyChanged -= OnBackgroundBusyChanged;
             oldBackground.FrameRendered -= OnBackgroundFrameRendered;
-            foreach (var layer in oldBackground.Layers)
-            {
-                map.Layers.Remove(layer);
-            }
-
-            oldBackground.Dispose();
-        }
-
-        var index = 0;
-        foreach (var layer in newBackground.Layers)
-        {
-            map.Layers.Insert(index++, layer);
         }
 
         newBackground.BusyChanged += OnBackgroundBusyChanged;
         newBackground.FrameRendered += OnBackgroundFrameRendered;
         Volatile.Write(ref _background, newBackground);
-    }
-
-    internal Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
-    {
-        var background = Volatile.Read(ref _background);
-        return background?.BeginMapRender(viewport, layers, renderService);
+        return oldBackground;
     }
 
     private void OnBackgroundBusyChanged(object? sender, EventArgs e)
@@ -652,22 +632,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
     private void OnBackgroundFrameRendered(object? sender, EventArgs e)
         => _viewController.NotifyFrameRendered();
-
-    /// <summary>
-    /// 現在のビューポートを、背景を保存用に差し替えて PNG に描く。表示中のレイヤーには触らない
-    /// </summary>
-    internal async Task<Stream> CaptureMapImageAsync(
-        Viewport viewport,
-        float pixelDensity,
-        CancellationToken cancellationToken)
-    {
-        var map = _map ?? throw new InvalidOperationException("The map is not initialized.");
-        var background = _background ?? throw new InvalidOperationException("The map background is not initialized.");
-
-        using var exportLayers = await background.CreateExportLayersAsync(viewport, pixelDensity, cancellationToken).ConfigureAwait(true);
-        var layers = MapExportLayers.Compose(map.Layers, background, exportLayers);
-        return _mapImageService.RenderPng(map, layers, viewport, pixelDensity);
-    }
 
     internal void RequestPhotoFocus(string filePath)
     {
@@ -705,7 +669,6 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         var background = CreateBackgroundRequest(_currentTileSource, out var notice);
         var (map, mapBackground, surface) = _service.InitializeMap(background);
 
-        Volatile.Write(ref _background, mapBackground);
         _viewController.Attach(
             surface,
             _currentTileSource,
@@ -715,36 +678,16 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             mapBackground.IsBusy,
             HideStatusOnUiThread,
             InvokeOnUiThreadAsync);
-        mapBackground.BusyChanged += OnBackgroundBusyChanged;
-        mapBackground.FrameRendered += OnBackgroundFrameRendered;
-        mapBackground.Attach(map, GetPixelDensity);
+        SwapBackground(mapBackground);
+        surface.PixelDensity = GetPixelDensity();
+        surface.ReplaceBackground(mapBackground);
         _surface = surface;
-        _attributionPresenter.Attach(map, background.SourceType);
-        _ = LoadAttributionImagesAsync(map);
         BackgroundNotice = notice;
 
         // Map プロパティ経由で _map を更新し、PropertyChanged を発火させる
         Map = map;
         HideStatus();
         AppLog.Info("Map initialized in MapPaneViewModel.");
-    }
-
-    private async Task LoadAttributionImagesAsync(Mapsui.Map map)
-    {
-        try
-        {
-            if (!await _attributionPresenter.LoadImagesAsync(map).ConfigureAwait(true))
-            {
-                AppLog.Error($"Failed to load the map attribution logo: {MapAttribution.MapboxLogoPath}");
-                return;
-            }
-
-            map.RefreshGraphics();
-        }
-        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
-            AppLog.Error("Failed to load the map attribution logo.", ex);
-        }
     }
 
     // 設定は Mapbox でもトークンがなければ OSM で表示する。保存済みの設定値（CurrentTileSource）は書き換えない。
@@ -794,7 +737,10 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         Volatile.Write(ref _pixelDensity, pixelDensity);
         _viewController.UpdatePixelDensity(pixelDensity);
-        _background?.OnPixelDensityChanged();
+        if (_surface is { } surface)
+        {
+            surface.PixelDensity = pixelDensity;
+        }
     }
 
     private void HideStatusOnUiThread()

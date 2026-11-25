@@ -212,49 +212,6 @@ public sealed class MapPaneViewModelBackgroundTests
     }
 
     [Fact]
-    public async Task CaptureMapImageRendersExportLayersInPlaceOfTheBackgroundLayers()
-    {
-        var service = new FakeBackgroundMapPaneService();
-        var imageService = new RecordingImageService();
-        var viewModel = CreateInitializedViewModel(service, imageService, out var map, out var marker);
-        var viewport = new Viewport(10, 20, 2, 0, 640, 480);
-
-        try
-        {
-            viewModel.SwitchTileSource(MapTileSourceType.OpenStreetMap);
-            var background = Assert.Single(service.Created);
-
-            using var stream = await viewModel.CaptureMapImageAsync(viewport, 1.5f, CancellationToken.None).ConfigureAwait(true);
-
-            Assert.Same(map, imageService.Map);
-            Assert.Equal<ILayer>([.. background.ExportLayers, marker], imageService.Layers!.ToArray());
-            Assert.Equal(viewport, imageService.Viewport);
-            Assert.Equal(1.5f, imageService.PixelDensity);
-            Assert.Equal(viewport, background.ExportViewport);
-            Assert.Equal(1.5f, background.ExportPixelDensity);
-            Assert.Equal(1, background.ExportDisposeCount);
-        }
-        finally
-        {
-            viewModel.Cleanup();
-        }
-    }
-
-    [Fact]
-    public async Task CaptureMapImageThrowsWhenTheMapIsNotInitialized()
-    {
-        var viewModel = new MapPaneViewModel(
-            new FakeBackgroundMapPaneService(),
-            new WorkspaceState(),
-            new RecordingImageService(),
-            static () => null,
-            new InMemorySecretStore());
-
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => viewModel.CaptureMapImageAsync(new Viewport(0, 0, 1, 0, 100, 50), 1f, CancellationToken.None)).ConfigureAwait(true);
-    }
-
-    [Fact]
     public async Task ViewControllerTracksFrameRenderBusyTileSourceAndSetViewAsync()
     {
         var service = new FakeBackgroundMapPaneService();
@@ -284,7 +241,7 @@ public sealed class MapPaneViewModelBackgroundTests
             Assert.Equal(0, viewModel.ViewController.CurrentStatus.RenderedSeq);
 
             // FrameRendered は BeginMapRender → 描画完了経由で採番される
-            var initialCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
+            var initialCompleted = ((MapsuiMapSurface)viewModel.Surface!).BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
             Assert.NotNull(initialCompleted);
             Assert.Equal(0, viewModel.ViewController.CurrentStatus.RenderedSeq);
             initialCompleted!();
@@ -308,7 +265,7 @@ public sealed class MapPaneViewModelBackgroundTests
             Assert.Equal("z17.5", viewModel.ZoomIndicator.ZoomText);
             Assert.NotNull(viewModel.ZoomIndicator.ZoomToolTip);
             var nextBackground = service.Created[1];
-            var nextCompleted = viewModel.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
+            var nextCompleted = ((MapsuiMapSurface)viewModel.Surface!).BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
             Assert.NotNull(nextCompleted);
             nextCompleted!();
             Assert.Equal(2, viewModel.ViewController.CurrentStatus.RenderedSeq);
@@ -344,99 +301,18 @@ public sealed class MapPaneViewModelBackgroundTests
         return viewModel;
     }
 
-    private sealed class FakeBackground : IMapBackground
-    {
-        private bool _busy;
-
-        public List<ILayer> Layers { get; } = [new MemoryLayer { Name = "background" }];
-
-        public List<ILayer> ExportLayers { get; } = [new MemoryLayer { Name = "export" }];
-
-        public int DisposeCount { get; private set; }
-
-        public int ExportDisposeCount { get; set; }
-
-        public Viewport ExportViewport { get; private set; }
-
-        public float ExportPixelDensity { get; private set; }
-
-        public Mapsui.Map? AttachedMap { get; private set; }
-
-        public Func<double>? GetPixelDensity { get; private set; }
-
-        public int AttachCount { get; private set; }
-
-        public int PixelDensityChangedCount { get; private set; }
-
-        public int BeginMapRenderCount { get; private set; }
-
-        IReadOnlyList<ILayer> IMapBackground.Layers => Layers;
-
-        public string AttributionText => string.Empty;
-
-        public bool IsBusy => _busy;
-
-        public event EventHandler? BusyChanged;
-
-        public event EventHandler? FrameRendered;
-
-        public void SetBusy(bool busy)
-        {
-            _busy = busy;
-            BusyChanged?.Invoke(this, EventArgs.Empty);
-        }
-
-        public void RaiseFrameRendered() => FrameRendered?.Invoke(this, EventArgs.Empty);
-
-        public void Attach(Mapsui.Map map, Func<double> getPixelDensity)
-        {
-            AttachCount++;
-            AttachedMap = map;
-            GetPixelDensity = getPixelDensity;
-        }
-
-        public void OnPixelDensityChanged() => PixelDensityChangedCount++;
-
-        public Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
-        {
-            BeginMapRenderCount++;
-            return RaiseFrameRendered;
-        }
-
-        public Task<IMapExportLayers> CreateExportLayersAsync(Viewport viewport, float pixelDensity, CancellationToken cancellationToken)
-        {
-            ExportViewport = viewport;
-            ExportPixelDensity = pixelDensity;
-            return Task.FromResult<IMapExportLayers>(new FakeExportLayers(this));
-        }
-
-        public void Dispose() => DisposeCount++;
-
-        private sealed class FakeExportLayers(FakeBackground owner) : IMapExportLayers
-        {
-            public IReadOnlyList<ILayer> Layers => owner.ExportLayers;
-
-            public void Dispose() => owner.ExportDisposeCount++;
-        }
-    }
-
     private sealed class FakeBackgroundMapPaneService : IMapPaneService
     {
-        public List<FakeBackground> Created { get; } = [];
+        public List<FakeMapsuiBackground> Created { get; } = [];
 
         public List<MapBackgroundRequest> Requests { get; } = [];
 
         public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             Requests.Add(background);
-            var created = new FakeBackground();
+            var created = new FakeMapsuiBackground();
             Created.Add(created);
             var map = new Mapsui.Map();
-            foreach (var layer in created.Layers)
-            {
-                map.Layers.Add(layer);
-            }
-
             var surface = new MapsuiMapSurface(map);
             return (map, created, surface);
         }
@@ -444,7 +320,7 @@ public sealed class MapPaneViewModelBackgroundTests
         public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
             Requests.Add(background);
-            var created = new FakeBackground();
+            var created = new FakeMapsuiBackground();
             Created.Add(created);
             return created;
         }
@@ -463,24 +339,7 @@ public sealed class MapPaneViewModelBackgroundTests
 
     private sealed class RecordingImageService : IMapImageService
     {
-        public Mapsui.Map? Map { get; private set; }
-
-        public IReadOnlyList<ILayer>? Layers { get; private set; }
-
-        public Viewport Viewport { get; private set; }
-
-        public float PixelDensity { get; private set; }
-
         public string CreateDefaultFileName(DateTimeOffset timestamp) => "map.png";
-
-        public Stream RenderPng(Mapsui.Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
-        {
-            Map = map;
-            Layers = layers;
-            Viewport = viewport;
-            PixelDensity = pixelDensity;
-            return new MemoryStream();
-        }
 
         public Task SavePngAsync(Stream pngStream, string filePath, CancellationToken cancellationToken)
             => throw new NotSupportedException();

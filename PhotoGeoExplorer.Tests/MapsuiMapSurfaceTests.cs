@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
 using Mapsui.Styles;
@@ -251,6 +253,160 @@ public sealed class MapsuiMapSurfaceTests
     public void MarkerHitTestReturnsNullWhenThereIsNothingToTest()
     {
         Assert.Null(MapsuiMarkerHitTest.FindMarker(null, null));
+    }
+
+    [Fact]
+    public void ReplaceBackgroundPlacesTheBackgroundLayersBelowTheMarkerLayerAndAttaches()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+        using var background = new FakeMapsuiBackground();
+
+        surface.ReplaceBackground(background);
+
+        Assert.Equal(["background", MapsuiMapSurface.MarkerLayerName], map.Layers.Select(layer => layer.Name).ToArray());
+        Assert.Equal(1, background.AttachCount);
+        Assert.Same(map, background.AttachedMap);
+    }
+
+    [Fact]
+    public void ReplaceBackgroundRemovesThePreviousBackgroundLayers()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+        using var first = new FakeMapsuiBackground();
+        using var second = new FakeMapsuiBackground();
+        second.Layers[0] = new MemoryLayer { Name = "second" };
+
+        surface.ReplaceBackground(first);
+        surface.ReplaceBackground(second);
+
+        Assert.Equal(["second", MapsuiMapSurface.MarkerLayerName], map.Layers.Select(layer => layer.Name).ToArray());
+    }
+
+    [Fact]
+    public void ReplaceBackgroundRejectsABackgroundThatIsNotAMapsuiBackground()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+
+        Assert.Throws<ArgumentException>(() => surface.ReplaceBackground(new NonMapsuiBackground()));
+    }
+
+    [Fact]
+    public void BackgroundReadsTheCurrentPixelDensityFromTheSurface()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+        using var background = new FakeMapsuiBackground();
+        surface.PixelDensity = 1.5;
+        surface.ReplaceBackground(background);
+
+        Assert.Equal(1.5, background.GetPixelDensity!());
+
+        surface.PixelDensity = 2.0;
+
+        Assert.Equal(2.0, background.GetPixelDensity());
+    }
+
+    [Fact]
+    public void PixelDensityNotifiesTheBackgroundOnlyWhenItChanges()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+        using var background = new FakeMapsuiBackground();
+        surface.ReplaceBackground(background);
+
+        surface.PixelDensity = 1.5;
+        surface.PixelDensity = 1.5;
+        surface.PixelDensity = 2.0;
+
+        Assert.Equal(2, background.PixelDensityChangedCount);
+    }
+
+    [Fact]
+    public void BeginMapRenderDelegatesToTheCurrentBackground()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+        using var background = new FakeMapsuiBackground();
+        Assert.Null(surface.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService));
+        surface.ReplaceBackground(background);
+
+        var completed = surface.BeginMapRender(map.Navigator.Viewport, map.Layers.ToArray(), map.RenderService);
+
+        Assert.NotNull(completed);
+        Assert.Equal(1, background.BeginMapRenderCount);
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncRendersTheExportLayersAndDisposesThem()
+    {
+        using var map = new Map();
+        map.Navigator.SetSize(64, 48);
+        using var surface = new MapsuiMapSurface(map);
+        using var background = new FakeMapsuiBackground();
+        surface.ReplaceBackground(background);
+
+        using var stream = await surface.RenderPngAsync(1.5f, CancellationToken.None).ConfigureAwait(true);
+
+        Assert.Equal(map.Navigator.Viewport, background.ExportViewport);
+        Assert.Equal(1.5f, background.ExportPixelDensity);
+        Assert.Equal(1, background.ExportDisposeCount);
+        var signature = new byte[8];
+        Assert.Equal(8, await stream.ReadAsync(signature).ConfigureAwait(true));
+        Assert.Equal([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], signature);
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncThrowsWhenTheBackgroundIsNotSet()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => surface.RenderPngAsync(1f, CancellationToken.None)).ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncAddsContextWhenTheRenderingFails()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+        using var background = new FakeMapsuiBackground();
+        surface.ReplaceBackground(background);
+
+        // 表示面の大きさが未確定（0）の視点では描画できない
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => surface.RenderPngAsync(1f, CancellationToken.None)).ConfigureAwait(true);
+
+        Assert.Equal("Failed to render the current map viewport as PNG.", exception.Message);
+        Assert.IsType<ArgumentException>(exception.InnerException);
+    }
+
+    private sealed class NonMapsuiBackground : IMapBackground
+    {
+        public MapTileSourceType SourceType => MapTileSourceType.OpenStreetMap;
+
+        public string AttributionText => string.Empty;
+
+        public bool IsBusy => false;
+
+        public event EventHandler? BusyChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public event EventHandler? FrameRendered
+        {
+            add { }
+            remove { }
+        }
+
+        public void Dispose()
+        {
+        }
     }
 
     private static MemoryLayer MarkerLayer(Map map)

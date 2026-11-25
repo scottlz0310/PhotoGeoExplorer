@@ -13,9 +13,8 @@ public sealed class MapsuiMapImageRendererTests
     public void RenderPngCreatesPngAtPhysicalPixelDimensions()
     {
         using var map = new Map();
-        var renderer = new MapsuiMapImageRenderer();
 
-        using var stream = renderer.RenderPng(
+        using var stream = MapsuiMapImageRenderer.RenderPng(
             map,
             map.Layers.ToArray(),
             new Viewport(0, 0, 1, 0, 120, 80),
@@ -31,18 +30,17 @@ public sealed class MapsuiMapImageRendererTests
     [Fact]
     public void RenderPngIncludesAttributionWidget()
     {
-        var renderer = new MapsuiMapImageRenderer();
         var viewport = new Viewport(0, 0, 1, 0, 400, 200);
 
         using var plainMap = new Map();
-        using var plainStream = renderer.RenderPng(plainMap, plainMap.Layers.ToArray(), viewport, pixelDensity: 1f);
+        using var plainStream = MapsuiMapImageRenderer.RenderPng(plainMap, plainMap.Layers.ToArray(), viewport, pixelDensity: 1f);
         using var plainImage = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(plainStream);
 
         using var attributedMap = new Map();
         new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter().Attach(
             attributedMap,
             PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatellite);
-        using var attributedStream = renderer.RenderPng(attributedMap, attributedMap.Layers.ToArray(), viewport, pixelDensity: 1f);
+        using var attributedStream = MapsuiMapImageRenderer.RenderPng(attributedMap, attributedMap.Layers.ToArray(), viewport, pixelDensity: 1f);
         using var attributedImage = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(attributedStream);
 
         // 帰属表示は右下に描かれる。右下の領域だけが変わり、左上は変わらないこと
@@ -57,19 +55,18 @@ public sealed class MapsuiMapImageRendererTests
     internal async System.Threading.Tasks.Task RenderPngDrawsMapboxLogoOnlyForMapbox(PhotoGeoExplorer.Models.MapTileSourceType sourceType, bool expectLogo)
     {
         Assert.True(System.IO.File.Exists(PhotoGeoExplorer.Panes.Map.MapAttribution.MapboxLogoPath));
-        var renderer = new MapsuiMapImageRenderer();
         // 右下の帰属文言（Esri は長い）が左下のロゴ領域へ届かない幅にする
         var viewport = new Viewport(0, 0, 1, 0, 800, 200);
 
         using var map = new Map { BackColor = Mapsui.Styles.Color.Black };
-        using var plainDarkStream = renderer.RenderPng(map, map.Layers.ToArray(), viewport, pixelDensity: 1f);
+        using var plainDarkStream = MapsuiMapImageRenderer.RenderPng(map, map.Layers.ToArray(), viewport, pixelDensity: 1f);
         using var plainDarkImage = await SixLabors.ImageSharp.Image
             .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(plainDarkStream)
             .ConfigureAwait(true);
         var presenter = new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter();
         presenter.Attach(map, sourceType);
         Assert.True(await presenter.LoadImagesAsync(map).ConfigureAwait(true));
-        using var stream = renderer.RenderPng(map, map.Layers.ToArray(), viewport, pixelDensity: 1f);
+        using var stream = MapsuiMapImageRenderer.RenderPng(map, map.Layers.ToArray(), viewport, pixelDensity: 1f);
         using var image = await SixLabors.ImageSharp.Image
             .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(stream)
             .ConfigureAwait(true);
@@ -86,13 +83,12 @@ public sealed class MapsuiMapImageRendererTests
     [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.OpenFreeMapVector)]
     internal async System.Threading.Tasks.Task RenderPngDrawsAttributionLinksAsOneContiguousStrip(PhotoGeoExplorer.Models.MapTileSourceType sourceType)
     {
-        var renderer = new MapsuiMapImageRenderer();
         const int width = 800;
         const int height = 200;
         using var map = new Map { BackColor = Mapsui.Styles.Color.Black };
         new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter().Attach(map, sourceType);
 
-        using var stream = renderer.RenderPng(map, map.Layers.ToArray(), new Viewport(0, 0, 1, 0, width, height), pixelDensity: 1f);
+        using var stream = MapsuiMapImageRenderer.RenderPng(map, map.Layers.ToArray(), new Viewport(0, 0, 1, 0, width, height), pixelDensity: 1f);
         using var image = await SixLabors.ImageSharp.Image
             .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(stream)
             .ConfigureAwait(true);
@@ -150,9 +146,8 @@ public sealed class MapsuiMapImageRendererTests
     public void RenderPngRejectsInvalidPixelDensity(float pixelDensity)
     {
         using var map = new Map();
-        var renderer = new MapsuiMapImageRenderer();
 
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => renderer.RenderPng(map, map.Layers.ToArray(), new Viewport(0, 0, 1, 0, 120, 80), pixelDensity));
+            () => MapsuiMapImageRenderer.RenderPng(map, map.Layers.ToArray(), new Viewport(0, 0, 1, 0, 120, 80), pixelDensity));
     }
 }

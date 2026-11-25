@@ -51,7 +51,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     }
 
     private Action? OnMapRenderStarting(Viewport viewport, System.Collections.Generic.IReadOnlyList<ILayer> layers, RenderService renderService)
-        => _viewModel?.BeginMapRender(viewport, layers, renderService);
+        => (_viewModel?.Surface as MapsuiMapSurface)?.BeginMapRender(viewport, layers, renderService);
 
     internal IExifLocationPicker ExifLocationPicker => _exifLocationPicker;
 
@@ -384,11 +384,10 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private Task<Stream> CaptureMapImageAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var viewModel = _viewModel ?? throw new InvalidOperationException("The map pane view model is not attached.");
-        var viewport = MapControl.Map.Navigator.Viewport;
+        var surface = _viewModel?.Surface ?? throw new InvalidOperationException("The map surface is not initialized.");
         var pixelDensity = GetPixelDensity()
             ?? throw new InvalidOperationException("Map pixel density is not available.");
-        return viewModel.CaptureMapImageAsync(viewport, (float)pixelDensity, cancellationToken);
+        return surface.RenderPngAsync((float)pixelDensity, cancellationToken);
     }
 
     private void OnMapHeaderRightTapped(object sender, RightTappedRoutedEventArgs e)

@@ -1,4 +1,7 @@
 using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using PhotoGeoExplorer.Services.MapRendering;
 
@@ -61,4 +64,25 @@ internal interface IMapSurface : IDisposable
 
     /// <summary>矩形選択の枠を消す。表示していなければ何もしない。</summary>
     void ClearSelectionRectangle();
+
+    /// <summary>
+    /// 画素密度（物理ピクセル／論理ピクセル）。表示倍率が変わったときに設定する。
+    /// 値が変わると、視点に応じて描き直す背景は新しい密度で描き直す。任意のスレッドから読める。UI スレッドから設定する。
+    /// </summary>
+    double PixelDensity { get; set; }
+
+    /// <summary>
+    /// 背景を差し替える。表示中の背景のレイヤーを外し、新しい背景のレイヤーを最背面へ載せて、帰属表示を更新する。
+    /// 古い背景の破棄は呼び出し側が行う。作成に失敗した背景で表示中の背景を壊さないよう、新しい背景を先に作ってから呼ぶ。
+    /// </summary>
+    /// <param name="background">この表示面が扱える背景（実装が作ったもの）</param>
+    void ReplaceBackground(IMapBackground background);
+
+    /// <summary>
+    /// 現在の視点を PNG に描く。表示中のレイヤーには触らない。ベクターの背景は、保存時の視点と密度で確定描画し直す。
+    /// </summary>
+    /// <param name="pixelDensity">出力の画素密度</param>
+    /// <param name="cancellationToken">キャンセル</param>
+    /// <returns>PNG のストリーム（先頭へ巻き戻し済み）</returns>
+    Task<Stream> RenderPngAsync(float pixelDensity, CancellationToken cancellationToken);
 }

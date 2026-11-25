@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Mapsui.Layers;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
@@ -31,7 +32,7 @@ internal static class MapExportLayers
     /// </summary>
     internal static IReadOnlyList<ILayer> Compose(
         IEnumerable<ILayer> mapLayers,
-        IMapBackground background,
+        IMapsuiBackground background,
         IMapExportLayers exportLayers)
     {
         ArgumentNullException.ThrowIfNull(mapLayers);
