@@ -229,7 +229,7 @@ public sealed class MapPaneViewModelBackgroundTests
         {
             typeof(MapPaneViewModel).GetMethod("InitializeMapCore", flags)!.Invoke(viewModel, null);
             typeof(MapPaneViewModel).GetField("_isMapInitialized", flags)!.SetValue(viewModel, true);
-            var map = Assert.IsType<Mapsui.Map>(viewModel.Map);
+            var map = ((MapsuiMapSurface)viewModel.Surface!).Map;
             map.Navigator.SetSize(800, 600);
             var initialBackground = Assert.Single(service.Created);
 
@@ -292,10 +292,9 @@ public sealed class MapPaneViewModelBackgroundTests
     {
         var viewModel = new MapPaneViewModel(service, new WorkspaceState(), imageService, static () => null, new InMemorySecretStore());
         var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        map = new Mapsui.Map();
-        var surface = new MapsuiMapSurface(map);
+        var surface = MapsuiMapSurface.Create();
+        map = surface.Map;
         marker = map.Layers.OfType<MemoryLayer>().Single(layer => layer.Name == MapsuiMapSurface.MarkerLayerName);
-        typeof(MapPaneViewModel).GetField("_map", flags)!.SetValue(viewModel, map);
         typeof(MapPaneViewModel).GetField("_surface", flags)!.SetValue(viewModel, surface);
         typeof(MapPaneViewModel).GetField("_isMapInitialized", flags)!.SetValue(viewModel, true);
         return viewModel;
@@ -307,14 +306,14 @@ public sealed class MapPaneViewModelBackgroundTests
 
         public List<MapBackgroundRequest> Requests { get; } = [];
 
-        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+        public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             Requests.Add(background);
             var created = new FakeMapsuiBackground();
             Created.Add(created);
-            var map = new Mapsui.Map();
-            var surface = new MapsuiMapSurface(map);
-            return (map, created, surface);
+
+            var surface = MapsuiMapSurface.Create();
+            return (created, surface);
         }
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)

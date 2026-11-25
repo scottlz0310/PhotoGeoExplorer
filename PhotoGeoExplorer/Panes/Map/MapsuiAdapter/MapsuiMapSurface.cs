@@ -43,12 +43,19 @@ internal sealed class MapsuiMapSurface : IMapSurface
     private IMapsuiBackground? _background;
     private bool _attributionAttached;
     private double _pixelDensity = 1.0;
+    private readonly bool _ownsMap;
 
     internal MapsuiMapSurface(Mapsui.Map map)
+        : this(map, ownsMap: false)
+    {
+    }
+
+    private MapsuiMapSurface(Mapsui.Map map, bool ownsMap)
     {
         ArgumentNullException.ThrowIfNull(map);
 
         _map = map;
+        _ownsMap = ownsMap;
         _markerLayer = new MemoryLayer
         {
             Name = MarkerLayerName,
@@ -58,6 +65,16 @@ internal sealed class MapsuiMapSurface : IMapSurface
         map.Layers.Add(_markerLayer);
         map.Navigator.ViewportChanged += (_, _) => ViewChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// 地図を持つ表示面を作る。地図は、表示面を破棄するときに破棄する。
+    /// </summary>
+    internal static MapsuiMapSurface Create() => new(new Mapsui.Map(), ownsMap: true);
+
+    /// <summary>
+    /// 地図の実体。<c>MapControl</c> へ渡す（<see cref="MapsuiMapView"/>）。
+    /// </summary>
+    internal Mapsui.Map Map => _map;
 
     public MapViewState View
     {
@@ -351,6 +368,10 @@ internal sealed class MapsuiMapSurface : IMapSurface
     {
         ClearSelectionRectangle();
         _markerLayer.Dispose();
+        if (_ownsMap)
+        {
+            _map.Dispose();
+        }
     }
 
     private static MPoint ToWorld(MapMarker marker)

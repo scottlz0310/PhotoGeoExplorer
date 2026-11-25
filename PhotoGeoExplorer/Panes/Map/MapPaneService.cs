@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using BruTile.Cache;
-using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
@@ -44,58 +42,16 @@ internal sealed class MapPaneService : IMapPaneService
     }
 
     /// <inheritdoc/>
-    public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+    public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
     {
-        ArgumentNullException.ThrowIfNull(background);
-
-        // レイヤー生成が失敗したときに Map を取り残さないよう、先に背景を作る。
+        // 背景の生成は失敗し得る（引数の不備）ので、地図を作る前に先に作る
         var mapBackground = CreateBackground(background);
-        var map = new Mapsui.Map();
-        // 背景のレイヤーと写真マーカーのレイヤーは、表示面が地図へ載せる
-        var surface = new MapsuiMapSurface(map);
-
-        return (map, mapBackground, surface);
+        return (mapBackground, MapsuiMapFactory.CreateSurface());
     }
 
     /// <inheritdoc/>
     public IMapBackground CreateBackground(MapBackgroundRequest background)
-    {
-        ArgumentNullException.ThrowIfNull(background);
-        ArgumentNullException.ThrowIfNull(background.UserAgent);
-
-        if (MapBackgroundCatalog.Get(background.SourceType).Kind == MapBackgroundKind.Vector)
-        {
-            return CreateVectorBackground(background);
-        }
-
-        return new RasterMapBackground(CreateTileLayer(background), background.SourceType);
-    }
-
-    private VectorMapBackground CreateVectorBackground(MapBackgroundRequest background)
-    {
-        var tryPostToUi = background.TryPostToUi
-            ?? throw new ArgumentException("TryPostToUi is required for the vector background.", nameof(background));
-
-        // ラスタと同じく、タイルのキャッシュのルートの下に背景ごとのディレクトリを置く（形式はラスタと別なので混ざらない）
-        var renderer = new OpenFreeMapVectorMapRenderer(
-            Path.Combine(GetTileCacheRootDirectory(), background.SourceType.ToString()),
-            background.UserAgent);
-        return new VectorMapBackground(renderer, tryPostToUi, renderer);
-    }
-
-    private TileLayer CreateTileLayer(MapBackgroundRequest background)
-    {
-        return background.SourceType switch
-        {
-            MapTileSourceType.MapboxSatellite => CreateMapboxSatelliteLayer(background),
-            MapTileSourceType.EsriWorldImagery => CreateEsriWorldImageryLayer(
-                background.UserAgent,
-                CreatePersistentCache(background.SourceType)),
-            _ => CreateOpenStreetMapLayer(
-                background.UserAgent,
-                CreatePersistentCache(background.SourceType))
-        };
-    }
+        => MapsuiMapFactory.CreateBackground(background, _tileCacheRootDirectory);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
@@ -155,25 +111,6 @@ internal sealed class MapPaneService : IMapPaneService
     public bool FileExistsAtPath(string path)
         => File.Exists(path);
 
-    private FileCache? CreatePersistentCache(MapTileSourceType sourceType)
-    {
-        var cacheDirectory = GetTileCacheRootDirectory();
-        var sourceDirectory = Path.Combine(cacheDirectory, sourceType.ToString());
-        try
-        {
-            Directory.CreateDirectory(sourceDirectory);
-            return new FileCache(sourceDirectory, "png");
-        }
-        catch (Exception ex) when (ex is IOException
-            or UnauthorizedAccessException
-            or ArgumentException
-            or NotSupportedException)
-        {
-            AppLog.Error($"Failed to initialize tile cache directory '{sourceDirectory}'. Continuing without persistent cache.", ex);
-            return null;
-        }
-    }
-
     private async Task<(PhotoListItem Item, PhotoMetadata? Metadata)> LoadMetadataForItemAsync(
         PhotoListItem item,
         SemaphoreSlim semaphore,
@@ -228,46 +165,5 @@ internal sealed class MapPaneService : IMapPaneService
             "PhotoGeoExplorer",
             "Cache",
             "Tiles");
-    }
-
-    private static TileLayer CreateOpenStreetMapLayer(string userAgent, IPersistentCache<byte[]>? persistentCache = null)
-    {
-        var tileSource = new BruTile.Web.HttpTileSource(
-            new BruTile.Predefined.GlobalSphericalMercator(),
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            name: "OpenStreetMap",
-            attribution: new BruTile.Attribution(MapAttribution.OpenStreetMapText, MapAttribution.OpenStreetMapUrl),
-            configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
-            persistentCache: persistentCache);
-
-        return new TileLayer(tileSource) { Name = "OpenStreetMap" };
-    }
-
-    private static TileLayer CreateEsriWorldImageryLayer(string userAgent, IPersistentCache<byte[]>? persistentCache = null)
-    {
-        var tileSource = new BruTile.Web.HttpTileSource(
-            new BruTile.Predefined.GlobalSphericalMercator(),
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-            name: "Esri WorldImagery",
-            attribution: new BruTile.Attribution(MapAttribution.EsriText, MapAttribution.EsriUrl),
-            configureHttpRequestMessage: (r) => r.Headers.TryAddWithoutValidation("User-Agent", userAgent),
-            persistentCache: persistentCache);
-
-        return new TileLayer(tileSource) { Name = "Esri WorldImagery" };
-    }
-
-    private static TileLayer CreateMapboxSatelliteLayer(MapBackgroundRequest background)
-    {
-        if (string.IsNullOrWhiteSpace(background.MapboxAccessToken))
-        {
-            throw new ArgumentException("Mapbox access token is required for the Mapbox Satellite background.", nameof(background));
-        }
-
-        var tileSource = new MapboxSatelliteTileSource(
-            background.MapboxAccessToken,
-            background.UserAgent,
-            background.AuthenticationFailed);
-
-        return new TileLayer(tileSource) { Name = MapboxSatelliteTileSource.SourceName };
     }
 }

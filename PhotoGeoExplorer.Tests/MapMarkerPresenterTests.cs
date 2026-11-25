@@ -99,7 +99,7 @@ public sealed class MapMarkerPresenterTests
             _pinExists = pinExists;
         }
 
-        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+        public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)

@@ -12,29 +12,21 @@ namespace PhotoGeoExplorer.Tests;
 /// </summary>
 public static partial class MapsuiBoundaryTests
 {
-    // まだアダプタへ移していないファイル（#362 §11.6-3 の PR ⑤b で、MapControl を包むアダプタのコントロールへ移して空にする）。
-    // 新しいファイルをここへ足してはならない
-    private static readonly string[] PendingFiles =
-    [
-        "Panes/Map/IMapPaneService.cs",
-        "Panes/Map/MapPaneService.cs",
-        "Panes/Map/MapPaneViewControl.xaml",
-        "Panes/Map/MapPaneViewControl.xaml.cs",
-        "Panes/Map/MapPaneViewModel.cs"
-    ];
-
     [Fact]
-    public static void MapLibraryTypesStayInsideTheAdapterExceptForThePendingFiles()
+    public static void MapLibraryTypesStayInsideTheAdapter()
     {
-        var appDirectory = Path.Combine(RepositoryPaths.FindRoot(), "PhotoGeoExplorer");
-        var sources = Directory.EnumerateFiles(appDirectory, "*.*", SearchOption.AllDirectories)
+        var root = RepositoryPaths.FindRoot();
+        var appDirectory = Path.Combine(root, "PhotoGeoExplorer");
+        var coreDirectory = Path.Combine(root, "PhotoGeoExplorer.Core");
+        var sources = new[] { appDirectory, coreDirectory }
+            .SelectMany(directory => Directory.EnumerateFiles(directory, "*.*", SearchOption.AllDirectories))
             .Where(path => path.EndsWith(".cs", StringComparison.Ordinal) || path.EndsWith(".xaml", StringComparison.Ordinal))
             .Where(path => !IsBuildOutput(path))
             .ToList();
 
         var violations = sources
-            .Select(path => (Path: RelativePath(appDirectory, path), Source: File.ReadAllText(path)))
-            .Where(file => !IsInsideAdapter(file.Path) && !PendingFiles.Contains(file.Path, StringComparer.Ordinal))
+            .Select(path => (Path: RelativePath(root, path), Source: File.ReadAllText(path)))
+            .Where(file => !IsInsideAdapter(file.Path))
             .Where(file => UsesMapLibrary(file.Source))
             .Select(file => file.Path)
             .ToList();
@@ -44,19 +36,6 @@ public static partial class MapsuiBoundaryTests
             violations.Count == 0,
             "Mapsui・BruTile の型を、Panes/Map/MapsuiAdapter の外で使っています（IMapSurface 経由にしてください）: "
             + string.Join(", ", violations));
-    }
-
-    [Fact]
-    public static void EveryPendingFileStillUsesTheMapLibrary()
-    {
-        var appDirectory = Path.Combine(RepositoryPaths.FindRoot(), "PhotoGeoExplorer");
-
-        // 移し終えたファイルは、一覧から外す（一覧が古くなって、新しい漏れを隠さないようにする）
-        var stale = PendingFiles
-            .Where(path => !UsesMapLibrary(File.ReadAllText(Path.Combine(appDirectory, path))))
-            .ToList();
-
-        Assert.True(stale.Count == 0, "Mapsui・BruTile を使わなくなったファイルが、保留の一覧に残っています: " + string.Join(", ", stale));
     }
 
     [Theory]
@@ -87,7 +66,7 @@ public static partial class MapsuiBoundaryTests
         => LineCommentPattern().Replace(BlockCommentPattern().Replace(source, string.Empty), string.Empty);
 
     private static bool IsInsideAdapter(string relativePath)
-        => relativePath.StartsWith("Panes/Map/MapsuiAdapter/", StringComparison.Ordinal);
+        => relativePath.StartsWith("PhotoGeoExplorer/Panes/Map/MapsuiAdapter/", StringComparison.Ordinal);
 
     private static string RelativePath(string root, string path)
         => Path.GetRelativePath(root, path).Replace('\\', '/');
