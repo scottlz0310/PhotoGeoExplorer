@@ -91,7 +91,7 @@ internal sealed class VectorMapBackground : IMapBackground
         _zoomBounds = new MMinMax(_zoomResolutions[^1] / 2, _zoomResolutions[0]);
         _layer = new ViewExtentImageLayer("VectorMapBackground");
         Layers = [_layer.Layer];
-        AttributionText = string.Join(' ', MapAttribution.GetLinks(MapTileSourceType.OpenFreeMapVector).Select(link => link.Text));
+        AttributionText = string.Join(' ', MapBackgroundCatalog.Get(MapTileSourceType.OpenFreeMapVector).AttributionLinks.Select(link => link.Text));
         _coordinator = new ViewExtentRenderCoordinator<SKImage>(
             RenderAsync,
             tryPostToUi,

@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services.MapRendering;
 
 namespace PhotoGeoExplorer.Panes.Map;
@@ -33,32 +31,6 @@ internal static class MapAttribution
     internal const string OpenMapTilesUrl = "https://www.openmaptiles.org/";
     internal const string OpenStreetMapDataText = "Data from OpenStreetMap";
 
-    private static readonly MapAttributionLink[] OpenStreetMapLinks =
-    [
-        new(OpenStreetMapText, OpenStreetMapUrl)
-    ];
-
-    private static readonly MapAttributionLink[] EsriLinks =
-    [
-        new(EsriText, EsriUrl)
-    ];
-
-    // Mapbox は、Mapbox・OpenStreetMap・地図の修正依頼を、それぞれ別のリンクで示すことを求めている。
-    private static readonly MapAttributionLink[] MapboxLinks =
-    [
-        new("© Mapbox", MapboxUrl),
-        new("© OpenStreetMap", OpenStreetMapUrl),
-        new("Improve this map", MapboxFeedbackUrl, TracksViewport: true)
-    ];
-
-    // OpenFreeMap の利用条件が求める「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」を、項目ごとのリンクで示す。
-    private static readonly MapAttributionLink[] OpenFreeMapVectorLinks =
-    [
-        new(OpenFreeMapText, OpenFreeMapUrl),
-        new(OpenMapTilesText, OpenMapTilesUrl),
-        new(OpenStreetMapDataText, OpenStreetMapUrl)
-    ];
-
     /// <summary>
     /// 1 つの背景が持つ帰属項目の最大数
     /// </summary>
@@ -72,17 +44,6 @@ internal static class MapAttribution
         "Assets",
         "MapAttribution",
         "mapbox-logo.svg");
-
-    internal static IReadOnlyList<MapAttributionLink> GetLinks(MapTileSourceType sourceType)
-    {
-        return sourceType switch
-        {
-            MapTileSourceType.EsriWorldImagery => EsriLinks,
-            MapTileSourceType.MapboxSatellite => MapboxLinks,
-            MapTileSourceType.OpenFreeMapVector => OpenFreeMapVectorLinks,
-            _ => OpenStreetMapLinks
-        };
-    }
 
     /// <summary>
     /// 地図の修正依頼ページの URL を、表示中の位置と倍率つきで組み立てる。

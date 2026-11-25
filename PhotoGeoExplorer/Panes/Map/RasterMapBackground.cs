@@ -37,7 +37,7 @@ internal sealed class RasterMapBackground : IMapBackground
 
         _layer = layer;
         Layers = [layer];
-        AttributionText = string.Join(' ', MapAttribution.GetLinks(sourceType).Select(link => link.Text));
+        AttributionText = string.Join(' ', MapBackgroundCatalog.Get(sourceType).AttributionLinks.Select(link => link.Text));
         _layer.PropertyChanged += OnLayerPropertyChanged;
         _layer.DataChanged += OnLayerDataChanged;
     }

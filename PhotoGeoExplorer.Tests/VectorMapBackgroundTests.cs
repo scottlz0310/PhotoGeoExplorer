@@ -93,7 +93,7 @@ public sealed class VectorMapBackgroundTests
         using var background = CreateBackground(out _);
 
         Assert.Equal("OpenFreeMap © OpenMapTiles Data from OpenStreetMap", background.AttributionText);
-        Assert.InRange(MapAttribution.GetLinks(MapTileSourceType.OpenFreeMapVector).Count, 1, MapAttribution.MaxLinkCount);
+        Assert.InRange(MapBackgroundCatalog.Get(MapTileSourceType.OpenFreeMapVector).AttributionLinks.Count, 1, MapAttribution.MaxLinkCount);
     }
 
     [Fact]

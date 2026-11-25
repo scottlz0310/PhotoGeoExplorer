@@ -81,7 +81,8 @@ internal sealed class MapAttributionPresenter
 
     internal void Update(MapTileSourceType sourceType)
     {
-        _links = MapAttribution.GetLinks(sourceType);
+        var descriptor = MapBackgroundCatalog.Get(sourceType);
+        _links = descriptor.AttributionLinks;
 
         // 右端の項目から順に置き、それぞれの幅だけ左へずらす。
         var rightOffset = OuterMargin;
@@ -104,7 +105,7 @@ internal sealed class MapAttributionPresenter
             rightOffset += width;
         }
 
-        _mapboxLogo.Enabled = sourceType == MapTileSourceType.MapboxSatellite;
+        _mapboxLogo.Enabled = descriptor.ShowsMapboxLogo;
     }
 
     /// <summary>
