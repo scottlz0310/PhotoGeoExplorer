@@ -15,6 +15,7 @@ using Mapsui.Rendering;
 using Mapsui.Rendering.Skia;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using SkiaSharp;
 
 namespace PhotoGeoExplorer.Panes.Map;
@@ -22,7 +23,7 @@ namespace PhotoGeoExplorer.Panes.Map;
 /// <summary>
 /// ラスタタイル 1 枚のレイヤーを背景として扱う（OpenStreetMap・Esri・Mapbox）。
 /// </summary>
-internal sealed class RasterMapBackground : IMapBackground
+internal sealed class RasterMapBackground : IMapsuiBackground
 {
     private readonly TileLayer _layer;
     private readonly ConditionalWeakTable<MRaster, StrongBox<bool>> _decodedValidityCache = new();
@@ -37,12 +38,15 @@ internal sealed class RasterMapBackground : IMapBackground
 
         _layer = layer;
         Layers = [layer];
+        SourceType = sourceType;
         AttributionText = string.Join(' ', MapBackgroundCatalog.Get(sourceType).AttributionLinks.Select(link => link.Text));
         _layer.PropertyChanged += OnLayerPropertyChanged;
         _layer.DataChanged += OnLayerDataChanged;
     }
 
     public IReadOnlyList<ILayer> Layers { get; }
+
+    public MapTileSourceType SourceType { get; }
 
     public string AttributionText { get; }
 

@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Mapsui;
-using Mapsui.Layers;
 using PhotoGeoExplorer.Services;
 using Xunit;
 
@@ -22,39 +19,6 @@ public sealed class MapImageServiceTests
         Assert.Equal("PhotoGeoExplorer_Map_20260722_134506.png", fileName);
     }
 
-    [Fact]
-    public void RenderPngPassesMapLayersViewportAndPixelDensityToRenderer()
-    {
-        using var map = new Map();
-        var viewport = new Viewport(100, 200, 2, 30, 640, 480);
-        using var expectedStream = new MemoryStream([1, 2, 3]);
-        var renderer = new CapturingRenderer(expectedStream);
-        var service = new MapImageService(renderer, _ => new MemoryStream());
-
-        var layers = new List<ILayer> { new MemoryLayer() };
-
-        var actualStream = service.RenderPng(map, layers, viewport, 1.5f);
-
-        Assert.Same(expectedStream, actualStream);
-        Assert.Same(map, renderer.Map);
-        Assert.Same(layers, renderer.Layers);
-        Assert.Equal(viewport, renderer.Viewport);
-        Assert.Equal(1.5f, renderer.PixelDensity);
-    }
-
-    [Fact]
-    public void RenderPngAddsContextToRenderingFailure()
-    {
-        using var map = new Map();
-        var expectedException = new InvalidOperationException("renderer failed");
-        var service = new MapImageService(new ThrowingRenderer(expectedException), _ => new MemoryStream());
-
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => service.RenderPng(map, [], new Viewport(0, 0, 1, 0, 100, 50), 1));
-
-        Assert.Equal("Failed to render the current map viewport as PNG.", exception.Message);
-        Assert.Same(expectedException, exception.InnerException);
-    }
 
     [Fact]
     public async Task SavePngAsyncWritesEntireStream()
@@ -129,7 +93,7 @@ public sealed class MapImageServiceTests
 
     private static MapImageService CreateService()
     {
-        return new MapImageService(new CapturingRenderer(new MemoryStream()), _ => new MemoryStream());
+        return new MapImageService(_ => new MemoryStream());
     }
 
     private static string CreateTemporaryDirectory()
@@ -137,34 +101,6 @@ public sealed class MapImageServiceTests
         var directoryPath = Path.Combine(Path.GetTempPath(), "PhotoGeoExplorer.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directoryPath);
         return directoryPath;
-    }
-
-    private sealed class CapturingRenderer(Stream stream) : IMapImageRenderer
-    {
-        public Map? Map { get; private set; }
-
-        public IReadOnlyList<ILayer>? Layers { get; private set; }
-
-        public Viewport Viewport { get; private set; }
-
-        public float PixelDensity { get; private set; }
-
-        public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
-        {
-            Map = map;
-            Layers = layers;
-            Viewport = viewport;
-            PixelDensity = pixelDensity;
-            return stream;
-        }
-    }
-
-    private sealed class ThrowingRenderer(Exception exception) : IMapImageRenderer
-    {
-        public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
-        {
-            throw exception;
-        }
     }
 
     private sealed class FailingReadStream : MemoryStream

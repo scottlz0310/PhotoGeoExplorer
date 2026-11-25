@@ -168,7 +168,7 @@ public sealed class ViewExtentImageLayerTests
     private static System.IO.Stream RenderPng(ViewExtentImageLayer layer, Viewport viewport, float density)
     {
         using var map = new Map { BackColor = Mapsui.Styles.Color.Black };
-        return new MapsuiMapImageRenderer().RenderPng(map, [layer.Layer], viewport, density);
+        return MapsuiMapImageRenderer.RenderPng(map, [layer.Layer], viewport, density);
     }
 
     // 画面 200x160 論理ピクセルの視点（中心 0,0、解像度 1）ではなく、画像の大きさ分（width x height 論理ピクセル）の

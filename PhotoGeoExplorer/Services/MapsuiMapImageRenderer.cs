@@ -9,9 +9,9 @@ using Mapsui.Rendering.Skia;
 
 namespace PhotoGeoExplorer.Services;
 
-internal sealed class MapsuiMapImageRenderer : IMapImageRenderer
+internal static class MapsuiMapImageRenderer
 {
-    public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
+    public static Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(layers);

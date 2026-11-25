@@ -7,6 +7,7 @@ using BruTile;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 namespace PhotoGeoExplorer.Tests;
 
@@ -23,7 +24,7 @@ public sealed class MapboxSatelliteTileSourceTests
 
         using var background = service.CreateBackground(
             new MapBackgroundRequest(MapTileSourceType.MapboxSatellite, UserAgent, Token));
-        var layer = Assert.IsType<TileLayer>(Assert.Single(background.Layers));
+        var layer = Assert.IsType<TileLayer>(Assert.Single(((IMapsuiBackground)background).Layers));
 
         var source = Assert.IsType<MapboxSatelliteTileSource>(layer.TileSource);
         Assert.Equal("Mapbox Satellite", layer.Name);

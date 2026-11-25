@@ -8,6 +8,7 @@ using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Rendering;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
 using SkiaSharp;
@@ -22,7 +23,7 @@ namespace PhotoGeoExplorer.Panes.Map;
 /// <see cref="Attach"/> を呼ぶまでは描かない。Mapsui はアニメーション中の視点変更を UI スレッド以外で通知するため、
 /// 通知の処理では XAML に触らず、画素密度は呼び出し側が渡す取得関数（任意のスレッドから呼べること）で読む。
 /// </remarks>
-internal sealed class VectorMapBackground : IMapBackground
+internal sealed class VectorMapBackground : IMapsuiBackground
 {
     /// <summary>
     /// 描画元とスタイルの識別子。値が違う画像どうしは互いの代わりに表示できない。スタイルの見た目を変えたら版を上げる。
@@ -111,6 +112,8 @@ internal sealed class VectorMapBackground : IMapBackground
     }
 
     public IReadOnlyList<ILayer> Layers { get; }
+
+    public MapTileSourceType SourceType => MapTileSourceType.OpenFreeMapVector;
 
     public string AttributionText { get; }
 

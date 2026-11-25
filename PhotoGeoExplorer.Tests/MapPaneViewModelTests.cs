@@ -869,9 +869,6 @@ ext{index}.jpg", isFolder: false))
 
         public string CreateDefaultFileName(DateTimeOffset timestamp) => "map.png";
 
-        public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
-            => throw new NotSupportedException();
-
         public Task SavePngAsync(Stream pngStream, string filePath, CancellationToken cancellationToken)
         {
             if (SaveFailure is not null)

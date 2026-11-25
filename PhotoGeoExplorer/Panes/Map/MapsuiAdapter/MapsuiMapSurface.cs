@@ -1,12 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Nts;
 using Mapsui.Projections;
+using Mapsui.Rendering;
 using Mapsui.Styles;
 using NetTopologySuite.Geometries;
+using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 
 namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
@@ -34,6 +39,10 @@ internal sealed class MapsuiMapSurface : IMapSurface
     private IReadOnlyList<MapMarker> _markers = [];
     private bool _panLockBeforeLock;
     private bool _panLockActive;
+    private readonly MapAttributionPresenter _attribution = new();
+    private IMapsuiBackground? _background;
+    private bool _attributionAttached;
+    private double _pixelDensity = 1.0;
 
     internal MapsuiMapSurface(Mapsui.Map map)
     {
@@ -239,6 +248,103 @@ internal sealed class MapsuiMapSurface : IMapSurface
         _selectionLayer.Dispose();
         _selectionLayer = null;
         _map.Refresh();
+    }
+
+    public double PixelDensity
+    {
+        get => Volatile.Read(ref _pixelDensity);
+        set
+        {
+            if (Volatile.Read(ref _pixelDensity) == value)
+            {
+                return;
+            }
+
+            Volatile.Write(ref _pixelDensity, value);
+            Volatile.Read(ref _background)?.OnPixelDensityChanged();
+        }
+    }
+
+    public void ReplaceBackground(IMapBackground background)
+    {
+        ArgumentNullException.ThrowIfNull(background);
+        var mapsuiBackground = background as IMapsuiBackground
+            ?? throw new ArgumentException("The background is not a Mapsui background.", nameof(background));
+
+        if (Volatile.Read(ref _background) is { } oldBackground)
+        {
+            foreach (var layer in oldBackground.Layers)
+            {
+                _map.Layers.Remove(layer);
+            }
+        }
+
+        var index = 0;
+        foreach (var layer in mapsuiBackground.Layers)
+        {
+            _map.Layers.Insert(index++, layer);
+        }
+
+        Volatile.Write(ref _background, mapsuiBackground);
+        mapsuiBackground.Attach(_map, () => PixelDensity);
+
+        if (_attributionAttached)
+        {
+            _attribution.Update(mapsuiBackground.SourceType);
+        }
+        else
+        {
+            _attribution.Attach(_map, mapsuiBackground.SourceType);
+            _attributionAttached = true;
+            _ = LoadAttributionImagesAsync();
+        }
+
+        _map.Refresh();
+    }
+
+    /// <summary>
+    /// 地図の描画の開始直前に、表示中の背景へ伝える。<c>MapControl</c> の描画フックから呼ぶ。
+    /// </summary>
+    /// <remarks>
+    /// フックの引数が Mapsui の型なので、View の薄型化（#362 §11.6-3 の PR ⑤）までは、View のハンドラから直接呼ぶ。
+    /// </remarks>
+    internal Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
+        => Volatile.Read(ref _background)?.BeginMapRender(viewport, layers, renderService);
+
+    public async Task<Stream> RenderPngAsync(float pixelDensity, CancellationToken cancellationToken)
+    {
+        var background = Volatile.Read(ref _background)
+            ?? throw new InvalidOperationException("The map background is not initialized.");
+        var viewport = _map.Navigator.Viewport;
+
+        using var exportLayers = await background.CreateExportLayersAsync(viewport, pixelDensity, cancellationToken).ConfigureAwait(true);
+        var layers = MapExportLayers.Compose(_map.Layers, background, exportLayers);
+        try
+        {
+            return MapsuiMapImageRenderer.RenderPng(_map, layers, viewport, pixelDensity);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            throw new InvalidOperationException("Failed to render the current map viewport as PNG.", ex);
+        }
+    }
+
+    private async Task LoadAttributionImagesAsync()
+    {
+        try
+        {
+            if (!await _attribution.LoadImagesAsync(_map).ConfigureAwait(true))
+            {
+                AppLog.Error($"Failed to load the map attribution logo: {MapAttribution.MapboxLogoPath}");
+                return;
+            }
+
+            _map.RefreshGraphics();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            AppLog.Error("Failed to load the map attribution logo.", ex);
+        }
     }
 
     public void Dispose()

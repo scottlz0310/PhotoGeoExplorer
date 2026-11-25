@@ -1,28 +1,23 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Mapsui;
-using Mapsui.Layers;
 
 namespace PhotoGeoExplorer.Services;
 
 internal sealed class MapImageService : IMapImageService
 {
     private const string DefaultFileNamePrefix = "PhotoGeoExplorer_Map_";
-    private readonly IMapImageRenderer _renderer;
     private readonly Func<string, Stream> _outputStreamFactory;
 
     public MapImageService()
-        : this(new MapsuiMapImageRenderer(), CreateOutputStream)
+        : this(CreateOutputStream)
     {
     }
 
-    internal MapImageService(IMapImageRenderer renderer, Func<string, Stream> outputStreamFactory)
+    internal MapImageService(Func<string, Stream> outputStreamFactory)
     {
-        _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _outputStreamFactory = outputStreamFactory ?? throw new ArgumentNullException(nameof(outputStreamFactory));
     }
 
@@ -34,17 +29,6 @@ internal sealed class MapImageService : IMapImageService
             MapImageSavePickerOptions.DefaultFileExtension);
     }
 
-    public Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
-    {
-        try
-        {
-            return _renderer.RenderPng(map, layers, viewport, pixelDensity);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            throw new InvalidOperationException("Failed to render the current map viewport as PNG.", ex);
-        }
-    }
 
     public async Task SavePngAsync(Stream pngStream, string filePath, CancellationToken cancellationToken)
     {
