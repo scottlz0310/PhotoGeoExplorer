@@ -8,12 +8,11 @@ using Mapsui.Extensions;
 using Mapsui.Layers;
 using Mapsui.Rendering;
 using PhotoGeoExplorer.Models;
-using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoMapStudio.Rendering;
 using SkiaSharp;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 /// <summary>
 /// ベクタータイルを表示範囲全体の 1 枚の画像として描く背景（OpenFreeMap）。視点が変わるたびに描画を要求し、

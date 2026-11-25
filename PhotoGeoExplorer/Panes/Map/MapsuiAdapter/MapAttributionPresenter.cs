@@ -10,7 +10,7 @@ using Mapsui.Widgets.ButtonWidgets;
 using PhotoGeoExplorer.Models;
 using SkiaSharp;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 /// <summary>
 /// 背景地図の帰属表示を地図ウィジェットとして描く。

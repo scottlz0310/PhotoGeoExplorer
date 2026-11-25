@@ -7,6 +7,7 @@ using Mapsui.Manipulations;
 using Mapsui.Rendering;
 using Mapsui.Styles;
 using Mapsui.Widgets;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Panes.Map;
 using Xunit;
 

@@ -7,7 +7,7 @@ using BruTile;
 using BruTile.Predefined;
 using BruTile.Web;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 /// <summary>
 /// Mapbox Satellite（Raster Tiles API）のタイルソース。

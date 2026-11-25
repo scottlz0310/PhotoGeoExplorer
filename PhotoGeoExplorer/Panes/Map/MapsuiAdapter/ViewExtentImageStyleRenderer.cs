@@ -8,7 +8,7 @@ using Mapsui.Styles;
 using PhotoGeoExplorer.Services.MapRendering;
 using SkiaSharp;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 /// <summary>
 /// 表示範囲画像（<see cref="SKImage"/>）とその地理範囲を持つ Mapsui のスタイル。
