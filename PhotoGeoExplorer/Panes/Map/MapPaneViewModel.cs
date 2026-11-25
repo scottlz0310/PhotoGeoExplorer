@@ -751,7 +751,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     {
         var generation = ++_backgroundGeneration;
         notice = string.Empty;
-        if (requested != MapTileSourceType.MapboxSatellite)
+        if (!MapBackgroundCatalog.Get(requested).RequiresMapboxAccessToken)
         {
             return new MapBackgroundRequest(requested, UserAgentProvider.UserAgent, TryPostToUi: TryPostToUi);
         }
@@ -760,7 +760,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         if (token is null)
         {
             notice = LocalizationService.GetString("MapStatus.MapboxTokenMissing");
-            return new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, UserAgentProvider.UserAgent, TryPostToUi: TryPostToUi);
+            return new MapBackgroundRequest(MapBackgroundCatalog.Default.Type, UserAgentProvider.UserAgent, TryPostToUi: TryPostToUi);
         }
 
         return new MapBackgroundRequest(

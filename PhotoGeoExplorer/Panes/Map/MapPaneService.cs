@@ -74,7 +74,7 @@ internal sealed class MapPaneService : IMapPaneService
         ArgumentNullException.ThrowIfNull(background);
         ArgumentNullException.ThrowIfNull(background.UserAgent);
 
-        if (background.SourceType == MapTileSourceType.OpenFreeMapVector)
+        if (MapBackgroundCatalog.Get(background.SourceType).Kind == MapBackgroundKind.Vector)
         {
             return CreateVectorBackground(background);
         }

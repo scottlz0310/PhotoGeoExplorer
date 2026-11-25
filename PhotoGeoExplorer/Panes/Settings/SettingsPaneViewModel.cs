@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
+using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
@@ -148,23 +149,8 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
     public int MapTileSourceIndex
     {
-        get => _mapTileSource switch
-        {
-            MapTileSourceType.EsriWorldImagery => 1,
-            MapTileSourceType.MapboxSatellite => 2,
-            MapTileSourceType.OpenFreeMapVector => 3,
-            _ => 0
-        };
-        set
-        {
-            MapTileSource = value switch
-            {
-                1 => MapTileSourceType.EsriWorldImagery,
-                2 => MapTileSourceType.MapboxSatellite,
-                3 => MapTileSourceType.OpenFreeMapVector,
-                _ => MapTileSourceType.OpenStreetMap
-            };
-        }
+        get => MapBackgroundCatalog.IndexOf(_mapTileSource);
+        set => MapTileSource = MapBackgroundCatalog.FromIndex(value).Type;
     }
 
     public SettingsPaneLayoutSectionViewModel PaneLayout { get; }
