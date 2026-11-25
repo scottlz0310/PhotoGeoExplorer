@@ -153,8 +153,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         StopObservingXamlRoot();
         UnsubscribeFromMapState(_map);
         _viewModel?.UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);
+        AbortRectangleSelection();
         DetachViewModel();
-        _viewModel?.Surface?.ClearSelectionRectangle();
         _map = null;
     }
 
@@ -170,6 +170,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
+        AbortRectangleSelection();
         DetachViewModel();
         _viewModel = viewModel;
         if (_viewModel is null)
@@ -737,9 +738,15 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     private void OnMapPointerCaptureLost(object sender, PointerRoutedEventArgs e)
     {
+        _exifLocationPicker.HandlePointerCaptureLost();
+        AbortRectangleSelection();
+    }
+
+    // 選択の途中で枠・パン固定を残さない（ペインが外れる場合やキャプチャ喪失）。ViewModel を外す前に呼ぶ
+    private void AbortRectangleSelection()
+    {
         _mapRectangleSelecting = false;
         _mapRectangleStart = null;
-        _exifLocationPicker.HandlePointerCaptureLost();
         var surface = _viewModel?.Surface;
         surface?.ClearSelectionRectangle();
         surface?.RestorePan();
@@ -758,8 +765,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 
     public void Dispose()
     {
-        _viewModel?.Surface?.ClearSelectionRectangle();
         UnsubscribeFromMapState(_map);
+        AbortRectangleSelection();
         DetachViewModel();
         _map = null;
         GC.SuppressFinalize(this);
