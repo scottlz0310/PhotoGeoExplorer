@@ -7,18 +7,13 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
-using Mapsui.Extensions;
 using Mapsui.Layers;
-using Mapsui.Nts;
-using Mapsui.Projections;
 using Mapsui.Rendering;
-using Mapsui.Styles;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
-using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.State;
@@ -48,7 +43,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private string _backgroundNotice = string.Empty;
     private Mapsui.Map? _map;
     private IMapBackground? _background;
-    private MemoryLayer? _markerLayer;
+    private IMapSurface? _surface;
     private MapTileSourceType _currentTileSource = MapTileSourceType.OpenStreetMap;
     private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private CancellationTokenSource? _mapUpdateCts;
@@ -112,6 +107,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         get => _map;
         private set => SetProperty(ref _map, value);
     }
+
+    /// <summary>
+    /// 地図の表示面（Mapsui の型を出さない窓口）。地図が初期化されるまでは <see langword="null"/>
+    /// </summary>
+    internal IMapSurface? Surface => _surface;
 
     /// <summary>
     /// 地図の初期化状態
@@ -341,8 +341,8 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         LocationInfo.Clear();
         ZoomIndicator.Dispose();
 
-        _markerLayer?.Dispose();
-        _markerLayer = null;
+        _surface?.Dispose();
+        _surface = null;
 
         var existingBackground = Interlocked.Exchange(ref _background, null);
         if (existingBackground is not null)
@@ -448,7 +448,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     {
         ArgumentNullException.ThrowIfNull(selectedItems);
 
-        if (_map is null || _markerLayer is null || !IsMapInitialized)
+        if (_surface is null || !IsMapInitialized)
         {
             return;
         }
@@ -475,9 +475,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         if (imageItems.Count == 0)
         {
             // await 中に Cleanup() が走り破棄されている可能性があるため、ここで現在のフィールドを再取得する
-            if (_map is { } mapAfterCancel && _markerLayer is { } markerLayerAfterCancel)
+            if (_surface is { } surfaceAfterCancel)
             {
-                MapMarkerPresenter.ClearMarkers(mapAfterCancel, markerLayerAfterCancel);
+                MapMarkerPresenter.ClearMarkers(surfaceAfterCancel);
             }
 
             ShowStatus(
@@ -520,7 +520,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         ApplyMarkers(points);
 
         // 撮影位置情報は単一選択の写真だけを対象にする。await 中に Cleanup() が走った場合は設定しない
-        if (selectedItems.Count == 1 && points.Count == 1 && _map is not null)
+        if (selectedItems.Count == 1 && points.Count == 1 && _surface is not null)
         {
             var selected = points[0];
             var photo = new PhotoIdentity(selected.Item.FilePath, selected.Item.SizeBytes, selected.Metadata.TakenAt);
@@ -548,9 +548,9 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         // await 中に Cleanup() が走り得るため、都度チェックが必要。
         if (points.Count == 0)
         {
-            if (_map is { } mapForClear && _markerLayer is { } markerLayerForClear)
+            if (_surface is { } surfaceForClear)
             {
-                MapMarkerPresenter.ClearMarkers(mapForClear, markerLayerForClear);
+                MapMarkerPresenter.ClearMarkers(surfaceForClear);
             }
 
             ShowStatus(
@@ -562,23 +562,23 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         if (points.Count == 1)
         {
-            if (_map is not { } mapForSingle || _markerLayer is not { } markerLayerForSingle)
+            if (_surface is not { } surfaceForSingle)
             {
                 return;
             }
 
             var single = points[0];
-            _markerPresenter.SetMarker(mapForSingle, markerLayerForSingle, single.Latitude, single.Longitude, single.Metadata, single.Item, _mapDefaultZoomLevel);
+            _markerPresenter.SetMarker(surfaceForSingle, single.Latitude, single.Longitude, single.Metadata, single.Item, _mapDefaultZoomLevel);
             HideStatus();
             return;
         }
 
-        if (_map is not { } mapForMulti || _markerLayer is not { } markerLayerForMulti)
+        if (_surface is not { } surfaceForMulti)
         {
             return;
         }
 
-        _markerPresenter.SetMarkers(mapForMulti, markerLayerForMulti, points);
+        _markerPresenter.SetMarkers(surfaceForMulti, points);
         HideStatus();
     }
 
@@ -703,11 +703,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         }
 
         var background = CreateBackgroundRequest(_currentTileSource, out var notice);
-        var (map, mapBackground, markerLayer) = _service.InitializeMap(background);
+        var (map, mapBackground, surface) = _service.InitializeMap(background);
 
         Volatile.Write(ref _background, mapBackground);
         _viewController.Attach(
-            new MapsuiMapSurface(map),
+            surface,
             _currentTileSource,
             background.SourceType,
             mapBackground.AttributionText,
@@ -718,7 +718,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         mapBackground.BusyChanged += OnBackgroundBusyChanged;
         mapBackground.FrameRendered += OnBackgroundFrameRendered;
         mapBackground.Attach(map, GetPixelDensity);
-        _markerLayer = markerLayer;
+        _surface = surface;
         _attributionPresenter.Attach(map, background.SourceType);
         _ = LoadAttributionImagesAsync(map);
         BackgroundNotice = notice;

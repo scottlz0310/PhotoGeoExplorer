@@ -1,10 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using Xunit;
 
@@ -26,14 +28,14 @@ public class MapPaneServiceTests
         try
         {
             // Act
-            var (map, background, markerLayer) = service.InitializeMap(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
+            var (map, background, surface) = service.InitializeMap(new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, userAgent));
 
             // Assert
             Assert.NotNull(map);
             Assert.NotNull(background);
-            Assert.NotNull(markerLayer);
+            Assert.NotNull(surface);
             Assert.Equal(2, map.Layers.Count); // タイルレイヤー + マーカーレイヤー
-            Assert.Equal("PhotoMarkers", markerLayer.Name);
+            Assert.Equal(MapsuiMapSurface.MarkerLayerName, map.Layers.Last().Name);
 
             // Cleanup
             map.Dispose();

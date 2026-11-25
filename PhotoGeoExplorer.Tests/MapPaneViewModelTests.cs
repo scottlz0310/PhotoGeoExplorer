@@ -12,6 +12,7 @@ using Mapsui.Tiling.Layers;
 using Microsoft.UI.Xaml.Controls;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.AreaNames;
 using PhotoGeoExplorer.State;
@@ -425,11 +426,11 @@ public class MapPaneViewModelTests
 
         await TestTasks.AssertCompletesWithinAsync(service.LoadStarted, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
 
-        // await 中に Cleanup() を発生させ、_map/_markerLayer を破棄・null 化する
+        // await 中に Cleanup() を発生させ、_map/_surface を破棄・null 化する
         viewModel.Cleanup();
         service.CompleteLoad(new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 35.681236, 139.767125));
 
-        // Assert: 破棄済みの map/markerLayer へアクセスせず例外なく完了すること
+        // Assert: 破棄済みの map/surface へアクセスせず例外なく完了すること
         await TestTasks.AssertCompletesWithinAsync(updateTask, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
         await updateTask.ConfigureAwait(true);
     }
@@ -442,7 +443,7 @@ public class MapPaneViewModelTests
         var service = new CleanupAfterLoadMapPaneService(() => viewModel!.Cleanup());
         viewModel = new MapPaneViewModel(service);
 #pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
-        var markerLayer = SetMapInitializedForTest(viewModel);
+        var surface = SetMapInitializedForTest(viewModel);
 #pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
 
         var photo = new PhotoListItem(
@@ -452,8 +453,8 @@ public class MapPaneViewModelTests
         // Act: LoadPhotoMetadataAsync が結果を返す直前(Presenter 呼び出し前)に Cleanup() が走る
         await viewModel.UpdateMarkersFromSelectionAsync(new[] { photo }).ConfigureAwait(true);
 
-        // Assert: 破棄済みレイヤーへマーカーが書き込まれていない(no-op)こと
-        Assert.Empty(markerLayer.Features);
+        // Assert: 破棄済みの表示面へマーカーが書き込まれていない(no-op)こと
+        Assert.Empty(surface.Markers);
         Assert.Null(viewModel.Map);
     }
 
@@ -776,29 +777,25 @@ ext{index}.jpg", isFolder: false))
         return Assert.IsType<TileLayer>(map.Layers.First());
     }
 
-    private static MemoryLayer SetMapInitializedForTest(MapPaneViewModel viewModel)
+    private static MapsuiMapSurface SetMapInitializedForTest(MapPaneViewModel viewModel)
     {
         var mapField = typeof(MapPaneViewModel).GetField("_map", BindingFlags.Instance | BindingFlags.NonPublic);
-        var markerLayerField = typeof(MapPaneViewModel).GetField("_markerLayer", BindingFlags.Instance | BindingFlags.NonPublic);
+        var surfaceField = typeof(MapPaneViewModel).GetField("_surface", BindingFlags.Instance | BindingFlags.NonPublic);
         var isMapInitializedField = typeof(MapPaneViewModel).GetField("_isMapInitialized", BindingFlags.Instance | BindingFlags.NonPublic);
 
         Assert.NotNull(mapField);
-        Assert.NotNull(markerLayerField);
+        Assert.NotNull(surfaceField);
         Assert.NotNull(isMapInitializedField);
 
 #pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
         var map = new Mapsui.Map();
-        var markerLayer = new MemoryLayer
-        {
-            Features = Array.Empty<IFeature>()
-        };
+        var surface = new MapsuiMapSurface(map);
 #pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
-        map.Layers.Add(markerLayer);
 
         mapField!.SetValue(viewModel, map);
-        markerLayerField!.SetValue(viewModel, markerLayer);
+        surfaceField!.SetValue(viewModel, surface);
         isMapInitializedField!.SetValue(viewModel, true);
-        return markerLayer;
+        return surface;
     }
 
     private static async Task<(
@@ -825,7 +822,7 @@ ext{index}.jpg", isFolder: false))
 
         public Task LoadCalled => _loadCalled.Task;
 
-        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -896,7 +893,7 @@ ext{index}.jpg", isFolder: false))
 
         public void CompleteLoad(PhotoMetadata? metadata) => _loadCompletion.TrySetResult(metadata);
 
-        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -931,7 +928,7 @@ ext{index}.jpg", isFolder: false))
 
         public Task LoadStarted => _loadStarted.Task;
 
-        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }
@@ -1012,7 +1009,7 @@ ext{index}.jpg", isFolder: false))
         private readonly object _gate = new();
         private readonly List<PendingLoad> _loads = new();
 
-        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)
@@ -1089,7 +1086,7 @@ ext{index}.jpg", isFolder: false))
             _onLoadCompleting = onLoadCompleting;
         }
 
-        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
         }

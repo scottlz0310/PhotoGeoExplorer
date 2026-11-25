@@ -8,10 +8,8 @@ using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Fetcher;
 using Mapsui.Layers;
-using Mapsui.Nts;
 using Mapsui.Rendering;
 using Mapsui.Rendering.Skia;
-using Mapsui.Styles;
 using Mapsui.UI;
 using Mapsui.UI.WinUI;
 using Microsoft.UI;
@@ -19,9 +17,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
-using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.MapRendering;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI.Core;
@@ -30,11 +29,6 @@ namespace PhotoGeoExplorer.Panes.Map;
 
 internal sealed partial class MapPaneViewControl : UserControl, IDisposable
 {
-    private const string PhotoItemKey = "PhotoItem";
-    private const string PhotoMetadataKey = "PhotoMetadata";
-    private static readonly Color SelectionFillColor = Color.FromArgb(64, 0, 120, 215);
-    private static readonly Color SelectionOutlineColor = Color.FromArgb(255, 0, 120, 215);
-
     private readonly MapExifLocationPicker _exifLocationPicker;
     private IDialogService _dialogService = null!;
     private MapPaneViewModel? _viewModel;
@@ -42,10 +36,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
     private Mapsui.Map? _map;
     private PhotoMetadata? _flyoutMetadata;
     private bool _mapRectangleSelecting;
-    private MPoint? _mapRectangleStart;
-    private MemoryLayer? _rectangleSelectionLayer;
-    private bool _mapPanLockBeforeSelection;
-    private bool _mapPanLockActive;
+    private GeoPoint? _mapRectangleStart;
     private readonly MapPaneViewLifecycle _lifecycle = new(AppLog.Info);
 
     public MapPaneViewControl()
@@ -163,7 +154,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         UnsubscribeFromMapState(_map);
         _viewModel?.UpdateMapImageSaveState(hasValidViewport: false, isTileLoading: false);
         DetachViewModel();
-        ClearRectangleSelectionLayer();
+        _viewModel?.Surface?.ClearSelectionRectangle();
         _map = null;
     }
 
@@ -299,7 +290,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
-        ClearRectangleSelectionLayer();
+        _viewModel?.Surface?.ClearSelectionRectangle();
         UnsubscribeFromMapState(_map);
         _map = map;
         if (map is not null)
@@ -557,44 +548,16 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         return true;
     }
 
-    private MemoryLayer? GetMarkerLayer()
-    {
-        if (MapControl.Map?.Layers is not { } layers)
-        {
-            return null;
-        }
-
-        return layers.OfType<MemoryLayer>()
-            .FirstOrDefault(layer => string.Equals(layer.Name, "PhotoMarkers", StringComparison.Ordinal));
-    }
-
     private void OnMapInfoReceived(object? sender, MapInfoEventArgs e)
     {
-        if (e is null || MapControl.Map?.Layers is null)
+        var marker = MapsuiMarkerHitTest.FindMarker(MapControl.Map, e);
+        if (marker is null)
         {
             return;
         }
 
-        var mapInfo = e.GetMapInfo(MapControl.Map.Layers);
-        if (mapInfo?.Feature is not PointFeature feature)
-        {
-            return;
-        }
-
-        var markerLayer = GetMarkerLayer();
-        if (markerLayer is null || !markerLayer.Features.Contains(feature))
-        {
-            return;
-        }
-
-        if (feature[PhotoItemKey] is not PhotoItem photoItem || feature[PhotoMetadataKey] is not PhotoMetadata metadata)
-        {
-            AppLog.Info("Marker clicked but missing PhotoItem or PhotoMetadata.");
-            return;
-        }
-
-        _viewModel?.RequestPhotoFocus(photoItem.FilePath);
-        ShowMarkerFlyout(photoItem, metadata);
+        _viewModel?.RequestPhotoFocus(marker.Item.FilePath);
+        ShowMarkerFlyout(marker.Item, marker.Metadata);
     }
 
     private void ShowMarkerFlyout(PhotoItem photoItem, PhotoMetadata metadata)
@@ -698,15 +661,15 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
-        var worldStart = GetWorldPosition(e);
-        if (worldStart is null)
+        var geoStart = GetGeoPosition(e);
+        if (geoStart is null)
         {
             return;
         }
 
-        LockMapPan();
+        _viewModel?.Surface?.LockPan();
         _mapRectangleSelecting = true;
-        _mapRectangleStart = worldStart;
+        _mapRectangleStart = geoStart;
         MapControl.CapturePointer(e.Pointer);
         e.Handled = true;
     }
@@ -719,13 +682,13 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
             return;
         }
 
-        var worldEnd = GetWorldPosition(e);
-        if (worldEnd is null)
+        var geoEnd = GetGeoPosition(e);
+        if (geoEnd is null)
         {
             return;
         }
 
-        UpdateRectangleSelectionLayer(rectangleStart, worldEnd);
+        _viewModel?.Surface?.ShowSelectionRectangle(rectangleStart.Value, geoEnd.Value);
         e.Handled = true;
     }
 
@@ -740,7 +703,7 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         {
             if (_exifLocationPicker.HandlePointerReleased(
                 e.GetCurrentPoint(MapControl).Position,
-                () => GetWorldPosition(e)))
+                () => GetGeoPosition(e)))
             {
                 e.Handled = true;
             }
@@ -751,29 +714,24 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         _mapRectangleSelecting = false;
         _mapRectangleStart = null;
         MapControl.ReleasePointerCapture(e.Pointer);
-        RestoreMapPanLock();
+        var surface = _viewModel?.Surface;
+        surface?.RestorePan();
 
         if (rectangleStart is null)
         {
-            ClearRectangleSelectionLayer();
+            surface?.ClearSelectionRectangle();
             return;
         }
 
-        var worldEnd = GetWorldPosition(e);
-        if (worldEnd is null)
+        var geoEnd = GetGeoPosition(e);
+        if (geoEnd is null)
         {
-            ClearRectangleSelectionLayer();
+            surface?.ClearSelectionRectangle();
             return;
         }
 
-        var minX = Math.Min(rectangleStart.X, worldEnd.X);
-        var maxX = Math.Max(rectangleStart.X, worldEnd.X);
-        var minY = Math.Min(rectangleStart.Y, worldEnd.Y);
-        var maxY = Math.Max(rectangleStart.Y, worldEnd.Y);
-        var selectionBounds = new MRect(minX, minY, maxX, maxY);
-
-        SelectPhotosInRectangle(selectionBounds);
-        ClearRectangleSelectionLayer();
+        SelectPhotosInRectangle(rectangleStart.Value, geoEnd.Value);
+        surface?.ClearSelectionRectangle();
         e.Handled = true;
     }
 
@@ -782,141 +740,40 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         _mapRectangleSelecting = false;
         _mapRectangleStart = null;
         _exifLocationPicker.HandlePointerCaptureLost();
-        ClearRectangleSelectionLayer();
-        RestoreMapPanLock();
+        var surface = _viewModel?.Surface;
+        surface?.ClearSelectionRectangle();
+        surface?.RestorePan();
     }
 
-    private void LockMapPan()
+    private GeoPoint? GetGeoPosition(PointerRoutedEventArgs e)
     {
-        if (MapControl.Map?.Navigator is not { } navigator)
-        {
-            return;
-        }
-
-        if (!_mapPanLockActive)
-        {
-            _mapPanLockBeforeSelection = navigator.PanLock;
-            _mapPanLockActive = true;
-        }
-
-        navigator.PanLock = true;
-    }
-
-    private void RestoreMapPanLock()
-    {
-        if (!_mapPanLockActive)
-        {
-            return;
-        }
-
-        if (MapControl.Map?.Navigator is not { } navigator)
-        {
-            return;
-        }
-
-        navigator.PanLock = _mapPanLockBeforeSelection;
-        _mapPanLockActive = false;
-    }
-
-    private MPoint? GetWorldPosition(PointerRoutedEventArgs e)
-    {
-        if (MapControl.Map?.Navigator is not { } navigator)
+        if (_viewModel?.Surface is not { } surface)
         {
             return null;
         }
 
-        var screenPos = e.GetCurrentPoint(MapControl).Position;
-        return navigator.Viewport.ScreenToWorld(screenPos.X, screenPos.Y);
-    }
-
-    private void UpdateRectangleSelectionLayer(MPoint start, MPoint end)
-    {
-        if (_map is null)
-        {
-            return;
-        }
-
-        var minX = Math.Min(start.X, end.X);
-        var maxX = Math.Max(start.X, end.X);
-        var minY = Math.Min(start.Y, end.Y);
-        var maxY = Math.Max(start.Y, end.Y);
-
-        var polygon = new Polygon(new LinearRing(new[]
-        {
-            new Coordinate(minX, minY),
-            new Coordinate(maxX, minY),
-            new Coordinate(maxX, maxY),
-            new Coordinate(minX, maxY),
-            new Coordinate(minX, minY)
-        }));
-
-        var feature = new GeometryFeature
-        {
-            Geometry = polygon
-        };
-
-        var polygonStyle = new VectorStyle
-        {
-            Fill = new Brush(SelectionFillColor),
-            Outline = new Pen(SelectionOutlineColor, 2)
-        };
-        feature.Styles.Add(polygonStyle);
-
-        if (_rectangleSelectionLayer is null)
-        {
-            _rectangleSelectionLayer = new MemoryLayer
-            {
-                Name = "RectangleSelection",
-                Features = new[] { feature },
-                Style = null
-            };
-            _map.Layers.Add(_rectangleSelectionLayer);
-        }
-        else
-        {
-            _rectangleSelectionLayer.Features = new[] { feature };
-        }
-
-        _map.Refresh();
-    }
-
-    private void ClearRectangleSelectionLayer()
-    {
-        if (_map is null)
-        {
-            return;
-        }
-
-        if (_rectangleSelectionLayer is null)
-        {
-            return;
-        }
-
-        _map.Layers.Remove(_rectangleSelectionLayer);
-        _rectangleSelectionLayer.Dispose();
-        _rectangleSelectionLayer = null;
-        _map.Refresh();
+        var screenPosition = e.GetCurrentPoint(MapControl).Position;
+        return surface.TryGetGeoPosition(screenPosition.X, screenPosition.Y, out var position) ? position : null;
     }
 
     public void Dispose()
     {
-        ClearRectangleSelectionLayer();
+        _viewModel?.Surface?.ClearSelectionRectangle();
         UnsubscribeFromMapState(_map);
         DetachViewModel();
         _map = null;
         GC.SuppressFinalize(this);
     }
 
-    private void SelectPhotosInRectangle(MRect selectionBounds)
+    private void SelectPhotosInRectangle(GeoPoint corner1, GeoPoint corner2)
     {
-        var markerLayer = GetMarkerLayer();
-        if (markerLayer is null)
+        if (_viewModel?.Surface is not { } surface)
         {
             _viewModel?.RequestPhotoSelection(Array.Empty<string>());
             return;
         }
 
-        var selectedPhotos = MapPaneSelectionHelper.SelectPhotosInRectangle(markerLayer.Features, selectionBounds, PhotoItemKey);
+        var selectedPhotos = MapPaneSelectionHelper.SelectPhotosInRectangle(surface.Markers, corner1, corner2);
         var selectedFilePaths = selectedPhotos
             .Select(photo => photo.FilePath)
             .Where(filePath => !string.IsNullOrWhiteSpace(filePath))

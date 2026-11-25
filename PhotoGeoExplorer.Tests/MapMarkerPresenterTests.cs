@@ -2,10 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Mapsui;
-using Mapsui.Layers;
-using Mapsui.Styles;
-using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.ViewModels;
@@ -22,35 +18,37 @@ public sealed class MapMarkerPresenterTests
     }
 
     [Fact]
-    public void ClearMarkersEmptiesFeatures()
+    public void ClearMarkersClearsTheSurface()
     {
-        var (map, markerLayer) = CreateMapWithLayer();
-        markerLayer.Features = new[] { new PointFeature(new MPoint(0, 0)) };
+        using var surface = new FakeMapSurface();
 
-        MapMarkerPresenter.ClearMarkers(map, markerLayer);
+        MapMarkerPresenter.ClearMarkers(surface);
 
-        Assert.Empty(markerLayer.Features);
+        Assert.Equal(1, surface.ClearMarkersCount);
     }
 
     [Fact]
-    public void SetMarkerAddsSingleFeatureWithMetadataAndItem()
+    public void SetMarkerShowsSingleMarkerWithMetadataItemAndZoomLevel()
     {
-        var (map, markerLayer) = CreateMapWithLayer();
+        using var surface = new FakeMapSurface();
         var presenter = new MapMarkerPresenter(new FakeMapPaneService(pinExists: false));
         var metadata = new PhotoMetadata(DateTimeOffset.UtcNow, null, null, latitude: 35.681236, longitude: 139.767125);
         var photoItem = new PhotoItem(@"C:\Photos\a.jpg", 100, DateTimeOffset.UtcNow, isFolder: false);
 
-        presenter.SetMarker(map, markerLayer, 35.681236, 139.767125, metadata, photoItem, defaultZoomLevel: 14);
+        presenter.SetMarker(surface, 35.681236, 139.767125, metadata, photoItem, defaultZoomLevel: 14);
 
-        var feature = Assert.Single(markerLayer.Features);
-        Assert.Same(metadata, feature["PhotoMetadata"]);
-        Assert.Same(photoItem, feature["PhotoItem"]);
+        var call = Assert.Single(surface.ShowMarkerCalls);
+        Assert.Equal(14, call.ZoomLevel);
+        Assert.Equal(35.681236, call.Marker.Latitude);
+        Assert.Equal(139.767125, call.Marker.Longitude);
+        Assert.Same(metadata, call.Marker.Metadata);
+        Assert.Same(photoItem, call.Marker.Item);
     }
 
     [Fact]
-    public void SetMarkersAddsFeatureForEachItem()
+    public void SetMarkersShowsAMarkerForEachItem()
     {
-        var (map, markerLayer) = CreateMapWithLayer();
+        using var surface = new FakeMapSurface();
         var presenter = new MapMarkerPresenter(new FakeMapPaneService(pinExists: false));
         var items = new List<(double Latitude, double Longitude, PhotoMetadata Metadata, PhotoItem Item)>
         {
@@ -58,47 +56,38 @@ public sealed class MapMarkerPresenterTests
             (34.702485, 135.495951, new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 34.702485, 135.495951), new PhotoItem(@"C:\Photos\b.jpg", 200, DateTimeOffset.UtcNow, isFolder: false)),
         };
 
-        presenter.SetMarkers(map, markerLayer, items);
+        presenter.SetMarkers(surface, items);
 
-        Assert.Equal(2, ((IReadOnlyList<IFeature>)markerLayer.Features).Count);
+        var markers = Assert.Single(surface.ShowMarkersCalls);
+        Assert.Equal(2, markers.Count);
+        Assert.Equal(@"C:\Photos\a.jpg", markers[0].Item.FilePath);
+        Assert.Equal(34.702485, markers[1].Latitude);
     }
 
     [Fact]
-    public void SetMarkerUsesPinImageStyleWhenPinFileExists()
+    public void SetMarkerUsesPinImagePathWhenPinFileExists()
     {
-        var (map, markerLayer) = CreateMapWithLayer();
+        using var surface = new FakeMapSurface();
         var presenter = new MapMarkerPresenter(new FakeMapPaneService(pinExists: true));
         var metadata = new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 35.681236, 139.767125);
         var photoItem = new PhotoItem(@"C:\Photos\a.jpg", 100, DateTimeOffset.UtcNow, isFolder: false);
 
-        presenter.SetMarker(map, markerLayer, 35.681236, 139.767125, metadata, photoItem, defaultZoomLevel: 14);
+        presenter.SetMarker(surface, 35.681236, 139.767125, metadata, photoItem, defaultZoomLevel: 14);
 
-        var feature = Assert.Single(markerLayer.Features);
-        Assert.IsType<ImageStyle>(Assert.Single(feature.Styles));
+        Assert.Equal(@"C:\Pins\red_pin.png", Assert.Single(surface.ShowMarkerCalls).Marker.PinImagePath);
     }
 
     [Fact]
-    public void SetMarkerUsesFallbackStyleWhenPinFileMissing()
+    public void SetMarkerLeavesPinImagePathEmptyWhenPinFileMissing()
     {
-        var (map, markerLayer) = CreateMapWithLayer();
+        using var surface = new FakeMapSurface();
         var presenter = new MapMarkerPresenter(new FakeMapPaneService(pinExists: false));
         var metadata = new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 35.681236, 139.767125);
         var photoItem = new PhotoItem(@"C:\Photos\a.jpg", 100, DateTimeOffset.UtcNow, isFolder: false);
 
-        presenter.SetMarker(map, markerLayer, 35.681236, 139.767125, metadata, photoItem, defaultZoomLevel: 14);
+        presenter.SetMarker(surface, 35.681236, 139.767125, metadata, photoItem, defaultZoomLevel: 14);
 
-        var feature = Assert.Single(markerLayer.Features);
-        Assert.IsType<SymbolStyle>(Assert.Single(feature.Styles));
-    }
-
-    private static (Mapsui.Map Map, MemoryLayer MarkerLayer) CreateMapWithLayer()
-    {
-#pragma warning disable CA2000 // test-scoped, no explicit disposal required
-        var map = new Mapsui.Map();
-        var markerLayer = new MemoryLayer { Features = Array.Empty<IFeature>() };
-#pragma warning restore CA2000
-        map.Layers.Add(markerLayer);
-        return (map, markerLayer);
+        Assert.Null(Assert.Single(surface.ShowMarkerCalls).Marker.PinImagePath);
     }
 
     private sealed class FakeMapPaneService : IMapPaneService
@@ -110,7 +99,7 @@ public sealed class MapMarkerPresenterTests
             _pinExists = pinExists;
         }
 
-        public (Mapsui.Map Map, IMapBackground Background, MemoryLayer MarkerLayer) InitializeMap(MapBackgroundRequest background)
+        public (Mapsui.Map Map, IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)

@@ -1,60 +1,46 @@
 using System;
 using System.Collections.Generic;
-using Mapsui;
-using Mapsui.Layers;
-using Mapsui.Nts;
 using PhotoGeoExplorer.Models;
+using PhotoGeoExplorer.Services.MapRendering;
 using Windows.Foundation;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
 internal static class MapPaneSelectionHelper
 {
+    /// <summary>
+    /// 対角の 2 点で囲んだ矩形（境界を含む）の中にあるマーカーの写真を、重複なく返す。
+    /// 緯度・経度のまま比べても、Web メルカトルで比べても結果は同じ（どちらも単調な変換のため）。
+    /// </summary>
     public static IReadOnlyList<PhotoItem> SelectPhotosInRectangle(
-        IEnumerable<IFeature>? features,
-        MRect selectionBounds,
-        string photoItemKey)
+        IEnumerable<MapMarker>? markers,
+        GeoPoint corner1,
+        GeoPoint corner2)
     {
-        if (string.IsNullOrWhiteSpace(photoItemKey))
-        {
-            throw new ArgumentException("Photo item key must not be empty.", nameof(photoItemKey));
-        }
-
-        if (features is null)
+        if (markers is null)
         {
             return Array.Empty<PhotoItem>();
         }
 
+        var minLatitude = Math.Min(corner1.Latitude, corner2.Latitude);
+        var maxLatitude = Math.Max(corner1.Latitude, corner2.Latitude);
+        var minLongitude = Math.Min(corner1.Longitude, corner2.Longitude);
+        var maxLongitude = Math.Max(corner1.Longitude, corner2.Longitude);
+
         var selectedPhotos = new List<PhotoItem>();
         var seenFilePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var feature in features)
+        foreach (var marker in markers)
         {
-            if (feature is not PointFeature pointFeature)
+            if (marker.Longitude < minLongitude || marker.Longitude > maxLongitude
+                || marker.Latitude < minLatitude || marker.Latitude > maxLatitude)
             {
                 continue;
             }
 
-            var point = pointFeature.Point;
-            if (point is null)
+            if (seenFilePaths.Add(marker.Item.FilePath))
             {
-                continue;
-            }
-
-            if (point.X < selectionBounds.Min.X || point.X > selectionBounds.Max.X
-                || point.Y < selectionBounds.Min.Y || point.Y > selectionBounds.Max.Y)
-            {
-                continue;
-            }
-
-            if (feature[photoItemKey] is not PhotoItem photoItem)
-            {
-                continue;
-            }
-
-            if (seenFilePaths.Add(photoItem.FilePath))
-            {
-                selectedPhotos.Add(photoItem);
+                selectedPhotos.Add(marker.Item);
             }
         }
 
