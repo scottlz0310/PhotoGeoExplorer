@@ -1,7 +1,7 @@
 # 設計: ベクター地図レンダラーの統合
 
 - 状態: 設計（PoC 未着手）
-- 追跡 Issue: #293（PoC）、#295（製品統合）、#297（航空写真＋道路オーバーレイ）／親: #290
+- 追跡 Issue: #293（PoC）、#295（製品統合）、#297（航空写真＋道路オーバーレイ）、#362（Mapsui 依存の境界整理。§11）／親: #290
 - 概要・依存関係: [README.md](README.md)
 - 参照: photo-map-studio `docs/development/vector-map-architecture.md`、Google ドキュメント『PhotoMapStudio / PhotoGeoExplorer ベクター地図レンダラー拡張アイデア・ロードマップ』（コード照合日 2026-10-24）
 
@@ -146,6 +146,8 @@ internal interface IMapExportLayers : IDisposable
 
 レイヤーは最初から複数を前提にする。航空写真＋道路オーバーレイ（§9）は 2 層になるため、単一レイヤーの契約で始めると `MapPaneViewModel`・PNG 保存・破棄処理を後で作り直すことになる。
 
+> **#362 による見直し（§11）**: この契約は `ILayer`・`Mapsui.Map`・`Viewport` を `IMapBackground` の外へ出している。Mapsui を脱却する場合の手戻りを避けるため、§11.4 で、Mapsui の型を `Panes/Map/Mapsui/` の中へ閉じ込める契約へ置き換える（実装は #297 の前）。ここの記述は、#295 時点の実装の説明として残す。
+
 この整理は [01](01-mapbox-satellite.md) の `MapBackgroundRequest` と合わせて行い、`MapPaneViewModel` はラスタ／ベクターの違いを知らない状態にする。
 
 実装: #295 の PR ①（ラスタのみ・挙動不変）。ラスタは `RasterMapBackground`（`TileLayer` を 1 枚包み、`TileLayer.Busy` を `IsBusy` として転送する）。ベクターは PR ③ の `VectorMapBackground`（§3.9）。
@@ -263,7 +265,8 @@ P0 の成果物（手順・基準値・基準画像・許容差）は [poc/READM
 
 - 背景を透過でクリアし、面ポリゴンを描かず、道路線とラベルだけを描くスタイルプロファイルを足す。
 - 航空写真と同じビューポート・倍率・DPI で描き、PNG 保存でも両方を合成する。
-- 構成は「ラスタの `TileLayer` ＋ `ViewExtentImageLayer`」の 2 層になる。§3.8 の `IMapBackground.Layers` に 2 要素を入れる。
+- 構成は「ラスタ ＋ 透過ベクター」の 2 層になる。**§3.8 の `IMapBackground.Layers`（`ILayer` の配列）に 2 要素を入れる設計は取り下げる**。Mapsui の型の上に 2 層を載せると、Mapsui を脱却する場合に最も手戻りが大きいため（#362）。代わりに §11.4 の背景カタログで「合成（ラスタ＋透過ベクター）」を 1 つの背景として定義し、Mapsui 上では `ILayer` 2 層、自前の表示面では 1 つのキャンバスへの 2 回描画として、実装側で吸収する。
+- **着手は #362（§11）の境界整理の後**とする（#297 の Issue の依存に反映する）。
 
 ## 10. リスク
 
@@ -273,3 +276,145 @@ P0 の成果物（手順・基準値・基準画像・許容差）は [poc/READM
 | カスタムレンダラーが Mapsui 5.1 の公開 API で書けない | `RasterFeature` 案へ切り替え、性能を再計測 |
 | 大都市部・高ズームで確定描画が遅い | デコード済みキャッシュ、POI の間引き。基準を満たさなければ不採用 |
 | OpenFreeMap の配信条件の変更 | 取得元は抽象化済み。PMTiles の BYO を選択肢に残す |
+
+## 11. 地図表示面の境界と Mapsui の位置づけ（#362）
+
+- 状態: 設計（合意待ち。実装は #297 と一緒に行う）。調査日 2026-11-25（`main` `dc7111f`）。
+- 方針: **独自の地図エンジンは作らない**。脱却するかどうかを後で判断できる状態を、手戻りなしで作る。
+
+### 11.1 判断軸
+
+2026-11-25 にユーザーから次の 2 点を示された。以降の判断はこれに従う。
+
+1. **二重実装に近い状態が長く続くなら、脱却を早める。**
+2. **Mapsui のアニメーション効果に残す価値があるなら、急がず、恒久的に残してよい。**
+
+### 11.2 現状の調査
+
+**依存の範囲。** Mapsui の型を使うアプリのファイルは本体 21・テスト 14。`PhotoGeoExplorer.csproj` が参照する Mapsui 系は 4 パッケージ（`Mapsui`・`Mapsui.WinUI`・`Mapsui.Nts`・`Mapsui.Rendering.Skia`、いずれも 5.2.0）。#362 起票時の「約 18（テスト 12）」から増えたのは #363・#364 による。
+
+**境界の漏れ。** `IMapBackground` だけではなく、地図 Pane の契約の広い範囲に Mapsui の型が出ている。
+
+| 契約 | 漏れている Mapsui の型 |
+|---|---|
+| `IMapBackground` | `ILayer`（`Layers`）、`Mapsui.Map`（`Attach`）、`Viewport`・`RenderService`（`BeginMapRender`）、`CreateExportLayersAsync` の `Viewport` |
+| `IMapExportLayers` | `ILayer` |
+| `IMapPaneService.InitializeMap` | `Mapsui.Map`、`MemoryLayer`（写真マーカー） |
+| `IMapImageRenderer` / `IMapImageService` | `Map`、`ILayer`、`Viewport`（PNG 保存） |
+| `MapMarkerPresenter` / `MapPaneSelectionHelper` / `MapExifLocationPicker` | `MemoryLayer`・`PointFeature`・`MPoint`・`MRect`、`Navigator.CenterOn` / `ZoomToBox` |
+| `MapPaneViewControl` | `MapControl`、`MapInfo`（ヒット判定）、`Navigator.PanLock`（矩形選択中のパン禁止）、`ViewportChanged` |
+| `MapViewController`（#363） | `Navigator`（`IMapViewController` 自体は Core にあり、Mapsui 非依存） |
+
+**背景ソース定義の散在。** `MapTileSourceType` の分岐が、`MapPaneService`（生成）・`MapAttribution` / `MapAttributionPresenter`（帰属）・`SettingsPaneViewModel`（選択肢の index 変換）・`MapPaneViewModel`・`MapViewController`・`MainViewModel` など約 7 か所にある。#368（国土地理院）と #366（保存ダイアログのタイルソース選択）を別々に載せると、この一覧が二重管理になる。
+
+**二重実装の実態。** 重複しているのは**入力の層**（パン・ズーム・慣性・ホイール）に限られる。
+
+| | 画像プレビュー（#370） | 地図（Mapsui） |
+|---|---|---|
+| 入力の方式 | `ManipulationMode`＋`ManipulationDelta`＋OS の慣性（`PanZoomInputAdapter`） | 同じ方式（Mapsui 5.2.0 の WinUI `MapControl` も `ManipulationMode`・`ManipulationDelta`・慣性を使う） |
+| 状態 | `PanZoomController`（Core） | `Navigator`（Mapsui） |
+| ホイール | 回転量に比例する連続倍率、カーソル基準 | 解像度の段階を 1 つ進める、600 ms・`QuarticOut`、カーソル基準 |
+| 慣性 | OS の慣性 | `FlingAnimation`（速度 ÷ 10 ms、`SinIn`） |
+
+つまり、`PanZoomInputAdapter` は `MapControl` の入力部分とほぼ同じ仕組みの再実装で、挙動（特にホイール）だけが食い違っている。
+
+**アニメーションの実態。** アプリが明示するアニメーションは**ない**。`CenterOn`・`ZoomToBox`・`CenterOnAndZoomTo` の呼び出しはすべて duration が 0（即時）で、`MouseWheelAnimation` の設定も変えていない。実際に使われているのは Mapsui の組み込みの 2 つだけ。
+
+- **ホイールズーム**: 解像度の段階を 1 つ進める 600 ms の補間（`QuarticOut`）。連続して回すと、補間中の目標解像度から次の段階へ進む。
+- **慣性（Fling）**: ジェスチャー由来。#370 のアダプタは OS の慣性で同等のものを持つ。
+
+**回転。** アプリは `RotationLock` を設定していない。Mapsui 既定の回転ジェスチャーをアプリが許しているかは本調査で確かめていない（検証項目に入れる）。
+
+### 11.3 Mapsui 代替の再見積り
+
+「Mapsui なしで成立するか」を、役割ごとに見る。**photo-map-studio（`PhotoMapStudio.Tiles`・`Rendering`・`Core`）と #370 で、どこまで足りているか**。
+
+| 役割 | 状況 | 根拠・残る作業 |
+|---|---|---|
+| ベクター描画 | **解決済み** | `PhotoMapStudio.Rendering`（もともと Mapsui に依存しない） |
+| タイルの取得・キャッシュ・流量制御 | **ほぼ解決** | `PhotoMapStudio.Tiles`（`ITileProvider`、`FileSystemTileCache`、レート制御）。Esri・Mapbox は `TileSources` のプリセットに無く、`Custom(urlTemplate…)` で足す。401/403 の通知はアプリ側で要る |
+| 座標変換 | **解決済み** | Core の `WebMercator`、Rendering の `MercatorProjection` |
+| パン・ズームの入力と慣性 | **ほぼ解決** | #370 の `PanZoomController`・`PanZoomInputAdapter`。**ただし拡張が要る**: 現在の核は「固定サイズのコンテンツを、ビューポート内で拡大・移動する」モデル（倍率 1＝フィット、コンテンツ境界で制約）。地図は「中心（緯度経度）＋連続ズーム、ズーム上下限・パン範囲」で、制約の定義が違う。アンカー保持のズーム・ジェスチャー一括適用の算術は共有できる |
+| ホイールの補間（600 ms・`QuarticOut`） | **小さな作業** | 視点の補間（アンカー保持）を Core の純ロジックにすれば再現できる。Mapsui と同じ easing・時間を使える |
+| 対話的な表示面 | **未解決** | `SKXamlCanvas`（`SkiaSharp.Views.WinUI`。すでに依存にある）上の再描画・密度・破棄。photo-map-studio に地図コントロールは無い（App は静止画のプレビュー） |
+| ラスタの連続ズーム表示 | **未解決・最大の山** | `SkiaMapImageComposer` は整数ズーム・固定サイズの静止画合成。表示用の「タイル階層の選択、読み込み中の親タイルの拡大、非同期読み込み、Busy 状態」が無い |
+| 写真マーカー・矩形選択・ヒット判定 | **未解決** | 写真マーカーの描画（選択の強調を含む）、タップのヒット判定、矩形選択、パン禁止。静止画のピン 1 本の資産しかない |
+| PNG 保存 | **部分的** | ベクターの確定描画は既にある。ラスタ・マーカー・帰属表示の合成は自前で要る |
+| プログラムからの移動（`CenterOn`・`ZoomToBox`） | **自明** | duration 0 なので、視点を即時に置き換えるだけ |
+
+**結論**: エンジン（描画・取得・座標）は足りている。足りないのは**対話的な表示面**で、規模を決めるのは「ラスタの連続ズーム表示」と「マーカーの層（描画・ヒット判定・矩形選択）」の 2 つ。パン・ズーム・慣性は #370 で大きく減り、アニメーションは小さい。
+
+### 11.4 境界の設計（Mapsui の型を `Panes/Map` の外へ出さない）
+
+Mapsui を使うかどうかに関係なく成り立つ、2 層の構成にする。
+
+**(1) Mapsui 非依存の契約（Core、または Mapsui を参照しない `Panes/Map` の型）**
+
+- **視点 `MapViewState`**: 中心（Web メルカトル［m］）・解像度（m/論理ピクセル）・論理寸法・画素密度。実体は、すでに Core にある `ViewExtentRequest` と同じ内容なので、それを昇格・改名する（新しい概念は作らない）。
+- **背景カタログ（単一情報源）**: 背景ごとに、識別子・表示名・種類（ラスタ／ベクター／合成）・可用性（常時／Mapbox トークン必須／地域設定）・帰属表示のリンク・合成の構成（例: 航空写真＋透過ベクター）を 1 箇所に定義する。地図の生成・設定画面の選択肢・帰属表示・保存ダイアログ（#366）・国土地理院（#368）・オーバーレイ（#297）は、すべてこの一覧を参照する。設定ファイルの保存値（`MapTileSourceType` の 0〜3）は互換のため変えず、新しい背景は後ろに足す。
+- **表示面 `IMapSurface`**: View と ViewModel が見る窓口。視点の取得・設定（即時）・変化の通知（任意スレッド）、マーカーの設定、タップのヒット判定（写真の識別子を返す）、矩形選択の範囲（緯度経度）、パン禁止、描画完了の通知、PNG の確定描画（`MapViewState`・寸法・背景・マーカーを渡し、`Stream` を返す）。`IMapViewController`（#363）は、この視点の部分と統合する。
+- **背景 `IMapBackground`**: `Layers`・`Attach(Map)`・`BeginMapRender`・`Viewport` を外し、帰属表示・`IsBusy`・`FrameRendered`・密度の変化の通知・保存用の確定描画だけにする。
+
+**(2) Mapsui アダプタ（`Panes/Map/Mapsui/`。`using Mapsui` はここだけ）**
+
+- `IMapSurface` の Mapsui 実装（`MapControl`・`Navigator`・`MemoryLayer`・`MapInfo`・`PanLock`）。
+- ラスタ背景（`TileLayer`）、ベクター背景（`ViewExtentImageLayer`）、合成背景（ラスタ＋ベクターの 2 層）。
+- PNG 保存（`MapsuiMapImageRenderer`）。
+
+これで、`MapPaneViewModel`・`MapMarkerPresenter`・`MapExifLocationPicker`・`MapImageService` などは Mapsui の型を知らなくなり、テストは Mapsui なしでできる。脱却する場合は、アダプタだけを自前の表示面へ差し替える。
+
+**境界の置き方の原則**: Mapsui のタイル層は「取得」と「表示」を 1 つのレイヤーが持つため、ラスタ背景は契約の内側では「視点を受け取り、表示される」までしか言えない。ラスタを `MapViewState` から画像を返す形にそろえるのは、自前の表示面（§11.5 段階 2）の作業で、境界の設計の段階では要求しない。
+
+### 11.5 二重実装の解消の段階
+
+| 段階 | 内容 | 二重実装 | 規模・リスク |
+|---|---|---|---|
+| 0（現状） | Preview は `PanZoomController`、地図は Mapsui の入力 | あり（入力の層） | — |
+| 1（候補） | **入力の一本化**: `PanZoomInputAdapter` を `MapControl` に付け、Mapsui の入力はロックして、状態は Core の核が持ち、`Navigator` へは視点を即時に反映する。Mapsui は表示面だけになる | 解消 | 小〜中。**要検証**（下記） |
+| 2 | **表示面の置換**: `SKXamlCanvas` 上の自前の表示面。ラスタの連続ズーム表示・マーカー層・保存 | 解消（Mapsui 依存も消える） | 大。スパイクで見積もる |
+
+**段階 1 の検証項目**（実装前に小さなスパイクで確かめる。結果次第で段階 2 へ進むか、現状のままにするかを決める）:
+
+- Mapsui の `ZoomLock` / `PanLock` で、`MapControl` 自身の入力を止めても、`CenterOnAndZoomTo`（duration 0）での視点の設定は効くか。`PanLock` は矩形選択で既に使っている（#362 の漏れの表）ため、衝突しない別の仕組みが要る。
+- `MapControl` 自身の `ManipulationDelta`・ホイールのハンドラと、アダプタが並走して二重に動かないか。
+- タップ・ホバー（`MapInfo`）・矩形選択が壊れないか。
+- `ViewportChanged` の発火元が自分の設定になり、核の `Changed` との往復が起きないか（ベクターの再描画も二重に始めない）。
+- 回転ジェスチャーの扱い（許す／許さない）。許さない前提にできれば、核と描画が単純になる。
+- ベクター背景の入力追従（#295 の基準。描画間隔 p95 ≒ 20 ms、ウォーム中央値 50 ms 超の停止 0）が悪化しない。
+
+**アニメーションの扱い**: 残すべき効果は「ホイールの 600 ms・`QuarticOut` の補間」と「慣性」で、どちらも Mapsui に固有ではない。補間は Core の純ロジックで再現でき、慣性は OS が提供する。したがって、**アニメーションの価値は Mapsui を恒久的に残す理由にはならない**（価値があれば、そのまま持ち込める）。Mapsui を残す根拠になり得るのは、ラスタの連続ズーム表示とマーカー層の置換コストのほうである。一方、ベクターでは、補間中の中間フレームごとに描き直すより、最後のフレームを拡大して見せ、止まってから確定描画するほうが軽くできる余地がある（自前の表示面の利点。段階 2 のスパイクで確かめる）。
+
+### 11.6 優先度と順序（提案）
+
+1. 本章（境界・背景カタログ・再見積り）の合意（この PR）。
+2. 背景カタログの実装（#368・#366 の共通の土台。Mapsui のまま、挙動不変）。
+3. `IMapSurface` と Mapsui アダプタへの分離（挙動不変のリファクタリング。#297 の前に行う）。
+4. **段階 1 のスパイク**（入力の一本化。上の検証項目）。
+5. #368、#366、#297 を、整理した境界の上に実装する。
+6. **段階 2 のスパイク**（ラスタの連続ズーム表示）。下記の開始条件のいずれかが成り立ったとき、または 4 の結果で二重実装が許容できないと判断したとき。
+
+2〜4 は、判断軸 1（二重実装を長引かせない）に合わせて、#297 の前に置く。#297（航空写真＋道路）を Mapsui の 2 層のまま作ると、段階 2 で作り直しになるため。
+
+### 11.7 脱却のスパイクを始める条件（#362 から転記）
+
+いずれかが成り立った時点で、スパイクを行い、規模を見積もって判断する。成り立たなければ脱却しない。
+
+- #352 の項目 3（既定背景のベクター化）で、入力追従・確定描画の採否基準を、Mapsui 上で満たせない。
+- #297 の 2 層合成で、座標のずれ・入力追従の受け入れ条件を、Mapsui 上で満たせない。
+- Mapsui の保守停止、または大きな破壊的変更（Dependency Dashboard #48 で検知）。
+- 新しい要件が Mapsui の枠を超える（回転・傾き、分数ズームでのベクター再描画、ベクタータイルのネイティブ表示など）。
+- **（追加）段階 1 のスパイクの結果、入力の一本化が Mapsui 上で成り立たず、二重実装が許容できないと判断したとき**（判断軸 1）。
+
+### 11.8 段階 2 のスパイクで確かめること
+
+- `SKXamlCanvas` 上で、ラスタのタイル階層の選択・読み込み中の親タイルの拡大・非同期読み込みが、入力に追従するか（描画間隔 p95 ≒ 20 ms を目安）。
+- 連続ズームでのラスタの見え方（整数ズームのタイルの拡大・縮小）が、Mapsui（タイルを段階的に切り替える）と同等以上か。
+- ベクター（`RenderViewAsync`）と同じキャンバスへ重ねる合成（#297）で、座標のずれが出ないか。
+- マーカー（数千件の写真）の描画・ヒット判定・矩形選択の速度。
+- PNG 保存の合成（ラスタ・ベクター・マーカー・帰属表示）。
+
+### 11.9 判断の履歴
+
+- 2026-11-23: #362 起票。優先度は「中。いまは脱却に着手せず、境界の整理を #297 の前に行う」。
+- 2026-11-24: #370（PR #374・#375）で、パン・ズームの共通の核とアダプタを導入。
+- 2026-11-25: 現状を再調査（本章）。境界の対象を地図 Pane 全体へ広げ、背景ソース定義の単一情報源を本章に含めることをユーザーが承認。判断軸 2 点（§11.1）を確認。アニメーションの実態（アプリ明示は duration 0、組み込みはホイール補間と慣性のみ）から、アニメーションは Mapsui を残す理由にならないと整理した。**§11.6 の順序・段階 1 の採否は、本章の合意で確定する。**
