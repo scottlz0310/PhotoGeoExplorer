@@ -2,6 +2,7 @@ using System;
 using System.Buffers.Binary;
 using System.Linq;
 using Mapsui;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using Xunit;
 
@@ -37,7 +38,7 @@ public sealed class MapsuiMapImageRendererTests
         using var plainImage = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(plainStream);
 
         using var attributedMap = new Map();
-        new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter().Attach(
+        new PhotoGeoExplorer.Panes.Map.MapsuiAdapter.MapAttributionPresenter().Attach(
             attributedMap,
             PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatellite);
         using var attributedStream = MapsuiMapImageRenderer.RenderPng(attributedMap, attributedMap.Layers.ToArray(), viewport, pixelDensity: 1f);
@@ -63,7 +64,7 @@ public sealed class MapsuiMapImageRendererTests
         using var plainDarkImage = await SixLabors.ImageSharp.Image
             .LoadAsync<SixLabors.ImageSharp.PixelFormats.Rgba32>(plainDarkStream)
             .ConfigureAwait(true);
-        var presenter = new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter();
+        var presenter = new PhotoGeoExplorer.Panes.Map.MapsuiAdapter.MapAttributionPresenter();
         presenter.Attach(map, sourceType);
         Assert.True(await presenter.LoadImagesAsync(map).ConfigureAwait(true));
         using var stream = MapsuiMapImageRenderer.RenderPng(map, map.Layers.ToArray(), viewport, pixelDensity: 1f);
@@ -86,7 +87,7 @@ public sealed class MapsuiMapImageRendererTests
         const int width = 800;
         const int height = 200;
         using var map = new Map { BackColor = Mapsui.Styles.Color.Black };
-        new PhotoGeoExplorer.Panes.Map.MapAttributionPresenter().Attach(map, sourceType);
+        new PhotoGeoExplorer.Panes.Map.MapsuiAdapter.MapAttributionPresenter().Attach(map, sourceType);
 
         using var stream = MapsuiMapImageRenderer.RenderPng(map, map.Layers.ToArray(), new Viewport(0, 0, 1, 0, width, height), pixelDensity: 1f);
         using var image = await SixLabors.ImageSharp.Image

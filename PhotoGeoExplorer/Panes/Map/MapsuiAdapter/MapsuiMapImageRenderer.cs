@@ -7,11 +7,11 @@ using Mapsui.Layers;
 using Mapsui.Rendering;
 using Mapsui.Rendering.Skia;
 
-namespace PhotoGeoExplorer.Services;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 internal static class MapsuiMapImageRenderer
 {
-    public static Stream RenderPng(Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
+    public static Stream RenderPng(Mapsui.Map map, IReadOnlyList<ILayer> layers, Viewport viewport, float pixelDensity)
     {
         ArgumentNullException.ThrowIfNull(map);
         ArgumentNullException.ThrowIfNull(layers);

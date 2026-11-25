@@ -2,9 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Mapsui.Layers;
-using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 /// <summary>
 /// PNG 保存用の背景レイヤー。保存が終わったら破棄する。

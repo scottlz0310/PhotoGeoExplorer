@@ -9,7 +9,7 @@ using Mapsui.Rendering;
 using Mapsui.Styles;
 using Mapsui.Widgets;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 /// <summary>
 /// <see cref="IMapRenderer"/> の描画完了を観測するための薄いデコレータ。

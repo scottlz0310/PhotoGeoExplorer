@@ -6,7 +6,7 @@ using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Services.MapRendering;
 using SkiaSharp;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 /// <summary>
 /// 表示範囲画像を Mapsui へ載せる専用レイヤー。1 フィーチャー＝「画像＋その地理範囲」で、

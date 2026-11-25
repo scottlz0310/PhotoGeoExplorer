@@ -3,6 +3,7 @@
 using System;
 using Mapsui;
 using PhotoGeoExplorer.Panes.Map;
+using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using SixLabors.ImageSharp;

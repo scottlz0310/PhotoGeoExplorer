@@ -15,10 +15,9 @@ using Mapsui.Rendering;
 using Mapsui.Rendering.Skia;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
-using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using SkiaSharp;
 
-namespace PhotoGeoExplorer.Panes.Map;
+namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
 /// <summary>
 /// ラスタタイル 1 枚のレイヤーを背景として扱う（OpenStreetMap・Esri・Mapbox）。
