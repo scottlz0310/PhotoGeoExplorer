@@ -409,6 +409,44 @@ public sealed class MapsuiMapSurfaceTests
         }
     }
 
+    [Fact]
+    public void FromReturnsNullForNullAndTheSameInstanceForAMapsuiSurface()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+
+        Assert.Null(MapsuiMapSurface.From(null));
+        Assert.Same(surface, MapsuiMapSurface.From(surface));
+    }
+
+    [Fact]
+    public void FromRejectsASurfaceThatIsNotAMapsuiSurface()
+    {
+        using var other = new FakeMapSurface();
+
+        Assert.Throws<ArgumentException>(() => MapsuiMapSurface.From(other));
+    }
+
+    [Fact]
+    public void ASurfaceFromCreateOwnsItsMapAndDisposeCompletes()
+    {
+        var surface = MapsuiMapSurface.Create();
+
+        Assert.True(surface.OwnsMap);
+        Assert.NotNull(surface.Map);
+        surface.Dispose();
+    }
+
+    [Fact]
+    public void ASurfaceBuiltOnAnExistingMapDoesNotOwnIt()
+    {
+        using var map = new Map();
+        using var surface = new MapsuiMapSurface(map);
+
+        Assert.False(surface.OwnsMap);
+        Assert.Same(map, surface.Map);
+    }
+
     private static MemoryLayer MarkerLayer(Map map)
         => map.Layers.OfType<MemoryLayer>().Single(layer => layer.Name == MapsuiMapSurface.MarkerLayerName);
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Mapsui;
-using Mapsui.Fetcher;
 using Mapsui.Layers;
 using Mapsui.Rendering;
 using Mapsui.Rendering.Skia;
@@ -16,6 +15,10 @@ namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 /// Mapsui の <c>MapControl</c> を包む表示用のコントロール。<c>MapControl</c> の型・イベント・描画フックはここに閉じ込め、
 /// View は <see cref="IMapSurface"/> とこのコントロールの公開部分だけを使う（#362 §11.6-3）。
 /// </summary>
+/// <remarks>
+/// WinUI の要素を持つため単体テストしにくい。テストできる判断（表示面の型の確認・状態の購読）は
+/// <see cref="MapsuiMapSurface.From"/>・<see cref="MapsuiMapStateSubscription"/>・<see cref="MapsuiMarkerHitTest"/> へ切り出してある。
+/// </remarks>
 [System.Diagnostics.CodeAnalysis.SuppressMessage(
     "Design",
     "CA1001:Types that own disposable fields should be disposable",
@@ -24,6 +27,7 @@ internal sealed class MapsuiMapView : UserControl
 {
     private readonly Mapsui.UI.WinUI.MapControl _mapControl = new();
     private MapsuiMapSurface? _surface;
+    private MapsuiMapStateSubscription? _subscription;
 
     internal MapsuiMapView()
     {
@@ -58,27 +62,22 @@ internal sealed class MapsuiMapView : UserControl
         get => _surface;
         set
         {
-            var surface = value switch
-            {
-                null => null,
-                MapsuiMapSurface mapsuiSurface => mapsuiSurface,
-                _ => throw new ArgumentException("The surface is not a Mapsui surface.", nameof(value))
-            };
-
+            var surface = MapsuiMapSurface.From(value);
             if (ReferenceEquals(_surface, surface))
             {
                 return;
             }
 
-            Unsubscribe(_surface);
+            _subscription?.Dispose();
+            _subscription = null;
             _surface = surface;
             if (surface is not null)
             {
                 _mapControl.Map = surface.Map;
-                Subscribe(surface);
+                _subscription = new MapsuiMapStateSubscription(surface, RaiseMapStateChanged);
             }
 
-            MapStateChanged?.Invoke(this, EventArgs.Empty);
+            RaiseMapStateChanged();
         }
     }
 
@@ -94,33 +93,5 @@ internal sealed class MapsuiMapView : UserControl
         }
     }
 
-    private void Subscribe(MapsuiMapSurface surface)
-    {
-        var map = surface.Map;
-        map.DataChanged += OnDataChanged;
-        map.Navigator.ViewportChanged += OnViewportChanged;
-        map.Layers.Changed += OnLayersChanged;
-    }
-
-    private void Unsubscribe(MapsuiMapSurface? surface)
-    {
-        if (surface is null)
-        {
-            return;
-        }
-
-        var map = surface.Map;
-        map.DataChanged -= OnDataChanged;
-        map.Navigator.ViewportChanged -= OnViewportChanged;
-        map.Layers.Changed -= OnLayersChanged;
-    }
-
-    private void OnDataChanged(object? sender, DataChangedEventArgs e)
-        => MapStateChanged?.Invoke(this, EventArgs.Empty);
-
-    private void OnViewportChanged(object? sender, ViewportChangedEventArgs e)
-        => MapStateChanged?.Invoke(this, EventArgs.Empty);
-
-    private void OnLayersChanged(object sender, LayerCollectionChangedEventArgs args)
-        => MapStateChanged?.Invoke(this, EventArgs.Empty);
+    private void RaiseMapStateChanged() => MapStateChanged?.Invoke(this, EventArgs.Empty);
 }

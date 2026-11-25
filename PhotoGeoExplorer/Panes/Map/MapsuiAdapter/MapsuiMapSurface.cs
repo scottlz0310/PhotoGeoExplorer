@@ -72,9 +72,28 @@ internal sealed class MapsuiMapSurface : IMapSurface
     internal static MapsuiMapSurface Create() => new(new Mapsui.Map(), ownsMap: true);
 
     /// <summary>
+    /// 汎用の表示面を、この実装の型へ変換する。<see langword="null"/> はそのまま返す。
+    /// </summary>
+    /// <exception cref="ArgumentException">この実装が作った表示面ではないとき</exception>
+    internal static MapsuiMapSurface? From(IMapSurface? surface)
+    {
+        return surface switch
+        {
+            null => null,
+            MapsuiMapSurface mapsuiSurface => mapsuiSurface,
+            _ => throw new ArgumentException("The surface is not a Mapsui surface.", nameof(surface))
+        };
+    }
+
+    /// <summary>
     /// 地図の実体。<c>MapControl</c> へ渡す（<see cref="MapsuiMapView"/>）。
     /// </summary>
     internal Mapsui.Map Map => _map;
+    /// <summary>
+    /// この表示面が地図を所有し、破棄するときに地図も破棄するか。<see cref="Create"/> で作った表示面は所有する。
+    /// </summary>
+    internal bool OwnsMap => _ownsMap;
+
 
     public MapViewState View
     {
@@ -323,7 +342,7 @@ internal sealed class MapsuiMapSurface : IMapSurface
     /// 地図の描画の開始直前に、表示中の背景へ伝える。<c>MapControl</c> の描画フックから呼ぶ。
     /// </summary>
     /// <remarks>
-    /// フックの引数が Mapsui の型なので、View の薄型化（#362 §11.6-3 の PR ⑤）までは、View のハンドラから直接呼ぶ。
+    /// フックの引数が Mapsui の型なので、<see cref="MapsuiMapView"/> の描画フックから呼ぶ。
     /// </remarks>
     internal Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
         => Volatile.Read(ref _background)?.BeginMapRender(viewport, layers, renderService);
