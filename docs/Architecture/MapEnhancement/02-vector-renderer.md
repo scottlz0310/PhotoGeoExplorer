@@ -279,7 +279,7 @@ P0 の成果物（手順・基準値・基準画像・許容差）は [poc/READM
 
 ## 11. 地図表示面の境界と Mapsui の位置づけ（#362）
 
-- 状態: 設計（合意待ち）。**設計の合意は本 PR で取り、境界分離の実装（§11.6 の 2〜3）は #297 の着手前に完了させる**。#362 起票時の「実装は #297 と一緒に行う」から変更した（理由は §11.9）。調査日 2026-11-25（`main` `dc7111f`）。
+- 状態: 設計。段階 1 は 2026-11-26 のスパイクで**条件つき採用**（§11.10）。**設計の合意は PR #376 で取り、境界分離の実装（§11.6 の 2〜3）は #297 の着手前に完了させる**。#362 起票時の「実装は #297 と一緒に行う」から変更した（理由は §11.9）。調査日 2026-11-25（`main` `dc7111f`）。
 - 方針: **独自の地図エンジンは作らない**。脱却するかどうかを後で判断できる状態を、手戻りなしで作る。
 
 ### 11.1 判断軸
@@ -314,16 +314,16 @@ P0 の成果物（手順・基準値・基準画像・許容差）は [poc/READM
 | 入力の方式 | `ManipulationMode`＋`ManipulationDelta`＋OS の慣性（`PanZoomInputAdapter`） | 移動・拡大は同じ方式（Mapsui 5.2.0 の WinUI `MapControl` も `ManipulationMode`＋`ManipulationDelta`）。ただし `ManipulationMode` に `TranslateInertia` は含まず、OS の慣性は使わない |
 | 状態 | `PanZoomController`（Core） | `Navigator`（Mapsui） |
 | ホイール | 回転量に比例する連続倍率、カーソル基準 | 解像度の段階を 1 つ進める、600 ms・`QuarticOut`、カーソル基準 |
-| 慣性 | OS の慣性 | Mapsui 自前の `FlingTracker`＋`FlingAnimation`。共有 `MapControl.OnPointerReleased` が `UseFling`（既定 true）のとき `Navigator.Fling` を呼ぶ（速度が `FlingTracker.MinVelocity` 以上で、最大 1000 ms、`SinIn`）。WinUI の `MapControl.cs` 自身には慣性の呼び出しがなく、**`ManipulationDelta` 経由の操作で実際に発動するかは実機で未確認** |
+| 慣性 | OS の慣性 | Mapsui 自前の `FlingTracker`＋`FlingAnimation`。共有 `MapControl.OnPointerReleased` が `UseFling`（既定 true）のとき `Navigator.Fling` を呼ぶ（速度が `FlingTracker.MinVelocity` 以上で、最大 1000 ms、`SinIn`）。WinUI の `MapControl.cs` 自身には慣性の呼び出しがなく、**`ManipulationDelta` 経由の操作で実際に発動するかは実機で未確認**（2026-11-26 に発動を確認。§11.10） |
 
 つまり、移動・拡大の入力は同じ仕組みの重複だが、慣性の実装（OS と Mapsui 自前）とホイールの挙動が食い違っている。**慣性の挙動は、地図とプレビューで異なる可能性がある**（段階 1 で実機確認する）。
 
 **アニメーションの実態。** アプリが明示するアニメーションは**ない**。`CenterOn`・`ZoomToBox`・`CenterOnAndZoomTo` の呼び出しはすべて duration が 0（即時）で、`MouseWheelAnimation` の設定も変えていない。実際に使われているのは Mapsui の組み込みの 2 つだけ。
 
 - **ホイールズーム**: 解像度の段階を 1 つ進める 600 ms の補間（`QuarticOut`）。連続して回すと、補間中の目標解像度から次の段階へ進む。
-- **慣性（Fling）**: Mapsui 自前の実装（上の表）。WinUI の操作で発動するかは実機で未確認。プレビュー（#370）は OS の慣性を持つ。
+- **慣性（Fling）**: Mapsui 自前の実装（上の表）。WinUI の操作で発動するかは実機で未確認（2026-11-26 に発動を確認。§11.10）。プレビュー（#370）は OS の慣性を持つ。
 
-**回転。** アプリは `RotationLock` を設定していない。Mapsui 既定の回転ジェスチャーをアプリが許しているかは本調査で確かめていない（検証項目に入れる）。
+**回転。** アプリは `RotationLock` を設定していない。Mapsui 既定の回転ジェスチャーをアプリが許しているかは本調査で確かめていない（検証項目に入れる。2026-11-26 に、現行が回転を許していることを確認。§11.10）。
 
 ### 11.3 Mapsui 代替の再見積り
 
@@ -373,7 +373,7 @@ Mapsui を使うかどうかに関係なく成り立つ、2 層の構成にす�
 | 1（候補） | **入力の一本化**: `PanZoomInputAdapter` を `MapControl` に付け、Mapsui の入力はロックして、状態は Core の核が持ち、`Navigator` へは視点を即時に反映する。Mapsui は表示面だけになる | 解消 | 小〜中。**要検証**（下記） |
 | 2 | **表示面の置換**: `SKXamlCanvas` 上の自前の表示面。ラスタの連続ズーム表示・マーカー層・保存 | 解消（Mapsui 依存も消える） | 大。スパイクで見積もる |
 
-**段階 1 の検証項目**（実装前に小さなスパイクで確かめる。結果次第で段階 2 へ進むか、現状のままにするかを決める）:
+**段階 1 の検証項目**（実装前に小さなスパイクで確かめる。結果次第で段階 2 へ進むか、現状のままにするかを決める。2026-11-26 に実施し、結果と採用した反映の方法は §11.10）:
 
 - Mapsui の `ZoomLock` / `PanLock` で、`MapControl` 自身の入力を止めても、`CenterOnAndZoomTo`（duration 0）での視点の設定は効くか。`PanLock` は矩形選択で既に使っている（#362 の漏れの表）ため、衝突しない別の仕組みが要る。
 - `MapControl` 自身の `ManipulationDelta`・ホイールのハンドラと、アダプタが並走して二重に動かないか。
@@ -391,7 +391,7 @@ Mapsui を使うかどうかに関係なく成り立つ、2 層の構成にす�
 1. 本章（境界・背景カタログ・再見積り）の合意（この PR）。
 2. 背景カタログの実装（#368・#366 の共通の土台。Mapsui のまま、挙動不変）。
 3. `IMapSurface` と Mapsui アダプタへの分離（挙動不変のリファクタリング。#297 の前に行う）。
-4. **段階 1 のスパイク**（入力の一本化。上の検証項目）。
+4. **段階 1 のスパイク**（入力の一本化。上の検証項目）。実施済み（§11.10。条件つき採用）。製品への実装と 5 との順序は未合意。
 5. #368、#366、#297 を、整理した境界の上に実装する。
 6. **段階 2 のスパイク**（ラスタの連続ズーム表示）。下記の開始条件のいずれかが成り立ったとき、または 4 の結果で二重実装が許容できないと判断したとき。
 
@@ -427,3 +427,87 @@ Mapsui を使うかどうかに関係なく成り立つ、2 層の構成にす�
 - 2026-11-25（§11.6-3 PR ③＝背景・帰属表示・密度・PNG 保存。**PR ③ と PR ④ を 1 本にした**）: PNG 保存は背景の保存用レイヤー（`CreateExportLayersAsync`）と不可分で、分けると中間状態で Mapsui の型が ViewModel に残るため。`IMapBackground` は Mapsui フリー（`SourceType`・`AttributionText`・`IsBusy`・`BusyChanged`・`FrameRendered`）にし、`Layers`・`Attach(Map, Func<double>)`・`OnPixelDensityChanged`・`BeginMapRender`・`CreateExportLayersAsync` は `MapsuiAdapter` の `IMapsuiBackground` へ分けた（Raster/Vector の背景が実装）。`IMapSurface` に `PixelDensity`・`ReplaceBackground`・`RenderPngAsync` を追加し、帰属ウィジェット（`MapAttributionPresenter`）・保存用レイヤーの合成・`MapsuiMapImageRenderer` は表示面が使う。`IMapPaneService.InitializeMap` は背景のレイヤーを地図へ載せず、表示面の `ReplaceBackground` が載せる。`IMapImageService.RenderPng` と `IMapImageRenderer` は不要になり削除。`MapControl` の描画フック（`ObservingMapRenderer`）は引数が Mapsui の型なので、PR ⑤ まで View のハンドラから `MapsuiMapSurface.BeginMapRender` を直接呼ぶ。**残り（PR ⑤）**: ファイルのアダプタ配下への集約、`MapControl` を包むアダプタのコントロール（`Info`・描画フック・`DataChanged` などの購読を表示面へ）、`IMapPaneService.InitializeMap` が返す `Mapsui.Map` と View の `Map` の参照の解消、`using Mapsui` のソース走査ガード。
 - 2026-11-25（§11.6-3 PR ⑤a＝ファイル集約とソース走査ガード。PR ⑤ を ⑤a・⑤b に分割。ユーザー承認）: Raster/Vector の背景・`ViewExtentImageLayer`・`ViewExtentImageStyleRenderer`・`ObservingMapRenderer`・`MapAttributionPresenter`・`MapboxSatelliteTileSource`・`MapExportLayers`・`MapsuiMapImageRenderer` を `Panes/Map/MapsuiAdapter` へ移し、名前空間をそろえた（中身は変えない）。`MapsuiBoundaryTests` を追加: アダプタの外で `Mapsui`・`BruTile`（C# のコメントを除く）を使うとテストが失敗する。**移行途中の 5 ファイル（`IMapPaneService`・`MapPaneService`・`MapPaneViewModel`・`MapPaneViewControl.xaml(.cs)`）だけを一覧で許可**し、使わなくなったファイルが一覧に残っているときも失敗させる（一覧が新しい漏れを隠さないように）。**⑤b** で、`MapControl` を包むアダプタのコントロール・`InitializeMap` が返す `Mapsui.Map` の解消を行い、この一覧を空にする。
 - 2026-11-25（§11.6-3 PR ⑤b＝`MapControl` を包むアダプタのコントロール。**§11.6 の 3 が完了**）: `MapsuiAdapter/MapsuiMapView`（コード生成のみの `UserControl`）を追加。`MapControl` の生成・`SetMapRenderer`（描画フック）・`Info`（マーカーのヒット判定）・`DataChanged`/`Navigator.ViewportChanged`/`Layers.Changed` の購読を包み、View へは `MarkerClicked`・`MapStateChanged` と、ポインタ入力・フライアウトの基準になる `InputElement`（`FrameworkElement`）だけを出す。自動操作の識別子 `MapControl` は内側のコントロールに付けたまま。`MapPaneViewControl.xaml` は `<mapsui:MapControl>` から `<MapsuiMapView>` へ。`IMapPaneService.InitializeMap` は `(背景, 表示面)` を返し、地図（`Mapsui.Map`）は表示面が持って破棄する（`MapsuiMapSurface.Create()`）。`MapPaneViewModel.Map` を廃止し、`Surface`（通知つき）を View が接続する。`MapPaneService` の背景・タイル・キャッシュの生成は `MapsuiMapFactory` へ。`MapsuiBoundaryTests` の許可一覧を撤廃し、`PhotoGeoExplorer.Core` も走査対象にした。**残り**: §11.6 の 4（段階 1 のスパイク: 入力の一本化）。`MapsuiMarkerHitTest.FindMarker` の自動テスト（`MapInfoEventArgs` を作る手段が未確認）と、`SwitchTileSource` 中の `ReplaceBackground` の失敗時に旧背景が破棄されない件（#381 の non-blocking）は、必要になった時点で対応する。
+- 2026-11-26（段階 1 のスパイク）: 入力の一本化を WinUI 実機で比べ、**分割版で条件つき採用**とした（§11.10）。起票時の想定だった「`CenterOnAndZoomTo` での即時の反映」は、ラスタの取得が増えるため採らない。回転は当面許さない（恒久の決定ではない）。
+
+### 11.10 段階 1 のスパイクの結果（2026-11-26）
+
+**判定: 分割版（下の表）で、段階 1 を条件つきで採用する**（2026-11-26 に合意）。製品への実装は別の PR で行う。
+
+#### 条件
+
+- `main`（`3c7f650`）に、記録と試作を足したビルド（Release x64）。試作のコードは使い捨てのローカルブランチ `spike/362-p1-input` にあり、**`main` へはマージしない**。測定のスクリプトと生データは、実施者のハンドオフに保管する。
+- Windows 11（10.0.26300）、AMD Ryzen AI 9 HX 370、表示倍率 150%、地図ペイン 843×679 DIP。#295 の基準を採った端末とは違うため、**同じ端末の現行との差**で判定した。
+- 入力は、`SendInput` のマウス（8 ms 刻み）と、`InjectSyntheticPointerInput` の合成タッチ。実機のタッチ端末は使っていない。
+- ラスタは、固定の遅延（100 ms）を持つローカルのタイルサーバー（OpenStreetMap の背景の取得先を差し替え、各回とも空のキャッシュから）。ベクターは OpenFreeMap（取得済み）。
+- ドラッグとホイールは各 3 回、操作確認は各 1 回。合成タッチは現行・`set`・`manipulate` が各 1 回、分割版が 3 回。分割版は、他の方式の約 1 時間後に測った。
+
+#### 比べた方式
+
+試作はいずれも、`MapControl` の `PanLock`・`ZoomLock`・`RotationLock` をかけて `UseFling` を無効にし、`PanZoomInputAdapter`（#370）で入力を受ける。違いは、受けた入力の反映の方法である。ホイールは、どの試作も `CenterOnAndZoomTo`（duration 0）で反映した。
+
+| 方式 | ドラッグ・ピンチの反映 | 視点を計算する側 |
+|---|---|---|
+| 現行 | Mapsui の `MapControl` の入力 | Mapsui |
+| `set` | `CenterOnAndZoomTo`（duration 0） | アプリ |
+| `manipulate` | `Navigator.Manipulate` を 1 回（呼ぶ間だけロックを外す） | Mapsui |
+| **分割版** | 画面中心の拡大と、平行移動の 2 回の `Navigator.Manipulate`（呼ぶ間だけロックを外す） | アプリ |
+
+#### 結果（中央値）
+
+| 項目 | 現行 | `set` | `manipulate` | 分割版 |
+|---|---|---|---|---|
+| ベクターの描画間隔 p95（取得済みの範囲） | 25.0 ms | 23.7 ms | 23.4 ms | 23.5 ms |
+| 同、50 ms 超の停止 | 0 | 0 | 0 | 0 |
+| ベクターの入力→描画 p95（取得済みの範囲） | 17.7 ms | 16.6 ms | 16.7 ms | 16.2 ms |
+| ラスタのドラッグ中の取得要求（未取得の範囲の 8 回） | 0 | 1,039（入力のたび） | 0 | 0 |
+| ラスタのタイル要求数（同上） | 140 | **171** | 142 | 135 |
+| 4 倍のピンチの中心のずれ | **1,861 DIP** | 1.5 DIP | 27.8 DIP | 1.5 DIP |
+| 60 度の回転操作 | **回転する**（中心も 603 DIP ずれる） | 回転しない | 回転しない | 回転しない |
+| 速いドラッグ後の慣性（ラスタ） | 901 DIP・0.36 秒 | 1,894 DIP・1.0 秒 | 1,879 DIP・1.0 秒 | 1,945 DIP・1.0 秒 |
+| 同（ベクター） | 751 DIP・0.36 秒 | 4,191 DIP・1.5 秒 | 5,191 DIP・1.7 秒 | 3,439 DIP・1.4 秒 |
+| ホイール 5 ノッチ | 16 倍（戻しの 5 ノッチで開始の 0.5 倍） | 1.61 倍（戻して 1 倍） | 同左 | 同左 |
+
+- 描画間隔は、目安の p95 ≒ 20 ms にはこの端末の現行でも届かないため、現行との差で見た。コールドのベクターでは、`manipulate` の 1 回だけ 50 ms 超の停止が 3 回出た（その回は入力のイベントが約 3 分の 2 に減っていた。原因は未特定）。
+- 慣性の距離はばらつきが大きい。`manipulate` のベクターは、1 回が 23,127 DIP まで伸びた。
+- 分割版の 1.5 DIP は、合成タッチの指の中心が 2 DIP 動くためで、記録した入力を正確な式で再計算した視点との差は、ピンチで 0.1 DIP 以下、拡大と移動を同時に行ってズームの上限に当たる操作で 0.4 DIP 以下だった。
+
+#### §11.5 の検証項目への回答
+
+| 検証項目 | 結果 |
+|---|---|
+| ロック中の視点の設定 | `CenterOnAndZoomTo` はロックを見ないため効く。`Manipulate` はロックに従うため、呼ぶ間だけ外す必要がある |
+| 入力の二重動作 | なし。ドラッグの移動量と地図の移動量の比は 1.0 |
+| タップ・矩形選択 | マーカーのクリック、矩形選択中の視点の固定と解除後の移動は、現行と同じ。ホバーと、矩形選択で写真が選ばれることは未確認 |
+| `ViewportChanged` との往復 | 起きない。視点の状態は `Navigator` だけが持ち、試作は現在の視点から次の視点を計算する |
+| 回転 | 現行は回転を許している（合成タッチで確認） |
+| ベクターの入力追従 | 悪化しない |
+| ラスタの取得頻度 | `set` は取得要求が入力のたびに出て、タイル要求が約 22% 増える。分割版は現行と同等 |
+| 慣性の有無 | 現行の地図にもある（`Fling`）。試作は OS の慣性で、現行より長く滑る |
+
+あわせて、`MapControl` がホイールを処理済みにしても、同じ要素の後からの購読に届くことを確認した。
+
+現行の中心のずれは、Mapsui 5.2.0 の WinUI `MapControl` が、要素相対の `ManipulationDelta` の座標から要素の原点をさらに引くことによる（原点から予測したずれと、実測がほぼ一致する。#384）。`manipulate` の 27.8 DIP は、`Navigator.Manipulate` が拡大の補正に拡大前の解像度の座標を使う近似による（同じ式で再計算して一致する）。分割版は、中心基準の拡大と、拡大を伴わない移動に分けるため、この近似の影響を受けない。ラスタの帰属表示が二重に描かれることも見つかった（#385。段階 1 とは別）。
+
+#### 判定の理由
+
+- `set` は、ラスタの取得が増えるため不採用。Mapbox は利用者自身のトークンで使うため、要求の増加は利用枠の消費につながる。
+- `manipulate` は基準を満たすが、ピンチの中心がずれ、視点の計算が Mapsui に残る。
+- 分割版は、取得の回数と描画が現行と同等で、中心が正確で、視点の計算を Core に置ける。
+
+#### 実装の方針
+
+- **入力**: `PanZoomInputAdapter` の渡し先をインターフェイス（ジェスチャー 1 回分の適用とホイール）にして、プレビューと地図で共用する。
+- **計算**: 現在の視点とジェスチャーから次の視点を返す純粋な計算を Core に置く。視点の状態は `Navigator` が持ち、Core に別の状態を作らない（§11.5 の段階 1 の「状態は Core の核が持ち」を改める。状態の二重化と往復を避けるため）。
+- **反映**: アダプタの中でロックを外し、画面中心の拡大、平行移動の順に `Manipulate` する。移動先は、ズームの上下限で丸められた**実際の倍率**で計算する。正確な計算との一致・取得要求を出さないこと・ロックの復元・上下限を、テストで固定する。
+- **取得**: 操作の終了時の取得は、現行どおり `MapControl` が行う。
+- **矩形選択**: パンの固定中は、アダプタ側で移動を止め、中心基準の拡大だけを通す。
+- **回転**: **当面は許さない**（`RotationLock` をかけ、入力でも回転を受けない）。将来の対応は妨げないため、視点の型と計算に回転を足せる形を保つ。
+
+#### 採用の条件と残る確認
+
+1. 慣性の速度の上限と減速を調整し、現行から大きく離れないようにする（OS の慣性をそのまま使うと長く滑る）。
+2. ホイールの 1 ノッチの倍率と、補間の要否を決める（プレビューと同じ 1.1 倍は、地図には弱い）。
+3. 実装の PR で確認する: EXIF 位置ピック、矩形選択で写真が選ばれること、ホバー、手で操作した感触、実機のタッチ、他の表示倍率、Esri・Mapbox の背景。
+4. ロックの一時解除と、`Manipulate` の分割は、Mapsui の振る舞いに依存する。Mapsui の更新時に、上のテストと実機で確認する。
+
+段階 1 は Mapsui 上で成り立ったため、§11.7 の「段階 1 の結果」による段階 2 のスパイクは始めない。
