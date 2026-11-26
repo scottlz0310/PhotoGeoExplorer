@@ -14,6 +14,7 @@
 - 地図の背景の差し替え・帰属表示・画素密度の伝達・PNG 保存を、地図ライブラリに依存しない表示面の契約 `IMapSurface`（`ReplaceBackground`・`PixelDensity`・`RenderPngAsync`）へ移した (#362)。`IMapBackground` は Mapsui の型を出さない契約になり、Mapsui を使う部分は `MapsuiAdapter` の `IMapsuiBackground` に分けた。`MapPaneViewModel` は Mapsui の `using` を持たなくなった。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の第 3 段。
 - 地図ライブラリ（Mapsui・BruTile）に依存するファイル（Raster/Vector の背景、ViewExtent の画像レイヤー、描画フック、帰属ウィジェット、Mapbox のタイルソース、保存用レイヤー、PNG の描画）を `Panes/Map/MapsuiAdapter` へ集約し、名前空間を `PhotoGeoExplorer.Panes.Map.MapsuiAdapter` にそろえた (#362)。アダプタの外で Mapsui・BruTile を使うと、ソース走査のテスト（`MapsuiBoundaryTests`）が失敗する。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の第 4 段。
 - 地図の `MapControl` を包むアダプタのコントロール `MapsuiMapView` を追加し、`MapPaneViewControl` と `MapPaneViewModel` から Mapsui の型・イベント・描画フックを外した (#362)。View はマーカーのクリック・地図の状態変化の通知・ポインタ入力用の要素だけを使い、地図（`Mapsui.Map`）は表示面が持つ。`MapPaneService` の Mapsui 部分（背景・タイル・キャッシュの生成）は `MapsuiMapFactory` へ移した。アダプタの外で Mapsui・BruTile を使うとテストが失敗し（`PhotoGeoExplorer.Core` も対象）、移行途中の許可一覧はなくなった。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の完了。
+- アプリのアイコンを Microsoft Store の掲載画像（レンズ越しのオーロラと地図）にそろえた。タスクバー・タイトルバー・スタート・Store ロゴに加えて、起動画面と横長タイルも新しい画像にし、表示倍率ごとの画像を追加した。起動画面の背景色も画像に合わせた。画像は原画（`assets-source/`）から `scripts/New-AppAssets.ps1` で作り直せる。
 
 ### 修正
 - タッチのピンチで、指の間とは違う場所を中心に地図が拡大・縮小される不具合を直した (#384)。
