@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using PhotoGeoExplorer.Services.MapRendering;
+using PhotoGeoExplorer.Services.PanZoom;
 
 namespace PhotoGeoExplorer.Panes.Map;
 
@@ -51,13 +52,35 @@ internal interface IMapSurface : IDisposable
     bool TryGetGeoPosition(double screenX, double screenY, out GeoPoint position);
 
     /// <summary>
-    /// パンを止める。矩形選択中に地図が動かないようにするために使う。
-    /// 止める前の状態を覚えておき、<see cref="RestorePan"/> で戻す。重ねて呼んでも、覚える状態は最初の 1 回だけ。
+    /// 入力によるパンを止める。矩形選択中に地図が動かないようにするために使う。拡大・縮小は、中心を基準にして受ける。
+    /// <see cref="RestorePan"/> で戻す。重ねて呼んでもよい。
     /// </summary>
     void LockPan();
 
-    /// <summary><see cref="LockPan"/> の前の状態へ戻す。止めていなければ何もしない。</summary>
+    /// <summary><see cref="LockPan"/> で止めたパンを戻す。止めていなければ何もしない。</summary>
     void RestorePan();
+
+    /// <summary>
+    /// ドラッグ・ピンチ・慣性の 1 回分を視点へ反映する。タイルの取得は要求しない（操作の終了時に表示コントロールが行う）。
+    /// UI スレッドから呼ぶ。
+    /// </summary>
+    /// <param name="pivot">拡大の基準（表示面の左上が原点、論理ピクセル）</param>
+    /// <param name="scaleFactor">倍率の変化。正の有限値</param>
+    /// <param name="translationX">X の移動量（論理ピクセル）</param>
+    /// <param name="translationY">Y の移動量（論理ピクセル）</param>
+    /// <param name="isInertial">慣性による変化か</param>
+    /// <returns>
+    /// 慣性の途中で、<see cref="SetView"/> やマーカーの表示で視点が移された、またはホイールで拡大されたため、
+    /// 慣性を打ち切るべきとき <see langword="false"/>
+    /// </returns>
+    bool ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY, bool isInertial);
+
+    /// <summary>
+    /// ホイールの回転で、ズームの段階を 1 つ進める（地図ライブラリの補間つき）。UI スレッドから呼ぶ。
+    /// </summary>
+    /// <param name="wheelDelta">回転量。正で拡大、負で縮小</param>
+    /// <param name="anchor">拡大の基準（表示面の左上が原点、論理ピクセル）。パンを止めている間は中心を基準にする</param>
+    void ZoomByWheel(int wheelDelta, PanZoomPoint anchor);
 
     /// <summary>矩形選択の枠（対角の 2 点）を表示する。表示中なら置き換える。</summary>
     void ShowSelectionRectangle(GeoPoint corner1, GeoPoint corner2);

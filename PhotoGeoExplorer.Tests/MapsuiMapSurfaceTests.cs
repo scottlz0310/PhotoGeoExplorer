@@ -180,46 +180,6 @@ public sealed class MapsuiMapSurfaceTests
     }
 
     [Fact]
-    public void LockPanStopsPanningAndRestorePanBringsBackThePreviousState()
-    {
-        using var map = new Map();
-        using var surface = new MapsuiMapSurface(map);
-        map.Navigator.PanLock = false;
-
-        surface.LockPan();
-        Assert.True(map.Navigator.PanLock);
-        surface.RestorePan();
-
-        Assert.False(map.Navigator.PanLock);
-    }
-
-    [Fact]
-    public void RestorePanKeepsAPanLockThatWasAlreadyOnBeforeLocking()
-    {
-        using var map = new Map();
-        using var surface = new MapsuiMapSurface(map);
-        map.Navigator.PanLock = true;
-
-        surface.LockPan();
-        surface.LockPan();
-        surface.RestorePan();
-
-        Assert.True(map.Navigator.PanLock);
-    }
-
-    [Fact]
-    public void RestorePanWithoutLockDoesNotTouchTheNavigator()
-    {
-        using var map = new Map();
-        using var surface = new MapsuiMapSurface(map);
-        map.Navigator.PanLock = true;
-
-        surface.RestorePan();
-
-        Assert.True(map.Navigator.PanLock);
-    }
-
-    [Fact]
     public void ShowSelectionRectangleAddsALayerAndClearRemovesIt()
     {
         using var map = new Map();

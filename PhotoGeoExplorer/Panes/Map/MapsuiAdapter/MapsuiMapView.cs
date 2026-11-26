@@ -9,6 +9,8 @@ using Mapsui.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using PhotoGeoExplorer.Services.MapRendering;
+using PhotoGeoExplorer.Services.PanZoom;
 
 namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
@@ -17,8 +19,9 @@ namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 /// View は <see cref="IMapSurface"/> とこのコントロールの公開部分だけを使う（#362 §11.6-3）。
 /// </summary>
 /// <remarks>
-/// WinUI の要素を持つため単体テストしにくい。テストできる判断（表示面の型の確認・状態の購読）は
-/// <see cref="MapsuiMapSurface.From"/>・<see cref="MapsuiMapStateSubscription"/>・<see cref="MapsuiMarkerHitTest"/> へ切り出してある。
+/// WinUI の要素を持つため単体テストしにくい。テストできる判断（表示面の型の確認・状態の購読・入力の反映）は
+/// <see cref="MapsuiMapSurface"/>・<see cref="MapsuiMapStateSubscription"/>・<see cref="MapsuiMarkerHitTest"/> へ切り出してある。
+/// 移動・拡大の入力は、画像プレビューと同じ <see cref="PanZoomInputAdapter"/> で受ける（#362 段階 1）。
 /// </remarks>
 [ExcludeFromCodeCoverage(Justification = "WinUI の MapControl を包む UI 配線で、実ウィンドウが必要なため。テストできる判断は MapsuiMapSurface.From・MapsuiMapStateSubscription・MapsuiMarkerHitTest へ切り出して、追跡している。")]
 [SuppressMessage(
@@ -39,6 +42,10 @@ internal sealed class MapsuiMapView : UserControl
         AutomationProperties.SetAutomationId(_mapControl, "MapControl");
         _mapControl.Info += OnMapInfo;
         Content = _mapControl;
+
+        // 滑る動きは OS の慣性に置き換える（MapControl 自身の移動・拡大は、表示面がロックして止める）
+        _mapControl.UseFling = false;
+        _ = new PanZoomInputAdapter(_mapControl, new MapSurfaceInputTarget(() => _surface), MapInertia.Resolve);
     }
 
     /// <summary>
