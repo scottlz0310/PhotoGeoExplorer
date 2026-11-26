@@ -88,7 +88,10 @@ public sealed partial class MainWindow : Window, IDisposable
             dialogService,
             uiDispatcher: new UiDispatcher());
         _startupCoordinator = new StartupCoordinator(_fileBrowserPaneViewModel);
-        _previewPaneViewModel = new PreviewPaneViewModel(new PreviewPaneService(), _viewModel.WorkspaceState);
+        _previewPaneViewModel = new PreviewPaneViewModel(
+            new PreviewPaneService(),
+            _viewModel.WorkspaceState,
+            new UiDispatcher());
         var mapImageService = new MapImageService();
         _areaDataHttpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UserAgentProvider.UserAgent);
         var areaDataDownloadDisabled = E2EOptions.IsAreaDataDownloadDisabled();

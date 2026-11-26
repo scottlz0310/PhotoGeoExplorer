@@ -1,10 +1,8 @@
 using System;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Services;
@@ -30,13 +28,11 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     /// </summary>
     internal const double WheelFactorPerNotch = 1.1;
 
-    private const int ClassNotRegisteredHresult = unchecked((int)0x80040154);
-
     private readonly IPreviewPaneService _service;
     private readonly WorkspaceState _workspaceState;
+    private readonly IUiDispatcher _uiDispatcher;
     private readonly RelayCommand _nextCommand;
     private readonly RelayCommand _previousCommand;
-    private DispatcherQueue? _uiDispatcherQueue;
     private BitmapImage? _currentImage;
     private Visibility _placeholderVisibility = Visibility.Visible;
     private string? _metadataSummary;
@@ -44,16 +40,23 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private PanZoomSize _viewportSize;
     private PanZoomSize _imageSize;
     private string? _currentFilePath;
+    private int _selectionVersion;
+    private int _loadVersion;
+    private volatile bool _isCleanedUp;
 
     public PreviewPaneViewModel()
         : this(new PreviewPaneService(), new WorkspaceState())
     {
     }
 
-    internal PreviewPaneViewModel(IPreviewPaneService service, WorkspaceState workspaceState)
+    internal PreviewPaneViewModel(
+        IPreviewPaneService service,
+        WorkspaceState workspaceState,
+        IUiDispatcher? uiDispatcher = null)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
+        _uiDispatcher = uiDispatcher ?? new UiDispatcher();
         Title = "Preview";
 
         FitCommand = new RelayCommand(ExecuteFitAsync);
@@ -64,11 +67,6 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
         // WorkspaceState の変更を監視
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
-    }
-
-    internal void InitializeDispatcherQueue(DispatcherQueue dispatcherQueue)
-    {
-        _uiDispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
     }
 
     /// <summary>
@@ -201,9 +199,11 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
     protected override void OnCleanup()
     {
+        _isCleanedUp = true;
         _workspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
         CurrentImage = null;
         _currentFilePath = null;
+        _loadVersion++;
     }
 
     protected override void OnActiveChanged()
@@ -237,35 +237,20 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         var selectedPhotos = _workspaceState.SelectedPhotos;
         if (selectedPhotos is null || selectedPhotos.Count == 0)
         {
-            // UI スレッドでクリア
-            var clearQueue = TryGetDispatcherQueue();
-            if (clearQueue is null)
+            // 反映が後回しになる間に次の選択が届くことがある（一覧の選択の入れ直しは「空 → 選択」の順に届く）
+            var clearVersion = ++_selectionVersion;
+            await ApplyOnUiAsync(() =>
             {
+                if (clearVersion != _selectionVersion)
+                {
+                    return;
+                }
+
                 CurrentImage = null;
                 MetadataSummary = null;
                 _currentFilePath = null;
-            }
-            else
-            {
-                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                clearQueue.TryEnqueue(() =>
-                {
-                    try
-                    {
-                        CurrentImage = null;
-                        MetadataSummary = null;
-                        _currentFilePath = null;
-                        tcs.TrySetResult(true);
-                    }
-#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
-                    catch (Exception ex)
-                    {
-                        tcs.TrySetException(ex);
-                    }
-#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
-                });
-                await tcs.Task.ConfigureAwait(false);
-            }
+                _loadVersion++;
+            }).ConfigureAwait(false);
             return;
         }
 
@@ -276,59 +261,54 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         }
 
         var filePath = selectedPhoto.FilePath;
-        if (string.IsNullOrWhiteSpace(filePath) || filePath == _currentFilePath)
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        // 反映を待っている消去は、この選択より古いので取り消す
+        _selectionVersion++;
+        if (filePath == _currentFilePath)
         {
             return;
         }
 
         _currentFilePath = filePath;
+        var loadVersion = ++_loadVersion;
 
         var image = await _service.LoadImageAsync(filePath).ConfigureAwait(false);
         var metadata = await _service.GetMetadataAsync(filePath, CancellationToken.None).ConfigureAwait(false);
 
-        // UI スレッドで更新
-        var dispatcherQueue = TryGetDispatcherQueue();
-        if (dispatcherQueue is null)
+        // 後片付けの後や、別の読み込みに替わった後は投入しない（終了処理の後の UI のキューは投入を拒否する）
+        if (loadVersion != Volatile.Read(ref _loadVersion))
         {
+            return;
+        }
+
+        await ApplyOnUiAsync(() =>
+        {
+            // 読み込みの間に別の読み込みが始まったか、選択が解除されていれば反映しない。
+            // 別の写真を経て同じ写真へ戻ることがあるので、パスではなく読み込みの番号で比べる
+            if (loadVersion != _loadVersion)
+            {
+                return;
+            }
+
             CurrentImage = image;
             MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
-        }
-        else
-        {
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            dispatcherQueue.TryEnqueue(() =>
-            {
-                try
-                {
-                    CurrentImage = image;
-                    MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
-                    tcs.TrySetResult(true);
-                }
-#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
-                catch (Exception ex)
-                {
-                    tcs.TrySetException(ex);
-                }
-#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
-            });
-            await tcs.Task.ConfigureAwait(false);
-        }
+        }).ConfigureAwait(false);
     }
 
-    private DispatcherQueue? TryGetDispatcherQueue()
+    private async Task ApplyOnUiAsync(Action apply)
     {
-        if (_uiDispatcherQueue is not null)
-        {
-            return _uiDispatcherQueue;
-        }
-
         try
         {
-            return DispatcherQueue.GetForCurrentThread();
+            await _uiDispatcher.RunAsync(apply).ConfigureAwait(false);
         }
-        catch (COMException ex) when (ex.HResult == ClassNotRegisteredHresult)
+        catch (InvalidOperationException ex) when (_isCleanedUp)
         {
-            return null;
+            // 終了処理と投入が重なると拒否される。後片付けの後に反映するものはないので、失敗にしない
+            AppLog.Info($"Preview update was skipped because the pane has been cleaned up: {ex.Message}");
         }
     }
 
