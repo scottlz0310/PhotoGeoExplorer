@@ -32,12 +32,12 @@ Cloudflare Pages の Git 連携は GitHub の外で動くため、push の通知
 
 - `/` → `docs/index.html`
 - `/privacy-policy` → `docs/privacy-policy.html`（アプリと Store が案内する URL。`/privacy-policy.html` はここへ転送される）
-- `/privacy-policy/` → `docs/privacy-policy/index.html`
+- `/privacy-policy/` → `/privacy-policy` へ転送（`docs/_redirects`）
 - `/help/index.html` → `docs/help/index.html`
 - `/help/index.en.html` → `docs/help/index.en.html`
 
 > [!NOTE]
-> `docs/privacy-policy.html` と `docs/privacy-policy/index.html` は同じ内容を維持してください（単体テストで検査します）。内容を変えたら「最終更新日」も更新してください。
+> プライバシーポリシーの本文は `docs/privacy-policy.html` だけに置きます。内容を変えたら「最終更新日」も更新してください。
 > `docs/help/index*.html` はアプリ同梱ヘルプ（`PhotoGeoExplorer/wwwroot/help/index*.html`）と同じ内容を維持してください。
 
 ## 確認 URL

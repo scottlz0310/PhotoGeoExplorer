@@ -1,0 +1,2 @@
+# 以前の末尾スラッシュつきの URL を、正本（privacy-policy.html）の URL へ転送する
+/privacy-policy/ /privacy-policy 301
