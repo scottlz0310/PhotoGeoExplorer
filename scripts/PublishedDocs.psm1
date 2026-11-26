@@ -11,7 +11,8 @@ function Get-PublishedDocsTargets {
 
     @(
         [pscustomobject]@{ UrlPath = '/'; File = 'index.html' }
-        [pscustomobject]@{ UrlPath = '/privacy-policy'; File = 'privacy-policy/index.html' }
+        [pscustomobject]@{ UrlPath = '/privacy-policy'; File = 'privacy-policy.html' }
+        [pscustomobject]@{ UrlPath = '/privacy-policy/'; File = 'privacy-policy/index.html' }
         [pscustomobject]@{ UrlPath = '/help/index.html'; File = 'help/index.html' }
         [pscustomobject]@{ UrlPath = '/help/index.en.html'; File = 'help/index.en.html' }
     )

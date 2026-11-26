@@ -49,6 +49,14 @@ Describe 'Get-PublishedDocsTargets' {
         $paths | Should -Contain '/help/index.html'
         $paths | Should -Contain '/help/index.en.html'
     }
+
+    # Cloudflare Pages は、拡張子なしの URL に同名の .html を返し、末尾が / の URL に index.html を返す。
+    It 'maps <UrlPath> to the file Cloudflare Pages serves' -ForEach @(
+        @{ UrlPath = '/privacy-policy'; File = 'privacy-policy.html' }
+        @{ UrlPath = '/privacy-policy/'; File = 'privacy-policy/index.html' }
+    ) {
+        (Get-PublishedDocsTargets | Where-Object UrlPath -CEQ $UrlPath).File | Should -BeExactly $File
+    }
 }
 
 Describe 'Find-PublishedDocsMismatch' {
