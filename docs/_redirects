@@ -1,0 +1,3 @@
+# 削除した複製（privacy-policy/index.html）の URL を、正本（privacy-policy.html）の URL へ転送する
+/privacy-policy/ /privacy-policy 301
+/privacy-policy/index.html /privacy-policy 301
