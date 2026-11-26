@@ -109,6 +109,63 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.Equal(PaneViewType.Preview, saved.PaneRegion3View);
     }
 
+    [Theory]
+    [InlineData("ja", null, true)]
+    [InlineData("en", null, false)]
+    [InlineData("ja", false, false)]
+    [InlineData("en", true, true)]
+    public async Task JapanMapSourcesFollowTheUiLanguageUntilExplicitlyConfigured(
+        string language,
+        bool? enabled,
+        bool expected)
+    {
+        using var context = CreateContext();
+        await context.SettingsService.SaveAsync(new AppSettings
+        {
+            Language = language,
+            JapanMapSourcesEnabled = enabled,
+            MapTileSource = MapTileSourceType.GsiStandard
+        }).ConfigureAwait(true);
+
+        await context.Coordinator.LoadAsync().ConfigureAwait(true);
+
+        Assert.Equal(expected, context.Coordinator.JapanMapSourcesEnabled);
+        Assert.Equal(
+            expected ? MapTileSourceType.GsiStandard : MapTileSourceType.OpenStreetMap,
+            context.MainViewModel.CurrentMapTileSource);
+
+        await context.Coordinator.SaveAsync().ConfigureAwait(true);
+        var savedWithoutToggle = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+        Assert.Equal(enabled, savedWithoutToggle.JapanMapSourcesEnabled);
+
+        context.Coordinator.JapanMapSourcesEnabled = false;
+        await context.Coordinator.SaveAsync().ConfigureAwait(true);
+        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+
+        Assert.False(saved.JapanMapSourcesEnabled);
+        Assert.Equal(MapTileSourceType.OpenStreetMap, saved.MapTileSource);
+
+        context.Coordinator.ResetJapanMapSources();
+        await context.Coordinator.SaveAsync().ConfigureAwait(true);
+        Assert.Null((await context.SettingsService.LoadAsync().ConfigureAwait(true)).JapanMapSourcesEnabled);
+    }
+
+    [Fact]
+    public async Task UnsetJapanMapPreferenceUsesTheNewUiLanguageOnReload()
+    {
+        using var context = CreateContext();
+        await context.SettingsService.SaveAsync(new AppSettings { Language = "ja" }).ConfigureAwait(true);
+        await context.Coordinator.LoadAsync().ConfigureAwait(true);
+        Assert.True(context.Coordinator.JapanMapSourcesEnabled);
+
+        await context.Coordinator.ChangeLanguageAsync("en", showRestartPrompt: false).ConfigureAwait(true);
+        await context.Coordinator.SaveAsync().ConfigureAwait(true);
+        await context.Coordinator.LoadAsync().ConfigureAwait(true);
+
+        Assert.False(context.Coordinator.JapanMapSourcesEnabled);
+        Assert.Null((await context.SettingsService.LoadAsync().ConfigureAwait(true)).JapanMapSourcesEnabled);
+    }
+
     [Fact]
     public async Task LoadAsyncAppliesMapHeaderDisplaySettings()
     {

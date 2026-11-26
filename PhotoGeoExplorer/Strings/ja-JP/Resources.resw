@@ -210,12 +210,6 @@
   <data name="SettingsPaneMapTileSource.Header" xml:space="preserve">
     <value>地図タイルソース</value>
   </data>
-  <data name="SettingsPaneMapTileSourceOsm.Content" xml:space="preserve">
-    <value>OpenStreetMap</value>
-  </data>
-  <data name="SettingsPaneMapTileSourceEsri.Content" xml:space="preserve">
-    <value>Esri World Imagery (衛星)</value>
-  </data>
   <data name="SettingsPaneDisplaySection.Text" xml:space="preserve">
     <value>表示</value>
   </data>
@@ -965,12 +959,6 @@
   <data name="Message.MapImageSaveFailed" xml:space="preserve">
     <value>地図画像の保存に失敗しました:</value>
   </data>
-  <data name="SettingsPaneMapTileSourceMapbox.Content" xml:space="preserve">
-    <value>Mapbox Satellite (衛星・要アクセストークン)</value>
-  </data>
-  <data name="SettingsPaneMapTileSourceOpenFreeMapVector.Content" xml:space="preserve">
-    <value>OpenFreeMap（ベクター地図）</value>
-  </data>
   <data name="SettingsPaneMapboxTokenBox.Header" xml:space="preserve">
     <value>Mapbox アクセストークン</value>
   </data>
@@ -1111,18 +1099,6 @@
   </data>
   <data name="MapZoom.ToolTip.BackgroundFallbackLine" xml:space="preserve">
     <value>背景: {0}（設定 {1} の代替表示）</value>
-  </data>
-  <data name="MapZoom.TileSource.OpenStreetMap" xml:space="preserve">
-    <value>OpenStreetMap（道路地図）</value>
-  </data>
-  <data name="MapZoom.TileSource.EsriWorldImagery" xml:space="preserve">
-    <value>Esri World Imagery（衛星地図）</value>
-  </data>
-  <data name="MapZoom.TileSource.MapboxSatellite" xml:space="preserve">
-    <value>Mapbox Satellite（衛星地図）</value>
-  </data>
-  <data name="MapZoom.TileSource.OpenFreeMapVector" xml:space="preserve">
-    <value>OpenFreeMap（ベクター地図）</value>
   </data>
   <data name="Message.CoordinatesCopied" xml:space="preserve">
     <value>緯度・経度をコピーしました:</value>
@@ -1422,5 +1398,32 @@
   </data>
   <data name="AreaData.Download.Prompt.Never" xml:space="preserve">
     <value>今後は取得しない</value>
+  </data>
+  <data name="SettingsPaneJapanMapSources.Header" xml:space="preserve">
+    <value>日本国内向け地図ソース（国土地理院タイル）</value>
+  </data>
+  <data name="MapBackground.OpenStreetMap" xml:space="preserve">
+    <value>OpenStreetMap</value>
+  </data>
+  <data name="MapBackground.EsriWorldImagery" xml:space="preserve">
+    <value>Esri World Imagery（衛星）</value>
+  </data>
+  <data name="MapBackground.MapboxSatellite" xml:space="preserve">
+    <value>Mapbox Satellite（衛星・要アクセストークン）</value>
+  </data>
+  <data name="MapBackground.OpenFreeMapVector" xml:space="preserve">
+    <value>OpenFreeMap（ベクター地図）</value>
+  </data>
+  <data name="MapBackground.GsiStandard" xml:space="preserve">
+    <value>地理院タイル（標準地図）</value>
+  </data>
+  <data name="MapBackground.GsiPale" xml:space="preserve">
+    <value>地理院タイル（淡色地図）</value>
+  </data>
+  <data name="MapBackground.GsiPhoto" xml:space="preserve">
+    <value>地理院タイル（航空写真）</value>
+  </data>
+  <data name="MapBackground.GsiVector" xml:space="preserve">
+    <value>地理院タイル（ベクター地図）</value>
   </data>
 </root>

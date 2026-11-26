@@ -249,7 +249,8 @@
         <li>ピンをクリックすると対応する写真が一覧で選択されます。</li>
         <li>ピンの詳細から Google Maps で位置を開くことができます。</li>
         <li>地図タイルは OpenStreetMap / Esri WorldImagery（衛星画像）/ Mapbox Satellite（衛星画像）/ OpenFreeMap（ベクター地図）を切り替えできます。既定は OpenStreetMap です。</li>
-        <li>OpenStreetMap・Esri・OpenFreeMap の地図タイルはローカルキャッシュされ、再表示が高速化されます。Mapbox のタイルは端末に保存しません。</li>
+        <li>設定の「日本国内向け地図ソース（国土地理院タイル）」をオンにすると、標準地図・淡色地図・航空写真・ベクター地図を選べます。初回は日本語 UI でオンです。地理院タイルの選択中にオフにすると OpenStreetMap に切り替わります。提供範囲外は空白になる場合があります。</li>
+        <li>OpenStreetMap・Esri・OpenFreeMap・国土地理院の地図タイルはローカルキャッシュされ、再表示が高速化されます。Mapbox のタイルは端末に保存しません。</li>
         <li>Mapbox Satellite を使うには、ご自身の Mapbox アカウントで発行した公開アクセストークン（<code>pk.</code> で始まるもの）が必要です。設定の「地図」で入力して「保存」すると選べるようになります。「接続テスト」でトークンが使えるか確認できます。</li>
         <li>トークンは Windows の資格情報マネージャーに保存され、設定ファイルやエクスポートには含まれません。シークレットトークン（<code>sk.</code>）は保存できません。</li>
         <li>Mapbox の利用量と料金は、トークンを発行したアカウントに計上されます。無料枠と料金は <a href="https://www.mapbox.com/pricing" target="_blank" rel="noopener noreferrer">Mapbox の料金ページ</a>（Raster Tiles API）でご確認ください。URL 制限つきのトークンはデスクトップアプリから使えないことがあります。</li>
@@ -346,7 +347,7 @@
       <h2>プライバシー</h2>
       <ul>
         <li>写真や設定は端末内で処理され、外部に送信されません。</li>
-        <li>地図タイルは OpenStreetMap / Esri のサーバーから取得します。OpenFreeMap（ベクター地図）を選んだ場合は OpenFreeMap のサーバーから、Mapbox Satellite を選んだ場合は Mapbox のサーバーから取得します。</li>
+        <li>地図タイルは OpenStreetMap / Esri のサーバーから取得します。OpenFreeMap（ベクター地図）を選んだ場合は OpenFreeMap のサーバーから、Mapbox Satellite を選んだ場合は Mapbox のサーバーから、地理院タイルを選んだ場合は国土地理院のサーバーから取得します。</li>
         <li>住所（字地名）の判定は、取り込んだ地域データを使って端末内で行い、撮影位置は送信しません。</li>
         <li>詳細はプライバシーポリシーをご確認ください。</li>
       </ul>

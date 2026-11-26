@@ -215,6 +215,10 @@ public sealed class MainViewModelTests
             LastMapZoomLevel = level;
         }
 
+        public bool JapanMapSourcesEnabled { get; set; }
+
+        public void ResetJapanMapSources() => JapanMapSourcesEnabled = false;
+
         public void ChangeMapTileSource(MapTileSourceType sourceType)
         {
             ChangeMapTileSourceCallCount++;

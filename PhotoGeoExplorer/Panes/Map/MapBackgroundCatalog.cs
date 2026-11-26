@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Models;
 
 namespace PhotoGeoExplorer.Panes.Map;
@@ -20,6 +22,8 @@ internal enum MapBackgroundKind
 /// 背景地図 1 種類の定義。
 /// </summary>
 /// <param name="Type">識別子。設定ファイルの保存値でもあるため、値は変えない</param>
+/// <param name="DisplayNameKey">設定画面や保存時の背景選択に使うリソース名</param>
+/// <param name="RequiresJapanMapSources">日本国内向けの背景地図の有効化が必要</param>
 /// <param name="Kind">描画方式</param>
 /// <param name="AttributionLinks">帰属表示の項目（最大 <see cref="MapAttribution.MaxLinkCount"/> 件）</param>
 /// <param name="RequiresMapboxAccessToken">Mapbox のアクセストークンがないと表示できない</param>
@@ -27,9 +31,14 @@ internal enum MapBackgroundKind
 internal sealed record MapBackgroundDescriptor(
     MapTileSourceType Type,
     MapBackgroundKind Kind,
+    string DisplayNameKey,
     IReadOnlyList<MapAttributionLink> AttributionLinks,
     bool RequiresMapboxAccessToken = false,
-    bool ShowsMapboxLogo = false);
+    bool ShowsMapboxLogo = false,
+    bool RequiresJapanMapSources = false)
+{
+    internal string DisplayName => LocalizationService.GetString(DisplayNameKey);
+}
 
 /// <summary>
 /// 背景地図の一覧（単一情報源）。生成・設定の選択肢・帰属表示は、すべてここを参照する。
@@ -40,20 +49,26 @@ internal sealed record MapBackgroundDescriptor(
 /// </remarks>
 internal static class MapBackgroundCatalog
 {
+    internal const string GsiAttributionUrl = "https://maps.gsi.go.jp/development/ichiran.html";
+    private static readonly MapAttributionLink GsiAttribution = new("Geospatial Information Authority of Japan (GSI)", GsiAttributionUrl);
+
     private static readonly MapBackgroundDescriptor[] Descriptors =
     [
         new(
             MapTileSourceType.OpenStreetMap,
             MapBackgroundKind.Raster,
+            "MapBackground.OpenStreetMap",
             [new(MapAttribution.OpenStreetMapText, MapAttribution.OpenStreetMapUrl)]),
         new(
             MapTileSourceType.EsriWorldImagery,
             MapBackgroundKind.Raster,
+            "MapBackground.EsriWorldImagery",
             [new(MapAttribution.EsriText, MapAttribution.EsriUrl)]),
         // Mapbox は、Mapbox・OpenStreetMap・地図の修正依頼を、それぞれ別のリンクで示すことを求めている。
         new(
             MapTileSourceType.MapboxSatellite,
             MapBackgroundKind.Raster,
+            "MapBackground.MapboxSatellite",
             [
                 new("© Mapbox", MapAttribution.MapboxUrl),
                 new("© OpenStreetMap", MapAttribution.OpenStreetMapUrl),
@@ -65,11 +80,29 @@ internal static class MapBackgroundCatalog
         new(
             MapTileSourceType.OpenFreeMapVector,
             MapBackgroundKind.Vector,
+            "MapBackground.OpenFreeMapVector",
             [
                 new(MapAttribution.OpenFreeMapText, MapAttribution.OpenFreeMapUrl),
                 new(MapAttribution.OpenMapTilesText, MapAttribution.OpenMapTilesUrl),
                 new(MapAttribution.OpenStreetMapDataText, MapAttribution.OpenStreetMapUrl)
-            ])
+            ]),
+        new(MapTileSourceType.GsiStandard, MapBackgroundKind.Raster, "MapBackground.GsiStandard", [GsiAttribution],
+            RequiresJapanMapSources: true),
+        new(MapTileSourceType.GsiPale, MapBackgroundKind.Raster, "MapBackground.GsiPale",
+            [GsiAttribution, new("Shoreline: NIMA Vector Map Level 0 (VMAP0)", GsiAttributionUrl + "#pale2")],
+            RequiresJapanMapSources: true),
+        new(MapTileSourceType.GsiPhoto, MapBackgroundKind.Raster, "MapBackground.GsiPhoto",
+            [
+                GsiAttribution,
+                new("GRUS imagery (© Axelspace)", GsiAttributionUrl + "#seamlessphoto"),
+                new("Landsat 8 (GSI, TSIC, GEO Grid/AIST)", GsiAttributionUrl + "#seamlessphoto"),
+                new("Landsat 8 (USGS); GEBCO", GsiAttributionUrl + "#seamlessphoto"),
+                new("World imagery: NASA LP DAAC / USGS EROS", "https://lpdaac.usgs.gov/data_access")
+            ],
+            RequiresJapanMapSources: true),
+        new(MapTileSourceType.GsiVector, MapBackgroundKind.Vector, "MapBackground.GsiVector",
+            [new("Geospatial Information Authority of Japan (GSI) vector tiles", "https://github.com/gsi-cyberjapan/optimal_bvmap")],
+            RequiresJapanMapSources: true)
     ];
 
     /// <summary>
@@ -81,6 +114,17 @@ internal static class MapBackgroundCatalog
     /// 既定の背景。トークンがない Mapbox の代わりにも使う。
     /// </summary>
     internal static MapBackgroundDescriptor Default => Descriptors[0];
+
+    internal static bool ResolveJapanMapSourcesEnabled(bool? enabled, string? language)
+        => enabled ?? (language is null
+            ? CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ja"
+            : language.Equals("ja", StringComparison.OrdinalIgnoreCase)
+                || language.StartsWith("ja-", StringComparison.OrdinalIgnoreCase));
+
+    internal static MapTileSourceType ResolveSource(MapTileSourceType type, bool japanMapSourcesEnabled)
+        => Enum.IsDefined(type) && (japanMapSourcesEnabled || !Get(type).RequiresJapanMapSources)
+            ? type
+            : Default.Type;
 
     /// <exception cref="ArgumentOutOfRangeException">定義にない値のとき</exception>
     internal static MapBackgroundDescriptor Get(MapTileSourceType type)
@@ -94,16 +138,4 @@ internal static class MapBackgroundCatalog
         return Descriptors[index];
     }
 
-    /// <summary>
-    /// 設定画面の選択肢の位置から背景を引く。範囲外は既定の背景にする（ラジオボタンの選択解除で -1 が来る）。
-    /// </summary>
-    internal static MapBackgroundDescriptor FromIndex(int index)
-    {
-        return index >= 0 && index < Descriptors.Length ? Descriptors[index] : Default;
-    }
-
-    internal static int IndexOf(MapTileSourceType type)
-    {
-        return Array.IndexOf(Descriptors, Get(type));
-    }
 }

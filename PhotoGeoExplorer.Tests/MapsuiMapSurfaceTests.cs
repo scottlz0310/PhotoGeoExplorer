@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -90,6 +91,37 @@ public sealed class MapsuiMapSurfaceTests
         var feature = Assert.Single(MarkerLayer(map).Features);
         Assert.Same(marker, feature[MapsuiMapSurface.MarkerKey]);
         Assert.Same(marker, Assert.Single(surface.Markers));
+    }
+
+    [Theory]
+    [InlineData(MapTileSourceType.OpenStreetMap, 14)]
+    [InlineData(MapTileSourceType.GsiStandard, 8)]
+    [InlineData(MapTileSourceType.GsiStandard, 14)]
+    [InlineData(MapTileSourceType.GsiPale, 10)]
+    [InlineData(MapTileSourceType.GsiPhoto, 14)]
+    [InlineData(MapTileSourceType.GsiPhoto, 18)]
+    internal void ShowMarkerUsesTheConfiguredLogicalZoom(MapTileSourceType sourceType, int zoomLevel)
+    {
+        var cache = Directory.CreateTempSubdirectory("pge-map-zoom-");
+        try
+        {
+            using var map = new Map();
+            map.Navigator.SetSize(800, 600);
+            using var surface = new MapsuiMapSurface(map);
+            using var background = new MapPaneService(cache.FullName).CreateBackground(
+                new MapBackgroundRequest(sourceType, "PhotoGeoExplorer.Tests"));
+            surface.ReplaceBackground(background);
+
+            surface.ShowMarker(CreateMarker(35.681236, 139.767125, "tokyo.jpg", pinImagePath: null), zoomLevel);
+            Assert.Equal(WebMercator.ResolutionFromLogicalZoom(zoomLevel), surface.View.Resolution, 1e-8);
+
+            surface.SetView(surface.View.CenterX, surface.View.CenterY, WebMercator.ZoomZeroResolution);
+            Assert.Equal(WebMercator.ZoomZeroResolution, surface.View.Resolution, 1e-8);
+        }
+        finally
+        {
+            cache.Delete(recursive: true);
+        }
     }
 
     [Fact]

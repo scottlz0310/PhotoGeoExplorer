@@ -43,6 +43,10 @@ internal interface ISettingsCoordinator : IDisposable
 
     void ChangeMapZoomLevel(int level);
 
+    bool JapanMapSourcesEnabled { get; set; }
+
+    void ResetJapanMapSources();
+
     void ChangeMapTileSource(MapTileSourceType sourceType);
 
     /// <summary>

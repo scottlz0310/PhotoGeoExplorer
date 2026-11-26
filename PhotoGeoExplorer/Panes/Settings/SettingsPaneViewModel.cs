@@ -1,5 +1,7 @@
 using System;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using PhotoGeoExplorer.Models;
@@ -20,16 +22,19 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
     private readonly ISettingsCoordinator _settingsCoordinator;
     private readonly FileBrowserPaneViewModel _fileBrowserPaneViewModel;
     private readonly MainViewModel _shellViewModel;
+    private readonly MapTileChoice[] _mapTileChoices;
     private const string SystemLanguageOptionValue = "system";
 
     private string? _language;
     private ThemePreference _theme = ThemePreference.System;
     private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
+    private bool _japanMapSourcesEnabled;
     private bool _showImagesOnly = true;
     private bool _showQuickStartOnStartup;
     private string? _lastFolderPath;
     private bool _suppressDirtyTracking;
+    private bool _updatingMapTileChoices;
     private bool _hasPendingChanges;
     private int _languageChangeVersion;
 
@@ -52,6 +57,16 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             secretStore,
             mapboxConnectionTester,
             tokenChanged: _settingsCoordinator.RefreshMapBackground);
+        _mapTileChoices = MapBackgroundCatalog.All.Select(descriptor => new MapTileChoice(descriptor)).ToArray();
+        Mapbox.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(Mapbox.HasToken))
+            {
+                UpdateMapboxAvailability();
+            }
+        };
+        UpdateMapboxAvailability();
+        UpdateMapTileChoices();
         AreaData = areaData ?? throw new ArgumentNullException(nameof(areaData));
 
         SaveCommand = new RelayCommand(() => SaveAsync());
@@ -149,8 +164,90 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
     public int MapTileSourceIndex
     {
-        get => MapBackgroundCatalog.IndexOf(_mapTileSource);
-        set => MapTileSource = MapBackgroundCatalog.FromIndex(value).Type;
+        get => Array.FindIndex(_mapTileChoices, choice => choice.Type == _mapTileSource);
+        set
+        {
+            if (!_updatingMapTileChoices)
+            {
+                MapTileSource = value >= 0 && value < MapTileChoices.Count
+                    ? MapTileChoices[value].Type
+                    : MapBackgroundCatalog.Default.Type;
+            }
+        }
+    }
+
+    public ObservableCollection<MapTileChoice> MapTileChoices { get; } = [];
+
+    public bool JapanMapSourcesEnabled
+    {
+        get => _japanMapSourcesEnabled;
+        set
+        {
+            if (!SetProperty(ref _japanMapSourcesEnabled, value))
+            {
+                return;
+            }
+
+            if (!_suppressDirtyTracking)
+            {
+                _settingsCoordinator.JapanMapSourcesEnabled = value;
+                MapTileSource = MapBackgroundCatalog.ResolveSource(MapTileSource, value);
+                _hasPendingChanges = true;
+            }
+
+            UpdateMapTileChoices();
+        }
+    }
+
+    private void UpdateMapTileChoices()
+    {
+        _updatingMapTileChoices = true;
+        try
+        {
+            // 地理院タイルは末尾に並ぶ。既存の項目を保持したまま末尾だけを更新すると、選択中のボタンを失わない。
+            var visibleCount = JapanMapSourcesEnabled
+                ? _mapTileChoices.Length
+                : _mapTileChoices.Count(choice => !choice.RequiresJapanMapSources);
+            while (MapTileChoices.Count > visibleCount)
+            {
+                MapTileChoices.RemoveAt(MapTileChoices.Count - 1);
+            }
+
+            while (MapTileChoices.Count < visibleCount)
+            {
+                MapTileChoices.Add(_mapTileChoices[MapTileChoices.Count]);
+            }
+        }
+        finally
+        {
+            _updatingMapTileChoices = false;
+        }
+    }
+
+    private void UpdateMapboxAvailability()
+    {
+        foreach (var choice in _mapTileChoices)
+        {
+            choice.UpdateAvailability(Mapbox.HasToken);
+        }
+    }
+
+    internal sealed class MapTileChoice(MapBackgroundDescriptor descriptor) : BindableBase
+    {
+        private bool _isEnabled;
+
+        public MapTileSourceType Type => descriptor.Type;
+        public string DisplayName => descriptor.DisplayName;
+        internal bool RequiresJapanMapSources => descriptor.RequiresJapanMapSources;
+
+        public bool IsEnabled
+        {
+            get => _isEnabled;
+            private set => SetProperty(ref _isEnabled, value);
+        }
+
+        internal void UpdateAvailability(bool hasMapboxToken)
+            => IsEnabled = !descriptor.RequiresMapboxAccessToken || hasMapboxToken;
     }
 
     public SettingsPaneLayoutSectionViewModel PaneLayout { get; }
@@ -259,6 +356,8 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             Language = SystemLanguageOptionValue;
             Theme = ThemePreference.System;
             MapDefaultZoomLevel = MapZoomLevelCatalog.Default;
+            _settingsCoordinator.ResetJapanMapSources();
+            JapanMapSourcesEnabled = _settingsCoordinator.JapanMapSourcesEnabled;
             MapTileSource = MapTileSourceType.OpenStreetMap;
             MapHeader.ResetToDefaults();
             ShowImagesOnly = true;
@@ -314,6 +413,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
             Language = _shellViewModel.CurrentLanguage ?? SystemLanguageOptionValue;
             Theme = _shellViewModel.CurrentTheme;
             MapDefaultZoomLevel = _shellViewModel.CurrentMapZoomLevel;
+            JapanMapSourcesEnabled = _settingsCoordinator.JapanMapSourcesEnabled;
             MapTileSource = _shellViewModel.CurrentMapTileSource;
             ShowImagesOnly = _fileBrowserPaneViewModel.ShowImagesOnly;
             ShowQuickStartOnStartup = _settingsCoordinator.ShowQuickStartOnStartup;

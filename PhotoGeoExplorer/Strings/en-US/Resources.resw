@@ -210,12 +210,6 @@
   <data name="SettingsPaneMapTileSource.Header" xml:space="preserve">
     <value>Map tile source</value>
   </data>
-  <data name="SettingsPaneMapTileSourceOsm.Content" xml:space="preserve">
-    <value>OpenStreetMap</value>
-  </data>
-  <data name="SettingsPaneMapTileSourceEsri.Content" xml:space="preserve">
-    <value>Esri World Imagery (Satellite)</value>
-  </data>
   <data name="SettingsPaneDisplaySection.Text" xml:space="preserve">
     <value>Display</value>
   </data>
@@ -965,12 +959,6 @@
   <data name="Message.MapImageSaveFailed" xml:space="preserve">
     <value>Failed to save the map image:</value>
   </data>
-  <data name="SettingsPaneMapTileSourceMapbox.Content" xml:space="preserve">
-    <value>Mapbox Satellite (access token required)</value>
-  </data>
-  <data name="SettingsPaneMapTileSourceOpenFreeMapVector.Content" xml:space="preserve">
-    <value>OpenFreeMap (vector map)</value>
-  </data>
   <data name="SettingsPaneMapboxTokenBox.Header" xml:space="preserve">
     <value>Mapbox access token</value>
   </data>
@@ -1111,18 +1099,6 @@
   </data>
   <data name="MapZoom.ToolTip.BackgroundFallbackLine" xml:space="preserve">
     <value>Background: {0} (fallback for {1})</value>
-  </data>
-  <data name="MapZoom.TileSource.OpenStreetMap" xml:space="preserve">
-    <value>OpenStreetMap (Road Map)</value>
-  </data>
-  <data name="MapZoom.TileSource.EsriWorldImagery" xml:space="preserve">
-    <value>Esri World Imagery (Satellite)</value>
-  </data>
-  <data name="MapZoom.TileSource.MapboxSatellite" xml:space="preserve">
-    <value>Mapbox Satellite (Satellite)</value>
-  </data>
-  <data name="MapZoom.TileSource.OpenFreeMapVector" xml:space="preserve">
-    <value>OpenFreeMap (Vector)</value>
   </data>
   <data name="Message.CoordinatesCopied" xml:space="preserve">
     <value>Copied the latitude and longitude:</value>
@@ -1422,5 +1398,32 @@
   </data>
   <data name="AreaData.Download.Prompt.Never" xml:space="preserve">
     <value>Never download</value>
+  </data>
+  <data name="SettingsPaneJapanMapSources.Header" xml:space="preserve">
+    <value>Map sources for Japan (GSI tiles)</value>
+  </data>
+  <data name="MapBackground.OpenStreetMap" xml:space="preserve">
+    <value>OpenStreetMap</value>
+  </data>
+  <data name="MapBackground.EsriWorldImagery" xml:space="preserve">
+    <value>Esri World Imagery (satellite)</value>
+  </data>
+  <data name="MapBackground.MapboxSatellite" xml:space="preserve">
+    <value>Mapbox Satellite (requires an access token)</value>
+  </data>
+  <data name="MapBackground.OpenFreeMapVector" xml:space="preserve">
+    <value>OpenFreeMap (vector map)</value>
+  </data>
+  <data name="MapBackground.GsiStandard" xml:space="preserve">
+    <value>GSI Standard Map</value>
+  </data>
+  <data name="MapBackground.GsiPale" xml:space="preserve">
+    <value>GSI Pale Map</value>
+  </data>
+  <data name="MapBackground.GsiPhoto" xml:space="preserve">
+    <value>GSI Aerial Imagery</value>
+  </data>
+  <data name="MapBackground.GsiVector" xml:space="preserve">
+    <value>GSI Vector Map</value>
   </data>
 </root>

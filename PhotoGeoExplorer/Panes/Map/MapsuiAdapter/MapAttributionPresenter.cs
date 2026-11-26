@@ -84,8 +84,10 @@ internal sealed class MapAttributionPresenter
         var descriptor = MapBackgroundCatalog.Get(sourceType);
         _links = descriptor.AttributionLinks;
 
-        // 右端の項目から順に置き、それぞれの幅だけ左へずらす。
+        // 地理院の航空写真などの追加出典は、狭い地図でも収まるように縦に並べる。
+        var stackLinks = descriptor.RequiresJapanMapSources;
         var rightOffset = OuterMargin;
+        var bottomOffset = OuterMargin;
         for (var index = _linkWidgets.Length - 1; index >= 0; index--)
         {
             var widget = _linkWidgets[index];
@@ -100,9 +102,16 @@ internal sealed class MapAttributionPresenter
             widget.Text = link.Text;
             widget.Url = link.Url;
             widget.Width = width;
-            widget.Margin = new MRect(OuterMargin, OuterMargin, rightOffset, OuterMargin);
+            widget.Margin = new MRect(OuterMargin, bottomOffset, rightOffset, bottomOffset);
             widget.Enabled = true;
-            rightOffset += width;
+            if (stackLinks)
+            {
+                bottomOffset += TextSize + 2 * VerticalPadding + 2;
+            }
+            else
+            {
+                rightOffset += width;
+            }
         }
 
         _mapboxLogo.Enabled = descriptor.ShowsMapboxLogo;

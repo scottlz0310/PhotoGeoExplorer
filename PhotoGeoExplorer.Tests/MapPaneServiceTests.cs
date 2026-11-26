@@ -127,6 +127,38 @@ public class MapPaneServiceTests
         }
     }
 
+    [Theory]
+    [InlineData(MapTileSourceType.GsiStandard, MapBackgroundKind.Raster)]
+    [InlineData(MapTileSourceType.GsiPale, MapBackgroundKind.Raster)]
+    [InlineData(MapTileSourceType.GsiPhoto, MapBackgroundKind.Raster)]
+    [InlineData(MapTileSourceType.GsiVector, MapBackgroundKind.Vector)]
+    internal void CreateGsiBackgroundUsesTheChosenTypeAndAttribution(MapTileSourceType sourceType, MapBackgroundKind kind)
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        var service = new MapPaneService(cacheRoot);
+        try
+        {
+            using var background = service.CreateBackground(
+                new MapBackgroundRequest(sourceType, "PhotoGeoExplorer/Test", TryPostToUi: _ => true));
+
+            Assert.Equal(sourceType, background.SourceType);
+            Assert.Contains("Geospatial Information Authority of Japan", background.AttributionText, StringComparison.Ordinal);
+            var layer = Assert.Single(((IMapsuiBackground)background).Layers);
+            if (kind == MapBackgroundKind.Raster)
+            {
+                Assert.IsType<GsiRasterTileSource>(Assert.IsType<TileLayer>(layer).TileSource);
+            }
+            else
+            {
+                Assert.IsType<VectorMapBackground>(background);
+            }
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
     [Fact]
     public void CreateBackgroundRejectsTheVectorBackgroundWithoutAWayToReachTheUiThread()
     {

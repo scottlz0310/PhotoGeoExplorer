@@ -85,25 +85,18 @@ public sealed class MapBackgroundCatalogTests
     }
 
     [Theory]
-    [InlineData(0, MapTileSourceType.OpenStreetMap)]
-    [InlineData(1, MapTileSourceType.EsriWorldImagery)]
-    [InlineData(2, MapTileSourceType.MapboxSatellite)]
-    [InlineData(3, MapTileSourceType.OpenFreeMapVector)]
-    [InlineData(-1, MapTileSourceType.OpenStreetMap)]
-    [InlineData(99, MapTileSourceType.OpenStreetMap)]
-    internal void FromIndexFallsBackToDefaultOutOfRange(int index, MapTileSourceType expected)
+    [InlineData(MapTileSourceType.GsiStandard, false, MapTileSourceType.OpenStreetMap)]
+    [InlineData(MapTileSourceType.GsiPale, false, MapTileSourceType.OpenStreetMap)]
+    [InlineData(MapTileSourceType.GsiPhoto, false, MapTileSourceType.OpenStreetMap)]
+    [InlineData(MapTileSourceType.GsiVector, false, MapTileSourceType.OpenStreetMap)]
+    [InlineData(MapTileSourceType.GsiVector, true, MapTileSourceType.GsiVector)]
+    [InlineData(MapTileSourceType.OpenFreeMapVector, false, MapTileSourceType.OpenFreeMapVector)]
+    internal void ResolveSourceHonorsTheJapanMapSetting(
+        MapTileSourceType source,
+        bool enabled,
+        MapTileSourceType expected)
     {
-        Assert.Equal(expected, MapBackgroundCatalog.FromIndex(index).Type);
-    }
-
-    [Theory]
-    [InlineData(MapTileSourceType.OpenStreetMap, 0)]
-    [InlineData(MapTileSourceType.EsriWorldImagery, 1)]
-    [InlineData(MapTileSourceType.MapboxSatellite, 2)]
-    [InlineData(MapTileSourceType.OpenFreeMapVector, 3)]
-    internal void IndexOfReturnsTheSettingsPosition(MapTileSourceType type, int expected)
-    {
-        Assert.Equal(expected, MapBackgroundCatalog.IndexOf(type));
+        Assert.Equal(expected, MapBackgroundCatalog.ResolveSource(source, enabled));
     }
 
     [Theory]
