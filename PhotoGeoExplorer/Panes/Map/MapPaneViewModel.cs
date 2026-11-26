@@ -52,6 +52,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private string _statusDetail = string.Empty;
     private Symbol _statusIcon = Symbol.Map;
     private Visibility _statusVisibility = Visibility.Collapsed;
+    private Thickness _statusPanelMargin = CreateStatusPanelMargin(MapBackgroundCatalog.Default.Type);
 
     public MapPaneViewModel()
         : this(new MapPaneService(), new WorkspaceState(), new MapImageService())
@@ -175,6 +176,15 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     {
         get => _statusVisibility;
         private set => SetProperty(ref _statusVisibility, value);
+    }
+
+    /// <summary>
+    /// ステータスの案内カードの外側の余白。下側は、表示中の背景の帰属表示を避ける高さにする
+    /// </summary>
+    public Thickness StatusPanelMargin
+    {
+        get => _statusPanelMargin;
+        private set => SetProperty(ref _statusPanelMargin, value);
     }
 
     /// <summary>
@@ -590,6 +600,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             oldBackground?.Dispose();
             CurrentTileSource = newSource;
             BackgroundNotice = notice;
+            StatusPanelMargin = CreateStatusPanelMargin(background.SourceType);
             _viewController.UpdateTileSource(newSource, background.SourceType, newBackground.AttributionText, newBackground.IsBusy);
 
             AppLog.Info($"Switched map tile source to {newSource} (displaying {background.SourceType})");
@@ -675,11 +686,20 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         surface.PixelDensity = GetPixelDensity();
         surface.ReplaceBackground(mapBackground);
         BackgroundNotice = notice;
+        StatusPanelMargin = CreateStatusPanelMargin(background.SourceType);
 
         // Surface プロパティ経由で更新し、PropertyChanged を発火させる（View が地図を接続する）
         Surface = surface;
         HideStatus();
         AppLog.Info("Map initialized in MapPaneViewModel.");
+    }
+
+    // 引数は、実際に表示する背景（トークンがない Mapbox の代わりの背景を含む）
+    private static Thickness CreateStatusPanelMargin(MapTileSourceType displayedSource)
+    {
+        const double margin = 8;
+        var bottom = MapAttributionLayout.GetReservedHeight(MapBackgroundCatalog.Get(displayedSource));
+        return new Thickness(margin, margin, margin, bottom);
     }
 
     // 設定は Mapbox でもトークンがなければ OSM で表示する。保存済みの設定値（CurrentTileSource）は書き換えない。

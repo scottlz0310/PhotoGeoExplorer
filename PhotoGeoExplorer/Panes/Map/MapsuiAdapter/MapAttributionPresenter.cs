@@ -19,25 +19,23 @@ namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 /// </summary>
 internal sealed class MapAttributionPresenter
 {
-    private const double TextSize = 11;
-    private const double OuterMargin = 4;
-    private const double HorizontalPadding = 4;
-    private const double VerticalPadding = 2;
-
     private readonly HyperlinkWidget[] _linkWidgets = Enumerable
         .Range(0, MapAttribution.MaxLinkCount)
         .Select(_ => CreateLinkWidget())
         .ToArray();
 
-    // 大きさは Mapbox 公式の帰属表示コントロール（88×23）に合わせる。ロゴの加工は認められていない。
     private readonly ImageButtonWidget _mapboxLogo = new()
     {
         HorizontalAlignment = HorizontalAlignment.Left,
         VerticalAlignment = VerticalAlignment.Bottom,
-        Margin = new MRect(6, 6, 6, 6),
+        Margin = new MRect(
+            MapAttributionLayout.LogoMargin,
+            MapAttributionLayout.LogoMargin,
+            MapAttributionLayout.LogoMargin,
+            MapAttributionLayout.LogoMargin),
         Padding = new MRect(0, 0, 0, 0),
-        Width = 88,
-        Height = 23,
+        Width = MapAttributionLayout.LogoWidth,
+        Height = MapAttributionLayout.LogoHeight,
         Image = new Image { Source = new Uri(MapAttribution.MapboxLogoPath).AbsoluteUri },
         Enabled = false
     };
@@ -84,10 +82,8 @@ internal sealed class MapAttributionPresenter
         var descriptor = MapBackgroundCatalog.Get(sourceType);
         _links = descriptor.AttributionLinks;
 
-        // 地理院の航空写真などの追加出典は、狭い地図でも収まるように縦に並べる。
-        var stackLinks = descriptor.RequiresJapanMapSources;
-        var rightOffset = OuterMargin;
-        var bottomOffset = OuterMargin;
+        var rightOffset = MapAttributionLayout.OuterMargin;
+        var bottomOffset = MapAttributionLayout.OuterMargin;
         for (var index = _linkWidgets.Length - 1; index >= 0; index--)
         {
             var widget = _linkWidgets[index];
@@ -102,11 +98,11 @@ internal sealed class MapAttributionPresenter
             widget.Text = link.Text;
             widget.Url = link.Url;
             widget.Width = width;
-            widget.Margin = new MRect(OuterMargin, bottomOffset, rightOffset, bottomOffset);
+            widget.Margin = new MRect(MapAttributionLayout.OuterMargin, bottomOffset, rightOffset, bottomOffset);
             widget.Enabled = true;
-            if (stackLinks)
+            if (descriptor.StacksAttribution)
             {
-                bottomOffset += TextSize + 2 * VerticalPadding + 2;
+                bottomOffset += MapAttributionLayout.StackedLineHeight;
             }
             else
             {
@@ -140,8 +136,12 @@ internal sealed class MapAttributionPresenter
         {
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Padding = new MRect(HorizontalPadding, VerticalPadding, HorizontalPadding, VerticalPadding),
-            TextSize = TextSize,
+            Padding = new MRect(
+                MapAttributionLayout.HorizontalPadding,
+                MapAttributionLayout.VerticalPadding,
+                MapAttributionLayout.HorizontalPadding,
+                MapAttributionLayout.VerticalPadding),
+            TextSize = MapAttributionLayout.TextSize,
             TextColor = new Color(32, 32, 32),
             BackColor = new Color(255, 255, 255, 200),
             CornerRadius = 0,
@@ -151,7 +151,7 @@ internal sealed class MapAttributionPresenter
 
     private static double MeasureWidth(string text)
     {
-        using var font = new SKFont(SKTypeface.Default, (float)TextSize);
-        return Math.Ceiling(font.MeasureText(text)) + (HorizontalPadding * 2);
+        using var font = new SKFont(SKTypeface.Default, (float)MapAttributionLayout.TextSize);
+        return Math.Ceiling(font.MeasureText(text)) + (MapAttributionLayout.HorizontalPadding * 2);
     }
 }

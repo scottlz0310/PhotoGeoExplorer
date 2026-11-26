@@ -319,38 +319,43 @@
                 Background="#D0000000"
                 Visibility="Collapsed"
                 IsHitTestVisible="False" />
-            <Border
-                x:Name="MapStatusPanel"
-                Padding="16"
-                CornerRadius="8"
-                Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+            <!-- 案内カードは帰属表示より上に置き、収まらない大きさの地図では縮める -->
+            <Viewbox
+                Margin="{Binding StatusPanelMargin, Mode=OneWay}"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
-                Visibility="Collapsed"
-                AutomationProperties.AutomationId="MapStatusPanel"
+                StretchDirection="DownOnly"
                 IsHitTestVisible="False">
-                <StackPanel Spacing="8" MaxWidth="320" HorizontalAlignment="Center">
-                    <SymbolIcon
-                        x:Name="MapStatusIcon"
-                        Symbol="Map"
-                        Width="28"
-                        Height="28"
-                        HorizontalAlignment="Center" />
-                    <TextBlock
-                        x:Name="MapStatusTitle"
-                        FontSize="16"
-                        FontWeight="SemiBold"
-                        TextAlignment="Center"
-                        AutomationProperties.AutomationId="MapStatusTitle"
-                        TextWrapping="Wrap" />
-                    <TextBlock
-                        x:Name="MapStatusDescription"
-                        Opacity="0.7"
-                        TextAlignment="Center"
-                        AutomationProperties.AutomationId="MapStatusDescription"
-                        TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
+                <Border
+                    x:Name="MapStatusPanel"
+                    Padding="16"
+                    CornerRadius="8"
+                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                    Visibility="Collapsed"
+                    AutomationProperties.AutomationId="MapStatusPanel">
+                    <StackPanel Spacing="8" MaxWidth="320" HorizontalAlignment="Center">
+                        <SymbolIcon
+                            x:Name="MapStatusIcon"
+                            Symbol="Map"
+                            Width="28"
+                            Height="28"
+                            HorizontalAlignment="Center" />
+                        <TextBlock
+                            x:Name="MapStatusTitle"
+                            FontSize="16"
+                            FontWeight="SemiBold"
+                            TextAlignment="Center"
+                            AutomationProperties.AutomationId="MapStatusTitle"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Name="MapStatusDescription"
+                            Opacity="0.7"
+                            TextAlignment="Center"
+                            AutomationProperties.AutomationId="MapStatusDescription"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Viewbox>
         </Grid>
     </Grid>
 </UserControl>
