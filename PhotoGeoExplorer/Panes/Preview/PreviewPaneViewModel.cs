@@ -1,10 +1,8 @@
 using System;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Services;
@@ -30,13 +28,11 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     /// </summary>
     internal const double WheelFactorPerNotch = 1.1;
 
-    private const int ClassNotRegisteredHresult = unchecked((int)0x80040154);
-
     private readonly IPreviewPaneService _service;
     private readonly WorkspaceState _workspaceState;
+    private readonly IUiDispatcher _uiDispatcher;
     private readonly RelayCommand _nextCommand;
     private readonly RelayCommand _previousCommand;
-    private Action<Action>? _postToUi;
     private BitmapImage? _currentImage;
     private Visibility _placeholderVisibility = Visibility.Visible;
     private string? _metadataSummary;
@@ -45,16 +41,21 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private PanZoomSize _imageSize;
     private string? _currentFilePath;
     private int _selectionVersion;
+    private int _loadVersion;
 
     public PreviewPaneViewModel()
         : this(new PreviewPaneService(), new WorkspaceState())
     {
     }
 
-    internal PreviewPaneViewModel(IPreviewPaneService service, WorkspaceState workspaceState)
+    internal PreviewPaneViewModel(
+        IPreviewPaneService service,
+        WorkspaceState workspaceState,
+        IUiDispatcher? uiDispatcher = null)
     {
         _service = service ?? throw new ArgumentNullException(nameof(service));
         _workspaceState = workspaceState ?? throw new ArgumentNullException(nameof(workspaceState));
+        _uiDispatcher = uiDispatcher ?? new UiDispatcher();
         Title = "Preview";
 
         FitCommand = new RelayCommand(ExecuteFitAsync);
@@ -65,20 +66,6 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
         // WorkspaceState の変更を監視
         _workspaceState.PropertyChanged += OnWorkspaceStatePropertyChanged;
-    }
-
-    internal void InitializeDispatcherQueue(DispatcherQueue dispatcherQueue)
-    {
-        ArgumentNullException.ThrowIfNull(dispatcherQueue);
-        InitializeUiPost(action => dispatcherQueue.TryEnqueue(() => action()));
-    }
-
-    /// <summary>
-    /// UI スレッドで実行する処理の投入先を設定する。テストは、実行の順序を制御できる投入先を渡す
-    /// </summary>
-    internal void InitializeUiPost(Action<Action> postToUi)
-    {
-        _postToUi = postToUi ?? throw new ArgumentNullException(nameof(postToUi));
     }
 
     /// <summary>
@@ -214,6 +201,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         _workspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
         CurrentImage = null;
         _currentFilePath = null;
+        _loadVersion++;
     }
 
     protected override void OnActiveChanged()
@@ -249,7 +237,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         {
             // 反映が後回しになる間に次の選択が届くことがある（一覧の選択の入れ直しは「空 → 選択」の順に届く）
             var clearVersion = ++_selectionVersion;
-            await RunOnUiAsync(() =>
+            await _uiDispatcher.RunAsync(() =>
             {
                 if (clearVersion != _selectionVersion)
                 {
@@ -259,6 +247,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
                 CurrentImage = null;
                 MetadataSummary = null;
                 _currentFilePath = null;
+                _loadVersion++;
             }).ConfigureAwait(false);
             return;
         }
@@ -283,14 +272,16 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         }
 
         _currentFilePath = filePath;
+        var loadVersion = ++_loadVersion;
 
         var image = await _service.LoadImageAsync(filePath).ConfigureAwait(false);
         var metadata = await _service.GetMetadataAsync(filePath, CancellationToken.None).ConfigureAwait(false);
 
-        await RunOnUiAsync(() =>
+        await _uiDispatcher.RunAsync(() =>
         {
-            // 読み込みの間に別の写真が選ばれたか、選択が解除されていれば反映しない
-            if (filePath != _currentFilePath)
+            // 読み込みの間に別の読み込みが始まったか、選択が解除されていれば反映しない。
+            // 別の写真を経て同じ写真へ戻ることがあるので、パスではなく読み込みの番号で比べる
+            if (loadVersion != _loadVersion)
             {
                 return;
             }
@@ -298,47 +289,6 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             CurrentImage = image;
             MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
         }).ConfigureAwait(false);
-    }
-
-    // UI スレッドで実行して完了を待つ。UI のキューがない（単体テストなど）場合は、その場で実行する
-    private Task RunOnUiAsync(Action action)
-    {
-        var postToUi = _postToUi ?? TryGetCurrentThreadPost();
-        if (postToUi is null)
-        {
-            action();
-            return Task.CompletedTask;
-        }
-
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        postToUi(() =>
-        {
-            try
-            {
-                action();
-                completion.TrySetResult();
-            }
-#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
-            catch (Exception ex)
-            {
-                completion.TrySetException(ex);
-            }
-#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
-        });
-        return completion.Task;
-    }
-
-    private static Action<Action>? TryGetCurrentThreadPost()
-    {
-        try
-        {
-            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-            return dispatcherQueue is null ? null : action => dispatcherQueue.TryEnqueue(() => action());
-        }
-        catch (COMException ex) when (ex.HResult == ClassNotRegisteredHresult)
-        {
-            return null;
-        }
     }
 
     private static string? BuildMetadataSummary(Models.PhotoMetadata? metadata, PhotoListItem? selectedPhoto)

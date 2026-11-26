@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Preview;
+using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
 using Xunit;
@@ -76,15 +77,31 @@ public sealed class PreviewPaneSelectionOrderTests
         Assert.Equal(expected, context.ViewModel.MetadataSummary);
     }
 
+    // 同じ写真へ戻った場合も、最初の読み込みは古い。反映すると画像が差し替わり、拡大の状態が失われる
+    [Fact]
+    public void FirstLoadThatFinishesAfterReturningToTheSamePhotoIsDiscarded()
+    {
+        var context = new Context();
+        var firstLoad = context.Service.Hold(PhotoA);
+        context.Select(PhotoA);
+        context.Select(PhotoB);
+        context.Queue.RunAll();
+        context.Select(PhotoA);
+        context.Queue.RunAll();
+
+        // 古い読み込みが反映されると、表示が変わるようにする
+        context.Service.CameraModel = "stale";
+        firstLoad.SetResult(null);
+        context.Queue.RunNext();
+
+        Assert.Equal(PhotoA, context.ViewModel.MetadataSummary);
+    }
+
     private sealed class Context
     {
         private readonly WorkspaceState _workspaceState = new();
 
-        public Context()
-        {
-            ViewModel = new PreviewPaneViewModel(Service, _workspaceState);
-            ViewModel.InitializeUiPost(Queue.Post);
-        }
+        public Context() => ViewModel = new PreviewPaneViewModel(Service, _workspaceState, Queue);
 
         public FakeService Service { get; } = new();
 
@@ -109,11 +126,29 @@ public sealed class PreviewPaneSelectionOrderTests
         }
     }
 
-    private sealed class ManualUiQueue
+    // 実行の順序をテストが決められるように、投入された処理を積むだけの UI ディスパッチャ
+    private sealed class ManualUiQueue : IUiDispatcher
     {
         private readonly ConcurrentQueue<Action> _actions = new();
 
-        public void Post(Action action) => _actions.Enqueue(action);
+        public bool IsAvailable => true;
+
+        public Task RunAsync(Action action)
+        {
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _actions.Enqueue(() =>
+            {
+                action();
+                completion.SetResult();
+            });
+            return completion.Task;
+        }
+
+        public Task<T> EnqueueAsync<T>(Func<Task<T>> asyncFunc) => throw new NotSupportedException();
+
+        public bool TryEnqueue(Action action) => throw new NotSupportedException();
+
+        public IUiDispatcherTimer? CreateTimer() => throw new NotSupportedException();
 
         public void RunAll()
         {
@@ -138,6 +173,9 @@ public sealed class PreviewPaneSelectionOrderTests
         private readonly Dictionary<string, TaskCompletionSource<BitmapImage?>> _held = [];
         private readonly List<string> _loads = [];
 
+        public string? CameraModel { get; set; }
+
+        // 次の 1 回の読み込みだけを、呼び出し側が完了させるまで待たせる
         public TaskCompletionSource<BitmapImage?> Hold(string filePath)
             => _held[filePath] = new TaskCompletionSource<BitmapImage?>();
 
@@ -146,10 +184,10 @@ public sealed class PreviewPaneSelectionOrderTests
         public Task<BitmapImage?> LoadImageAsync(string filePath)
         {
             _loads.Add(filePath);
-            return _held.TryGetValue(filePath, out var held) ? held.Task : Task.FromResult<BitmapImage?>(null);
+            return _held.Remove(filePath, out var held) ? held.Task : Task.FromResult<BitmapImage?>(null);
         }
 
         public Task<PhotoMetadata?> GetMetadataAsync(string filePath, CancellationToken cancellationToken)
-            => Task.FromResult<PhotoMetadata?>(new PhotoMetadata(null, null, filePath, null, null));
+            => Task.FromResult<PhotoMetadata?>(new PhotoMetadata(null, filePath, CameraModel, null, null));
     }
 }

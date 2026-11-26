@@ -66,7 +66,6 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         }
 
         _viewModel = viewModel;
-        viewModel.InitializeDispatcherQueue(DispatcherQueue);
         viewModel.PanZoom.Changed += OnPanZoomChanged;
         _inputAdapter = new PanZoomInputAdapter(
             PreviewViewport,
