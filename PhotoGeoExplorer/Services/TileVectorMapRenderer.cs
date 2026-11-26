@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +8,7 @@ using PhotoGeoExplorer.Models;
 using PhotoMapStudio.Rendering;
 using PhotoMapStudio.Tiles;
 using PhotoMapStudio.Tiles.Vector;
+using SkiaSharp;
 
 namespace PhotoGeoExplorer.Services;
 
@@ -32,6 +34,7 @@ internal sealed class TileVectorMapRenderer : IVectorMapRenderer, IVectorMapPref
     private readonly IVectorTileSource _tileSource;
     private readonly IVectorMapStyle _style;
     private readonly VectorMapRenderer _renderer;
+    private readonly bool _isGsi;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly object _gate = new();
     private int _activeCalls;
@@ -60,7 +63,8 @@ internal sealed class TileVectorMapRenderer : IVectorMapRenderer, IVectorMapPref
         _cache = new FileSystemTileCache(
             cacheDirectory,
             errorObserver: exception => AppLog.Error("The vector tile cache failed.", exception));
-        if (sourceType == MapTileSourceType.GsiVector)
+        _isGsi = sourceType == MapTileSourceType.GsiVector;
+        if (_isGsi)
         {
             _tileSource = GsiVectorTileSource.Create(_httpClient);
             _style = new GsiVectorStyle();
@@ -83,6 +87,20 @@ internal sealed class TileVectorMapRenderer : IVectorMapRenderer, IVectorMapPref
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
             return await _renderer.RenderViewAsync(request, linked.Token).ConfigureAwait(false);
+        }
+        catch (TileFetchException ex) when (_isGsi
+            && ex.StatusCode == HttpStatusCode.NotFound
+            && ex.RequestUri?.Scheme == "vector-tile")
+        {
+            // 描画器が全タイルを配信範囲外と判定した場合だけ仮想 URI を返す。
+            // HTTP Range 要求の 404 はアーカイブ URL を持ち、通信障害として伝播させる。
+            cancellationToken.ThrowIfCancellationRequested();
+            _lifetime.Token.ThrowIfCancellationRequested();
+            var info = new SKImageInfo(
+                request.PixelWidth, request.PixelHeight, request.ColorType ?? SKImageInfo.PlatformColorType, SKAlphaType.Premul);
+            using var bitmap = new SKBitmap(info);
+            bitmap.Erase(_style.BackgroundColor);
+            return new VectorViewResult(SKImage.FromBitmap(bitmap));
         }
         finally
         {

@@ -1,9 +1,11 @@
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoMapStudio.Rendering;
 using PhotoMapStudio.Tiles;
@@ -42,6 +44,76 @@ public sealed class TileVectorMapRendererTests
 
             Assert.True(handler.RequestCount > 0);
         }).ConfigureAwait(true);
+    }
+
+    [Theory]
+    [InlineData(51.5074, -0.1278, 12, false)]
+    [InlineData(51.5074, -0.1278, 12, true)]
+    [InlineData(35.681, 139.767, 3, false)]
+    [InlineData(35.681, 139.767, 3, true)]
+    public async Task GsiDrawsABlankImageWhereTheArchiveHasNoTilesAsync(
+        double latitude, double longitude, int zoom, bool allowIncompleteMaps)
+    {
+        await WithTemporaryDirectoryAsync(async directory =>
+        {
+            using var handler = new StubHttpMessageHandler(EmptyGsiArchiveRange);
+            using var renderer = new TileVectorMapRenderer(directory, UserAgent, handler, MapTileSourceType.GsiVector);
+            var request = new VectorViewRequest(latitude, longitude, zoom, 96, 64)
+            {
+                AllowIncompleteMaps = allowIncompleteMaps
+            };
+
+            using var result = await renderer.RenderViewAsync(request).ConfigureAwait(true);
+
+            Assert.True(result.IsComplete);
+            using var style = new GsiVectorStyle();
+            using var bitmap = SkiaSharp.SKBitmap.FromImage(result.Image);
+            Assert.Equal(96, bitmap.Width);
+            Assert.Equal(64, bitmap.Height);
+            Assert.All(bitmap.Pixels, pixel => Assert.Equal(style.BackgroundColor, pixel));
+        }).ConfigureAwait(true);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task GsiDoesNotTreatAnArchiveHttpErrorAsMissingCoverageAsync(HttpStatusCode status)
+    {
+        await WithTemporaryDirectoryAsync(async directory =>
+        {
+            using var handler = new FixedStatusHandler(status);
+            using var renderer = new TileVectorMapRenderer(directory, UserAgent, handler, MapTileSourceType.GsiVector);
+
+            var error = await Assert.ThrowsAsync<TileFetchException>(
+                () => renderer.RenderViewAsync(TokyoRequest)).ConfigureAwait(true);
+
+            Assert.Equal(status, error.StatusCode);
+            Assert.Equal(Uri.UriSchemeHttps, error.RequestUri?.Scheme);
+        }).ConfigureAwait(true);
+    }
+
+    private static HttpResponseMessage EmptyGsiArchiveRange(HttpRequestMessage request)
+    {
+        const int headerSize = 127;
+        // PMTiles v3 のヘッダーと空のルートディレクトリ（エントリー数 0 の 1 バイト）。
+        var archive = new byte[headerSize + 1];
+        "PMTiles"u8.CopyTo(archive);
+        archive[7] = 3;
+        BinaryPrimitives.WriteUInt64LittleEndian(archive.AsSpan(8), headerSize);
+        BinaryPrimitives.WriteUInt64LittleEndian(archive.AsSpan(16), 1);
+        archive[97] = 1;
+        archive[98] = 1;
+        archive[99] = 1;
+        archive[100] = 4;
+        archive[101] = 16;
+
+        var range = Assert.Single(request.Headers.Range!.Ranges);
+        var start = (int)range.From!.Value;
+        var length = (int)(range.To!.Value - start + 1);
+        return new HttpResponseMessage(HttpStatusCode.PartialContent)
+        {
+            Content = new ByteArrayContent(archive, start, length)
+        };
     }
 
     [Fact]

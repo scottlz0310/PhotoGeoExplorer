@@ -81,7 +81,11 @@ public sealed class MapZoomIndicatorViewModelTests
     [InlineData("ja-JP", MapTileSourceType.EsriWorldImagery, MapTileSourceType.EsriWorldImagery, "Esri")]
     [InlineData("ja-JP", MapTileSourceType.MapboxSatellite, MapTileSourceType.MapboxSatellite, "Mapbox")]
     [InlineData("ja-JP", MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap")]
-    [InlineData("en-US", MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap (Vector)")]
+    [InlineData("en-US", MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector, "OpenFreeMap (vector map)")]
+    [InlineData("ja-JP", MapTileSourceType.GsiStandard, MapTileSourceType.GsiStandard, "地理院タイル（標準地図）")]
+    [InlineData("ja-JP", MapTileSourceType.GsiPhoto, MapTileSourceType.GsiPhoto, "地理院タイル（航空写真）")]
+    [InlineData("en-US", MapTileSourceType.GsiPale, MapTileSourceType.GsiPale, "GSI Pale Map")]
+    [InlineData("en-US", MapTileSourceType.GsiVector, MapTileSourceType.GsiVector, "GSI Vector Map")]
     internal void ToolTipShowsTileSourceName(
         string locale,
         MapTileSourceType configured,

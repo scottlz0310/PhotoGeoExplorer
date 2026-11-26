@@ -1100,18 +1100,6 @@
   <data name="MapZoom.ToolTip.BackgroundFallbackLine" xml:space="preserve">
     <value>Background: {0} (fallback for {1})</value>
   </data>
-  <data name="MapZoom.TileSource.OpenStreetMap" xml:space="preserve">
-    <value>OpenStreetMap (Road Map)</value>
-  </data>
-  <data name="MapZoom.TileSource.EsriWorldImagery" xml:space="preserve">
-    <value>Esri World Imagery (Satellite)</value>
-  </data>
-  <data name="MapZoom.TileSource.MapboxSatellite" xml:space="preserve">
-    <value>Mapbox Satellite (Satellite)</value>
-  </data>
-  <data name="MapZoom.TileSource.OpenFreeMapVector" xml:space="preserve">
-    <value>OpenFreeMap (Vector)</value>
-  </data>
   <data name="Message.CoordinatesCopied" xml:space="preserve">
     <value>Copied the latitude and longitude:</value>
   </data>

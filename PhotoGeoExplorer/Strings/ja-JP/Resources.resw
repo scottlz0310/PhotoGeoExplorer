@@ -1100,18 +1100,6 @@
   <data name="MapZoom.ToolTip.BackgroundFallbackLine" xml:space="preserve">
     <value>背景: {0}（設定 {1} の代替表示）</value>
   </data>
-  <data name="MapZoom.TileSource.OpenStreetMap" xml:space="preserve">
-    <value>OpenStreetMap（道路地図）</value>
-  </data>
-  <data name="MapZoom.TileSource.EsriWorldImagery" xml:space="preserve">
-    <value>Esri World Imagery（衛星地図）</value>
-  </data>
-  <data name="MapZoom.TileSource.MapboxSatellite" xml:space="preserve">
-    <value>Mapbox Satellite（衛星地図）</value>
-  </data>
-  <data name="MapZoom.TileSource.OpenFreeMapVector" xml:space="preserve">
-    <value>OpenFreeMap（ベクター地図）</value>
-  </data>
   <data name="Message.CoordinatesCopied" xml:space="preserve">
     <value>緯度・経度をコピーしました:</value>
   </data>

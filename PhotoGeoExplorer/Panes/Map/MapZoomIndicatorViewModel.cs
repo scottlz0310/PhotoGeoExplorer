@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Threading;
 using Microsoft.UI.Xaml;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.State;
@@ -153,7 +154,12 @@ internal sealed class MapZoomIndicatorViewModel : BindableBase, IDisposable
             return string.Empty;
         }
 
-        var key = $"MapZoom.TileSource.{tileSourceName}";
+        if (!Enum.TryParse<MapTileSourceType>(tileSourceName, out var type) || !Enum.IsDefined(type))
+        {
+            return tileSourceName;
+        }
+
+        var key = MapBackgroundCatalog.Get(type).DisplayNameKey;
         var localized = localize(key);
         return string.Equals(localized, key, StringComparison.Ordinal) ? tileSourceName : localized;
     }
