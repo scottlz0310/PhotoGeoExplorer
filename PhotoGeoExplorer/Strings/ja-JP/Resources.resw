@@ -959,6 +959,66 @@
   <data name="Message.MapImageSaveFailed" xml:space="preserve">
     <value>地図画像の保存に失敗しました:</value>
   </data>
+  <data name="MapImageExportDialog.Title" xml:space="preserve">
+    <value>地図画像の保存</value>
+  </data>
+  <data name="MapImageExportDialog.PrimaryButtonText" xml:space="preserve">
+    <value>保存…</value>
+  </data>
+  <data name="MapImageExportDialog.CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="MapImageExportPreview.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>プレビュー</value>
+  </data>
+  <data name="MapImageExportRetry.Content" xml:space="preserve">
+    <value>再試行</value>
+  </data>
+  <data name="MapImageExportSize.Header" xml:space="preserve">
+    <value>サイズ</value>
+  </data>
+  <data name="MapImageExportWidth.Header" xml:space="preserve">
+    <value>幅 (px)</value>
+  </data>
+  <data name="MapImageExportHeight.Header" xml:space="preserve">
+    <value>高さ (px)</value>
+  </data>
+  <data name="MapImageExportZoom.Header" xml:space="preserve">
+    <value>ズーム</value>
+  </data>
+  <data name="MapImageExportTextScale.Header" xml:space="preserve">
+    <value>文字の大きさ</value>
+  </data>
+  <data name="MapImageExport.Size.CurrentView" xml:space="preserve">
+    <value>現在の表示範囲</value>
+  </data>
+  <data name="MapImageExport.Size.Custom" xml:space="preserve">
+    <value>自由入力</value>
+  </data>
+  <data name="MapImageExport.TextScale.Current" xml:space="preserve">
+    <value>{0}%（現在の表示倍率）</value>
+  </data>
+  <data name="MapImageExport.Status.TileCount" xml:space="preserve">
+    <value>取得タイル 約 {0} 枚</value>
+  </data>
+  <data name="MapImageExport.Status.PreviewFailed" xml:space="preserve">
+    <value>プレビューを作成できませんでした。通信状況を確認して「再試行」を押してください。詳細はログを確認してください。</value>
+  </data>
+  <data name="MapImageExport.Problem.TooManyTiles" xml:space="preserve">
+    <value>取得するタイルが約 {0} 枚になり、上限の {1} 枚を超えます。サイズを小さくするか、文字を大きくしてください。</value>
+  </data>
+  <data name="MapImageExport.Problem.Size" xml:space="preserve">
+    <value>幅と高さは {0}〜{1} px で指定してください。</value>
+  </data>
+  <data name="MapImageExport.Problem.Zoom" xml:space="preserve">
+    <value>ズームは {0}〜{1} で指定してください。</value>
+  </data>
+  <data name="MapImageExport.Problem.Center" xml:space="preserve">
+    <value>地図の中心が範囲外のため、画像を作成できません。</value>
+  </data>
+  <data name="MapImageExport.Problem.TextScale" xml:space="preserve">
+    <value>この表示倍率では画像を作成できません。別の文字の大きさを選んでください。</value>
+  </data>
   <data name="SettingsPaneMapboxTokenBox.Header" xml:space="preserve">
     <value>Mapbox アクセストークン</value>
   </data>

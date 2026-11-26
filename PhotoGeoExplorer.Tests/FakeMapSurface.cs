@@ -1,8 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.Services.PanZoom;
@@ -106,17 +103,9 @@ internal sealed class FakeMapSurface : IMapSurface
 
     internal List<IMapBackground> ReplacedBackgrounds { get; } = [];
 
-    internal Func<float, Stream> PngFactory { get; set; } = static _ => new MemoryStream();
-
-    internal List<float> RenderPngDensities { get; } = [];
 
     public void ReplaceBackground(IMapBackground background) => ReplacedBackgrounds.Add(background);
 
-    public Task<Stream> RenderPngAsync(float pixelDensity, CancellationToken cancellationToken)
-    {
-        RenderPngDensities.Add(pixelDensity);
-        return Task.FromResult(PngFactory(pixelDensity));
-    }
 
     internal void RaiseViewChanged() => _viewChanged?.Invoke(this, EventArgs.Empty);
 }

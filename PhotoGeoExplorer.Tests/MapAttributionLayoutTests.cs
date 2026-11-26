@@ -36,7 +36,7 @@ public sealed class MapAttributionLayoutTests
     [InlineData(MapTileSourceType.GsiStandard)]
     [InlineData(MapTileSourceType.GsiPale)]
     [InlineData(MapTileSourceType.GsiPhoto)]
-    internal async Task DrawnAttributionStaysWithinTheReservedHeight(MapTileSourceType sourceType)
+    internal void DrawnAttributionStaysWithinTheReservedHeight(MapTileSourceType sourceType)
     {
         const int height = 600;
         var cacheDirectory = Directory.CreateTempSubdirectory("pge-attribution-layout-");
@@ -50,7 +50,7 @@ public sealed class MapAttributionLayoutTests
                 cacheDirectory.FullName);
             surface.ReplaceBackground(background);
 
-            using var stream = await surface.RenderPngAsync(1f, CancellationToken.None).ConfigureAwait(true);
+            using var stream = MapsuiMapImageRenderer.RenderPng(map, [.. map.Layers], map.Navigator.Viewport, 1f);
 
             var drawn = map.GetWidgetsOfMapAndLayers()
                 .OfType<HyperlinkWidget>()

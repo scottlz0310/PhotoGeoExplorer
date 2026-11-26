@@ -26,7 +26,7 @@ public sealed class MapAttributionDuplicateTests
     [InlineData(MapTileSourceType.GsiPale, 1.5f)]
     [InlineData(MapTileSourceType.GsiPhoto, 1f)]
     [InlineData(MapTileSourceType.GsiPhoto, 1.5f)]
-    internal async Task RasterBackgroundShowsOnlyTheApplicationAttribution(MapTileSourceType sourceType, float pixelDensity)
+    internal void RasterBackgroundShowsOnlyTheApplicationAttribution(MapTileSourceType sourceType, float pixelDensity)
     {
         var cacheDirectory = Directory.CreateTempSubdirectory("pge-attribution-");
         try
@@ -39,7 +39,7 @@ public sealed class MapAttributionDuplicateTests
                 cacheDirectory.FullName);
             surface.ReplaceBackground(background);
 
-            using var stream = await surface.RenderPngAsync(pixelDensity, CancellationToken.None).ConfigureAwait(true);
+            using var stream = MapsuiMapImageRenderer.RenderPng(map, [.. map.Layers], map.Navigator.Viewport, pixelDensity);
 
             // 描かれたウィジェットだけが位置を持つ。クリックはこの位置で受けるため、描かれていなければ受けない
             var drawn = map.GetWidgetsOfMapAndLayers()

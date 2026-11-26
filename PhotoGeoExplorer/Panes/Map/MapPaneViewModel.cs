@@ -38,6 +38,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     private int _backgroundGeneration;
     private string _backgroundNotice = string.Empty;
     private IMapBackground? _background;
+    private MapBackgroundRequest? _displayedBackgroundRequest;
     private IMapSurface? _surface;
     private MapTileSourceType _currentTileSource = MapTileSourceType.OpenStreetMap;
     private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
@@ -372,14 +373,14 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     }
 
     /// <summary>
-    /// 保存先選択と現在の地図スナップショット取得を View に委譲して PNG を保存する
+    /// 条件を選ぶダイアログと保存先の選択を View に委譲して、地図画像を PNG で保存する
     /// </summary>
     public async Task SaveMapImageAsync(
-        MapImageSavePickerAsync showSavePickerAsync,
-        MapImageSnapshotProviderAsync captureSnapshotAsync)
+        MapImageExportDialogAsync showDialogAsync,
+        MapImageSavePickerAsync showSavePickerAsync)
     {
+        ArgumentNullException.ThrowIfNull(showDialogAsync);
         ArgumentNullException.ThrowIfNull(showSavePickerAsync);
-        ArgumentNullException.ThrowIfNull(captureSnapshotAsync);
 
         if (!CanSaveMapImage)
         {
@@ -392,33 +393,41 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
 
         try
         {
-            var suggestedFileName = _mapImageService.CreateDefaultFileName(DateTimeOffset.Now);
-            var pickerOptions = MapImageSavePickerOptions.Create(
-                _saveFolderHistory.GetStartFolder(MapImageSavePickerOptions.SettingsIdentifier),
-                _workspaceState.CurrentFolderPath,
-                suggestedFileName);
-            var outputPath = await showSavePickerAsync(pickerOptions, cts.Token).ConfigureAwait(true);
-
-            if (outputPath is null)
+            var source = CreateExportSource();
+            var export = new MapImageExportViewModel(_service.CreateImageExporter(), source);
+            await using (export.ConfigureAwait(true))
             {
-                RequestNotification(
-                    LocalizationService.GetString("Message.MapImageSaveCanceled"),
-                    InfoBarSeverity.Informational);
-                return;
-            }
+                export.Start();
+                if (!await showDialogAsync(export, cts.Token).ConfigureAwait(true))
+                {
+                    NotifyMapImageSaveCanceled();
+                    return;
+                }
 
-            _saveFolderHistory.RecordFileLocation(MapImageSavePickerOptions.SettingsIdentifier, outputPath);
-            using var pngStream = await captureSnapshotAsync(cts.Token).ConfigureAwait(true);
-            await _mapImageService.SavePngAsync(pngStream, outputPath, cts.Token).ConfigureAwait(true);
-            RequestNotification(
-                $"{LocalizationService.GetString("Message.MapImageSaveSucceeded")} {outputPath}",
-                InfoBarSeverity.Success);
+                var suggestedFileName = _mapImageService.CreateDefaultFileName(DateTimeOffset.Now);
+                var pickerOptions = MapImageSavePickerOptions.Create(
+                    _saveFolderHistory.GetStartFolder(MapImageSavePickerOptions.SettingsIdentifier),
+                    _workspaceState.CurrentFolderPath,
+                    suggestedFileName);
+                var outputPath = await showSavePickerAsync(pickerOptions, cts.Token).ConfigureAwait(true);
+
+                if (outputPath is null)
+                {
+                    NotifyMapImageSaveCanceled();
+                    return;
+                }
+
+                _saveFolderHistory.RecordFileLocation(MapImageSavePickerOptions.SettingsIdentifier, outputPath);
+                using var pngStream = export.OpenImageToSave();
+                await _mapImageService.SavePngAsync(pngStream, outputPath, cts.Token).ConfigureAwait(true);
+                RequestNotification(
+                    $"{LocalizationService.GetString("Message.MapImageSaveSucceeded")} {outputPath}",
+                    InfoBarSeverity.Success);
+            }
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
-            RequestNotification(
-                LocalizationService.GetString("Message.MapImageSaveCanceled"),
-                InfoBarSeverity.Informational);
+            NotifyMapImageSaveCanceled();
         }
         catch (Exception ex)
         {
@@ -438,6 +447,20 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             cts.Dispose();
             IsMapImageSaving = false;
         }
+    }
+
+    private void NotifyMapImageSaveCanceled()
+        => RequestNotification(
+            LocalizationService.GetString("Message.MapImageSaveCanceled"),
+            InfoBarSeverity.Informational);
+
+    // ダイアログの初期値にする、いまの地図
+    private MapImageExportSource CreateExportSource()
+    {
+        var surface = _surface ?? throw new InvalidOperationException("The map surface is not initialized.");
+        var background = _displayedBackgroundRequest
+            ?? throw new InvalidOperationException("The map background is not initialized.");
+        return new MapImageExportSource(background, surface.View, GetPixelDensity(), surface.Markers.ToArray());
     }
 
     /// <summary>
@@ -598,6 +621,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
             var oldBackground = SwapBackground(newBackground);
             _surface.ReplaceBackground(newBackground);
             oldBackground?.Dispose();
+            _displayedBackgroundRequest = background;
             CurrentTileSource = newSource;
             BackgroundNotice = notice;
             StatusPanelMargin = CreateStatusPanelMargin(background.SourceType);
@@ -685,6 +709,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         SwapBackground(mapBackground);
         surface.PixelDensity = GetPixelDensity();
         surface.ReplaceBackground(mapBackground);
+        _displayedBackgroundRequest = background;
         BackgroundNotice = notice;
         StatusPanelMargin = CreateStatusPanelMargin(background.SourceType);
 

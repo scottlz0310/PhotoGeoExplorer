@@ -102,6 +102,8 @@ public sealed class MapMarkerPresenterTests
         public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
+        public IMapImageExporter CreateImageExporter() => throw new NotSupportedException();
+
         public IMapBackground CreateBackground(MapBackgroundRequest background)
             => throw new NotSupportedException();
 

@@ -86,60 +86,6 @@ public sealed class RasterMapBackgroundTests
     }
 
     [Fact]
-    public async Task ExportLayersAreTheDisplayedLayersAndDisposingThemKeepsTheLayersAlive()
-    {
-        using var layer = new BusyTileLayer();
-        using var background = new RasterMapBackground(layer, MapTileSourceType.OpenStreetMap);
-
-        var export = await background.CreateExportLayersAsync(new Viewport(0, 0, 1, 0, 100, 50), 1f, CancellationToken.None).ConfigureAwait(true);
-        export.Dispose();
-
-        Assert.Same(layer, Assert.Single(export.Layers));
-        Assert.Equal(0, layer.DisposeCount);
-    }
-
-    [Fact]
-    public async Task ExportLayersThrowsWhenCanceled()
-    {
-        using var layer = CreateLayer();
-        using var background = new RasterMapBackground(layer, MapTileSourceType.OpenStreetMap);
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync().ConfigureAwait(true);
-
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => background.CreateExportLayersAsync(new Viewport(0, 0, 1, 0, 100, 50), 1f, cts.Token)).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public void ComposeReplacesBackgroundLayersAndKeepsOtherLayersAboveInOrder()
-    {
-        using var backgroundLayer = new BusyTileLayer();
-        using var exportLayer = new MemoryLayer { Name = "export" };
-        using var marker = new MemoryLayer { Name = "marker" };
-        using var overlay = new MemoryLayer { Name = "overlay" };
-        using var background = new RasterMapBackground(backgroundLayer, MapTileSourceType.OpenStreetMap);
-        using var export = new TestExportLayers([exportLayer]);
-
-        var layers = MapExportLayers.Compose([backgroundLayer, marker, overlay], background, export);
-
-        Assert.Equal(new ILayer[] { exportLayer, marker, overlay }, layers.ToArray());
-    }
-
-    [Fact]
-    public void ComposeWithBorrowedLayersEqualsTheMapLayers()
-    {
-        using var backgroundLayer = new BusyTileLayer();
-        using var marker = new MemoryLayer { Name = "marker" };
-        using var background = new RasterMapBackground(backgroundLayer, MapTileSourceType.OpenStreetMap);
-        using var export = MapExportLayers.Borrowed(background.Layers);
-        ILayer[] mapLayers = [backgroundLayer, marker];
-
-        var layers = MapExportLayers.Compose(mapLayers, background, export);
-
-        Assert.Equal(mapLayers, layers.ToArray());
-    }
-
-    [Fact]
     public async Task StartupApplierDoesNotEmitCompletionOrAdvanceSeqWhenRasterTileFetchFailsAsync()
     {
         var tileSource = KnownTileSources.Create(KnownTileSource.OpenStreetMap);
@@ -607,14 +553,5 @@ public sealed class RasterMapBackgroundTests
 
         public MapInfo GetMapInfo(ScreenPosition screenPosition, Viewport viewport, IEnumerable<ILayer> layers, RenderService renderService, int margin = 0)
             => inner.GetMapInfo(screenPosition, viewport, layers, renderService, margin);
-    }
-
-    private sealed class TestExportLayers(ILayer[] layers) : IMapExportLayers
-    {
-        public System.Collections.Generic.IReadOnlyList<ILayer> Layers { get; } = layers;
-
-        public void Dispose()
-        {
-        }
     }
 }

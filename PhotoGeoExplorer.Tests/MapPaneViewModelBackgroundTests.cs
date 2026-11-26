@@ -316,6 +316,8 @@ public sealed class MapPaneViewModelBackgroundTests
             return (created, surface);
         }
 
+        public IMapImageExporter CreateImageExporter() => throw new NotSupportedException();
+
         public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
             Requests.Add(background);

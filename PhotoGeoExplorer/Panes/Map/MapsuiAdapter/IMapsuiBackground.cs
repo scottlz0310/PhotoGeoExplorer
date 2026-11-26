@@ -36,10 +36,4 @@ internal interface IMapsuiBackground : IMapBackground
     /// 視点に応じて描き直す背景は、新しい密度で描き直す。ラスタは何もしない。UI スレッドから呼ぶ。
     /// </summary>
     void OnPixelDensityChanged();
-
-    /// <summary>
-    /// PNG 保存用のレイヤーを用意する。表示中のレイヤーには触らない。
-    /// ラスタは表示中のレイヤーをそのまま返し、ベクターは保存時のビューポートと密度で確定描画した別レイヤーを返す。
-    /// </summary>
-    Task<IMapExportLayers> CreateExportLayersAsync(Viewport viewport, float pixelDensity, CancellationToken cancellationToken);
 }

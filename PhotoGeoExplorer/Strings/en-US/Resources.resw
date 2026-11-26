@@ -959,6 +959,66 @@
   <data name="Message.MapImageSaveFailed" xml:space="preserve">
     <value>Failed to save the map image:</value>
   </data>
+  <data name="MapImageExportDialog.Title" xml:space="preserve">
+    <value>Save map image</value>
+  </data>
+  <data name="MapImageExportDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Save...</value>
+  </data>
+  <data name="MapImageExportDialog.CloseButtonText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="MapImageExportPreview.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="MapImageExportRetry.Content" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="MapImageExportSize.Header" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="MapImageExportWidth.Header" xml:space="preserve">
+    <value>Width (px)</value>
+  </data>
+  <data name="MapImageExportHeight.Header" xml:space="preserve">
+    <value>Height (px)</value>
+  </data>
+  <data name="MapImageExportZoom.Header" xml:space="preserve">
+    <value>Zoom</value>
+  </data>
+  <data name="MapImageExportTextScale.Header" xml:space="preserve">
+    <value>Text size</value>
+  </data>
+  <data name="MapImageExport.Size.CurrentView" xml:space="preserve">
+    <value>Current view</value>
+  </data>
+  <data name="MapImageExport.Size.Custom" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="MapImageExport.TextScale.Current" xml:space="preserve">
+    <value>{0}% (current display scale)</value>
+  </data>
+  <data name="MapImageExport.Status.TileCount" xml:space="preserve">
+    <value>Tiles to fetch: about {0}</value>
+  </data>
+  <data name="MapImageExport.Status.PreviewFailed" xml:space="preserve">
+    <value>The preview could not be created. Check your connection and choose Retry. See the log for details.</value>
+  </data>
+  <data name="MapImageExport.Problem.TooManyTiles" xml:space="preserve">
+    <value>About {0} tiles are needed, which exceeds the limit of {1}. Reduce the size or increase the text size.</value>
+  </data>
+  <data name="MapImageExport.Problem.Size" xml:space="preserve">
+    <value>Width and height must be between {0} and {1} px.</value>
+  </data>
+  <data name="MapImageExport.Problem.Zoom" xml:space="preserve">
+    <value>Zoom must be between {0} and {1}.</value>
+  </data>
+  <data name="MapImageExport.Problem.Center" xml:space="preserve">
+    <value>The map center is out of range, so the image cannot be created.</value>
+  </data>
+  <data name="MapImageExport.Problem.TextScale" xml:space="preserve">
+    <value>The image cannot be created at this display scale. Choose another text size.</value>
+  </data>
   <data name="SettingsPaneMapboxTokenBox.Header" xml:space="preserve">
     <value>Mapbox access token</value>
   </data>

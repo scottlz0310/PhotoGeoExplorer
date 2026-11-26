@@ -60,7 +60,13 @@ internal sealed class MapsuiMapImageExporter : IMapImageExporter
             tileCount);
     }
 
-    public async Task<Stream> RenderPngAsync(MapImageExportRequest request, CancellationToken cancellationToken)
+    // 大きい画像の描画で UI スレッドを止めないよう、全体をスレッドプールで行う
+    public Task<Stream> RenderPngAsync(MapImageExportRequest request, CancellationToken cancellationToken)
+        => Task.Run(() => RenderCoreAsync(request, cancellationToken), cancellationToken);
+
+    public void Dispose() => _httpClient.Dispose();
+
+    private async Task<Stream> RenderCoreAsync(MapImageExportRequest request, CancellationToken cancellationToken)
     {
         var plan = Plan(request);
         if (plan.Problem != MapImageExportProblem.None)
@@ -96,13 +102,13 @@ internal sealed class MapsuiMapImageExporter : IMapImageExporter
             return Render(map, [tiles, markers], viewport, pixelDensity, cancellationToken);
         }
 
-        using var exportLayers = await background
+        var vector = background as VectorMapBackground
+            ?? throw new InvalidOperationException("The map background cannot be exported.");
+        using var exportLayers = await vector
             .CreateExportLayersAsync(viewport, pixelDensity, cancellationToken)
             .ConfigureAwait(true);
         return Render(map, [.. exportLayers.Layers, markers], viewport, pixelDensity, cancellationToken);
     }
-
-    public void Dispose() => _httpClient.Dispose();
 
     private static Stream Render(
         Mapsui.Map map,

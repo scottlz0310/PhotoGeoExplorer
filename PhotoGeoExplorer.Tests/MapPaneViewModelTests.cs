@@ -14,6 +14,7 @@ using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 using PhotoGeoExplorer.Services;
+using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.Services.AreaNames;
 using PhotoGeoExplorer.State;
 using PhotoGeoExplorer.ViewModels;
@@ -158,51 +159,79 @@ public class MapPaneViewModelTests
     public async Task SaveMapImageAsyncSavesOnceAndPublishesDestination()
     {
         // Arrange
-        var (viewModel, workspaceState, imageService) = await CreateReadyMapImageViewModelAsync(
-            Path.GetTempPath()).ConfigureAwait(true);
-        var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var completeCapture = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var map = CreateReadyMapImageViewModel(Path.GetTempPath());
+        var closeDialog = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var pickerCallCount = 0;
         string? notification = null;
         InfoBarSeverity? severity = null;
-        workspaceState.NotificationRequested += (_, args) =>
+        map.WorkspaceState.NotificationRequested += (_, args) =>
         {
             notification = args.Message;
             severity = args.Severity;
         };
 
-        var firstSave = viewModel.SaveMapImageAsync(
+        var firstSave = map.ViewModel.SaveMapImageAsync(
+            async (export, _) =>
+            {
+                await ShowPreviewAsync(export).ConfigureAwait(true);
+                return await closeDialog.Task.ConfigureAwait(true);
+            },
             (options, _) =>
             {
                 pickerCallCount++;
                 Assert.Equal(Path.GetTempPath(), options.SuggestedStartFolder);
                 Assert.Equal("map.png", options.SuggestedFileName);
                 return Task.FromResult<string?>(@"C:\Exports\map.png");
-            },
-            async _ =>
-            {
-                captureStarted.SetResult();
-                await completeCapture.Task.ConfigureAwait(true);
-                return new MemoryStream([1, 2, 3]);
             });
-        await captureStarted.Task.ConfigureAwait(true);
-        var duplicateSave = viewModel.SaveMapImageAsync(
-            (_, _) => throw new InvalidOperationException("The duplicate picker must not run."),
-            _ => throw new InvalidOperationException("The duplicate capture must not run."));
+        var duplicateSave = map.ViewModel.SaveMapImageAsync(
+            (_, _) => throw new InvalidOperationException("The duplicate dialog must not open."),
+            (_, _) => throw new InvalidOperationException("The duplicate picker must not run."));
 
-        Assert.True(viewModel.IsMapImageSaving);
-        Assert.False(viewModel.CanSaveMapImage);
+        Assert.True(map.ViewModel.IsMapImageSaving);
+        Assert.False(map.ViewModel.CanSaveMapImage);
         await duplicateSave.ConfigureAwait(true);
-        completeCapture.SetResult();
+        closeDialog.SetResult(true);
         await firstSave.ConfigureAwait(true);
 
         Assert.Equal(1, pickerCallCount);
-        Assert.Equal(@"C:\Exports\map.png", imageService.SavedFilePath);
+        Assert.Equal(@"C:\Exports\map.png", map.ImageService.SavedFilePath);
         Assert.Contains(@"C:\Exports\map.png", notification, StringComparison.Ordinal);
         Assert.Equal(InfoBarSeverity.Success, severity);
-        Assert.False(viewModel.IsMapImageSaving);
-        Assert.True(viewModel.CanSaveMapImage);
-        viewModel.Cleanup();
+        Assert.False(map.ViewModel.IsMapImageSaving);
+        Assert.True(map.ViewModel.CanSaveMapImage);
+        Assert.Equal(1, Assert.Single(map.Service.Exporters).DisposeCount);
+        map.ViewModel.Cleanup();
+    }
+
+    [Fact]
+    public async Task SaveMapImageAsyncStartsTheDialogFromTheDisplayedMap()
+    {
+        var map = CreateReadyMapImageViewModel();
+        map.Surface.View = new MapViewState(true, 15000000, 4000000, WebMercator.ResolutionFromLogicalZoom(12), 640, 360);
+        var marker = new MapMarker(
+            35,
+            139,
+            new PhotoItem(@"C:\Photos\a.jpg", 0, DateTimeOffset.UnixEpoch, isFolder: false),
+            new PhotoMetadata(null, null, null, 35, 139),
+            PinImagePath: null);
+        map.Surface.ShowMarker(marker, 12);
+        map.ViewModel.UpdatePixelDensity(1.5);
+        map.ViewModel.SwitchTileSource(MapTileSourceType.EsriWorldImagery);
+
+        await map.ViewModel.SaveMapImageAsync(
+            async (export, _) =>
+            {
+                await export.PreviewTask.ConfigureAwait(true);
+                return false;
+            },
+            (_, _) => throw new InvalidOperationException("The picker must not run.")).ConfigureAwait(true);
+
+        var request = Assert.Single(Assert.Single(map.Service.Exporters).Rendered);
+        Assert.Equal(MapTileSourceType.EsriWorldImagery, request.Background.SourceType);
+        Assert.Equal((15000000d, 4000000d, 12d), (request.CenterX, request.CenterY, Math.Round(request.LogicalZoom, 6)));
+        Assert.Equal((960, 540, 1.5), (request.PixelWidth, request.PixelHeight, request.PixelDensity));
+        Assert.Same(marker, Assert.Single(request.Markers));
+        map.ViewModel.Cleanup();
     }
 
     [Fact]
@@ -211,7 +240,7 @@ public class MapPaneViewModelTests
         // Arrange
         var sourceFolder = Directory.CreateTempSubdirectory("pge-map-source-");
         var exportFolder = Directory.CreateTempSubdirectory("pge-map-export-");
-        var (viewModel, _, _) = await CreateReadyMapImageViewModelAsync(sourceFolder.FullName).ConfigureAwait(true);
+        var map = CreateReadyMapImageViewModel(sourceFolder.FullName);
         var startFolders = new List<string>();
         string? pickerResult = Path.Combine(exportFolder.FullName, "map.png");
 
@@ -221,17 +250,15 @@ public class MapPaneViewModelTests
             return Task.FromResult(pickerResult);
         }
 
-        Task<Stream> CaptureAsync(CancellationToken cancellationToken)
-            => Task.FromResult<Stream>(new MemoryStream([1, 2, 3]));
 
         try
         {
             // Act
-            await viewModel.SaveMapImageAsync(PickAsync, CaptureAsync).ConfigureAwait(true);
+            await map.ViewModel.SaveMapImageAsync(AcceptAsync, PickAsync).ConfigureAwait(true);
             pickerResult = null;
-            await viewModel.SaveMapImageAsync(PickAsync, CaptureAsync).ConfigureAwait(true);
+            await map.ViewModel.SaveMapImageAsync(AcceptAsync, PickAsync).ConfigureAwait(true);
             exportFolder.Delete(recursive: true);
-            await viewModel.SaveMapImageAsync(PickAsync, CaptureAsync).ConfigureAwait(true);
+            await map.ViewModel.SaveMapImageAsync(AcceptAsync, PickAsync).ConfigureAwait(true);
 
             // Assert
             Assert.Equal(
@@ -240,7 +267,7 @@ public class MapPaneViewModelTests
         }
         finally
         {
-            viewModel.Cleanup();
+            map.ViewModel.Cleanup();
             sourceFolder.Delete(recursive: true);
             if (exportFolder.Exists)
             {
@@ -250,28 +277,48 @@ public class MapPaneViewModelTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task SaveMapImageAsyncTreatsPickerAndOperationCancellationAsInformational(bool cancelDuringCapture)
+    [InlineData("dialog-closed")]
+    [InlineData("picker-closed")]
+    [InlineData("cleanup-in-dialog")]
+    [InlineData("cleanup-in-picker")]
+    public async Task SaveMapImageAsyncTreatsClosingAndCancellationAsInformational(string cancellation)
     {
         // Arrange
-        var (viewModel, workspaceState, imageService) = await CreateReadyMapImageViewModelAsync().ConfigureAwait(true);
+        var map = CreateReadyMapImageViewModel();
         InfoBarSeverity? severity = null;
-        workspaceState.NotificationRequested += (_, args) => severity = args.Severity;
+        map.WorkspaceState.NotificationRequested += (_, args) => severity = args.Severity;
 
-        var saveTask = viewModel.SaveMapImageAsync(
-            (_, _) => Task.FromResult<string?>(cancelDuringCapture ? @"C:\Exports\map.png" : null),
-            async cancellationToken =>
+        async Task WaitForCancellationAsync(CancellationToken cancellationToken)
+        {
+            map.ViewModel.Cleanup();
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(true);
+        }
+
+        await map.ViewModel.SaveMapImageAsync(
+            async (export, cancellationToken) =>
             {
-                viewModel.Cleanup();
-                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(true);
-                return new MemoryStream();
-            });
-        await saveTask.ConfigureAwait(true);
+                if (cancellation == "cleanup-in-dialog")
+                {
+                    await WaitForCancellationAsync(cancellationToken).ConfigureAwait(true);
+                }
+
+                await ShowPreviewAsync(export).ConfigureAwait(true);
+                return cancellation != "dialog-closed";
+            },
+            async (_, cancellationToken) =>
+            {
+                if (cancellation == "cleanup-in-picker")
+                {
+                    await WaitForCancellationAsync(cancellationToken).ConfigureAwait(true);
+                }
+
+                return null;
+            }).ConfigureAwait(true);
 
         Assert.Equal(InfoBarSeverity.Informational, severity);
-        Assert.Null(imageService.SavedFilePath);
-        viewModel.Cleanup();
+        Assert.Null(map.ImageService.SavedFilePath);
+        Assert.Equal(1, Assert.Single(map.Service.Exporters).DisposeCount);
+        map.ViewModel.Cleanup();
     }
 
     [Theory]
@@ -280,31 +327,45 @@ public class MapPaneViewModelTests
     public async Task SaveMapImageAsyncPublishesFailureAndRethrowsOriginalException(bool failDuringSave)
     {
         // Arrange
-        var (viewModel, workspaceState, imageService) = await CreateReadyMapImageViewModelAsync().ConfigureAwait(true);
+        var map = CreateReadyMapImageViewModel();
         var expectedException = failDuringSave
             ? new IOException("destination is not writable")
-            : (Exception)new InvalidOperationException("snapshot failed");
-        imageService.SaveFailure = failDuringSave ? expectedException : null;
+            : (Exception)new InvalidOperationException("the dialog could not be shown");
+        map.ImageService.SaveFailure = failDuringSave ? expectedException : null;
         string? notification = null;
         InfoBarSeverity? severity = null;
-        workspaceState.NotificationRequested += (_, args) =>
+        map.WorkspaceState.NotificationRequested += (_, args) =>
         {
             notification = args.Message;
             severity = args.Severity;
         };
 
         var actualException = await Assert.ThrowsAnyAsync<Exception>(
-            () => viewModel.SaveMapImageAsync(
-                (_, _) => Task.FromResult<string?>(@"C:\Exports\map.png"),
-                _ => failDuringSave
-                    ? Task.FromResult<Stream>(new MemoryStream([1, 2, 3]))
-                    : Task.FromException<Stream>(expectedException))).ConfigureAwait(true);
+            () => map.ViewModel.SaveMapImageAsync(
+                async (export, cancellationToken) => failDuringSave
+                    ? await AcceptAsync(export, cancellationToken).ConfigureAwait(true)
+                    : throw expectedException,
+                (_, _) => Task.FromResult<string?>(@"C:\Exports\map.png"))).ConfigureAwait(true);
 
         Assert.Same(expectedException, actualException);
         Assert.Contains(expectedException.Message, notification, StringComparison.Ordinal);
         Assert.Equal(InfoBarSeverity.Error, severity);
-        Assert.False(viewModel.IsMapImageSaving);
-        viewModel.Cleanup();
+        Assert.False(map.ViewModel.IsMapImageSaving);
+        Assert.Equal(1, Assert.Single(map.Service.Exporters).DisposeCount);
+        map.ViewModel.Cleanup();
+    }
+
+    // ダイアログと同じく、プレビューが画面に出てから決定する
+    private static async Task ShowPreviewAsync(MapImageExportViewModel export)
+    {
+        await export.PreviewTask.ConfigureAwait(true);
+        export.NotifyPreviewShown(export.PreviewPng!);
+    }
+
+    private static async Task<bool> AcceptAsync(MapImageExportViewModel export, CancellationToken cancellationToken)
+    {
+        await ShowPreviewAsync(export).ConfigureAwait(true);
+        return true;
     }
 
     [Fact]
@@ -826,17 +887,25 @@ ext{index}.jpg", isFolder: false))
         return surface;
     }
 
-    private static async Task<(
+    private sealed record ReadyMapImage(
         MapPaneViewModel ViewModel,
         WorkspaceState WorkspaceState,
-        RecordingMapImageService ImageService)> CreateReadyMapImageViewModelAsync(string? currentFolderPath = null)
+        RecordingMapImageService ImageService,
+        MapImageMapPaneService Service,
+        FakeMapSurface Surface);
+
+    private static ReadyMapImage CreateReadyMapImageViewModel(string? currentFolderPath = null)
     {
         var workspaceState = new WorkspaceState { CurrentFolderPath = currentFolderPath };
         var imageService = new RecordingMapImageService();
-        var viewModel = new MapPaneViewModel(new MapPaneService(), workspaceState, imageService, static () => null);
-        await viewModel.InitializeAsync().ConfigureAwait(true);
+        var service = new MapImageMapPaneService();
+        var viewModel = new MapPaneViewModel(service, workspaceState, imageService, static () => null, new InMemorySecretStore());
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        typeof(MapPaneViewModel).GetMethod("InitializeMapCore", flags)!.Invoke(viewModel, null);
+        typeof(MapPaneViewModel).GetField("_isMapInitialized", flags)!.SetValue(viewModel, true);
+        service.Surface.View = new MapViewState(true, 0, 0, WebMercator.ResolutionFromLogicalZoom(10), 400, 300);
         viewModel.UpdateMapImageSaveState(hasValidViewport: true, isTileLoading: false);
-        return (viewModel, workspaceState, imageService);
+        return new ReadyMapImage(viewModel, workspaceState, imageService, service, service.Surface);
     }
 
     private static MapPaneViewModel CreateViewModelWithoutDispatcher()
@@ -854,6 +923,8 @@ ext{index}.jpg", isFolder: false))
         {
             throw new NotSupportedException();
         }
+
+        public IMapImageExporter CreateImageExporter() => throw new NotSupportedException();
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
@@ -887,6 +958,37 @@ ext{index}.jpg", isFolder: false))
 
         public bool FileExistsAtPath(string path)
             => false;
+    }
+
+    private sealed class MapImageMapPaneService : IMapPaneService
+    {
+        public FakeMapSurface Surface { get; } = new();
+
+        public List<FakeMapImageExporter> Exporters { get; } = [];
+
+        public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
+            => (CreateBackground(background), Surface);
+
+        public IMapImageExporter CreateImageExporter()
+        {
+            var exporter = new FakeMapImageExporter();
+            Exporters.Add(exporter);
+            return exporter;
+        }
+
+        public IMapBackground CreateBackground(MapBackgroundRequest background)
+            => new FakeMapsuiBackground { SourceType = background.SourceType };
+
+        public Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
+            IReadOnlyList<PhotoListItem> items,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public string GetTileCacheRootDirectory() => Path.GetTempPath();
+
+        public string GetPinImagePath(PhotoMetadata metadata) => throw new NotSupportedException();
+
+        public bool FileExistsAtPath(string path) => false;
     }
 
     private sealed class RecordingMapImageService : IMapImageService
@@ -923,6 +1025,8 @@ ext{index}.jpg", isFolder: false))
             throw new NotSupportedException();
         }
 
+        public IMapImageExporter CreateImageExporter() => throw new NotSupportedException();
+
         public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
             throw new NotSupportedException();
@@ -957,6 +1061,8 @@ ext{index}.jpg", isFolder: false))
         {
             throw new NotSupportedException();
         }
+
+        public IMapImageExporter CreateImageExporter() => throw new NotSupportedException();
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
@@ -1037,6 +1143,8 @@ ext{index}.jpg", isFolder: false))
         public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
+        public IMapImageExporter CreateImageExporter() => throw new NotSupportedException();
+
         public IMapBackground CreateBackground(MapBackgroundRequest background)
             => throw new NotSupportedException();
 
@@ -1115,6 +1223,8 @@ ext{index}.jpg", isFolder: false))
         {
             throw new NotSupportedException();
         }
+
+        public IMapImageExporter CreateImageExporter() => throw new NotSupportedException();
 
         public IMapBackground CreateBackground(MapBackgroundRequest background)
         {
