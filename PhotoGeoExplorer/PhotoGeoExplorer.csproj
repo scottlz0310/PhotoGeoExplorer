@@ -33,6 +33,9 @@
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x64</AppxBundlePlatforms>
+    <!-- 表示倍率ごとの画像（scale-*）は本体パッケージに含める。既定では倍率ごとの別パッケージに分かれ、
+         .msix が 1 個である前提の DevInstall.ps1 と Invoke-WackGate.ps1 が使えなくなる -->
+    <AppxBundleAutoResourcePackageQualifiers>Language|DXFeatureLevel</AppxBundleAutoResourcePackageQualifiers>
     <!-- Localization: Default language and supported languages for PRI/MSIX generation -->
     <!-- Store 配信時に AppxManifest.xml の Resources に en-US/ja-JP が出力される -->
     <DefaultLanguage>en-US</DefaultLanguage>

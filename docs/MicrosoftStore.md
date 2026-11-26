@@ -121,6 +121,8 @@ Partner Center から現在の情報をエクスポートし、リポジトリ�
 
 ### アプリアイコン（MSIX パッケージ用）
 
+原画は `assets-source/`（`app-icon.png`・`splash.png`）にある。差し替えるときは原画を置き換えて `pwsh ./scripts/New-AppAssets.ps1` を実行し、出力された画像（表示倍率ごとの `scale-*`、タスクバーなどの `targetsize-*`、`icon.ico` を含む）をコミットする。
+
 - [x] Square44x44Logo.png（44×44 px）
 - [x] Square71x71Logo.png（71×71 px）
 - [x] Square150x150Logo.png（150×150 px）
