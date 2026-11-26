@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 変更
+- 地図の移動・拡大の入力を、画像プレビューと同じ入力アダプタ（`PanZoomInputAdapter`）へ一本化した (#362 段階 1)。地図ライブラリ自身の移動・拡大はロックで止め、視点は Core の計算で求めて反映する。ドラッグの移動・慣性・ホイールの段階ズームと補間は、従来と同じ挙動になる。
 - 地図の入力の一本化（#362 の段階 1）を WinUI 実機で検証し、結果と「条件つき採用」の判定を設計書（`docs/Architecture/MapEnhancement/02-vector-renderer.md` §11.10）へ追記した。アプリの挙動は変わらない。
 - 背景地図の定義（種類・描画方式・Mapbox トークンの要否・帰属表示）を `MapBackgroundCatalog` へ一本化した (#362)。生成・設定画面の選択肢の位置・帰属表示が、散在していた `MapTileSourceType` の分岐ではなく同じ一覧を参照する。挙動は変わらない（設定ファイルの保存値 0〜3 も同じ）。国土地理院タイル (#368) と地図画像保存ダイアログ (#366) の共通の土台になる。
 - 地図の視点（中心・解像度・大きさ）を、地図ライブラリに依存しない `MapViewState` と表示面の契約 `IMapSurface` に切り出した (#362)。`MapViewController`（#363・#364 の状態の出所）は Mapsui の型を知らなくなり、Mapsui との変換は `MapsuiAdapter` の `MapsuiMapSurface` に閉じ込めた。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の第 1 段。
@@ -12,6 +13,10 @@
 - 地図の背景の差し替え・帰属表示・画素密度の伝達・PNG 保存を、地図ライブラリに依存しない表示面の契約 `IMapSurface`（`ReplaceBackground`・`PixelDensity`・`RenderPngAsync`）へ移した (#362)。`IMapBackground` は Mapsui の型を出さない契約になり、Mapsui を使う部分は `MapsuiAdapter` の `IMapsuiBackground` に分けた。`MapPaneViewModel` は Mapsui の `using` を持たなくなった。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の第 3 段。
 - 地図ライブラリ（Mapsui・BruTile）に依存するファイル（Raster/Vector の背景、ViewExtent の画像レイヤー、描画フック、帰属ウィジェット、Mapbox のタイルソース、保存用レイヤー、PNG の描画）を `Panes/Map/MapsuiAdapter` へ集約し、名前空間を `PhotoGeoExplorer.Panes.Map.MapsuiAdapter` にそろえた (#362)。アダプタの外で Mapsui・BruTile を使うと、ソース走査のテスト（`MapsuiBoundaryTests`）が失敗する。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の第 4 段。
 - 地図の `MapControl` を包むアダプタのコントロール `MapsuiMapView` を追加し、`MapPaneViewControl` と `MapPaneViewModel` から Mapsui の型・イベント・描画フックを外した (#362)。View はマーカーのクリック・地図の状態変化の通知・ポインタ入力用の要素だけを使い、地図（`Mapsui.Map`）は表示面が持つ。`MapPaneService` の Mapsui 部分（背景・タイル・キャッシュの生成）は `MapsuiMapFactory` へ移した。アダプタの外で Mapsui・BruTile を使うとテストが失敗し（`PhotoGeoExplorer.Core` も対象）、移行途中の許可一覧はなくなった。挙動は変わらない。Mapsui 依存の境界整理（設計書 §11.6 の 3）の完了。
+
+### 修正
+- タッチのピンチで、指の間とは違う場所を中心に地図が拡大・縮小される不具合を直した (#384)。
+- 地図が 2 本指の操作で回転し、元に戻せなくなる挙動をやめた (#384)。地図の回転は当面受け付けない。
 
 ## [1.13.0] - 2026-11-25
 
