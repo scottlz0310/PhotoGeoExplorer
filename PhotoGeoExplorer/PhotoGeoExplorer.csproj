@@ -58,7 +58,7 @@
     <PackageReference Include="Mapsui.Nts" Version="5.2.0" />
     <PackageReference Include="Mapsui.Rendering.Skia" Version="5.2.0" />
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
-    <PackageReference Include="PhotoMapStudio.Rendering" Version="0.4.1" />
+    <PackageReference Include="PhotoMapStudio.Rendering" Version="0.4.2" />
   </ItemGroup>
 
   <!-- Mapsui が引く Skia 系の版と PhotoMapStudio.Rendering が依存する版が食い違うと、実行時に失敗し得る。
