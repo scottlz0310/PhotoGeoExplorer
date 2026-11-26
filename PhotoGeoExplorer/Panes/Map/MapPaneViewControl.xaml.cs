@@ -330,8 +330,8 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         try
         {
             await _viewModel.SaveMapImageAsync(
-                _dialogService.ShowMapImageSaveFilePickerAsync,
-                CaptureMapImageAsync).ConfigureAwait(true);
+                ShowMapImageExportDialogAsync,
+                _dialogService.ShowMapImageSaveFilePickerAsync).ConfigureAwait(true);
         }
         // ViewModel は失敗通知を出したうえで再スローする契約のため、async void の
         // ここで終端しないと Application.UnhandledException へ抜けてプロセスが落ちる。
@@ -343,13 +343,14 @@ internal sealed partial class MapPaneViewControl : UserControl, IDisposable
         }
     }
 
-    private Task<Stream> CaptureMapImageAsync(CancellationToken cancellationToken)
+    private async Task<bool> ShowMapImageExportDialogAsync(
+        MapImageExportViewModel viewModel,
+        CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var surface = _viewModel?.Surface ?? throw new InvalidOperationException("The map surface is not initialized.");
-        var pixelDensity = GetPixelDensity()
-            ?? throw new InvalidOperationException("Map pixel density is not available.");
-        return surface.RenderPngAsync((float)pixelDensity, cancellationToken);
+        var result = await _dialogService
+            .ShowContentDialogAsync(new MapImageExportDialog(viewModel), cancellationToken)
+            .ConfigureAwait(true);
+        return result == ContentDialogResult.Primary;
     }
 
     private void OnMapHeaderRightTapped(object sender, RightTappedRoutedEventArgs e)

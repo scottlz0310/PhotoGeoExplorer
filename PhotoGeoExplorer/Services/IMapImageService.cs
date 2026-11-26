@@ -9,7 +9,6 @@ internal delegate Task<string?> MapImageSavePickerAsync(
     MapImageSavePickerOptions options,
     CancellationToken cancellationToken);
 
-internal delegate Task<Stream> MapImageSnapshotProviderAsync(CancellationToken cancellationToken);
 
 internal interface IMapImageService
 {

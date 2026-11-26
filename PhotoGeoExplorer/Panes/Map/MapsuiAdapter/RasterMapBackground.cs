@@ -104,15 +104,6 @@ internal sealed class RasterMapBackground : IMapsuiBackground
         return () => CompleteMapRender(version, viewport);
     }
 
-    public Task<IMapExportLayers> CreateExportLayersAsync(
-        Viewport viewport,
-        float pixelDensity,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(MapExportLayers.Borrowed(Layers));
-    }
-
     public void Dispose()
     {
         if (_disposed)

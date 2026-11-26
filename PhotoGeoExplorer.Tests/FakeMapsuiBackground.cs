@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Layers;
 using Mapsui.Rendering;
@@ -20,17 +18,9 @@ internal sealed class FakeMapsuiBackground : IMapsuiBackground
 
     public List<ILayer> Layers { get; } = [new MemoryLayer { Name = "background" }];
 
-    public List<ILayer> ExportLayers { get; } = [new MemoryLayer { Name = "export" }];
-
     public MapTileSourceType SourceType { get; set; } = MapTileSourceType.OpenStreetMap;
 
     public int DisposeCount { get; private set; }
-
-    public int ExportDisposeCount { get; set; }
-
-    public Viewport ExportViewport { get; private set; }
-
-    public float ExportPixelDensity { get; private set; }
 
     public Mapsui.Map? AttachedMap { get; private set; }
 
@@ -75,19 +65,5 @@ internal sealed class FakeMapsuiBackground : IMapsuiBackground
         return RaiseFrameRendered;
     }
 
-    public Task<IMapExportLayers> CreateExportLayersAsync(Viewport viewport, float pixelDensity, CancellationToken cancellationToken)
-    {
-        ExportViewport = viewport;
-        ExportPixelDensity = pixelDensity;
-        return Task.FromResult<IMapExportLayers>(new FakeExportLayers(this));
-    }
-
     public void Dispose() => DisposeCount++;
-
-    private sealed class FakeExportLayers(FakeMapsuiBackground owner) : IMapExportLayers
-    {
-        public IReadOnlyList<ILayer> Layers => owner.ExportLayers;
-
-        public void Dispose() => owner.ExportDisposeCount++;
-    }
 }

@@ -54,6 +54,10 @@ internal sealed class MapPaneService : IMapPaneService
         => MapsuiMapFactory.CreateBackground(background, _tileCacheRootDirectory);
 
     /// <inheritdoc/>
+    public IMapImageExporter CreateImageExporter()
+        => new MapsuiMapImageExporter(_tileCacheRootDirectory);
+
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<(PhotoListItem Item, PhotoMetadata? Metadata)>> LoadPhotoMetadataAsync(
         IReadOnlyList<PhotoListItem> items,
         CancellationToken cancellationToken)

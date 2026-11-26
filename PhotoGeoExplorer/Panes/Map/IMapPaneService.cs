@@ -27,6 +27,11 @@ internal interface IMapPaneService
     IMapBackground CreateBackground(MapBackgroundRequest background);
 
     /// <summary>
+    /// 条件を指定して地図画像を作る処理を作成する。呼び出し側が破棄する
+    /// </summary>
+    IMapImageExporter CreateImageExporter();
+
+    /// <summary>
     /// 選択された写真のメタデータを読み込む
     /// </summary>
     /// <param name="items">写真アイテムのリスト</param>

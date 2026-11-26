@@ -101,12 +101,4 @@ internal interface IMapSurface : IDisposable
     /// </summary>
     /// <param name="background">この表示面が扱える背景（実装が作ったもの）</param>
     void ReplaceBackground(IMapBackground background);
-
-    /// <summary>
-    /// 現在の視点を PNG に描く。表示中のレイヤーには触らない。ベクターの背景は、保存時の視点と密度で確定描画し直す。
-    /// </summary>
-    /// <param name="pixelDensity">出力の画素密度</param>
-    /// <param name="cancellationToken">キャンセル</param>
-    /// <returns>PNG のストリーム（先頭へ巻き戻し済み）</returns>
-    Task<Stream> RenderPngAsync(float pixelDensity, CancellationToken cancellationToken);
 }

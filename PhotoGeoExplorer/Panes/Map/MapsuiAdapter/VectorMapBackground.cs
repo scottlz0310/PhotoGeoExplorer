@@ -192,6 +192,9 @@ internal sealed class VectorMapBackground : IMapsuiBackground
         return () => CompleteMapRender(generation, renderedRequest, viewport);
     }
 
+    /// <summary>
+    /// PNG 保存用のレイヤーを、指定のビューポートと密度で確定描画する。表示中のレイヤーには触らない。
+    /// </summary>
     public async Task<IMapExportLayers> CreateExportLayersAsync(
         Viewport viewport,
         float pixelDensity,

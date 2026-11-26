@@ -438,24 +438,6 @@ internal sealed class MapsuiMapSurface : IMapSurface
     internal Action? BeginMapRender(Viewport viewport, IReadOnlyList<ILayer> layers, RenderService renderService)
         => Volatile.Read(ref _background)?.BeginMapRender(viewport, layers, renderService);
 
-    public async Task<Stream> RenderPngAsync(float pixelDensity, CancellationToken cancellationToken)
-    {
-        var background = Volatile.Read(ref _background)
-            ?? throw new InvalidOperationException("The map background is not initialized.");
-        var viewport = _map.Navigator.Viewport;
-
-        using var exportLayers = await background.CreateExportLayersAsync(viewport, pixelDensity, cancellationToken).ConfigureAwait(true);
-        var layers = MapExportLayers.Compose(_map.Layers, background, exportLayers);
-        try
-        {
-            return MapsuiMapImageRenderer.RenderPng(_map, layers, viewport, pixelDensity);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            throw new InvalidOperationException("Failed to render the current map viewport as PNG.", ex);
-        }
-    }
-
     private async Task LoadAttributionImagesAsync()
     {
         try
