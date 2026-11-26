@@ -62,7 +62,7 @@ public sealed class PreviewPaneSelectionOrderTests
     [Theory]
     [InlineData(PhotoB, PhotoB)]
     [InlineData(null, null)]
-    public void LoadThatFinishesAfterANewerSelectionIsDiscarded(string? newer, string? expected)
+    public async Task LoadThatFinishesAfterANewerSelectionIsDiscarded(string? newer, string? expected)
     {
         var context = new Context();
         var slowLoad = context.Service.Hold(PhotoA);
@@ -71,15 +71,31 @@ public sealed class PreviewPaneSelectionOrderTests
         context.Select(newer is null ? [] : [newer]);
         context.Queue.RunAll();
 
-        slowLoad.SetResult(null);
-        context.Queue.RunNext();
+        await Complete(slowLoad);
+        context.Queue.RunAll();
 
         Assert.Equal(expected, context.ViewModel.MetadataSummary);
     }
 
+    [Fact]
+    public void LoadAlreadyPostedWhenANewerSelectionArrivesIsDiscarded()
+    {
+        var context = new Context();
+
+        context.Select(PhotoA);
+        context.Select(PhotoB);
+
+        // 先に積まれた A の反映は、B が選ばれた後なので何もしない
+        context.Queue.RunNext();
+        Assert.Null(context.ViewModel.MetadataSummary);
+
+        context.Queue.RunAll();
+        Assert.Equal(PhotoB, context.ViewModel.MetadataSummary);
+    }
+
     // 同じ写真へ戻った場合も、最初の読み込みは古い。反映すると画像が差し替わり、拡大の状態が失われる
     [Fact]
-    public void FirstLoadThatFinishesAfterReturningToTheSamePhotoIsDiscarded()
+    public async Task FirstLoadThatFinishesAfterReturningToTheSamePhotoIsDiscarded()
     {
         var context = new Context();
         var firstLoad = context.Service.Hold(PhotoA);
@@ -91,10 +107,85 @@ public sealed class PreviewPaneSelectionOrderTests
 
         // 古い読み込みが反映されると、表示が変わるようにする
         context.Service.CameraModel = "stale";
-        firstLoad.SetResult(null);
-        context.Queue.RunNext();
+        await Complete(firstLoad);
+        context.Queue.RunAll();
 
         Assert.Equal(PhotoA, context.ViewModel.MetadataSummary);
+    }
+
+    // 終了処理の後の UI のキューは投入を拒否するので、後片付けの後に終わった読み込みは投入しない
+    [Fact]
+    public async Task LoadThatFinishesAfterCleanupIsNotPostedToTheUi()
+    {
+        var context = new Context();
+        var slowLoad = context.Service.Hold(PhotoA);
+        context.Select(PhotoA);
+        context.ViewModel.Cleanup();
+
+        await Complete(slowLoad);
+
+        Assert.Equal(0, context.Queue.Count);
+    }
+
+    // 後片付けと投入が重なった場合だけ、拒否を無視する。それ以外の拒否は例外のままにする
+    [Theory]
+    [InlineData(PhotoA, true, 0)]
+    [InlineData(null, true, 0)]
+    [InlineData(PhotoA, false, 1)]
+    [InlineData(null, false, 1)]
+    public void RejectedUiDispatchFailsOnlyWhileThePaneIsAlive(string? selected, bool cleanedUpWhilePosting, int expectedFailures)
+    {
+        var dispatcher = new RejectingDispatcher();
+        var workspaceState = new WorkspaceState();
+        var viewModel = new PreviewPaneViewModel(new FakeService(), workspaceState, dispatcher);
+        if (cleanedUpWhilePosting)
+        {
+            dispatcher.BeforeReject = viewModel.Cleanup;
+        }
+
+        // 選択の通知を受ける処理は async void なので、漏れた例外は呼び出し時の同期コンテキストへ投入される
+        var failures = new RecordingContext();
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(failures);
+        try
+        {
+            workspaceState.SelectedPhotos = selected is null ? [] : [Context.CreateItem(selected)];
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        Assert.Equal(expectedFailures, failures.Posted);
+    }
+
+    // 同期コンテキストのないスレッドで完了させると、読み込みの続き（UI への投入まで）は SetResult の中で実行される
+    private static Task Complete(TaskCompletionSource<BitmapImage?> load) => Task.Run(() => load.SetResult(null));
+
+    private sealed class RecordingContext : SynchronizationContext
+    {
+        public int Posted { get; private set; }
+
+        public override void Post(SendOrPostCallback d, object? state) => Posted++;
+    }
+
+    private sealed class RejectingDispatcher : IUiDispatcher
+    {
+        public Action? BeforeReject { get; set; }
+
+        public bool IsAvailable => true;
+
+        public Task RunAsync(Action action)
+        {
+            BeforeReject?.Invoke();
+            return Task.FromException(new InvalidOperationException("rejected"));
+        }
+
+        public Task<T> EnqueueAsync<T>(Func<Task<T>> asyncFunc) => throw new NotSupportedException();
+
+        public bool TryEnqueue(Action action) => throw new NotSupportedException();
+
+        public IUiDispatcherTimer? CreateTimer() => throw new NotSupportedException();
     }
 
     private sealed class Context
@@ -112,7 +203,7 @@ public sealed class PreviewPaneSelectionOrderTests
         public void Select(params string[] fileNames)
             => _workspaceState.SelectedPhotos = fileNames.Select(CreateItem).ToList();
 
-        private static PhotoListItem CreateItem(string fileName)
+        public static PhotoListItem CreateItem(string fileName)
         {
             var item = new PhotoItem(
                 filePath: fileName,
@@ -132,6 +223,8 @@ public sealed class PreviewPaneSelectionOrderTests
         private readonly ConcurrentQueue<Action> _actions = new();
 
         public bool IsAvailable => true;
+
+        public int Count => _actions.Count;
 
         public Task RunAsync(Action action)
         {
@@ -158,12 +251,10 @@ public sealed class PreviewPaneSelectionOrderTests
             }
         }
 
-        // 読み込みの完了後の投入は別のスレッドから届くので、届くまで待つ
         public void RunNext()
         {
-            Action? action = null;
-            Assert.True(SpinWait.SpinUntil(() => _actions.TryDequeue(out action), TimeSpan.FromSeconds(10)));
-            action!();
+            Assert.True(_actions.TryDequeue(out var action));
+            action();
         }
     }
 

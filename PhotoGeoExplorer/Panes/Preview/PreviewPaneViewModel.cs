@@ -42,6 +42,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private string? _currentFilePath;
     private int _selectionVersion;
     private int _loadVersion;
+    private volatile bool _isCleanedUp;
 
     public PreviewPaneViewModel()
         : this(new PreviewPaneService(), new WorkspaceState())
@@ -198,6 +199,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
     protected override void OnCleanup()
     {
+        _isCleanedUp = true;
         _workspaceState.PropertyChanged -= OnWorkspaceStatePropertyChanged;
         CurrentImage = null;
         _currentFilePath = null;
@@ -237,7 +239,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         {
             // 反映が後回しになる間に次の選択が届くことがある（一覧の選択の入れ直しは「空 → 選択」の順に届く）
             var clearVersion = ++_selectionVersion;
-            await _uiDispatcher.RunAsync(() =>
+            await ApplyOnUiAsync(() =>
             {
                 if (clearVersion != _selectionVersion)
                 {
@@ -277,7 +279,13 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         var image = await _service.LoadImageAsync(filePath).ConfigureAwait(false);
         var metadata = await _service.GetMetadataAsync(filePath, CancellationToken.None).ConfigureAwait(false);
 
-        await _uiDispatcher.RunAsync(() =>
+        // 後片付けの後や、別の読み込みに替わった後は投入しない（終了処理の後の UI のキューは投入を拒否する）
+        if (loadVersion != Volatile.Read(ref _loadVersion))
+        {
+            return;
+        }
+
+        await ApplyOnUiAsync(() =>
         {
             // 読み込みの間に別の読み込みが始まったか、選択が解除されていれば反映しない。
             // 別の写真を経て同じ写真へ戻ることがあるので、パスではなく読み込みの番号で比べる
@@ -289,6 +297,19 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
             CurrentImage = image;
             MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
         }).ConfigureAwait(false);
+    }
+
+    private async Task ApplyOnUiAsync(Action apply)
+    {
+        try
+        {
+            await _uiDispatcher.RunAsync(apply).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException ex) when (_isCleanedUp)
+        {
+            // 終了処理と投入が重なると拒否される。後片付けの後に反映するものはないので、失敗にしない
+            AppLog.Info($"Preview update was skipped because the pane has been cleaned up: {ex.Message}");
+        }
     }
 
     private static string? BuildMetadataSummary(Models.PhotoMetadata? metadata, PhotoListItem? selectedPhoto)
