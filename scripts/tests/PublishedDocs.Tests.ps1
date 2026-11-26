@@ -104,7 +104,7 @@ Describe 'Find-PublishedDocsMismatch' {
     }
 
     It 'compares case-sensitively' {
-        $fetch = New-Fetch -Overrides @{ '/' = '<HTML>/</HTML>' }
+        $fetch = New-Fetch -Overrides @{ '/' = '<HTML>INDEX.HTML</HTML>' }
         @(Find-PublishedDocsMismatch -BaseUrl 'https://example.test' -DocsRoot $docs -Fetch $fetch).UrlPath | Should -Be '/'
     }
 
