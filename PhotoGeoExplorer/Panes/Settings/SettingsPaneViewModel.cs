@@ -205,9 +205,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         try
         {
             // 地理院タイルは末尾に並ぶ。既存の項目を保持したまま末尾だけを更新すると、選択中のボタンを失わない。
-            var visibleCount = JapanMapSourcesEnabled
-                ? _mapTileChoices.Length
-                : _mapTileChoices.Count(choice => !choice.RequiresJapanMapSources);
+            var visibleCount = _mapTileChoices.Count(choice => choice.IsListed(JapanMapSourcesEnabled));
             while (MapTileChoices.Count > visibleCount)
             {
                 MapTileChoices.RemoveAt(MapTileChoices.Count - 1);
@@ -238,7 +236,8 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
         public MapTileSourceType Type => descriptor.Type;
         public string DisplayName => descriptor.DisplayName;
-        internal bool RequiresJapanMapSources => descriptor.RequiresJapanMapSources;
+        internal bool IsListed(bool japanMapSourcesEnabled)
+            => MapBackgroundCatalog.IsListed(descriptor, japanMapSourcesEnabled);
 
         public bool IsEnabled
         {
@@ -247,7 +246,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         }
 
         internal void UpdateAvailability(bool hasMapboxToken)
-            => IsEnabled = !descriptor.RequiresMapboxAccessToken || hasMapboxToken;
+            => IsEnabled = MapBackgroundCatalog.IsUsable(descriptor, hasMapboxToken);
     }
 
     public SettingsPaneLayoutSectionViewModel PaneLayout { get; }

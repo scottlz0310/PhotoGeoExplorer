@@ -71,6 +71,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         _fileBrowserPaneViewModel.PropertyChanged += OnFileBrowserPanePropertyChanged;
         MapHeaderDisplay.PropertyChanged += OnMapHeaderDisplayPropertyChanged;
         _mapPaneViewModel.AreaDataAcquisition.PropertyChanged += OnAreaDataAcquisitionPropertyChanged;
+        _mapPaneViewModel.IsJapanMapSourcesEnabled = () => JapanMapSourcesEnabled;
     }
 
     public bool SettingsFileExistsAtStartup { get; }

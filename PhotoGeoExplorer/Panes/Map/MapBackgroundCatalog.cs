@@ -127,9 +127,17 @@ internal static class MapBackgroundCatalog
                 || language.StartsWith("ja-", StringComparison.OrdinalIgnoreCase));
 
     internal static MapTileSourceType ResolveSource(MapTileSourceType type, bool japanMapSourcesEnabled)
-        => Enum.IsDefined(type) && (japanMapSourcesEnabled || !Get(type).RequiresJapanMapSources)
+        => Enum.IsDefined(type) && IsListed(Get(type), japanMapSourcesEnabled)
             ? type
             : Default.Type;
+
+    /// <summary>背景の選択肢に出す（日本国内向けの背景は、有効にしたときだけ出す）</summary>
+    internal static bool IsListed(MapBackgroundDescriptor descriptor, bool japanMapSourcesEnabled)
+        => japanMapSourcesEnabled || !descriptor.RequiresJapanMapSources;
+
+    /// <summary>表示できる（アクセストークンが要る背景は、設定されているときだけ表示できる）</summary>
+    internal static bool IsUsable(MapBackgroundDescriptor descriptor, bool hasMapboxAccessToken)
+        => hasMapboxAccessToken || !descriptor.RequiresMapboxAccessToken;
 
     /// <exception cref="ArgumentOutOfRangeException">定義にない値のとき</exception>
     internal static MapBackgroundDescriptor Get(MapTileSourceType type)

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
+using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.ViewModels;
@@ -12,14 +13,23 @@ using PhotoGeoExplorer.ViewModels;
 namespace PhotoGeoExplorer.Panes.Map;
 
 /// <summary>
+/// 保存画像の背景の候補
+/// </summary>
+/// <param name="Label">選択肢の表示名</param>
+/// <param name="Request">この背景の生成要求</param>
+internal sealed record MapImageBackgroundChoice(string Label, MapBackgroundRequest Request);
+
+/// <summary>
 /// 保存ダイアログを開いた時点の地図
 /// </summary>
-/// <param name="Background">表示中の背景</param>
+/// <param name="Backgrounds">選べる背景。表示中の背景を含む</param>
+/// <param name="DisplayedSource">表示中の背景</param>
 /// <param name="View">表示中の視点</param>
 /// <param name="PixelDensity">表示倍率（物理ピクセル／論理ピクセル）</param>
 /// <param name="Markers">表示中の写真ピン</param>
 internal sealed record MapImageExportSource(
-    MapBackgroundRequest Background,
+    IReadOnlyList<MapImageBackgroundChoice> Backgrounds,
+    MapTileSourceType DisplayedSource,
     MapViewState View,
     double PixelDensity,
     IReadOnlyList<MapMarker> Markers);
@@ -61,6 +71,7 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
     // いまの条件で描いた画像と、そのうち画面に出たことを確かめた画像。条件を変えたら、どちらも無効にする
     private byte[]? _renderedPng;
     private byte[]? _shownPng;
+    private int _backgroundIndex;
     private int _sizeIndex = CurrentViewSizeIndex;
     private int _textScaleIndex;
     private double _width;
@@ -84,6 +95,14 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
         _exporter = exporter ?? throw new ArgumentNullException(nameof(exporter));
         _source = source ?? throw new ArgumentNullException(nameof(source));
         _delay = delay ?? Task.Delay;
+        var sources = source.Backgrounds.Select(choice => choice.Request.SourceType).ToList();
+        _backgroundIndex = sources.IndexOf(source.DisplayedSource);
+        if (_backgroundIndex < 0)
+        {
+            throw new ArgumentException("The displayed background is not among the choices.", nameof(source));
+        }
+
+        BackgroundChoices = source.Backgrounds.Select(choice => choice.Label).ToArray();
 
         _textScales = StandardTextScales.Append(source.PixelDensity).Distinct().Order().ToArray();
         _textScaleIndex = Array.IndexOf(_textScales, source.PixelDensity);
@@ -98,9 +117,23 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
         ApplySizeChoice();
     }
 
+    public IReadOnlyList<string> BackgroundChoices { get; }
+
     public IReadOnlyList<string> SizeChoices { get; }
 
     public IReadOnlyList<string> TextScaleChoices { get; }
+
+    public int BackgroundIndex
+    {
+        get => _backgroundIndex;
+        set
+        {
+            if (value >= 0 && value < BackgroundChoices.Count && SetProperty(ref _backgroundIndex, value))
+            {
+                RefreshPreview(PreviewDelay);
+            }
+        }
+    }
 
     public int SizeIndex
     {
@@ -312,7 +345,7 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
 
     private MapImageExportRequest CreateRequest()
         => new(
-            _source.Background,
+            _source.Backgrounds[_backgroundIndex].Request,
             _source.View.CenterX,
             _source.View.CenterY,
             _zoom,

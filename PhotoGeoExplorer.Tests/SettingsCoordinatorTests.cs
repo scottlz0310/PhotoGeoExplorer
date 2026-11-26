@@ -130,6 +130,8 @@ public sealed class SettingsCoordinatorTests : IDisposable
         await context.Coordinator.LoadAsync().ConfigureAwait(true);
 
         Assert.Equal(expected, context.Coordinator.JapanMapSourcesEnabled);
+        // 地図画像の保存で選べる背景は、設定と同じ値を見る
+        Assert.Equal(expected, context.MapPaneViewModel.IsJapanMapSourcesEnabled());
         Assert.Equal(
             expected ? MapTileSourceType.GsiStandard : MapTileSourceType.OpenStreetMap,
             context.MainViewModel.CurrentMapTileSource);

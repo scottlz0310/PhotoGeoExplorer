@@ -234,6 +234,73 @@ public class MapPaneViewModelTests
         map.ViewModel.Cleanup();
     }
 
+    [Theory]
+    [InlineData(false, null, MapTileSourceType.OpenStreetMap,
+        new[] { 0, 1, 3 })]
+    [InlineData(true, null, MapTileSourceType.GsiPale,
+        new[] { 0, 1, 3, 4, 5, 6, 7 })]
+    [InlineData(false, "test-token", MapTileSourceType.EsriWorldImagery,
+        new[] { 0, 1, 2, 3 })]
+    [InlineData(true, "test-token", MapTileSourceType.MapboxSatellite,
+        new[] { 0, 1, 2, 3, 4, 5, 6, 7 })]
+    internal async Task SaveMapImageAsyncOffersTheBackgroundsThatCanBeShown(
+        bool japanMapSources, string? token, MapTileSourceType displayed, int[] expected)
+    {
+        var secrets = new InMemorySecretStore();
+        if (token is not null)
+        {
+            secrets.Set(SecretKeys.MapboxAccessToken, token);
+        }
+
+        var map = CreateReadyMapImageViewModel(secretStore: secrets);
+        map.ViewModel.IsJapanMapSourcesEnabled = () => japanMapSources;
+        map.ViewModel.SwitchTileSource(displayed);
+        var types = expected.Select(value => (MapTileSourceType)value).ToArray();
+
+        await map.ViewModel.SaveMapImageAsync(
+            async (export, _) =>
+            {
+                Assert.Equal(types.Select(type => MapBackgroundCatalog.Get(type).DisplayName), export.BackgroundChoices);
+                Assert.Equal(Array.IndexOf(types, displayed), export.BackgroundIndex);
+                for (var i = 0; i < types.Length; i++)
+                {
+                    export.BackgroundIndex = i;
+                    export.Retry();
+                    await export.PreviewTask.ConfigureAwait(true);
+                }
+
+                return false;
+            },
+            (_, _) => throw new InvalidOperationException("The picker must not run.")).ConfigureAwait(true);
+
+        var requests = Assert.Single(map.Service.Exporters).Rendered.Select(request => request.Background).ToArray();
+        Assert.All(types, type => Assert.Contains(requests, request => request.SourceType == type));
+        Assert.All(requests, request => Assert.Equal(
+            request.SourceType == MapTileSourceType.MapboxSatellite ? token : null,
+            request.MapboxAccessToken));
+        Assert.Equal(displayed, map.ViewModel.CurrentTileSource);
+        map.ViewModel.Cleanup();
+    }
+
+    [Fact]
+    public async Task SaveMapImageAsyncOffersTheFallbackWhenTheDisplayedBackgroundNeedsAMissingToken()
+    {
+        var map = CreateReadyMapImageViewModel();
+        map.ViewModel.SwitchTileSource(MapTileSourceType.MapboxSatellite);
+
+        await map.ViewModel.SaveMapImageAsync(
+            (export, _) =>
+            {
+                Assert.Equal(MapBackgroundCatalog.Default.DisplayName, export.BackgroundChoices[export.BackgroundIndex]);
+                Assert.DoesNotContain(
+                    MapBackgroundCatalog.Get(MapTileSourceType.MapboxSatellite).DisplayName, export.BackgroundChoices);
+                return Task.FromResult(false);
+            },
+            (_, _) => throw new InvalidOperationException("The picker must not run.")).ConfigureAwait(true);
+
+        map.ViewModel.Cleanup();
+    }
+
     [Fact]
     public async Task SaveMapImageAsyncStartsFromTheLastConfirmedFolderAndIgnoresCancellation()
     {
@@ -894,12 +961,15 @@ ext{index}.jpg", isFolder: false))
         MapImageMapPaneService Service,
         FakeMapSurface Surface);
 
-    private static ReadyMapImage CreateReadyMapImageViewModel(string? currentFolderPath = null)
+    private static ReadyMapImage CreateReadyMapImageViewModel(
+        string? currentFolderPath = null,
+        InMemorySecretStore? secretStore = null)
     {
         var workspaceState = new WorkspaceState { CurrentFolderPath = currentFolderPath };
         var imageService = new RecordingMapImageService();
         var service = new MapImageMapPaneService();
-        var viewModel = new MapPaneViewModel(service, workspaceState, imageService, static () => null, new InMemorySecretStore());
+        var viewModel = new MapPaneViewModel(
+            service, workspaceState, imageService, static () => null, secretStore ?? new InMemorySecretStore());
         var flags = BindingFlags.Instance | BindingFlags.NonPublic;
         typeof(MapPaneViewModel).GetMethod("InitializeMapCore", flags)!.Invoke(viewModel, null);
         typeof(MapPaneViewModel).GetField("_isMapInitialized", flags)!.SetValue(viewModel, true);
