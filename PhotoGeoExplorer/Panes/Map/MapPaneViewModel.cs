@@ -250,6 +250,11 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
     public AreaDataAcquisitionViewModel AreaDataAcquisition { get; }
 
     /// <summary>
+    /// 日本国内向けの背景地図が有効かどうかの取得。値の持ち主（設定）が差し替える
+    /// </summary>
+    internal Func<bool> IsJapanMapSourcesEnabled { get; set; } = static () => false;
+
+    /// <summary>
     /// 地図のデフォルトズームレベル
     /// </summary>
     public int MapDefaultZoomLevel
@@ -460,7 +465,32 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
         var surface = _surface ?? throw new InvalidOperationException("The map surface is not initialized.");
         var background = _displayedBackgroundRequest
             ?? throw new InvalidOperationException("The map background is not initialized.");
-        return new MapImageExportSource(background, surface.View, GetPixelDensity(), surface.Markers.ToArray());
+        return new MapImageExportSource(
+            CreateBackgroundChoices(background),
+            background.SourceType,
+            surface.View,
+            GetPixelDensity(),
+            surface.Markers.ToArray());
+    }
+
+    // 保存画像の背景の候補。設定画面で選べる背景と、いま表示している背景（その要求をそのまま使う）
+    private MapImageBackgroundChoice[] CreateBackgroundChoices(MapBackgroundRequest displayed)
+    {
+        var japanMapSourcesEnabled = IsJapanMapSourcesEnabled();
+        var token = ReadMapboxAccessToken();
+        return MapBackgroundCatalog.All
+            .Where(descriptor => descriptor.Type == displayed.SourceType
+                || (MapBackgroundCatalog.IsListed(descriptor, japanMapSourcesEnabled)
+                    && MapBackgroundCatalog.IsUsable(descriptor, token is not null)))
+            .Select(descriptor => new MapImageBackgroundChoice(
+                descriptor.DisplayName,
+                descriptor.Type == displayed.SourceType
+                    ? displayed
+                    : new MapBackgroundRequest(
+                        descriptor.Type,
+                        UserAgentProvider.UserAgent,
+                        descriptor.RequiresMapboxAccessToken ? token : null)))
+            .ToArray();
     }
 
     /// <summary>

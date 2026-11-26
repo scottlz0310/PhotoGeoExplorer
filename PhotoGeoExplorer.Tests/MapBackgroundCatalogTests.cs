@@ -106,4 +106,19 @@ public sealed class MapBackgroundCatalogTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => MapBackgroundCatalog.Get((MapTileSourceType)value));
     }
+
+    [Theory]
+    [InlineData(MapTileSourceType.OpenStreetMap, false, false, true, true)]
+    [InlineData(MapTileSourceType.MapboxSatellite, false, false, true, false)]
+    [InlineData(MapTileSourceType.MapboxSatellite, false, true, true, true)]
+    [InlineData(MapTileSourceType.GsiStandard, false, false, false, true)]
+    [InlineData(MapTileSourceType.GsiVector, true, false, true, true)]
+    internal void ListedAndUsableBackgroundsFollowTheSettings(
+        MapTileSourceType type, bool japanMapSourcesEnabled, bool hasToken, bool listed, bool usable)
+    {
+        var descriptor = MapBackgroundCatalog.Get(type);
+
+        Assert.Equal(listed, MapBackgroundCatalog.IsListed(descriptor, japanMapSourcesEnabled));
+        Assert.Equal(usable, MapBackgroundCatalog.IsUsable(descriptor, hasToken));
+    }
 }

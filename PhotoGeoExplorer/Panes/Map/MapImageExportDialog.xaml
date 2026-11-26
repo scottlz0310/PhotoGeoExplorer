@@ -48,6 +48,13 @@
 
             <StackPanel Grid.Column="1" Spacing="12">
                 <ComboBox
+                    x:Uid="MapImageExportBackground"
+                    HorizontalAlignment="Stretch"
+                    AutomationProperties.AutomationId="MapImageExportBackground"
+                    Header="Background"
+                    ItemsSource="{Binding BackgroundChoices}"
+                    SelectedIndex="{Binding BackgroundIndex, Mode=TwoWay}" />
+                <ComboBox
                     x:Uid="MapImageExportSize"
                     HorizontalAlignment="Stretch"
                     AutomationProperties.AutomationId="MapImageExportSize"

@@ -974,6 +974,9 @@
   <data name="MapImageExportRetry.Content" xml:space="preserve">
     <value>再試行</value>
   </data>
+  <data name="MapImageExportBackground.Header" xml:space="preserve">
+    <value>背景</value>
+  </data>
   <data name="MapImageExportSize.Header" xml:space="preserve">
     <value>サイズ</value>
   </data>

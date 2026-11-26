@@ -44,11 +44,62 @@ public sealed class MapImageExportViewModelTests
             var request = Assert.Single(exporter.Rendered);
             Assert.Equal(
                 new MapImageExportRequest(
-                    source.Background, source.View.CenterX, source.View.CenterY,
+                    source.Backgrounds[0].Request, source.View.CenterX, source.View.CenterY,
                     WebMercator.LogicalZoomFromResolution(source.View.Resolution),
                     width, height, density, source.Markers),
                 request);
         }
+    }
+
+    [Theory]
+    [InlineData(MapTileSourceType.OpenStreetMap, 0, 1)]
+    [InlineData(MapTileSourceType.GsiVector, 1, 0)]
+    internal async Task TheBackgroundStartsFromTheDisplayedOneAndCanBeChanged(
+        MapTileSourceType displayed, int initialIndex, int otherIndex)
+    {
+        var exporter = new FakeMapImageExporter();
+        var source = Source(1.0, displayed);
+        var viewModel = new MapImageExportViewModel(exporter, source, NoDelay);
+        await using (viewModel.ConfigureAwait(true))
+        {
+            Assert.Equal(["OpenStreetMap", "GsiVector"], viewModel.BackgroundChoices);
+            Assert.Equal(initialIndex, viewModel.BackgroundIndex);
+            viewModel.Start();
+            await viewModel.PreviewTask.ConfigureAwait(true);
+            viewModel.NotifyPreviewShown(viewModel.PreviewPng!);
+
+            viewModel.BackgroundIndex = otherIndex;
+
+            // 背景を変えた画像が画面に出るまでは保存できない
+            Assert.False(viewModel.CanSave);
+            await viewModel.PreviewTask.ConfigureAwait(true);
+            Assert.Same(source.Backgrounds[initialIndex].Request, exporter.Rendered[0].Background);
+            Assert.Same(source.Backgrounds[otherIndex].Request, exporter.Rendered[1].Background);
+        }
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(2)]
+    public async Task AnIndexOutsideTheBackgroundsIsIgnored(int index)
+    {
+        var exporter = new FakeMapImageExporter();
+        var viewModel = new MapImageExportViewModel(exporter, Source(1.0), NoDelay);
+        await using (viewModel.ConfigureAwait(true))
+        {
+            viewModel.BackgroundIndex = index;
+
+            Assert.Equal(0, viewModel.BackgroundIndex);
+            Assert.Empty(exporter.Rendered);
+        }
+    }
+
+    [Fact]
+    public void TheDisplayedBackgroundMustBeAmongTheChoices()
+    {
+        var source = Source(1.0, MapTileSourceType.EsriWorldImagery);
+
+        Assert.Throws<ArgumentException>(() => new MapImageExportViewModel(new FakeMapImageExporter(), source));
     }
 
     [Theory]
@@ -383,9 +434,10 @@ public sealed class MapImageExportViewModelTests
         return Task.CompletedTask;
     }
 
-    private static MapImageExportSource Source(double density)
+    private static MapImageExportSource Source(double density, MapTileSourceType displayed = MapTileSourceType.OpenStreetMap)
         => new(
-            new MapBackgroundRequest(MapTileSourceType.OpenStreetMap, "PhotoGeoExplorer.Tests"),
+            [Choice(MapTileSourceType.OpenStreetMap), Choice(MapTileSourceType.GsiVector)],
+            displayed,
             new MapViewState(
                 HasSize: true,
                 CenterX: 15000000,
@@ -395,6 +447,9 @@ public sealed class MapImageExportViewModelTests
                 HeightDip: 417.6),
             density,
             []);
+
+    private static MapImageBackgroundChoice Choice(MapTileSourceType type)
+        => new(type.ToString(), new MapBackgroundRequest(type, "PhotoGeoExplorer.Tests"));
 
     private sealed class ControlledDelay
     {
