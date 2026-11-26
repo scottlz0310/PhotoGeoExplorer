@@ -5,36 +5,36 @@ using Microsoft.UI.Xaml.Input;
 namespace PhotoGeoExplorer.Services.PanZoom;
 
 /// <summary>
-/// 要素のポインター入力を <see cref="PanZoomController"/> へ渡す。
-/// ドラッグ・ピンチ・慣性は OS のジェスチャー認識（<c>ManipulationMode</c>）に任せ、ホイールは回転量に比例してズームする。
-/// 描画への反映は呼び出し側が <see cref="PanZoomController.Changed"/> で行う。画像プレビューのほか、地図にも同じ形で使える。
+/// 要素のポインター入力を <see cref="IPanZoomTarget"/> へ渡す。
+/// ドラッグ・ピンチは OS のジェスチャー認識（<c>ManipulationMode</c>）に任せる。回転は受けない。画像プレビューと地図で共用する。
 /// </summary>
 internal sealed class PanZoomInputAdapter
 {
     private readonly UIElement _target;
-    private readonly PanZoomController _controller;
-    private readonly double _wheelFactorPerNotch;
+    private readonly IPanZoomTarget _receiver;
     private readonly ManipulationModes _previousManipulationMode;
     private bool _isAttached = true;
 
-    internal PanZoomInputAdapter(UIElement target, PanZoomController controller, double wheelFactorPerNotch)
+    /// <param name="target">入力を受ける要素</param>
+    /// <param name="receiver">入力の受け手</param>
+    /// <param name="useSystemInertia">
+    /// 離した後の慣性を OS に任せる（移動量として受け手へ届く）か。受け手が自分で慣性を持つ場合は <see langword="false"/>
+    /// </param>
+    internal PanZoomInputAdapter(UIElement target, IPanZoomTarget receiver, bool useSystemInertia = true)
     {
         _target = target ?? throw new ArgumentNullException(nameof(target));
-        _controller = controller ?? throw new ArgumentNullException(nameof(controller));
-        if (!double.IsFinite(wheelFactorPerNotch) || wheelFactorPerNotch <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(wheelFactorPerNotch), wheelFactorPerNotch, "Factor per notch must be finite and positive.");
-        }
-
-        _wheelFactorPerNotch = wheelFactorPerNotch;
+        _receiver = receiver ?? throw new ArgumentNullException(nameof(receiver));
         _previousManipulationMode = target.ManipulationMode;
 
-        _target.ManipulationMode = ManipulationModes.Scale
-            | ManipulationModes.ScaleInertia
-            | ManipulationModes.TranslateX
-            | ManipulationModes.TranslateY
-            | ManipulationModes.TranslateInertia;
+        var mode = ManipulationModes.Scale | ManipulationModes.TranslateX | ManipulationModes.TranslateY;
+        if (useSystemInertia)
+        {
+            mode |= ManipulationModes.ScaleInertia | ManipulationModes.TranslateInertia;
+        }
+
+        _target.ManipulationMode = mode;
         _target.ManipulationDelta += OnManipulationDelta;
+        _target.ManipulationCompleted += OnManipulationCompleted;
         _target.PointerWheelChanged += OnPointerWheelChanged;
     }
 
@@ -50,6 +50,7 @@ internal sealed class PanZoomInputAdapter
 
         _isAttached = false;
         _target.ManipulationDelta -= OnManipulationDelta;
+        _target.ManipulationCompleted -= OnManipulationCompleted;
         _target.PointerWheelChanged -= OnPointerWheelChanged;
         _target.ManipulationMode = _previousManipulationMode;
     }
@@ -62,26 +63,23 @@ internal sealed class PanZoomInputAdapter
         // OS・デバイス由来の値は信頼できない。異常なフレームは、例外でアプリを落とさず無視する
         if (PanZoomController.IsValidManipulation(pivot, delta.Scale, delta.Translation.X, delta.Translation.Y))
         {
-            _controller.Manipulate(pivot, delta.Scale, delta.Translation.X, delta.Translation.Y);
+            _receiver.Manipulate(pivot, delta.Scale, delta.Translation.X, delta.Translation.Y);
         }
 
         e.Handled = true;
     }
 
+    private void OnManipulationCompleted(object sender, ManipulationCompletedRoutedEventArgs e) => _receiver.CompleteManipulation();
+
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
         var point = e.GetCurrentPoint(_target);
-        if (point.Properties.IsHorizontalMouseWheel || point.Properties.MouseWheelDelta == 0)
-        {
-            return;
-        }
-
+        var delta = point.Properties.MouseWheelDelta;
         var anchor = new PanZoomPoint(point.Position.X, point.Position.Y);
-        if (PanZoomController.IsValidPoint(anchor))
+        if (delta != 0 && PanZoomController.IsValidPoint(anchor)
+            && _receiver.ZoomByWheel(delta, anchor, point.Properties.IsHorizontalMouseWheel))
         {
-            _controller.ZoomByWheel(point.Properties.MouseWheelDelta, _wheelFactorPerNotch, anchor);
+            e.Handled = true;
         }
-
-        e.Handled = true;
     }
 }

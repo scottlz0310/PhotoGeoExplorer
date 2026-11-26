@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services.MapRendering;
+using PhotoGeoExplorer.Services.PanZoom;
 
 namespace PhotoGeoExplorer.Tests;
 
@@ -80,6 +81,19 @@ internal sealed class FakeMapSurface : IMapSurface
     public void LockPan() => LockPanCount++;
 
     public void RestorePan() => RestorePanCount++;
+
+    internal List<(PanZoomPoint Pivot, double Scale, double TranslationX, double TranslationY)> Gestures { get; } = [];
+
+    internal List<(int Delta, PanZoomPoint Anchor)> Wheels { get; } = [];
+
+    internal int CompleteGestureCount { get; private set; }
+
+    public void ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
+        => Gestures.Add((pivot, scaleFactor, translationX, translationY));
+
+    public void CompleteGesture() => CompleteGestureCount++;
+
+    public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor) => Wheels.Add((wheelDelta, anchor));
 
     public void ShowSelectionRectangle(GeoPoint corner1, GeoPoint corner2)
         => SelectionRectangles.Add((corner1, corner2));

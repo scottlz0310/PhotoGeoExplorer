@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Mapsui;
 using Mapsui.Extensions;
 using Mapsui.Layers;
+using Mapsui.Manipulations;
 using Mapsui.Nts;
 using Mapsui.Projections;
 using Mapsui.Rendering;
@@ -13,6 +14,7 @@ using Mapsui.Styles;
 using NetTopologySuite.Geometries;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
+using PhotoGeoExplorer.Services.PanZoom;
 
 namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
@@ -22,6 +24,12 @@ namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 /// <remarks>
 /// 購読先（<see cref="Navigator"/>）は <see cref="Mapsui.Map"/> の一部で、この表面と同じ寿命なので、解除は要らない。
 /// 写真マーカー用のレイヤーは、この表面が地図の最前面（背景の上）へ追加し、破棄するときに外す。
+/// <para>
+/// 利用者の入力は <see cref="ApplyGesture"/>・<see cref="ZoomByWheel"/> だけから受ける（#362 段階 1）。
+/// <c>MapControl</c> 自身の移動・拡大・回転は、<see cref="Navigator"/> のロックで止める。回転は当面許さない。
+/// 慣性とホイールの段階ズームは、従来どおり Mapsui の処理を呼ぶ。
+/// 視点を指定して移す API（<c>CenterOn</c> など）は、ロックの影響を受けない。
+/// </para>
 /// </remarks>
 internal sealed class MapsuiMapSurface : IMapSurface
 {
@@ -30,6 +38,9 @@ internal sealed class MapsuiMapSurface : IMapSurface
 
     private const string SelectionLayerName = "RectangleSelection";
 
+    // 慣性の最長時間。Mapsui の MapControl と同じ
+    private const long FlingDurationMilliseconds = 1000;
+
     private static readonly Color SelectionFillColor = Color.FromArgb(64, 0, 120, 215);
     private static readonly Color SelectionOutlineColor = Color.FromArgb(255, 0, 120, 215);
 
@@ -37,8 +48,9 @@ internal sealed class MapsuiMapSurface : IMapSurface
     private readonly MemoryLayer _markerLayer;
     private MemoryLayer? _selectionLayer;
     private IReadOnlyList<MapMarker> _markers = [];
-    private bool _panLockBeforeLock;
-    private bool _panLockActive;
+    private bool _panSuspended;
+    private readonly FlingTracker _fling = new();
+    private bool _flingBlocked;
     private readonly MapAttributionPresenter _attribution = new();
     private IMapsuiBackground? _background;
     private bool _attributionAttached;
@@ -63,6 +75,9 @@ internal sealed class MapsuiMapSurface : IMapSurface
             Style = null
         };
         map.Layers.Add(_markerLayer);
+        map.Navigator.PanLock = true;
+        map.Navigator.ZoomLock = true;
+        map.Navigator.RotationLock = true;
         map.Navigator.ViewportChanged += (_, _) => ViewChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -204,28 +219,108 @@ internal sealed class MapsuiMapSurface : IMapSurface
         return double.IsFinite(position.Latitude) && double.IsFinite(position.Longitude);
     }
 
-    public void LockPan()
-    {
-        var navigator = _map.Navigator;
-        if (!_panLockActive)
-        {
-            _panLockBeforeLock = navigator.PanLock;
-            _panLockActive = true;
-        }
+    public void LockPan() => _panSuspended = true;
 
-        navigator.PanLock = true;
-    }
+    public void RestorePan() => _panSuspended = false;
 
-    public void RestorePan()
+    public void ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
     {
-        if (!_panLockActive)
+        var view = View;
+        if (!view.HasSize)
         {
             return;
         }
 
-        _map.Navigator.PanLock = _panLockBeforeLock;
-        _panLockActive = false;
+        // 慣性の速さは、従来の地図と同じく Mapsui の追跡で求める。パンを止めている間の動きは数えない
+        if (_panSuspended)
+        {
+            _flingBlocked = true;
+        }
+        else
+        {
+            _fling.AddEvent(new ScreenPosition(pivot.X + translationX, pivot.Y + translationY), DateTime.Now.Ticks);
+        }
+
+        var center = new PanZoomPoint(view.WidthDip / 2, view.HeightDip / 2);
+        if (_panSuspended)
+        {
+            pivot = center;
+            translationX = 0;
+            translationY = 0;
+        }
+
+        // Navigator.Manipulate はタイルの取得を要求しないが、拡大の基準が中心でないと位置がずれ（拡大前の解像度で補正する近似）、
+        // ロックにも従う。中心基準の拡大と、拡大を伴わない移動（どちらも式が正確になる形）に分け、呼ぶ間だけロックを外す。
+        var navigator = _map.Navigator;
+        navigator.PanLock = false;
+        navigator.ZoomLock = false;
+        try
+        {
+            Manipulate(navigator, center, center, scaleFactor);
+
+            // ズームの上下限で丸められた場合に基準がずれないよう、実際に反映された倍率で移動先を計算する
+            var zoomed = View;
+            var next = MapViewGesture.Apply(view, pivot, view.Resolution / zoomed.Resolution, translationX, translationY);
+            var moved = new PanZoomPoint(
+                center.X - ((next.CenterX - zoomed.CenterX) / zoomed.Resolution),
+                center.Y + ((next.CenterY - zoomed.CenterY) / zoomed.Resolution));
+            Manipulate(navigator, moved, center, 1);
+        }
+        finally
+        {
+            navigator.PanLock = true;
+            navigator.ZoomLock = true;
+        }
     }
+
+    public void CompleteGesture()
+    {
+        // 矩形選択は、ボタンを離すとパンの停止を解いてからここへ来るため、操作の途中で止めたことを覚えておく
+        if (!_flingBlocked && !_panSuspended)
+        {
+            var navigator = _map.Navigator;
+            _fling.FlingIfNeeded((velocityX, velocityY) =>
+            {
+                navigator.PanLock = false;
+                try
+                {
+                    navigator.Fling(velocityX, velocityY, FlingDurationMilliseconds);
+                }
+                finally
+                {
+                    navigator.PanLock = true;
+                }
+            });
+        }
+
+        _fling.Restart();
+        _flingBlocked = false;
+    }
+
+    public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor)
+    {
+        // 段階ズームと補間は従来どおり Mapsui に任せる。PanLock が掛かっていると、Mapsui は中心を基準にする
+        var navigator = _map.Navigator;
+        navigator.ZoomLock = false;
+        navigator.PanLock = _panSuspended;
+        try
+        {
+            navigator.MouseWheelZoom(wheelDelta, new ScreenPosition(anchor.X, anchor.Y));
+        }
+        finally
+        {
+            navigator.PanLock = true;
+            navigator.ZoomLock = true;
+        }
+    }
+
+    private static void Manipulate(Navigator navigator, PanZoomPoint current, PanZoomPoint previous, double scaleFactor)
+        => navigator.Manipulate(new Manipulation(
+            new ScreenPosition(current.X, current.Y),
+            new ScreenPosition(previous.X, previous.Y),
+            scaleFactor,
+            0,
+            0));
 
     public void ShowSelectionRectangle(GeoPoint corner1, GeoPoint corner2)
     {

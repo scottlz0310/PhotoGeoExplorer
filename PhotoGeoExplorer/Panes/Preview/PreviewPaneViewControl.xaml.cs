@@ -68,7 +68,9 @@ internal sealed partial class PreviewPaneViewControl : UserControl
         _viewModel = viewModel;
         viewModel.InitializeDispatcherQueue(DispatcherQueue);
         viewModel.PanZoom.Changed += OnPanZoomChanged;
-        _inputAdapter = new PanZoomInputAdapter(PreviewViewport, viewModel.PanZoom, PreviewPaneViewModel.WheelFactorPerNotch);
+        _inputAdapter = new PanZoomInputAdapter(
+            PreviewViewport,
+            new PanZoomControllerTarget(viewModel.PanZoom, PreviewPaneViewModel.WheelFactorPerNotch));
         ApplyTransform(viewModel.PanZoom.Transform);
 
         // 表示領域の大きさは ViewModel の接続より先に通知済みのことがあるため、いまの大きさを渡す。
