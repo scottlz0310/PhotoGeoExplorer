@@ -74,17 +74,12 @@ internal sealed class PanZoomInputAdapter
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
         var point = e.GetCurrentPoint(_target);
-        if (point.Properties.IsHorizontalMouseWheel || point.Properties.MouseWheelDelta == 0)
-        {
-            return;
-        }
-
+        var delta = point.Properties.MouseWheelDelta;
         var anchor = new PanZoomPoint(point.Position.X, point.Position.Y);
-        if (PanZoomController.IsValidPoint(anchor))
+        if (delta != 0 && PanZoomController.IsValidPoint(anchor)
+            && _receiver.ZoomByWheel(delta, anchor, point.Properties.IsHorizontalMouseWheel))
         {
-            _receiver.ZoomByWheel(point.Properties.MouseWheelDelta, anchor);
+            e.Handled = true;
         }
-
-        e.Handled = true;
     }
 }

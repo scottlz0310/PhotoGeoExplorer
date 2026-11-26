@@ -21,6 +21,10 @@ internal sealed class MapSurfaceInputTarget : IPanZoomTarget
     public void CompleteManipulation()
         => _surface()?.CompleteGesture();
 
-    public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor)
-        => _surface()?.ZoomByWheel(wheelDelta, anchor);
+    // 地図は、従来の MapControl と同じく、横のホイールでもズームする
+    public bool ZoomByWheel(int wheelDelta, PanZoomPoint anchor, bool isHorizontal)
+    {
+        _surface()?.ZoomByWheel(wheelDelta, anchor);
+        return true;
+    }
 }

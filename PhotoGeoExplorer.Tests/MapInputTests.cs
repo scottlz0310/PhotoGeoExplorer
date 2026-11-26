@@ -56,7 +56,11 @@ public sealed class MapInputTests
         controller.SetLayout(new PanZoomSize(400, 300), new PanZoomSize(400, 300));
         var target = new PanZoomControllerTarget(controller, 1.1);
 
-        target.ZoomByWheel(240, new PanZoomPoint(200, 150));
+        Assert.True(target.ZoomByWheel(240, new PanZoomPoint(200, 150), isHorizontal: false));
+        Assert.Equal(1.21, controller.Transform.Scale, 1e-9);
+
+        // 横のホイールは受けない
+        Assert.False(target.ZoomByWheel(240, new PanZoomPoint(200, 150), isHorizontal: true));
         Assert.Equal(1.21, controller.Transform.Scale, 1e-9);
 
         target.Manipulate(new PanZoomPoint(200, 150), 1, 10, 0);
@@ -79,15 +83,17 @@ public sealed class MapInputTests
 
         target.Manipulate(new PanZoomPoint(1, 2), 1.5, 3, 4);
         target.CompleteManipulation();
-        target.ZoomByWheel(-120, new PanZoomPoint(5, 6));
+        Assert.True(target.ZoomByWheel(-120, new PanZoomPoint(5, 6), isHorizontal: false));
+        Assert.True(target.ZoomByWheel(120, new PanZoomPoint(7, 8), isHorizontal: true));
         surface = null;
         target.Manipulate(new PanZoomPoint(1, 2), 1.5, 3, 4);
         target.CompleteManipulation();
-        target.ZoomByWheel(120, new PanZoomPoint(5, 6));
+        target.ZoomByWheel(120, new PanZoomPoint(5, 6), isHorizontal: false);
 
         Assert.Equal((new PanZoomPoint(1, 2), 1.5, 3.0, 4.0), Assert.Single(fake.Gestures));
         Assert.Equal(1, fake.CompleteGestureCount);
-        Assert.Equal((-120, new PanZoomPoint(5, 6)), Assert.Single(fake.Wheels));
+        // 地図は、横のホイールもズームにする
+        Assert.Equal([(-120, new PanZoomPoint(5, 6)), (120, new PanZoomPoint(7, 8))], fake.Wheels);
     }
 
     [Fact]

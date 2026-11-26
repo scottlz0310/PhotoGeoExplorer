@@ -29,6 +29,15 @@ internal sealed class PanZoomControllerTarget : IPanZoomTarget
     {
     }
 
-    public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor)
-        => _controller.ZoomByWheel(wheelDelta, _wheelFactorPerNotch, anchor);
+    // 画像プレビューは、縦のホイールだけでズームする
+    public bool ZoomByWheel(int wheelDelta, PanZoomPoint anchor, bool isHorizontal)
+    {
+        if (isHorizontal)
+        {
+            return false;
+        }
+
+        _controller.ZoomByWheel(wheelDelta, _wheelFactorPerNotch, anchor);
+        return true;
+    }
 }
