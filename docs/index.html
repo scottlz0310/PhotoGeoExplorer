@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="refresh" content="0; url=privacy-policy.html" />
+    <!-- 存在しない URL にもこのページが返るため、転送先は絶対パスにする（相対パスは深い URL で転送を繰り返す） -->
+    <meta http-equiv="refresh" content="0; url=/privacy-policy" />
     <title>PhotoGeoExplorer</title>
     <style>
         :root {
@@ -39,7 +40,7 @@
 <body>
     <p>
         プライバシーポリシーへ移動します。
-        <a href="privacy-policy.html">移動しない場合はこちら</a>
+        <a href="/privacy-policy">移動しない場合はこちら</a>
     </p>
 </body>
 

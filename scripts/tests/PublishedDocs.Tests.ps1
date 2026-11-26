@@ -56,13 +56,23 @@ Describe 'Get-PublishedDocsTargets' {
     It 'serves <UrlPath> from the single privacy policy' -ForEach @(
         @{ UrlPath = '/privacy-policy' }
         @{ UrlPath = '/privacy-policy/' }
+        @{ UrlPath = '/privacy-policy/index.html' }
     ) {
         (Get-PublishedDocsTargets | Where-Object UrlPath -CEQ $UrlPath).File | Should -BeExactly 'privacy-policy.html'
     }
 
-    It 'redirects the trailing-slash URL to the canonical one' {
+    It 'redirects the former URL <UrlPath> to the canonical one' -ForEach @(
+        @{ UrlPath = '/privacy-policy/' }
+        @{ UrlPath = '/privacy-policy/index.html' }
+    ) {
         $redirects = Get-Content (Join-Path $PSScriptRoot '..\..\docs\_redirects')
-        $redirects | Should -Contain '/privacy-policy/ /privacy-policy 301'
+        $redirects | Should -Contain "$UrlPath /privacy-policy 301"
+    }
+
+    # 存在しない URL にもルートのページが返るため、相対パスの転送は深い URL で繰り返しになる。
+    It 'redirects the root page to an absolute path' {
+        $root = Get-Content (Join-Path $PSScriptRoot '..\..\docs\index.html') -Raw
+        $root | Should -BeLike '*content="0; url=/privacy-policy"*'
     }
 
     It 'has no second copy of the privacy policy' {

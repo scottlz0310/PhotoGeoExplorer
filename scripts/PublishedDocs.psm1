@@ -14,6 +14,7 @@ function Get-PublishedDocsTargets {
         [pscustomobject]@{ UrlPath = '/privacy-policy'; File = 'privacy-policy.html' }
         # 以前の URL。docs/_redirects の転送が壊れていないことも、同じ内容が返ることで確かめる。
         [pscustomobject]@{ UrlPath = '/privacy-policy/'; File = 'privacy-policy.html' }
+        [pscustomobject]@{ UrlPath = '/privacy-policy/index.html'; File = 'privacy-policy.html' }
         [pscustomobject]@{ UrlPath = '/help/index.html'; File = 'help/index.html' }
         [pscustomobject]@{ UrlPath = '/help/index.en.html'; File = 'help/index.en.html' }
     )
