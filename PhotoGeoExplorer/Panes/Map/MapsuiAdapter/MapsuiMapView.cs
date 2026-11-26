@@ -9,7 +9,6 @@ using Mapsui.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.Services.PanZoom;
 
 namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
@@ -43,9 +42,9 @@ internal sealed class MapsuiMapView : UserControl
         _mapControl.Info += OnMapInfo;
         Content = _mapControl;
 
-        // 滑る動きは OS の慣性に置き換える（MapControl 自身の移動・拡大は、表示面がロックして止める）
+        // MapControl 自身の移動・拡大は、表示面がロックして止める。慣性は表示面が Mapsui の処理を呼ぶため、OS の慣性は使わない
         _mapControl.UseFling = false;
-        _ = new PanZoomInputAdapter(_mapControl, new MapSurfaceInputTarget(() => _surface), MapInertia.ResolveDeceleration);
+        _ = new PanZoomInputAdapter(_mapControl, new MapSurfaceInputTarget(() => _surface), useSystemInertia: false);
     }
 
     /// <summary>

@@ -82,17 +82,16 @@ internal sealed class FakeMapSurface : IMapSurface
 
     public void RestorePan() => RestorePanCount++;
 
-    internal List<(PanZoomPoint Pivot, double Scale, double TranslationX, double TranslationY, bool IsInertial)> Gestures { get; } = [];
+    internal List<(PanZoomPoint Pivot, double Scale, double TranslationX, double TranslationY)> Gestures { get; } = [];
 
     internal List<(int Delta, PanZoomPoint Anchor)> Wheels { get; } = [];
 
-    internal bool GestureResult { get; set; } = true;
+    internal int CompleteGestureCount { get; private set; }
 
-    public bool ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY, bool isInertial)
-    {
-        Gestures.Add((pivot, scaleFactor, translationX, translationY, isInertial));
-        return GestureResult;
-    }
+    public void ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
+        => Gestures.Add((pivot, scaleFactor, translationX, translationY));
+
+    public void CompleteGesture() => CompleteGestureCount++;
 
     public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor) => Wheels.Add((wheelDelta, anchor));
 

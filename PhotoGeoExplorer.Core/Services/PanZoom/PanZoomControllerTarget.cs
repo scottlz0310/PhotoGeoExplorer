@@ -21,10 +21,12 @@ internal sealed class PanZoomControllerTarget : IPanZoomTarget
         _wheelFactorPerNotch = wheelFactorPerNotch;
     }
 
-    public bool Manipulate(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY, bool isInertial)
+    public void Manipulate(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
+        => _controller.Manipulate(pivot, scaleFactor, translationX, translationY);
+
+    // 慣性は OS が移動量として届けるため、終了時にすることはない
+    public void CompleteManipulation()
     {
-        _controller.Manipulate(pivot, scaleFactor, translationX, translationY);
-        return true;
     }
 
     public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor)

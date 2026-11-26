@@ -27,6 +27,7 @@ namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 /// <para>
 /// 利用者の入力は <see cref="ApplyGesture"/>・<see cref="ZoomByWheel"/> だけから受ける（#362 段階 1）。
 /// <c>MapControl</c> 自身の移動・拡大・回転は、<see cref="Navigator"/> のロックで止める。回転は当面許さない。
+/// 慣性とホイールの段階ズームは、従来どおり Mapsui の処理を呼ぶ。
 /// 視点を指定して移す API（<c>CenterOn</c> など）は、ロックの影響を受けない。
 /// </para>
 /// </remarks>
@@ -37,6 +38,9 @@ internal sealed class MapsuiMapSurface : IMapSurface
 
     private const string SelectionLayerName = "RectangleSelection";
 
+    // 慣性の最長時間。Mapsui の MapControl と同じ
+    private const long FlingDurationMilliseconds = 1000;
+
     private static readonly Color SelectionFillColor = Color.FromArgb(64, 0, 120, 215);
     private static readonly Color SelectionOutlineColor = Color.FromArgb(255, 0, 120, 215);
 
@@ -45,7 +49,8 @@ internal sealed class MapsuiMapSurface : IMapSurface
     private MemoryLayer? _selectionLayer;
     private IReadOnlyList<MapMarker> _markers = [];
     private bool _panSuspended;
-    private bool _inertiaCancelled;
+    private readonly FlingTracker _fling = new();
+    private bool _flingBlocked;
     private readonly MapAttributionPresenter _attribution = new();
     private IMapsuiBackground? _background;
     private bool _attributionAttached;
@@ -126,7 +131,6 @@ internal sealed class MapsuiMapSurface : IMapSurface
 
     public void SetView(double centerX, double centerY, double resolution)
     {
-        _inertiaCancelled = true;
         _map.Navigator.CenterOnAndZoomTo(new MPoint(centerX, centerY), resolution, duration: 0);
         _map.Refresh();
     }
@@ -135,7 +139,6 @@ internal sealed class MapsuiMapSurface : IMapSurface
     {
         ArgumentNullException.ThrowIfNull(marker);
 
-        _inertiaCancelled = true;
         _markers = [marker];
         _markerLayer.Features = new[] { CreateFeature(marker) };
         _map.Refresh();
@@ -153,7 +156,6 @@ internal sealed class MapsuiMapSurface : IMapSurface
     {
         ArgumentNullException.ThrowIfNull(markers);
 
-        _inertiaCancelled = true;
         _markers = markers;
         var features = new List<IFeature>(markers.Count);
         var hasBounds = false;
@@ -221,21 +223,22 @@ internal sealed class MapsuiMapSurface : IMapSurface
 
     public void RestorePan() => _panSuspended = false;
 
-    public bool ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY, bool isInertial)
+    public void ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
     {
-        if (!isInertial)
-        {
-            _inertiaCancelled = false;
-        }
-        else if (_inertiaCancelled)
-        {
-            return false;
-        }
-
         var view = View;
         if (!view.HasSize)
         {
-            return true;
+            return;
+        }
+
+        // 慣性の速さは、従来の地図と同じく Mapsui の追跡で求める。パンを止めている間の動きは数えない
+        if (_panSuspended)
+        {
+            _flingBlocked = true;
+        }
+        else
+        {
+            _fling.AddEvent(new ScreenPosition(pivot.X + translationX, pivot.Y + translationY), DateTime.Now.Ticks);
         }
 
         var center = new PanZoomPoint(view.WidthDip / 2, view.HeightDip / 2);
@@ -268,14 +271,34 @@ internal sealed class MapsuiMapSurface : IMapSurface
             navigator.PanLock = true;
             navigator.ZoomLock = true;
         }
+    }
 
-        return true;
+    public void CompleteGesture()
+    {
+        // 矩形選択は、ボタンを離すとパンの停止を解いてからここへ来るため、操作の途中で止めたことを覚えておく
+        if (!_flingBlocked && !_panSuspended)
+        {
+            var navigator = _map.Navigator;
+            _fling.FlingIfNeeded((velocityX, velocityY) =>
+            {
+                navigator.PanLock = false;
+                try
+                {
+                    navigator.Fling(velocityX, velocityY, FlingDurationMilliseconds);
+                }
+                finally
+                {
+                    navigator.PanLock = true;
+                }
+            });
+        }
+
+        _fling.Restart();
+        _flingBlocked = false;
     }
 
     public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor)
     {
-        _inertiaCancelled = true;
-
         // 段階ズームと補間は従来どおり Mapsui に任せる。PanLock が掛かっていると、Mapsui は中心を基準にする
         var navigator = _map.Navigator;
         navigator.ZoomLock = false;

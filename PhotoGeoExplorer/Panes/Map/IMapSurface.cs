@@ -61,19 +61,20 @@ internal interface IMapSurface : IDisposable
     void RestorePan();
 
     /// <summary>
-    /// ドラッグ・ピンチ・慣性の 1 回分を視点へ反映する。タイルの取得は要求しない（操作の終了時に表示コントロールが行う）。
+    /// ドラッグ・ピンチの 1 回分を視点へ反映する。タイルの取得は要求しない（操作の終了時に表示コントロールが行う）。
     /// UI スレッドから呼ぶ。
     /// </summary>
     /// <param name="pivot">拡大の基準（表示面の左上が原点、論理ピクセル）</param>
     /// <param name="scaleFactor">倍率の変化。正の有限値</param>
     /// <param name="translationX">X の移動量（論理ピクセル）</param>
     /// <param name="translationY">Y の移動量（論理ピクセル）</param>
-    /// <param name="isInertial">慣性による変化か</param>
-    /// <returns>
-    /// 慣性の途中で、<see cref="SetView"/> やマーカーの表示で視点が移された、またはホイールで拡大されたため、
-    /// 慣性を打ち切るべきとき <see langword="false"/>
-    /// </returns>
-    bool ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY, bool isInertial);
+    void ApplyGesture(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY);
+
+    /// <summary>
+    /// ドラッグ・ピンチが終わった。直前の動きが速ければ、地図ライブラリの慣性で滑らせる。
+    /// 途中でパンを止めた操作では滑らせない。UI スレッドから呼ぶ。
+    /// </summary>
+    void CompleteGesture();
 
     /// <summary>
     /// ホイールの回転で、ズームの段階を 1 つ進める（地図ライブラリの補間つき）。UI スレッドから呼ぶ。

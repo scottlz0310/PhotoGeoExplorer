@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Threading;
 using Mapsui;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
@@ -49,136 +49,6 @@ public sealed class MapInputTests
         => Assert.Throws<ArgumentOutOfRangeException>(
             () => MapViewGesture.Apply(View, new PanZoomPoint(pivotX, 0), scale, translationX, 0));
 
-    [Theory]
-    [InlineData(0.0, 0.0)]
-    [InlineData(1.0, 0.0)]
-    [InlineData(0.6, 0.8)]
-    [InlineData(double.NaN, 0.0)]
-    [InlineData(double.PositiveInfinity, 0.0)]
-    public void SlowOrInvalidReleaseDoesNotSlide(double x, double y)
-    {
-        var deceleration = MapInertia.ResolveDeceleration(x, y);
-
-        Assert.True(MapInertia.MinSpeed * MapInertia.MinSpeed / (2 * deceleration) < 1);
-    }
-
-    [Theory]
-    [InlineData(1.5, 0.0)]
-    [InlineData(0.0, -3.7)]
-    [InlineData(2.4, 3.2)]
-    public void ReleaseSlidesAsFarAsTheFormerFling(double x, double y)
-    {
-        var speed = Math.Sqrt((x * x) + (y * y));
-
-        var distance = speed * speed / (2 * MapInertia.ResolveDeceleration(x, y));
-
-        // 従来の Fling が滑る距離: (2/π) × 速さ² × 100
-        Assert.Equal(2 / Math.PI * speed * speed * 100, distance, 1e-9);
-    }
-
-    [Theory]
-    [InlineData(4.5, 0.0)]
-    [InlineData(30.0, 40.0)]
-    public void VeryFastReleaseSlidesNoFartherThanAtTheSpeedLimit(double x, double y)
-    {
-        var speed = Math.Sqrt((x * x) + (y * y));
-
-        var deceleration = MapInertia.ResolveDeceleration(x, y);
-
-        Assert.True(double.IsFinite(deceleration) && deceleration > 0);
-        Assert.Equal(2 / Math.PI * MapInertia.MaxSpeed * MapInertia.MaxSpeed * 100, speed * speed / (2 * deceleration), 1e-9);
-    }
-
-    [Fact]
-    public void SequencerPassesGesturesAndWheelsToTheTarget()
-    {
-        var target = new RecordingTarget();
-        var sequencer = new PanZoomInputSequencer(target, wheelInterruptsInertia: true);
-
-        Assert.True(sequencer.Manipulate(new PanZoomPoint(1, 2), 1.1, 3, 4, isInertial: false));
-        sequencer.ZoomByWheel(120, new PanZoomPoint(5, 6));
-
-        Assert.Equal(["move", "wheel 120"], target.Calls);
-    }
-
-    [Theory]
-    [InlineData(double.NaN, 1.0, 120)]
-    [InlineData(1.0, 0.0, 0)]
-    public void SequencerIgnoresInvalidInput(double pivotX, double scale, int wheelDelta)
-    {
-        var target = new RecordingTarget();
-        var sequencer = new PanZoomInputSequencer(target, wheelInterruptsInertia: true);
-
-        Assert.True(sequencer.Manipulate(new PanZoomPoint(pivotX, 0), scale, 0, 0, isInertial: false));
-        sequencer.ZoomByWheel(wheelDelta, new PanZoomPoint(pivotX, 0));
-
-        Assert.Empty(target.Calls);
-    }
-
-    [Fact]
-    public void SequencerStopsInertiaWhenTheTargetRefusesIt()
-    {
-        var target = new RecordingTarget { ManipulateResult = false };
-        var sequencer = new PanZoomInputSequencer(target, wheelInterruptsInertia: true);
-
-        sequencer.StartInertia();
-
-        Assert.False(sequencer.Manipulate(new PanZoomPoint(1, 1), 1, 3, 0, isInertial: true));
-    }
-
-    [Fact]
-    public void WheelDuringInertiaWaitsUntilTheNextFrameStopsIt()
-    {
-        var target = new RecordingTarget();
-        var sequencer = new PanZoomInputSequencer(target, wheelInterruptsInertia: true);
-        sequencer.StartInertia();
-
-        sequencer.ZoomByWheel(120, new PanZoomPoint(1, 1));
-        sequencer.ZoomByWheel(-120, new PanZoomPoint(1, 1));
-        Assert.Empty(target.Calls);
-
-        Assert.False(sequencer.Manipulate(new PanZoomPoint(1, 1), 1, 3, 0, isInertial: true));
-        Assert.Equal(["wheel 120", "wheel -120"], target.Calls);
-
-        // 打ち切りの後の完了で二重に適用しない
-        sequencer.Complete();
-        Assert.Equal(2, target.Calls.Count);
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void HeldWheelIsAppliedWhenTheGestureEndsOrANewOneStarts(bool completes)
-    {
-        var target = new RecordingTarget();
-        var sequencer = new PanZoomInputSequencer(target, wheelInterruptsInertia: true);
-        sequencer.StartInertia();
-        sequencer.ZoomByWheel(120, new PanZoomPoint(1, 1));
-
-        if (completes)
-        {
-            sequencer.Complete();
-            Assert.Equal(["wheel 120"], target.Calls);
-        }
-        else
-        {
-            sequencer.Manipulate(new PanZoomPoint(1, 1), 1, 3, 0, isInertial: false);
-            Assert.Equal(["wheel 120", "move"], target.Calls);
-        }
-    }
-
-    [Fact]
-    public void WheelDoesNotWaitWhenItDoesNotInterruptInertia()
-    {
-        var target = new RecordingTarget();
-        var sequencer = new PanZoomInputSequencer(target, wheelInterruptsInertia: false);
-        sequencer.StartInertia();
-
-        sequencer.ZoomByWheel(120, new PanZoomPoint(1, 1));
-
-        Assert.Equal(["wheel 120"], target.Calls);
-    }
-
     [Fact]
     public void ControllerTargetAppliesGesturesAndProportionalWheelZoom()
     {
@@ -189,7 +59,8 @@ public sealed class MapInputTests
         target.ZoomByWheel(240, new PanZoomPoint(200, 150));
         Assert.Equal(1.21, controller.Transform.Scale, 1e-9);
 
-        Assert.True(target.Manipulate(new PanZoomPoint(200, 150), 1, 10, 0, isInertial: true));
+        target.Manipulate(new PanZoomPoint(200, 150), 1, 10, 0);
+        target.CompleteManipulation();
         Assert.Equal((-42.0) + 10, controller.Transform.TranslateX, 1e-9);
     }
 
@@ -200,19 +71,22 @@ public sealed class MapInputTests
         => Assert.Throws<ArgumentOutOfRangeException>(() => new PanZoomControllerTarget(new PanZoomController(1, 2), factor));
 
     [Fact]
-    public void SurfaceTargetForwardsToTheSurfaceAndStopsInertiaWithoutOne()
+    public void SurfaceTargetForwardsToTheSurfaceAndIgnoresInputWithoutOne()
     {
         using var fake = new FakeMapSurface();
         IMapSurface? surface = fake;
         var target = new MapSurfaceInputTarget(() => surface);
 
-        Assert.True(target.Manipulate(new PanZoomPoint(1, 2), 1.5, 3, 4, isInertial: true));
+        target.Manipulate(new PanZoomPoint(1, 2), 1.5, 3, 4);
+        target.CompleteManipulation();
         target.ZoomByWheel(-120, new PanZoomPoint(5, 6));
         surface = null;
-
-        Assert.False(target.Manipulate(new PanZoomPoint(1, 2), 1.5, 3, 4, isInertial: true));
+        target.Manipulate(new PanZoomPoint(1, 2), 1.5, 3, 4);
+        target.CompleteManipulation();
         target.ZoomByWheel(120, new PanZoomPoint(5, 6));
-        Assert.Equal((new PanZoomPoint(1, 2), 1.5, 3.0, 4.0, true), Assert.Single(fake.Gestures));
+
+        Assert.Equal((new PanZoomPoint(1, 2), 1.5, 3.0, 4.0), Assert.Single(fake.Gestures));
+        Assert.Equal(1, fake.CompleteGestureCount);
         Assert.Equal((-120, new PanZoomPoint(5, 6)), Assert.Single(fake.Wheels));
     }
 
@@ -244,7 +118,7 @@ public sealed class MapInputTests
         for (var frame = 0; frame < 80; frame++)
         {
             expected = MapViewGesture.Apply(expected, pivot, scale, tx, ty);
-            Assert.True(surface.ApplyGesture(pivot, scale, tx, ty, isInertial: false));
+            surface.ApplyGesture(pivot, scale, tx, ty);
         }
 
         var actual = surface.View;
@@ -271,7 +145,7 @@ public sealed class MapInputTests
 
         for (var frame = 0; frame < 30; frame++)
         {
-            surface.ApplyGesture(pivot, scale, 0, 0, isInertial: false);
+            surface.ApplyGesture(pivot, scale, 0, 0);
         }
 
         var after = surface.View;
@@ -289,10 +163,10 @@ public sealed class MapInputTests
 
         surface.LockPan();
         surface.LockPan();
-        surface.ApplyGesture(new PanZoomPoint(700, 100), 2, 50, 60, isInertial: false);
+        surface.ApplyGesture(new PanZoomPoint(700, 100), 2, 50, 60);
         var locked = surface.View;
         surface.RestorePan();
-        surface.ApplyGesture(new PanZoomPoint(700, 100), 1, 50, 0, isInertial: false);
+        surface.ApplyGesture(new PanZoomPoint(700, 100), 1, 50, 0);
 
         Assert.Equal(before.CenterX, locked.CenterX, 1e-6);
         Assert.Equal(before.CenterY, locked.CenterY, 1e-6);
@@ -300,48 +174,67 @@ public sealed class MapInputTests
         Assert.Equal(locked.CenterX - (50 * locked.Resolution), surface.View.CenterX, 1e-6);
     }
 
-    [Theory]
-    [InlineData("view")]
-    [InlineData("marker")]
-    [InlineData("markers")]
-    [InlineData("wheel")]
-    public void SurfaceEndsInertiaAfterTheViewIsMovedByAnotherOperation(string operation)
+    [Fact]
+    public void SurfaceSlidesAfterAFastDragAndKeepsTheControlLocked()
     {
         using var map = CreateMap();
         using var surface = new MapsuiMapSurface(map);
-        var pivot = new PanZoomPoint(100, 100);
-        surface.ApplyGesture(pivot, 1, 10, 0, isInertial: false);
-        Assert.True(surface.ApplyGesture(pivot, 1, 10, 0, isInertial: true));
-        var marker = new MapMarker(
-            43.768436,
-            142.362436,
-            new PhotoItem("a.jpg", 100, DateTimeOffset.UtcNow, isFolder: false),
-            new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 43.768436, 142.362436),
-            PinImagePath: null);
+        var fetches = 0;
 
-        switch (operation)
+        Drag(surface, stepDip: 40, intervalMilliseconds: 10);
+        var released = surface.View;
+        map.Navigator.FetchRequested += (_, _) => fetches++;
+        surface.CompleteGesture();
+        RunAnimations(map);
+
+        // 指の向き（右）へ地図が滑るため、中心は西へ動く。滑り終えたらタイルを取得する
+        Assert.True(surface.View.CenterX < released.CenterX - (50 * released.Resolution));
+        Assert.Equal(released.CenterY, surface.View.CenterY, 1e-6);
+        Assert.True(fetches > 0);
+        Assert.True(map.Navigator.PanLock);
+    }
+
+    [Theory]
+    [InlineData("slow")]
+    [InlineData("panStopped")]
+    [InlineData("panStoppedUntilRelease")]
+    public void SurfaceDoesNotSlideAfterASlowDragOrWhilePanIsStopped(string situation)
+    {
+        using var map = CreateMap();
+        using var surface = new MapsuiMapSurface(map);
+        if (situation != "slow")
         {
-            case "view":
-                surface.SetView(15849000, 5429700, Resolution);
-                break;
-            case "marker":
-                surface.ShowMarker(marker, 10);
-                break;
-            case "markers":
-                surface.ShowMarkers([]);
-                break;
-            default:
-                surface.ZoomByWheel(120, pivot);
-                break;
+            surface.LockPan();
         }
 
-        var moved = surface.View;
-        Assert.False(surface.ApplyGesture(pivot, 1, 10, 0, isInertial: true));
-        Assert.Equal(moved.CenterX, surface.View.CenterX);
+        Drag(surface, stepDip: situation == "slow" ? 2 : 40, intervalMilliseconds: 20);
+        if (situation == "panStoppedUntilRelease")
+        {
+            // 矩形選択は、ボタンを離すとすぐにパンの停止を解く
+            surface.RestorePan();
+        }
 
-        // 次の操作は受ける
-        Assert.True(surface.ApplyGesture(pivot, 1, 10, 0, isInertial: false));
-        Assert.True(surface.ApplyGesture(pivot, 1, 10, 0, isInertial: true));
+        var released = surface.View;
+        surface.CompleteGesture();
+        RunAnimations(map);
+
+        Assert.Equal(released.CenterX, surface.View.CenterX, 1e-6);
+    }
+
+    [Fact]
+    public void SurfaceForgetsTheSpeedOfTheFormerGesture()
+    {
+        using var map = CreateMap();
+        using var surface = new MapsuiMapSurface(map);
+        Drag(surface, stepDip: 40, intervalMilliseconds: 10);
+        surface.CompleteGesture();
+        RunAnimations(map);
+        var settled = surface.View;
+
+        surface.CompleteGesture();
+        RunAnimations(map);
+
+        Assert.Equal(settled.CenterX, surface.View.CenterX, 1e-6);
     }
 
     [Theory]
@@ -379,6 +272,26 @@ public sealed class MapInputTests
         Assert.True(map.Navigator.ZoomLock);
     }
 
+    // 速さは実時刻から求めるため、間隔を空けて動かす
+    private static void Drag(MapsuiMapSurface surface, double stepDip, int intervalMilliseconds)
+    {
+        for (var step = 0; step < 6; step++)
+        {
+            surface.ApplyGesture(new PanZoomPoint(100 + (step * stepDip), 100), 1, stepDip, 0);
+            Thread.Sleep(intervalMilliseconds);
+        }
+    }
+
+    // 終了の処理は、終了時刻を過ぎた次の更新で行われるため、動きが止まった後もしばらく更新する
+    private static void RunAnimations(Map map)
+    {
+        for (var frame = 0; frame < 120; frame++)
+        {
+            map.Navigator.UpdateAnimations();
+            Thread.Sleep(10);
+        }
+    }
+
     private static Map CreateMap(double resolution = Resolution)
     {
         var map = new Map();
@@ -393,18 +306,4 @@ public sealed class MapInputTests
     private static double WorldY(MapViewState view, double screenY)
         => view.CenterY - ((screenY - (view.HeightDip / 2)) * view.Resolution);
 
-    private sealed class RecordingTarget : IPanZoomTarget
-    {
-        public List<string> Calls { get; } = [];
-
-        public bool ManipulateResult { get; init; } = true;
-
-        public bool Manipulate(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY, bool isInertial)
-        {
-            Calls.Add("move");
-            return ManipulateResult;
-        }
-
-        public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor) => Calls.Add($"wheel {wheelDelta}");
-    }
 }

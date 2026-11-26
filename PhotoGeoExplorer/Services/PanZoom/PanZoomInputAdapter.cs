@@ -6,39 +6,33 @@ namespace PhotoGeoExplorer.Services.PanZoom;
 
 /// <summary>
 /// 要素のポインター入力を <see cref="IPanZoomTarget"/> へ渡す。
-/// ドラッグ・ピンチ・慣性は OS のジェスチャー認識（<c>ManipulationMode</c>）に任せる。回転は受けない。
-/// 適用の順序は <see cref="PanZoomInputSequencer"/> が整える。画像プレビューと地図で共用する。
+/// ドラッグ・ピンチは OS のジェスチャー認識（<c>ManipulationMode</c>）に任せる。回転は受けない。画像プレビューと地図で共用する。
 /// </summary>
 internal sealed class PanZoomInputAdapter
 {
-    // 拡大の慣性を実質的に止める、十分に大きい減速度
-    private const double StopExpansionDeceleration = 100;
-
     private readonly UIElement _target;
-    private readonly PanZoomInputSequencer _sequencer;
-    private readonly Func<double, double, double>? _inertia;
+    private readonly IPanZoomTarget _receiver;
     private readonly ManipulationModes _previousManipulationMode;
     private bool _isAttached = true;
 
     /// <param name="target">入力を受ける要素</param>
     /// <param name="receiver">入力の受け手</param>
-    /// <param name="inertia">
-    /// 移動の慣性の減速度（論理ピクセル／ミリ秒²）を、離した時点の速度（論理ピクセル／ミリ秒）から決める。指定した場合は、拡大の慣性を止め、
-    /// 慣性中のホイールは慣性を打ち切ってから適用する。<see langword="null"/> なら OS の既定の慣性を使う。
+    /// <param name="useSystemInertia">
+    /// 離した後の慣性を OS に任せる（移動量として受け手へ届く）か。受け手が自分で慣性を持つ場合は <see langword="false"/>
     /// </param>
-    internal PanZoomInputAdapter(UIElement target, IPanZoomTarget receiver, Func<double, double, double>? inertia = null)
+    internal PanZoomInputAdapter(UIElement target, IPanZoomTarget receiver, bool useSystemInertia = true)
     {
         _target = target ?? throw new ArgumentNullException(nameof(target));
-        _sequencer = new PanZoomInputSequencer(receiver, wheelInterruptsInertia: inertia is not null);
-        _inertia = inertia;
+        _receiver = receiver ?? throw new ArgumentNullException(nameof(receiver));
         _previousManipulationMode = target.ManipulationMode;
 
-        _target.ManipulationMode = ManipulationModes.Scale
-            | ManipulationModes.ScaleInertia
-            | ManipulationModes.TranslateX
-            | ManipulationModes.TranslateY
-            | ManipulationModes.TranslateInertia;
-        _target.ManipulationInertiaStarting += OnManipulationInertiaStarting;
+        var mode = ManipulationModes.Scale | ManipulationModes.TranslateX | ManipulationModes.TranslateY;
+        if (useSystemInertia)
+        {
+            mode |= ManipulationModes.ScaleInertia | ManipulationModes.TranslateInertia;
+        }
+
+        _target.ManipulationMode = mode;
         _target.ManipulationDelta += OnManipulationDelta;
         _target.ManipulationCompleted += OnManipulationCompleted;
         _target.PointerWheelChanged += OnPointerWheelChanged;
@@ -55,39 +49,27 @@ internal sealed class PanZoomInputAdapter
         }
 
         _isAttached = false;
-        _target.ManipulationInertiaStarting -= OnManipulationInertiaStarting;
         _target.ManipulationDelta -= OnManipulationDelta;
         _target.ManipulationCompleted -= OnManipulationCompleted;
         _target.PointerWheelChanged -= OnPointerWheelChanged;
         _target.ManipulationMode = _previousManipulationMode;
     }
 
-    // 要素が先に設定した慣性（MapControl の減速度）がある場合は、後から購読するこのハンドラで置き換える
-    private void OnManipulationInertiaStarting(object sender, ManipulationInertiaStartingRoutedEventArgs e)
-    {
-        _sequencer.StartInertia();
-        if (_inertia is null)
-        {
-            return;
-        }
-
-        e.TranslationBehavior.DesiredDeceleration = _inertia(e.Velocities.Linear.X, e.Velocities.Linear.Y);
-        e.ExpansionBehavior.DesiredDeceleration = StopExpansionDeceleration;
-    }
-
     private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
     {
         var delta = e.Delta;
         var pivot = new PanZoomPoint(e.Position.X, e.Position.Y);
-        if (!_sequencer.Manipulate(pivot, delta.Scale, delta.Translation.X, delta.Translation.Y, e.IsInertial))
+
+        // OS・デバイス由来の値は信頼できない。異常なフレームは、例外でアプリを落とさず無視する
+        if (PanZoomController.IsValidManipulation(pivot, delta.Scale, delta.Translation.X, delta.Translation.Y))
         {
-            e.Complete();
+            _receiver.Manipulate(pivot, delta.Scale, delta.Translation.X, delta.Translation.Y);
         }
 
         e.Handled = true;
     }
 
-    private void OnManipulationCompleted(object sender, ManipulationCompletedRoutedEventArgs e) => _sequencer.Complete();
+    private void OnManipulationCompleted(object sender, ManipulationCompletedRoutedEventArgs e) => _receiver.CompleteManipulation();
 
     private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
@@ -97,7 +79,12 @@ internal sealed class PanZoomInputAdapter
             return;
         }
 
-        _sequencer.ZoomByWheel(point.Properties.MouseWheelDelta, new PanZoomPoint(point.Position.X, point.Position.Y));
+        var anchor = new PanZoomPoint(point.Position.X, point.Position.Y);
+        if (PanZoomController.IsValidPoint(anchor))
+        {
+            _receiver.ZoomByWheel(point.Properties.MouseWheelDelta, anchor);
+        }
+
         e.Handled = true;
     }
 }

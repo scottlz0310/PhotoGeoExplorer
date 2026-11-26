@@ -15,8 +15,11 @@ internal sealed class MapSurfaceInputTarget : IPanZoomTarget
         _surface = surface ?? throw new ArgumentNullException(nameof(surface));
     }
 
-    public bool Manipulate(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY, bool isInertial)
-        => _surface()?.ApplyGesture(pivot, scaleFactor, translationX, translationY, isInertial) ?? false;
+    public void Manipulate(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY)
+        => _surface()?.ApplyGesture(pivot, scaleFactor, translationX, translationY);
+
+    public void CompleteManipulation()
+        => _surface()?.CompleteGesture();
 
     public void ZoomByWheel(int wheelDelta, PanZoomPoint anchor)
         => _surface()?.ZoomByWheel(wheelDelta, anchor);

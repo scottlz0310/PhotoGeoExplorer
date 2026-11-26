@@ -12,9 +12,10 @@ internal interface IPanZoomTarget
     /// <param name="scaleFactor">倍率の変化</param>
     /// <param name="translationX">X の移動量</param>
     /// <param name="translationY">Y の移動量</param>
-    /// <param name="isInertial">指やボタンを離した後の慣性による変化か</param>
-    /// <returns>慣性を打ち切るべきなら <see langword="false"/></returns>
-    bool Manipulate(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY, bool isInertial);
+    void Manipulate(PanZoomPoint pivot, double scaleFactor, double translationX, double translationY);
+
+    /// <summary>ジェスチャーが終わった（指やボタンが離れた。OS の慣性を使う場合は、慣性の終了）。</summary>
+    void CompleteManipulation();
 
     /// <summary>ホイールの回転量（1 ノッチは 120）を、<paramref name="anchor"/> を基準にしたズームとして適用する。</summary>
     void ZoomByWheel(int wheelDelta, PanZoomPoint anchor);
