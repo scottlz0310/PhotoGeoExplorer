@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Services.MapRendering;
 using PhotoGeoExplorer.ViewModels;
@@ -35,7 +36,8 @@ internal delegate Task<bool> MapImageExportDialogAsync(
 /// UI スレッドから使う。
 /// </summary>
 /// <remarks>
-/// プレビューは保存する画像そのもの（表示だけ縮小する）。条件が同じなら、保存はプレビューの画像を使う。
+/// プレビューは保存する画像そのもの（表示だけ縮小する）。確認した画像と違うものを保存しないよう、
+/// いまの条件のプレビューが画面に出るまで保存できず、保存にはその画像を使う。
 /// </remarks>
 internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
 {
@@ -65,6 +67,7 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
     private byte[]? _previewPng;
     private bool _isRendering;
     private bool _canSave;
+    private Visibility _retryVisibility = Visibility.Collapsed;
     private string _statusText = string.Empty;
     private bool _disposed;
 
@@ -181,11 +184,18 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
         private set => SetProperty(ref _isRendering, value);
     }
 
-    /// <summary>条件が画像を作れるものか</summary>
+    /// <summary>いまの条件のプレビューが画面に出ていて、保存できる</summary>
     public bool CanSave
     {
         get => _canSave;
         private set => SetProperty(ref _canSave, value);
+    }
+
+    /// <summary>プレビューの作成か表示に失敗したときだけ、やり直しの操作を出す</summary>
+    public Visibility RetryVisibility
+    {
+        get => _retryVisibility;
+        private set => SetProperty(ref _retryVisibility, value);
     }
 
     /// <summary>取得するタイルの枚数、作れない理由、または描画の失敗</summary>
@@ -204,18 +214,46 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
     internal void Start() => RefreshPreview(TimeSpan.Zero);
 
     /// <summary>
-    /// 保存する画像を返す。同じ条件のプレビューがあればそれを使い、なければ描く
+    /// 同じ条件で、プレビューを作り直す
+    /// </summary>
+    internal void Retry() => RefreshPreview(TimeSpan.Zero);
+
+    /// <summary>
+    /// 画面がプレビューを表示し終えた。いまの条件の画像なら、保存できるようにする
+    /// </summary>
+    /// <param name="png">表示した画像（<see cref="PreviewPng"/> の値）</param>
+    internal void NotifyPreviewShown(byte[] png)
+    {
+        // 条件を変えた後で、前の画像の表示が終わることがある
+        if (IsCurrentPreview(png))
+        {
+            CanSave = true;
+        }
+    }
+
+    /// <summary>
+    /// 画面がプレビューを表示できなかった
+    /// </summary>
+    internal void NotifyPreviewDisplayFailed(byte[] png)
+    {
+        if (IsCurrentPreview(png))
+        {
+            ShowPreviewFailure();
+        }
+    }
+
+    /// <summary>
+    /// 画面で確認した画像を返す
     /// </summary>
     /// <returns>PNG のストリーム</returns>
-    internal async Task<Stream> RenderForSaveAsync(CancellationToken cancellationToken)
+    /// <exception cref="InvalidOperationException">いまの条件のプレビューが表示されていない場合</exception>
+    internal Stream OpenImageToSave()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _previewTask.WaitAsync(cancellationToken).ConfigureAwait(true);
-        var request = CreateRequest();
-        return _rendered is { } rendered && rendered.Request == request
+        return CanSave && _rendered is { } rendered
             ? new MemoryStream(rendered.Png, writable: false)
-            : await _exporter.RenderPngAsync(request, cancellationToken).ConfigureAwait(true);
+            : throw new InvalidOperationException("The preview of the current conditions has not been shown.");
     }
 
     public async ValueTask DisposeAsync()
@@ -295,9 +333,10 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
 
         var request = CreateRequest();
         var plan = _exporter.Plan(request);
-        CanSave = plan.Problem == MapImageExportProblem.None;
+        CanSave = false;
+        RetryVisibility = Visibility.Collapsed;
         StatusText = Describe(plan);
-        if (!CanSave)
+        if (plan.Problem != MapImageExportProblem.None)
         {
             IsRendering = false;
             PreviewPng = null;
@@ -343,8 +382,7 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
             AppLog.Error("Failed to render the map image preview.", ex);
             if (!cts.IsCancellationRequested)
             {
-                PreviewPng = null;
-                StatusText = LocalizationService.GetString("MapImageExport.Status.PreviewFailed");
+                ShowPreviewFailure();
             }
         }
         finally
@@ -357,6 +395,20 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
 
             cts.Dispose();
         }
+    }
+
+    private bool IsCurrentPreview(byte[] png)
+        => !_disposed
+            && _rendered is { } rendered
+            && ReferenceEquals(rendered.Png, png)
+            && rendered.Request == CreateRequest();
+
+    private void ShowPreviewFailure()
+    {
+        CanSave = false;
+        PreviewPng = null;
+        RetryVisibility = Visibility.Visible;
+        StatusText = LocalizationService.GetString("MapImageExport.Status.PreviewFailed");
     }
 
     private static string Describe(MapImageExportPlan plan)

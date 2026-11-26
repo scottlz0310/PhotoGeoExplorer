@@ -171,7 +171,11 @@ public class MapPaneViewModelTests
         };
 
         var firstSave = map.ViewModel.SaveMapImageAsync(
-            (_, _) => closeDialog.Task,
+            async (export, _) =>
+            {
+                await ShowPreviewAsync(export).ConfigureAwait(true);
+                return await closeDialog.Task.ConfigureAwait(true);
+            },
             (options, _) =>
             {
                 pickerCallCount++;
@@ -246,8 +250,6 @@ public class MapPaneViewModelTests
             return Task.FromResult(pickerResult);
         }
 
-        static Task<bool> AcceptAsync(MapImageExportViewModel export, CancellationToken cancellationToken)
-            => Task.FromResult(true);
 
         try
         {
@@ -293,13 +295,14 @@ public class MapPaneViewModelTests
         }
 
         await map.ViewModel.SaveMapImageAsync(
-            async (_, cancellationToken) =>
+            async (export, cancellationToken) =>
             {
                 if (cancellation == "cleanup-in-dialog")
                 {
                     await WaitForCancellationAsync(cancellationToken).ConfigureAwait(true);
                 }
 
+                await ShowPreviewAsync(export).ConfigureAwait(true);
                 return cancellation != "dialog-closed";
             },
             async (_, cancellationToken) =>
@@ -327,13 +330,8 @@ public class MapPaneViewModelTests
         var map = CreateReadyMapImageViewModel();
         var expectedException = failDuringSave
             ? new IOException("destination is not writable")
-            : (Exception)new InvalidOperationException("render failed");
+            : (Exception)new InvalidOperationException("the dialog could not be shown");
         map.ImageService.SaveFailure = failDuringSave ? expectedException : null;
-        if (!failDuringSave)
-        {
-            map.Service.Render = (_, _) => Task.FromException<Stream>(expectedException);
-        }
-
         string? notification = null;
         InfoBarSeverity? severity = null;
         map.WorkspaceState.NotificationRequested += (_, args) =>
@@ -344,7 +342,9 @@ public class MapPaneViewModelTests
 
         var actualException = await Assert.ThrowsAnyAsync<Exception>(
             () => map.ViewModel.SaveMapImageAsync(
-                (_, _) => Task.FromResult(true),
+                async (export, cancellationToken) => failDuringSave
+                    ? await AcceptAsync(export, cancellationToken).ConfigureAwait(true)
+                    : throw expectedException,
                 (_, _) => Task.FromResult<string?>(@"C:\Exports\map.png"))).ConfigureAwait(true);
 
         Assert.Same(expectedException, actualException);
@@ -353,6 +353,19 @@ public class MapPaneViewModelTests
         Assert.False(map.ViewModel.IsMapImageSaving);
         Assert.Equal(1, Assert.Single(map.Service.Exporters).DisposeCount);
         map.ViewModel.Cleanup();
+    }
+
+    // ダイアログと同じく、プレビューが画面に出てから決定する
+    private static async Task ShowPreviewAsync(MapImageExportViewModel export)
+    {
+        await export.PreviewTask.ConfigureAwait(true);
+        export.NotifyPreviewShown(export.PreviewPng!);
+    }
+
+    private static async Task<bool> AcceptAsync(MapImageExportViewModel export, CancellationToken cancellationToken)
+    {
+        await ShowPreviewAsync(export).ConfigureAwait(true);
+        return true;
     }
 
     [Fact]
@@ -953,14 +966,12 @@ ext{index}.jpg", isFolder: false))
 
         public List<FakeMapImageExporter> Exporters { get; } = [];
 
-        public Func<MapImageExportRequest, CancellationToken, Task<Stream>>? Render { get; set; }
-
         public (IMapBackground Background, IMapSurface Surface) InitializeMap(MapBackgroundRequest background)
             => (CreateBackground(background), Surface);
 
         public IMapImageExporter CreateImageExporter()
         {
-            var exporter = new FakeMapImageExporter { Render = Render };
+            var exporter = new FakeMapImageExporter();
             Exporters.Add(exporter);
             return exporter;
         }

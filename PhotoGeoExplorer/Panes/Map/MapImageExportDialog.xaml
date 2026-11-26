@@ -5,11 +5,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     x:Uid="MapImageExportDialog"
     Style="{StaticResource DefaultContentDialogStyle}"
-    DefaultButton="Primary"
+    DefaultButton="None"
+    PrimaryButtonStyle="{StaticResource AccentButtonStyle}"
     IsPrimaryButtonEnabled="{Binding CanSave, Mode=OneWay}"
     Title="Save map image"
     PrimaryButtonText="Save..."
     CloseButtonText="Cancel">
+
+    <!--  既定ボタンを置くと、入力欄の値を Enter で確定する前に保存へ進むため、置かない  -->
 
     <ContentDialog.Resources>
         <!--  プレビューと設定を横に並べるため、既定の幅の上限を広げる  -->
@@ -92,6 +95,12 @@
                     AutomationProperties.LiveSetting="Polite"
                     Text="{Binding StatusText, Mode=OneWay}"
                     TextWrapping="Wrap" />
+                <Button
+                    x:Uid="MapImageExportRetry"
+                    AutomationProperties.AutomationId="MapImageExportRetry"
+                    Click="OnRetryClicked"
+                    Content="Retry"
+                    Visibility="{Binding RetryVisibility, Mode=OneWay}" />
             </StackPanel>
         </Grid>
     </ScrollViewer>

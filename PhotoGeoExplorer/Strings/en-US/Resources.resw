@@ -971,6 +971,9 @@
   <data name="MapImageExportPreview.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
     <value>Preview</value>
   </data>
+  <data name="MapImageExportRetry.Content" xml:space="preserve">
+    <value>Retry</value>
+  </data>
   <data name="MapImageExportSize.Header" xml:space="preserve">
     <value>Size</value>
   </data>
@@ -999,7 +1002,7 @@
     <value>Tiles to fetch: about {0}</value>
   </data>
   <data name="MapImageExport.Status.PreviewFailed" xml:space="preserve">
-    <value>The preview could not be created. Check your connection. Save tries again. See the log for details.</value>
+    <value>The preview could not be created. Check your connection and choose Retry. See the log for details.</value>
   </data>
   <data name="MapImageExport.Problem.TooManyTiles" xml:space="preserve">
     <value>About {0} tiles are needed, which exceeds the limit of {1}. Reduce the size or increase the text size.</value>

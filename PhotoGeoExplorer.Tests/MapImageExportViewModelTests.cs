@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Services.MapRendering;
@@ -123,8 +124,8 @@ public sealed class MapImageExportViewModelTests
         {
             viewModel.Start();
             await viewModel.PreviewTask.ConfigureAwait(true);
+            viewModel.NotifyPreviewShown(viewModel.PreviewPng!);
             Assert.True(viewModel.CanSave);
-            Assert.NotNull(viewModel.PreviewPng);
 
             exporter.CountTiles = _ => tileCount;
             viewModel.SizeIndex = Custom;
@@ -219,7 +220,7 @@ public sealed class MapImageExportViewModelTests
     [InlineData(typeof(InvalidOperationException))]
     [InlineData(typeof(IOException))]
     [InlineData(typeof(OperationCanceledException))]
-    public async Task AFailedPreviewIsReportedAndSavingTriesAgain(Type failure)
+    public async Task AFailedPreviewDisablesSavingAndCanBeRetried(Type failure)
     {
         var exporter = new FakeMapImageExporter
         {
@@ -231,36 +232,95 @@ public sealed class MapImageExportViewModelTests
             viewModel.Start();
             await viewModel.PreviewTask.ConfigureAwait(true);
 
-            Assert.True(viewModel.CanSave);
+            Assert.False(viewModel.CanSave);
             Assert.False(viewModel.IsRendering);
             Assert.Null(viewModel.PreviewPng);
+            Assert.Equal(Visibility.Visible, viewModel.RetryVisibility);
             Assert.Contains("PreviewFailed", viewModel.StatusText, StringComparison.Ordinal);
+            Assert.Throws<InvalidOperationException>(viewModel.OpenImageToSave);
 
             exporter.Render = null;
-            using var stream = await viewModel.RenderForSaveAsync(CancellationToken.None).ConfigureAwait(true);
+            viewModel.Retry();
+            Assert.Equal(Visibility.Collapsed, viewModel.RetryVisibility);
+            await viewModel.PreviewTask.ConfigureAwait(true);
+            viewModel.NotifyPreviewShown(viewModel.PreviewPng!);
 
-            Assert.Equal(2, exporter.Rendered.Count);
+            using var stream = viewModel.OpenImageToSave();
             Assert.Equal(2, stream.ReadByte());
         }
     }
 
     [Fact]
-    public async Task SavingUsesThePreviewOfTheSameCondition()
+    public async Task SavingIsEnabledOnlyWhileThePreviewOfTheCurrentConditionsIsShown()
     {
         var exporter = new FakeMapImageExporter();
         var delays = new ControlledDelay();
         var viewModel = new MapImageExportViewModel(exporter, Source(1.0), delays.DelayAsync);
         await using (viewModel.ConfigureAwait(true))
         {
+            viewModel.Start();
+            await delays.ReleaseLatestAsync().ConfigureAwait(true);
+            await viewModel.PreviewTask.ConfigureAwait(true);
+            var first = viewModel.PreviewPng!;
+
+            // 画像ができても、画面に出るまでは保存できない
+            Assert.False(viewModel.CanSave);
+            viewModel.NotifyPreviewShown(first);
+            Assert.True(viewModel.CanSave);
+
+            // 前の画像が画面に残っている間は、保存できない
             viewModel.Zoom = 10;
-            var saving = viewModel.RenderForSaveAsync(CancellationToken.None);
-            Assert.False(saving.IsCompleted);
+            Assert.False(viewModel.CanSave);
+            Assert.Same(first, viewModel.PreviewPng);
+            viewModel.NotifyPreviewShown(first);
+            Assert.False(viewModel.CanSave);
+            Assert.Throws<InvalidOperationException>(viewModel.OpenImageToSave);
 
             await delays.ReleaseLatestAsync().ConfigureAwait(true);
-            using var stream = await saving.ConfigureAwait(true);
+            await viewModel.PreviewTask.ConfigureAwait(true);
+            viewModel.NotifyPreviewShown(first);
+            Assert.False(viewModel.CanSave);
+            viewModel.NotifyPreviewShown(viewModel.PreviewPng!);
 
-            Assert.Single(exporter.Rendered);
-            Assert.Equal(1, stream.ReadByte());
+            using var stream = viewModel.OpenImageToSave();
+            Assert.Equal(2, stream.ReadByte());
+            Assert.Equal(2, exporter.Rendered.Count);
+        }
+    }
+
+    [Fact]
+    public async Task ReturningToAnEarlierConditionWaitsForItsPreviewAgain()
+    {
+        var delays = new ControlledDelay();
+        var viewModel = new MapImageExportViewModel(new FakeMapImageExporter(), Source(1.0), delays.DelayAsync);
+        await using (viewModel.ConfigureAwait(true))
+        {
+            viewModel.Start();
+            await delays.ReleaseLatestAsync().ConfigureAwait(true);
+            await viewModel.PreviewTask.ConfigureAwait(true);
+            viewModel.NotifyPreviewShown(viewModel.PreviewPng!);
+
+            viewModel.SizeIndex = Hd;
+            viewModel.SizeIndex = CurrentView;
+
+            Assert.False(viewModel.CanSave);
+        }
+    }
+
+    [Fact]
+    public async Task APreviewThatCannotBeShownDisablesSaving()
+    {
+        var viewModel = new MapImageExportViewModel(new FakeMapImageExporter(), Source(1.0), NoDelay);
+        await using (viewModel.ConfigureAwait(true))
+        {
+            viewModel.Start();
+            await viewModel.PreviewTask.ConfigureAwait(true);
+
+            viewModel.NotifyPreviewDisplayFailed(viewModel.PreviewPng!);
+
+            Assert.False(viewModel.CanSave);
+            Assert.Null(viewModel.PreviewPng);
+            Assert.Equal(Visibility.Visible, viewModel.RetryVisibility);
         }
     }
 

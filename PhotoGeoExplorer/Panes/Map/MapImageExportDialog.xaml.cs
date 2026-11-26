@@ -43,7 +43,12 @@ internal sealed partial class MapImageExportDialog : ContentDialog
 
         Opened += OnOpened;
         Closed += OnClosed;
+
+        // 入力欄の確定と同時に決定された場合は、ボタンが無効になる前に押されることがある
+        PrimaryButtonClick += (_, args) => args.Cancel = !_viewModel.CanSave;
     }
+
+    private void OnRetryClicked(object sender, RoutedEventArgs e) => _viewModel.Retry();
 
     private static DecimalFormatter CreateFormatter(int fractionDigits)
         => new()
@@ -92,6 +97,7 @@ internal sealed partial class MapImageExportDialog : ContentDialog
             if (ReferenceEquals(_viewModel.PreviewPng, png))
             {
                 PreviewImage.Source = bitmap;
+                _viewModel.NotifyPreviewShown(png);
             }
         }
         // async void のため、失敗はここで終端する
@@ -100,6 +106,7 @@ internal sealed partial class MapImageExportDialog : ContentDialog
 #pragma warning restore CA1031
         {
             AppLog.Error("Failed to show the map image preview.", ex);
+            _viewModel.NotifyPreviewDisplayFailed(png);
         }
     }
 }

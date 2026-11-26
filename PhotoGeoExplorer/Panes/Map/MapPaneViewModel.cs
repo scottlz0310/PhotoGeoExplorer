@@ -418,7 +418,7 @@ internal sealed class MapPaneViewModel : PaneViewModelBase
                 }
 
                 _saveFolderHistory.RecordFileLocation(MapImageSavePickerOptions.SettingsIdentifier, outputPath);
-                using var pngStream = await export.RenderForSaveAsync(cts.Token).ConfigureAwait(true);
+                using var pngStream = export.OpenImageToSave();
                 await _mapImageService.SavePngAsync(pngStream, outputPath, cts.Token).ConfigureAwait(true);
                 RequestNotification(
                     $"{LocalizationService.GetString("Message.MapImageSaveSucceeded")} {outputPath}",

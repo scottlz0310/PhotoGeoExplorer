@@ -971,6 +971,9 @@
   <data name="MapImageExportPreview.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
     <value>プレビュー</value>
   </data>
+  <data name="MapImageExportRetry.Content" xml:space="preserve">
+    <value>再試行</value>
+  </data>
   <data name="MapImageExportSize.Header" xml:space="preserve">
     <value>サイズ</value>
   </data>
@@ -999,7 +1002,7 @@
     <value>取得タイル 約 {0} 枚</value>
   </data>
   <data name="MapImageExport.Status.PreviewFailed" xml:space="preserve">
-    <value>プレビューを作成できませんでした。通信状況を確認してください。「保存」でもう一度取得します。詳細はログを確認してください。</value>
+    <value>プレビューを作成できませんでした。通信状況を確認して「再試行」を押してください。詳細はログを確認してください。</value>
   </data>
   <data name="MapImageExport.Problem.TooManyTiles" xml:space="preserve">
     <value>取得するタイルが約 {0} 枚になり、上限の {1} 枚を超えます。サイズを小さくするか、文字を大きくしてください。</value>
