@@ -297,7 +297,10 @@ internal sealed class RasterMapBackground : IMapsuiBackground
             .Value;
     }
 
-    private static bool VerifyFullPixelDecode(byte[] data)
+    /// <summary>
+    /// タイルの画像を、最後の画素まで復号できるか。画面表示と保存画像で同じ基準にする
+    /// </summary>
+    internal static bool VerifyFullPixelDecode(byte[] data)
     {
         using var stream = new MemoryStream(data, writable: false);
         using var codec = SKCodec.Create(stream, out var codecResult);

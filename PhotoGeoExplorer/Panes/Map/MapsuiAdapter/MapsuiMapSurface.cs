@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mapsui;
@@ -68,12 +69,7 @@ internal sealed class MapsuiMapSurface : IMapSurface
 
         _map = map;
         _ownsMap = ownsMap;
-        _markerLayer = new MemoryLayer
-        {
-            Name = MarkerLayerName,
-            Features = Array.Empty<IFeature>(),
-            Style = null
-        };
+        _markerLayer = CreateMarkerLayer([]);
         map.Layers.Add(_markerLayer);
         map.Navigator.PanLock = true;
         map.Navigator.ZoomLock = true;
@@ -486,6 +482,21 @@ internal sealed class MapsuiMapSurface : IMapSurface
         {
             _map.Dispose();
         }
+    }
+
+    /// <summary>
+    /// 写真マーカーを置いたレイヤーを作る。呼び出し側が破棄する
+    /// </summary>
+    internal static MemoryLayer CreateMarkerLayer(IReadOnlyList<MapMarker> markers)
+    {
+        ArgumentNullException.ThrowIfNull(markers);
+
+        return new MemoryLayer
+        {
+            Name = MarkerLayerName,
+            Features = markers.Select(CreateFeature).ToArray(),
+            Style = null
+        };
     }
 
     private static MPoint ToWorld(MapMarker marker)
