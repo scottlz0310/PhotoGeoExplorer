@@ -36,6 +36,8 @@ internal sealed class RasterMapBackground : IMapsuiBackground
         ArgumentNullException.ThrowIfNull(layer);
 
         _layer = layer;
+        // 帰属表示は MapAttributionPresenter が描く。タイル層の帰属表示も描くと二重になり、アプリ側のリンクが下に隠れる
+        _layer.Attribution.Enabled = false;
         Layers = [layer];
         SourceType = sourceType;
         AttributionText = string.Join(' ', MapBackgroundCatalog.Get(sourceType).AttributionLinks.Select(link => link.Text));
