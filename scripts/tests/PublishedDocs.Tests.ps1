@@ -1,20 +1,22 @@
 BeforeAll {
     Import-Module (Join-Path $PSScriptRoot '..\PublishedDocs.psm1') -Force
 
-    # 実際の docs と同じ構成で、各配信対象に固有の本文を持つ docs ディレクトリを作る。
+    # 実際の docs と同じ構成で、配信元のファイルごとに固有の本文を持つ docs ディレクトリを作る。
     function New-DocsRoot {
         param([string]$Root)
         foreach ($target in Get-PublishedDocsTargets) {
             $path = Join-Path $Root $target.File
             New-Item -ItemType Directory -Force -Path (Split-Path $path) | Out-Null
-            [IO.File]::WriteAllText($path, "<html>$($target.UrlPath)</html>`n")
+            [IO.File]::WriteAllText($path, "<html>$($target.File)</html>`n")
         }
     }
 
-    # URL のパス部分から本文を返す Fetch。Overrides で一部を差し替える。
+    # URL のパス部分に対応する配信元の本文を返す Fetch。Overrides で一部を差し替える。
     function New-Fetch {
         param([hashtable]$Overrides = @{})
         $map = $Overrides
+        $files = @{}
+        foreach ($target in Get-PublishedDocsTargets) { $files[$target.UrlPath] = $target.File }
         { param($url)
             $path = ([uri]$url).AbsolutePath
             if ($map.ContainsKey($path)) {
@@ -22,7 +24,7 @@ BeforeAll {
                 if ($value -is [scriptblock]) { return (& $value) }
                 return $value
             }
-            "<html>$path</html>`n"
+            "<html>$($files[$path])</html>`n"
         }.GetNewClosure()
     }
 }
@@ -49,6 +51,33 @@ Describe 'Get-PublishedDocsTargets' {
         $paths | Should -Contain '/help/index.html'
         $paths | Should -Contain '/help/index.en.html'
     }
+
+    # 本文は 1 つのファイルだけに置く。末尾が / の以前の URL は docs/_redirects で転送する。
+    It 'serves <UrlPath> from the single privacy policy' -ForEach @(
+        @{ UrlPath = '/privacy-policy' }
+        @{ UrlPath = '/privacy-policy/' }
+        @{ UrlPath = '/privacy-policy/index.html' }
+    ) {
+        (Get-PublishedDocsTargets | Where-Object UrlPath -CEQ $UrlPath).File | Should -BeExactly 'privacy-policy.html'
+    }
+
+    It 'redirects the former URL <UrlPath> to the canonical one' -ForEach @(
+        @{ UrlPath = '/privacy-policy/' }
+        @{ UrlPath = '/privacy-policy/index.html' }
+    ) {
+        $redirects = Get-Content (Join-Path $PSScriptRoot '..\..\docs\_redirects')
+        $redirects | Should -Contain "$UrlPath /privacy-policy 301"
+    }
+
+    # 存在しない URL にもルートのページが返るため、相対パスの転送は深い URL で繰り返しになる。
+    It 'redirects the root page to an absolute path' {
+        $root = Get-Content (Join-Path $PSScriptRoot '..\..\docs\index.html') -Raw
+        $root | Should -BeLike '*content="0; url=/privacy-policy"*'
+    }
+
+    It 'has no second copy of the privacy policy' {
+        Join-Path $PSScriptRoot '..\..\docs\privacy-policy\index.html' | Should -Not -Exist
+    }
 }
 
 Describe 'Find-PublishedDocsMismatch' {
@@ -62,7 +91,7 @@ Describe 'Find-PublishedDocsMismatch' {
     }
 
     It 'treats CRLF in the published page as equal' {
-        $fetch = New-Fetch -Overrides @{ '/privacy-policy' = "<html>/privacy-policy</html>`r`n" }
+        $fetch = New-Fetch -Overrides @{ '/privacy-policy' = "<html>privacy-policy.html</html>`r`n" }
         @(Find-PublishedDocsMismatch -BaseUrl 'https://example.test/' -DocsRoot $docs -Fetch $fetch) | Should -BeNullOrEmpty
     }
 
@@ -75,7 +104,7 @@ Describe 'Find-PublishedDocsMismatch' {
     }
 
     It 'compares case-sensitively' {
-        $fetch = New-Fetch -Overrides @{ '/' = '<HTML>/</HTML>' }
+        $fetch = New-Fetch -Overrides @{ '/' = '<HTML>INDEX.HTML</HTML>' }
         @(Find-PublishedDocsMismatch -BaseUrl 'https://example.test' -DocsRoot $docs -Fetch $fetch).UrlPath | Should -Be '/'
     }
 
@@ -126,7 +155,7 @@ Describe 'Assert-PublishedDocs' {
 
     It 'waits for a deployment that finishes within the timeout' {
         $script:calls = 0
-        $fetch = New-Fetch -Overrides @{ '/privacy-policy' = { $script:calls++; if ($script:calls -lt 3) { 'stale' } else { '<html>/privacy-policy</html>' } } }
+        $fetch = New-Fetch -Overrides @{ '/privacy-policy' = { $script:calls++; if ($script:calls -lt 3) { 'stale' } else { '<html>privacy-policy.html</html>' } } }
         Assert-PublishedDocs -BaseUrl 'https://example.test' -DocsRoot $docs -Fetch $fetch -TimeoutSeconds 600 -IntervalSeconds 60 -Sleep $sleep | Should -Be 3
         $sleeps.ToArray() | Should -Be @(60, 60)
     }

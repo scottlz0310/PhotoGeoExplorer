@@ -21,7 +21,7 @@
 
 Cloudflare Pages の Git 連携は GitHub の外で動くため、push の通知が届かなくなってもチェックが赤くならず、古い内容が公開され続けます（2026-02-27 から 2026-11-14 まで、約 8 か月気付きませんでした）。
 
-- `.github/workflows/published-docs.yml` が、公開サイトの配信対象（`/`、`/privacy-policy`、`/help/index.html`、`/help/index.en.html`）を取得し、`main` の `docs` と比較します（改行コード・BOM・末尾の空白は無視）。一致しなければワークフローが失敗します。
+- `.github/workflows/published-docs.yml` が、公開サイトの配信対象（`/`、`/privacy-policy`、`/privacy-policy/`、`/privacy-policy/index.html`、`/help/index.html`、`/help/index.en.html`）を取得し、`main` の `docs` と比較します（改行コード・BOM・末尾の空白は無視）。一致しなければワークフローが失敗します。
 - 実行のタイミング: `main` への `docs/**` の push（デプロイ待ちのため最大 10 分・1 分おきに再試行）と、毎日 03:17（JST）の定期実行（Cloudflare 側の変化を、`docs` を変えなくても検知）。
 - 手元での確認: `pwsh ./scripts/Test-PublishedDocs.ps1`。
 - 失敗したら、Cloudflare の Deployments で、最新のデプロイの有無と成否を確認してください。
@@ -31,12 +31,14 @@ Cloudflare Pages の Git 連携は GitHub の外で動くため、push の通知
 `docs` 配下の以下ファイルが配信対象です。
 
 - `/` → `docs/index.html`
-- `/privacy-policy` → `docs/privacy-policy/index.html`
-- `/privacy-policy.html` → `docs/privacy-policy.html`
+- `/privacy-policy` → `docs/privacy-policy.html`（アプリと Store が案内する URL。`/privacy-policy.html` はここへ転送される）
+- `/privacy-policy/`・`/privacy-policy/index.html` → `/privacy-policy` へ転送（`docs/_redirects`）
+- 存在しない URL → ルートと同じ内容（`docs/404.html` が無いため）。ルートは `/privacy-policy` へ絶対パスで転送する
 - `/help/index.html` → `docs/help/index.html`
 - `/help/index.en.html` → `docs/help/index.en.html`
 
 > [!NOTE]
+> プライバシーポリシーの本文は `docs/privacy-policy.html` だけに置きます。内容を変えたら「最終更新日」も更新してください。
 > `docs/help/index*.html` はアプリ同梱ヘルプ（`PhotoGeoExplorer/wwwroot/help/index*.html`）と同じ内容を維持してください。
 
 ## 確認 URL
