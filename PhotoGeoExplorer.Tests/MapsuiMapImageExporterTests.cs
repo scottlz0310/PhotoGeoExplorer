@@ -136,6 +136,48 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
         Assert.Equal(status, Assert.IsType<HttpRequestException>(error.InnerException).StatusCode);
     }
 
+    [Theory]
+    [InlineData(MapTileSourceType.OpenStreetMap, HttpStatusCode.OK, TileBody.NotAnImage)]
+    [InlineData(MapTileSourceType.OpenStreetMap, HttpStatusCode.OK, TileBody.Truncated)]
+    [InlineData(MapTileSourceType.OpenStreetMap, HttpStatusCode.NoContent, TileBody.Empty)]
+    [InlineData(MapTileSourceType.GsiStandard, HttpStatusCode.OK, TileBody.NotAnImage)]
+    [InlineData(MapTileSourceType.GsiPhoto, HttpStatusCode.OK, TileBody.Truncated)]
+    internal async Task RenderPngAsyncFailsInsteadOfLeavingHolesWhenATileImageIsBroken(
+        MapTileSourceType sourceType, HttpStatusCode status, TileBody body)
+    {
+        using var handler = new TileHandler(
+            index => index == 2 ? status : HttpStatusCode.OK,
+            index => index == 2 ? body : TileBody.Image);
+        using var exporter = CreateExporter(handler);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => exporter.RenderPngAsync(Request(sourceType), CancellationToken.None)).ConfigureAwait(true);
+
+        // 空の応答は、通信の層で失敗になる場合がある
+        Assert.NotNull(error.InnerException);
+    }
+
+    [Theory]
+    [InlineData(TileBody.NotAnImage)]
+    [InlineData(TileBody.Truncated)]
+    internal async Task RenderPngAsyncFetchesABrokenTileAgainInsteadOfKeepingItInTheCache(TileBody body)
+    {
+        using var handler = new TileHandler(_ => HttpStatusCode.OK, index => index == 1 ? body : TileBody.Image);
+        var root = Path.Combine(_cache.FullName, "retry");
+#pragma warning disable CA2000 // 通信は exporter が破棄する
+        using var exporter = new MapsuiMapImageExporter(
+            request => MapsuiMapFactory.CreateBackground(request, root),
+            new HttpClient(handler, disposeHandler: false));
+#pragma warning restore CA2000
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => exporter.RenderPngAsync(Request(), CancellationToken.None)).ConfigureAwait(true);
+
+        using var bitmap = await RenderAsync(exporter, Request()).ConfigureAwait(true);
+
+        Assert.Equal(2, handler.Requests.Count(uri => uri == handler.BrokenRequest));
+        Assert.Equal(TileColor, bitmap.GetPixel(bitmap.Width / 2, bitmap.Height / 2));
+    }
+
     [Fact]
     public async Task RenderPngAsyncLeavesTilesOutsideTheGsiCoverageBlank()
     {
@@ -281,20 +323,45 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
         return SKBitmap.Decode(stream);
     }
 
-    private sealed class TileHandler(Func<int, HttpStatusCode> status) : HttpMessageHandler
+    internal enum TileBody
+    {
+        Image,
+        NotAnImage,
+        Truncated,
+        Empty,
+    }
+
+    private sealed class TileHandler(Func<int, HttpStatusCode> status, Func<int, TileBody>? body = null) : HttpMessageHandler
     {
         private static readonly byte[] Tile = CreateTile();
         private int _count;
 
         public ConcurrentQueue<Uri?> Requests { get; } = new();
 
+        /// <summary>壊れた内容を返した最後の要求。同時の要求では、受け付けた順と番号の順がそろわない</summary>
+        public Uri? BrokenRequest { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Requests.Enqueue(request.RequestUri);
-            return Task.FromResult(new HttpResponseMessage(status(Interlocked.Increment(ref _count)))
+            var index = Interlocked.Increment(ref _count);
+            var kind = body?.Invoke(index) ?? TileBody.Image;
+            if (kind != TileBody.Image)
             {
-                Content = new ByteArrayContent(Tile)
+                BrokenRequest = request.RequestUri;
+            }
+
+            byte[] content = kind switch
+            {
+                TileBody.NotAnImage => [1, 2, 3, 4],
+                TileBody.Truncated => Tile[..(Tile.Length / 2)],
+                TileBody.Empty => [],
+                _ => Tile
+            };
+            return Task.FromResult(new HttpResponseMessage(status(index))
+            {
+                Content = new ByteArrayContent(content)
             });
         }
 

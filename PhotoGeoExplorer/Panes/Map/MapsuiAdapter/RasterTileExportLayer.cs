@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -61,11 +62,22 @@ internal static class RasterTileExportLayer
                 var data = await source.GetTileAsync(httpClient, tile, failed.Token).ConfigureAwait(false);
 
                 // 画像がないタイルは、配信元の提供範囲外（空白にする）
-                return data is null
-                    ? null
-                    : new RasterFeature(new MRaster(
-                        data,
-                        new MRect(tile.Extent.MinX, tile.Extent.MinY, tile.Extent.MaxX, tile.Extent.MaxY)));
+                if (data is null)
+                {
+                    return null;
+                }
+
+                // 描画は壊れた画像を黙って飛ばすため、ここで確かめる
+                if (!RasterMapBackground.VerifyFullPixelDecode(data))
+                {
+                    // 取得した内容はキャッシュに入るため、残すと次回も同じ画像で失敗する
+                    source.PersistentCache.Remove(tile.Index);
+                    throw new InvalidDataException($"The map tile image is broken: {tile.Index}.");
+                }
+
+                return new RasterFeature(new MRaster(
+                    data,
+                    new MRect(tile.Extent.MinX, tile.Extent.MinY, tile.Extent.MaxX, tile.Extent.MaxY)));
             }
             catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
