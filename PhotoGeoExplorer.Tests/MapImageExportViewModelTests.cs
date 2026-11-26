@@ -288,8 +288,10 @@ public sealed class MapImageExportViewModelTests
         }
     }
 
-    [Fact]
-    public async Task ReturningToAnEarlierConditionWaitsForItsPreviewAgain()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ALateNotificationOfAnEarlierImageDoesNotEnableSavingAfterReturningToItsCondition(bool shownBefore)
     {
         var delays = new ControlledDelay();
         var viewModel = new MapImageExportViewModel(new FakeMapImageExporter(), Source(1.0), delays.DelayAsync);
@@ -298,12 +300,31 @@ public sealed class MapImageExportViewModelTests
             viewModel.Start();
             await delays.ReleaseLatestAsync().ConfigureAwait(true);
             await viewModel.PreviewTask.ConfigureAwait(true);
-            viewModel.NotifyPreviewShown(viewModel.PreviewPng!);
+            var first = viewModel.PreviewPng!;
+            if (shownBefore)
+            {
+                viewModel.NotifyPreviewShown(first);
+            }
 
             viewModel.SizeIndex = Hd;
             viewModel.SizeIndex = CurrentView;
 
+            // 画面はまだ最初の画像を復号していて、その完了が後から届く
+            viewModel.NotifyPreviewShown(first);
             Assert.False(viewModel.CanSave);
+            Assert.Throws<InvalidOperationException>(viewModel.OpenImageToSave);
+
+            await delays.ReleaseLatestAsync().ConfigureAwait(true);
+            await viewModel.PreviewTask.ConfigureAwait(true);
+
+            // 新しい画像が画面に出るまでは保存できない
+            viewModel.NotifyPreviewShown(first);
+            Assert.False(viewModel.CanSave);
+            Assert.Throws<InvalidOperationException>(viewModel.OpenImageToSave);
+
+            viewModel.NotifyPreviewShown(viewModel.PreviewPng!);
+            using var stream = viewModel.OpenImageToSave();
+            Assert.Equal(2, stream.ReadByte());
         }
     }
 
