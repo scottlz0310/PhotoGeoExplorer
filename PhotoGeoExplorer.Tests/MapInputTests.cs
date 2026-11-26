@@ -57,11 +57,9 @@ public sealed class MapInputTests
     [InlineData(double.PositiveInfinity, 0.0)]
     public void SlowOrInvalidReleaseDoesNotSlide(double x, double y)
     {
-        var behavior = MapInertia.Resolve(x, y);
+        var deceleration = MapInertia.ResolveDeceleration(x, y);
 
-        var deceleration = Assert.NotNull(behavior.Deceleration);
         Assert.True(MapInertia.MinSpeed * MapInertia.MinSpeed / (2 * deceleration) < 1);
-        Assert.Null(behavior.Displacement);
     }
 
     [Theory]
@@ -72,23 +70,23 @@ public sealed class MapInputTests
     {
         var speed = Math.Sqrt((x * x) + (y * y));
 
-        var behavior = MapInertia.Resolve(x, y);
+        var distance = speed * speed / (2 * MapInertia.ResolveDeceleration(x, y));
 
         // 従来の Fling が滑る距離: (2/π) × 速さ² × 100
-        var distance = speed * speed / (2 * Assert.NotNull(behavior.Deceleration));
         Assert.Equal(2 / Math.PI * speed * speed * 100, distance, 1e-9);
-        Assert.Null(behavior.Displacement);
     }
 
     [Theory]
     [InlineData(4.5, 0.0)]
     [InlineData(30.0, 40.0)]
-    public void VeryFastReleaseSlidesOnlyAsFarAsTheSpeedLimit(double x, double y)
+    public void VeryFastReleaseSlidesNoFartherThanAtTheSpeedLimit(double x, double y)
     {
-        var behavior = MapInertia.Resolve(x, y);
+        var speed = Math.Sqrt((x * x) + (y * y));
 
-        Assert.Null(behavior.Deceleration);
-        Assert.Equal(2 / Math.PI * MapInertia.MaxSpeed * MapInertia.MaxSpeed * 100, Assert.NotNull(behavior.Displacement), 1e-9);
+        var deceleration = MapInertia.ResolveDeceleration(x, y);
+
+        Assert.True(double.IsFinite(deceleration) && deceleration > 0);
+        Assert.Equal(2 / Math.PI * MapInertia.MaxSpeed * MapInertia.MaxSpeed * 100, speed * speed / (2 * deceleration), 1e-9);
     }
 
     [Fact]

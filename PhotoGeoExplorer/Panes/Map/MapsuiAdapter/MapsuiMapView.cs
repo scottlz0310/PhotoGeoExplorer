@@ -45,7 +45,7 @@ internal sealed class MapsuiMapView : UserControl
 
         // 滑る動きは OS の慣性に置き換える（MapControl 自身の移動・拡大は、表示面がロックして止める）
         _mapControl.UseFling = false;
-        _ = new PanZoomInputAdapter(_mapControl, new MapSurfaceInputTarget(() => _surface), MapInertia.Resolve);
+        _ = new PanZoomInputAdapter(_mapControl, new MapSurfaceInputTarget(() => _surface), MapInertia.ResolveDeceleration);
     }
 
     /// <summary>

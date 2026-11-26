@@ -1,7 +1,6 @@
 ﻿using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
-using PhotoGeoExplorer.Services.MapRendering;
 
 namespace PhotoGeoExplorer.Services.PanZoom;
 
@@ -17,17 +16,17 @@ internal sealed class PanZoomInputAdapter
 
     private readonly UIElement _target;
     private readonly PanZoomInputSequencer _sequencer;
-    private readonly Func<double, double, InertiaBehavior>? _inertia;
+    private readonly Func<double, double, double>? _inertia;
     private readonly ManipulationModes _previousManipulationMode;
     private bool _isAttached = true;
 
     /// <param name="target">入力を受ける要素</param>
     /// <param name="receiver">入力の受け手</param>
     /// <param name="inertia">
-    /// 移動の慣性の滑り方を、離した時点の速度（論理ピクセル／ミリ秒）から決める。指定した場合は、拡大の慣性を止め、
+    /// 移動の慣性の減速度（論理ピクセル／ミリ秒²）を、離した時点の速度（論理ピクセル／ミリ秒）から決める。指定した場合は、拡大の慣性を止め、
     /// 慣性中のホイールは慣性を打ち切ってから適用する。<see langword="null"/> なら OS の既定の慣性を使う。
     /// </param>
-    internal PanZoomInputAdapter(UIElement target, IPanZoomTarget receiver, Func<double, double, InertiaBehavior>? inertia = null)
+    internal PanZoomInputAdapter(UIElement target, IPanZoomTarget receiver, Func<double, double, double>? inertia = null)
     {
         _target = target ?? throw new ArgumentNullException(nameof(target));
         _sequencer = new PanZoomInputSequencer(receiver, wheelInterruptsInertia: inertia is not null);
@@ -72,18 +71,7 @@ internal sealed class PanZoomInputAdapter
             return;
         }
 
-        var behavior = _inertia(e.Velocities.Linear.X, e.Velocities.Linear.Y);
-        if (behavior.Deceleration is { } deceleration)
-        {
-            e.TranslationBehavior.DesiredDeceleration = deceleration;
-        }
-        else if (behavior.Displacement is { } displacement)
-        {
-            // 減速度と距離は、どちらか一方だけを指定する（NaN は指定なし）
-            e.TranslationBehavior.DesiredDeceleration = double.NaN;
-            e.TranslationBehavior.DesiredDisplacement = displacement;
-        }
-
+        e.TranslationBehavior.DesiredDeceleration = _inertia(e.Velocities.Linear.X, e.Velocities.Linear.Y);
         e.ExpansionBehavior.DesiredDeceleration = StopExpansionDeceleration;
     }
 
