@@ -4,6 +4,7 @@ using BruTile.Cache;
 using Mapsui.Tiling.Layers;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Services;
+using PhotoMapStudio.Tiles;
 
 namespace PhotoGeoExplorer.Panes.Map.MapsuiAdapter;
 
@@ -42,10 +43,11 @@ internal static class MapsuiMapFactory
             ?? throw new ArgumentException("TryPostToUi is required for the vector background.", nameof(background));
 
         // ラスタと同じく、タイルのキャッシュのルートの下に背景ごとのディレクトリを置く（形式はラスタと別なので混ざらない）
-        var renderer = new OpenFreeMapVectorMapRenderer(
+        var renderer = new TileVectorMapRenderer(
             Path.Combine(tileCacheRootDirectory, background.SourceType.ToString()),
-            background.UserAgent);
-        return new VectorMapBackground(renderer, tryPostToUi, renderer);
+            background.UserAgent,
+            sourceType: background.SourceType);
+        return new VectorMapBackground(renderer, tryPostToUi, renderer, sourceType: background.SourceType);
     }
 
     private static TileLayer CreateTileLayer(MapBackgroundRequest background, string tileCacheRootDirectory)
@@ -56,19 +58,40 @@ internal static class MapsuiMapFactory
             MapTileSourceType.EsriWorldImagery => CreateEsriWorldImageryLayer(
                 background.UserAgent,
                 CreatePersistentCache(tileCacheRootDirectory, background.SourceType)),
+            MapTileSourceType.GsiStandard => CreateGsiLayer(background, tileCacheRootDirectory, TileSources.GsiStandard),
+            MapTileSourceType.GsiPale => CreateGsiLayer(background, tileCacheRootDirectory, TileSources.GsiPale),
+            MapTileSourceType.GsiPhoto => CreateGsiLayer(background, tileCacheRootDirectory, GsiPhoto),
             _ => CreateOpenStreetMapLayer(
                 background.UserAgent,
                 CreatePersistentCache(tileCacheRootDirectory, background.SourceType))
         };
     }
 
-    private static FileCache? CreatePersistentCache(string tileCacheRootDirectory, MapTileSourceType sourceType)
+    private static readonly TileSource GsiPhoto = new(
+        "GSI Aerial Imagery",
+        "https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",
+        minZoom: 2,
+        maxZoom: 18,
+        "Geospatial Information Authority of Japan",
+        TileRateLimit.Relaxed,
+        new Uri(MapBackgroundCatalog.GsiAttributionUrl));
+
+    private static TileLayer CreateGsiLayer(MapBackgroundRequest background, string cacheRoot, TileSource source)
+    {
+        var tileSource = new GsiRasterTileSource(
+            source,
+            background.UserAgent,
+            CreatePersistentCache(cacheRoot, background.SourceType, background.SourceType == MapTileSourceType.GsiPhoto ? "jpg" : "png"));
+        return new TileLayer(tileSource) { Name = source.Name };
+    }
+
+    private static FileCache? CreatePersistentCache(string tileCacheRootDirectory, MapTileSourceType sourceType, string format = "png")
     {
         var sourceDirectory = Path.Combine(tileCacheRootDirectory, sourceType.ToString());
         try
         {
             Directory.CreateDirectory(sourceDirectory);
-            return new FileCache(sourceDirectory, "png");
+            return new FileCache(sourceDirectory, format);
         }
         catch (Exception ex) when (ex is IOException
             or UnauthorizedAccessException

@@ -107,23 +107,22 @@
                             Maximum="18"
                             SpinButtonPlacementMode="Inline"
                             MinWidth="200" />
+                        <ToggleSwitch
+                            x:Uid="SettingsPaneJapanMapSources"
+                            Header="日本国内向け地図ソース（国土地理院タイル）"
+                            IsOn="{Binding JapanMapSourcesEnabled, Mode=TwoWay}" />
                         <RadioButtons
                             x:Uid="SettingsPaneMapTileSource"
                             Header="地図タイルソース"
+                            ItemsSource="{Binding MapTileChoices}"
                             SelectedIndex="{Binding MapTileSourceIndex, Mode=TwoWay}">
-                            <RadioButton
-                                x:Uid="SettingsPaneMapTileSourceOsm"
-                                Content="OpenStreetMap" />
-                            <RadioButton
-                                x:Uid="SettingsPaneMapTileSourceEsri"
-                                Content="Esri World Imagery (衛星)" />
-                            <RadioButton
-                                x:Uid="SettingsPaneMapTileSourceMapbox"
-                                Content="Mapbox Satellite (衛星・要アクセストークン)"
-                                IsEnabled="{Binding Mapbox.HasToken, Mode=OneWay}" />
-                            <RadioButton
-                                x:Uid="SettingsPaneMapTileSourceOpenFreeMapVector"
-                                Content="OpenFreeMap（ベクター地図）" />
+                            <RadioButtons.ItemTemplate>
+                                <DataTemplate>
+                                    <RadioButton
+                                        Content="{Binding DisplayName}"
+                                        IsEnabled="{Binding IsEnabled}" />
+                                </DataTemplate>
+                            </RadioButtons.ItemTemplate>
                         </RadioButtons>
 
                         <!-- Mapbox アクセストークン -->

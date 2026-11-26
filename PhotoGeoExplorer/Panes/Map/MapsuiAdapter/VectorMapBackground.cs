@@ -78,11 +78,13 @@ internal sealed class VectorMapBackground : IMapsuiBackground
     /// 破棄は <paramref name="renderer"/> の破棄に含まれる前提で、この背景は破棄しない。
     /// </param>
     /// <param name="timeProvider">事前デコードの待ち時間の計測に使う時計。テストで差し替える（<see langword="null"/> なら既定）。</param>
+    /// <param name="sourceType">描画対象のベクター背景</param>
     internal VectorMapBackground(
         IVectorMapRenderer renderer,
         Func<Action, bool> tryPostToUi,
         IVectorMapPrefetcher? prefetcher = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        MapTileSourceType sourceType = MapTileSourceType.OpenFreeMapVector)
     {
         ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(tryPostToUi);
@@ -91,7 +93,8 @@ internal sealed class VectorMapBackground : IMapsuiBackground
         _zoomBounds = new MMinMax(_zoomResolutions[^1] / 2, _zoomResolutions[0]);
         _layer = new ViewExtentImageLayer("VectorMapBackground");
         Layers = [_layer.Layer];
-        AttributionText = string.Join(' ', MapBackgroundCatalog.Get(MapTileSourceType.OpenFreeMapVector).AttributionLinks.Select(link => link.Text));
+        SourceType = sourceType;
+        AttributionText = string.Join(' ', MapBackgroundCatalog.Get(sourceType).AttributionLinks.Select(link => link.Text));
         _coordinator = new ViewExtentRenderCoordinator<SKImage>(
             RenderAsync,
             tryPostToUi,
@@ -112,7 +115,7 @@ internal sealed class VectorMapBackground : IMapsuiBackground
 
     public IReadOnlyList<ILayer> Layers { get; }
 
-    public MapTileSourceType SourceType => MapTileSourceType.OpenFreeMapVector;
+    public MapTileSourceType SourceType { get; }
 
     public string AttributionText { get; }
 

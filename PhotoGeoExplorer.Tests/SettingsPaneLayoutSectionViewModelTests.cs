@@ -221,6 +221,10 @@ public sealed class SettingsPaneLayoutSectionViewModelTests
         {
         }
 
+        public bool JapanMapSourcesEnabled { get; set; }
+
+        public void ResetJapanMapSources() => JapanMapSourcesEnabled = false;
+
         public void ChangeMapTileSource(MapTileSourceType sourceType)
         {
         }

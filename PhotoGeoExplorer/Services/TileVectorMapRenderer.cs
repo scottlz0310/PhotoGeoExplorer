@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using PhotoGeoExplorer.Models;
 using PhotoMapStudio.Rendering;
 using PhotoMapStudio.Tiles;
 using PhotoMapStudio.Tiles.Vector;
@@ -10,7 +11,7 @@ using PhotoMapStudio.Tiles.Vector;
 namespace PhotoGeoExplorer.Services;
 
 /// <summary>
-/// OpenFreeMap のベクタータイルを、表示範囲全体の 1 枚の画像として描く。通信・タイルのキャッシュ・スタイル・
+/// 選択した配信元のベクタータイルを、表示範囲全体の 1 枚の画像として描く。通信・タイルのキャッシュ・スタイル・
 /// デコード済みタイルのキャッシュをこのクラスが所有する。描画のほかに、タイルを先に取得・デコードする事前デコードも提供する。
 /// </summary>
 /// <remarks>
@@ -18,7 +19,7 @@ namespace PhotoGeoExplorer.Services;
 /// （通信・キャッシュ）の破棄は、進行中の描画がすべて終わってから行う（キャンセルの完了前に破棄すると、
 /// 取得処理の終了処理が破棄済みの資源に触れるため）。
 /// </remarks>
-internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IVectorMapPrefetcher, IDisposable
+internal sealed class TileVectorMapRenderer : IVectorMapRenderer, IVectorMapPrefetcher, IDisposable
 {
     // 応答のない通信で、描画を待たせ続けない
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
@@ -28,8 +29,8 @@ internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IVector
 
     private readonly HttpClient _httpClient;
     private readonly FileSystemTileCache _cache;
-    private readonly OpenFreeMapTileSource _tileSource;
-    private readonly OpenMapTilesStyle _style;
+    private readonly IVectorTileSource _tileSource;
+    private readonly IVectorMapStyle _style;
     private readonly VectorMapRenderer _renderer;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly object _gate = new();
@@ -42,7 +43,12 @@ internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IVector
     /// </param>
     /// <param name="userAgent">配信元へ表明する User-Agent（アプリの名称・版・連絡先）</param>
     /// <param name="handler">通信の中身。テストで差し替える（<see langword="null"/> なら既定）</param>
-    public OpenFreeMapVectorMapRenderer(string cacheDirectory, string userAgent, HttpMessageHandler? handler = null)
+    /// <param name="sourceType">ベクタータイルの配信元</param>
+    public TileVectorMapRenderer(
+        string cacheDirectory,
+        string userAgent,
+        HttpMessageHandler? handler = null,
+        MapTileSourceType sourceType = MapTileSourceType.OpenFreeMapVector)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(userAgent);
@@ -54,8 +60,16 @@ internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IVector
         _cache = new FileSystemTileCache(
             cacheDirectory,
             errorObserver: exception => AppLog.Error("The vector tile cache failed.", exception));
-        _tileSource = new OpenFreeMapTileSource(_httpClient, urlTemplateStore: _cache);
-        _style = new OpenMapTilesStyle();
+        if (sourceType == MapTileSourceType.GsiVector)
+        {
+            _tileSource = GsiVectorTileSource.Create(_httpClient);
+            _style = new GsiVectorStyle();
+        }
+        else
+        {
+            _tileSource = new OpenFreeMapTileSource(_httpClient, urlTemplateStore: _cache);
+            _style = new OpenMapTilesStyle();
+        }
         _renderer = new VectorMapRenderer(
             new CachedVectorTileSource(_tileSource, _cache),
             _style,
@@ -137,8 +151,8 @@ internal sealed class OpenFreeMapVectorMapRenderer : IVectorMapRenderer, IVector
 
     private void ReleaseResources()
     {
-        _style.Dispose();
-        _tileSource.Dispose();
+        (_style as IDisposable)?.Dispose();
+        (_tileSource as IDisposable)?.Dispose();
         _cache.Dispose();
         _httpClient.Dispose();
         _lifetime.Dispose();

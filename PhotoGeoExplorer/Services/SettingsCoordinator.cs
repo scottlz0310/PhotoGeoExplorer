@@ -38,6 +38,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
     private ThemePreference _themePreference = ThemePreference.System;
     private int _mapDefaultZoomLevel = MapZoomLevelCatalog.Default;
     private MapTileSourceType _mapTileSource = MapTileSourceType.OpenStreetMap;
+    private bool _japanMapSourcesEnabled;
     private bool _showQuickStartOnStartup;
     private string? _externalContentBaseUrl = AppSettings.DefaultExternalContentBaseUrl;
     private PaneLayoutPreset _paneLayoutPreset = AppSettings.DefaultPaneLayoutPreset;
@@ -156,6 +157,32 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         }
     }
 
+    public bool JapanMapSourcesEnabled
+    {
+        get => _japanMapSourcesEnabled;
+        set
+        {
+            if (_japanMapSourcesEnabled == value)
+            {
+                return;
+            }
+
+            _japanMapSourcesEnabled = value;
+            var availableSource = MapBackgroundCatalog.ResolveSource(_mapTileSource, value);
+            if (availableSource != _mapTileSource)
+            {
+                ChangeMapTileSource(availableSource);
+            }
+            else
+            {
+                ScheduleSave();
+            }
+        }
+    }
+
+    public void ResetJapanMapSources()
+        => JapanMapSourcesEnabled = MapBackgroundCatalog.ResolveJapanMapSourcesEnabled(null, null);
+
     public void ChangeMapTileSource(MapTileSourceType sourceType)
     {
         if (!Enum.IsDefined(sourceType))
@@ -163,6 +190,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             return;
         }
 
+        sourceType = MapBackgroundCatalog.ResolveSource(sourceType, _japanMapSourcesEnabled);
         var changed = _mapTileSource != sourceType;
         _mapTileSource = sourceType;
         _mapPaneViewModel.SwitchTileSource(sourceType);
@@ -264,14 +292,11 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
         MapHeaderDisplay.Apply(settings);
         _mapPaneViewModel.AreaDataAcquisition.Mode = Enum.IsDefined(settings.AreaDataDownloadMode) ? settings.AreaDataDownloadMode : AreaDataDownloadMode.Ask;
 
-        var savedTileSource = Enum.IsDefined(settings.MapTileSource) ? settings.MapTileSource : MapTileSourceType.OpenStreetMap;
+        _japanMapSourcesEnabled = MapBackgroundCatalog.ResolveJapanMapSourcesEnabled(settings.JapanMapSourcesEnabled, _languageOverride);
+        var savedTileSource = MapBackgroundCatalog.ResolveSource(settings.MapTileSource, _japanMapSourcesEnabled);
         if (savedTileSource != _mapTileSource)
         {
             _mapPaneViewModel.SwitchTileSource(savedTileSource);
-            _mapTileSource = savedTileSource;
-        }
-        else
-        {
             _mapTileSource = savedTileSource;
         }
 
@@ -489,6 +514,7 @@ internal sealed class SettingsCoordinator : ISettingsCoordinator
             Theme = _themePreference,
             MapDefaultZoomLevel = _mapDefaultZoomLevel,
             MapTileSource = _mapTileSource,
+            JapanMapSourcesEnabled = _japanMapSourcesEnabled,
             ShowMapHeaderAddress = MapHeaderDisplay.ShowAddress,
             ShowMapHeaderRoadName = MapHeaderDisplay.ShowRoadName,
             ShowMapHeaderCoordinates = MapHeaderDisplay.ShowCoordinates,

@@ -109,6 +109,39 @@ public sealed class SettingsCoordinatorTests : IDisposable
         Assert.Equal(PaneViewType.Preview, saved.PaneRegion3View);
     }
 
+    [Theory]
+    [InlineData("ja", null, true)]
+    [InlineData("en", null, false)]
+    [InlineData("ja", false, false)]
+    [InlineData("en", true, true)]
+    public async Task JapanMapSourcesFollowTheUiLanguageUntilExplicitlyConfigured(
+        string language,
+        bool? enabled,
+        bool expected)
+    {
+        using var context = CreateContext();
+        await context.SettingsService.SaveAsync(new AppSettings
+        {
+            Language = language,
+            JapanMapSourcesEnabled = enabled,
+            MapTileSource = MapTileSourceType.GsiStandard
+        }).ConfigureAwait(true);
+
+        await context.Coordinator.LoadAsync().ConfigureAwait(true);
+
+        Assert.Equal(expected, context.Coordinator.JapanMapSourcesEnabled);
+        Assert.Equal(
+            expected ? MapTileSourceType.GsiStandard : MapTileSourceType.OpenStreetMap,
+            context.MainViewModel.CurrentMapTileSource);
+
+        context.Coordinator.JapanMapSourcesEnabled = false;
+        await context.Coordinator.SaveAsync().ConfigureAwait(true);
+        var saved = await context.SettingsService.LoadAsync().ConfigureAwait(true);
+
+        Assert.False(saved.JapanMapSourcesEnabled);
+        Assert.Equal(MapTileSourceType.OpenStreetMap, saved.MapTileSource);
+    }
+
     [Fact]
     public async Task LoadAsyncAppliesMapHeaderDisplaySettings()
     {

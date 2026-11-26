@@ -99,6 +99,26 @@ public sealed class SettingsPaneViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task DisablingJapanMapSourcesHidesItsChoicesAndSelectsOpenStreetMap()
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester, _areaData);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+
+        Assert.DoesNotContain(viewModel.MapTileChoices, choice => choice.Type == MapTileSourceType.GsiVector);
+        viewModel.JapanMapSourcesEnabled = true;
+        Assert.Contains(viewModel.MapTileChoices, choice => choice.Type == MapTileSourceType.GsiVector);
+        viewModel.MapTileSource = MapTileSourceType.GsiVector;
+
+        viewModel.JapanMapSourcesEnabled = false;
+
+        Assert.Equal(MapTileSourceType.OpenStreetMap, viewModel.MapTileSource);
+        Assert.Equal(MapTileSourceType.OpenStreetMap, coordinator.LastMapTileSource);
+        Assert.Equal((int)MapTileSourceType.OpenStreetMap, viewModel.MapTileSourceIndex);
+        Assert.DoesNotContain(viewModel.MapTileChoices, choice => choice.Type == MapTileSourceType.GsiVector);
+    }
+
+    [Fact]
     public async Task MapboxTokenSaveAndRemoveToggleAvailabilityAndRefreshMap()
     {
         using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
@@ -525,6 +545,10 @@ public sealed class SettingsPaneViewModelTests : IDisposable
             LastMapZoomLevel = level;
             _mainViewModel.ApplySettingsState(LastLanguageTag, LastTheme, LastMapZoomLevel, LastMapTileSource);
         }
+
+        public bool JapanMapSourcesEnabled { get; set; }
+
+        public void ResetJapanMapSources() => JapanMapSourcesEnabled = false;
 
         public void ChangeMapTileSource(MapTileSourceType sourceType)
         {

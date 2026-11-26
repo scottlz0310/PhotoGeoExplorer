@@ -19,10 +19,14 @@ namespace PhotoGeoExplorer.Tests;
 public sealed class MapAttributionDuplicateTests
 {
     [Theory]
-    [InlineData(MapTileSourceType.OpenStreetMap)]
-    [InlineData(MapTileSourceType.EsriWorldImagery)]
-    [InlineData(MapTileSourceType.MapboxSatellite)]
-    internal async Task RasterBackgroundShowsOnlyTheApplicationAttribution(MapTileSourceType sourceType)
+    [InlineData(MapTileSourceType.OpenStreetMap, 1f)]
+    [InlineData(MapTileSourceType.EsriWorldImagery, 1f)]
+    [InlineData(MapTileSourceType.MapboxSatellite, 1f)]
+    [InlineData(MapTileSourceType.GsiStandard, 1f)]
+    [InlineData(MapTileSourceType.GsiPale, 1.5f)]
+    [InlineData(MapTileSourceType.GsiPhoto, 1f)]
+    [InlineData(MapTileSourceType.GsiPhoto, 1.5f)]
+    internal async Task RasterBackgroundShowsOnlyTheApplicationAttribution(MapTileSourceType sourceType, float pixelDensity)
     {
         var cacheDirectory = Directory.CreateTempSubdirectory("pge-attribution-");
         try
@@ -35,16 +39,19 @@ public sealed class MapAttributionDuplicateTests
                 cacheDirectory.FullName);
             surface.ReplaceBackground(background);
 
-            using var stream = await surface.RenderPngAsync(1f, CancellationToken.None).ConfigureAwait(true);
+            using var stream = await surface.RenderPngAsync(pixelDensity, CancellationToken.None).ConfigureAwait(true);
 
             // 描かれたウィジェットだけが位置を持つ。クリックはこの位置で受けるため、描かれていなければ受けない
             var drawn = map.GetWidgetsOfMapAndLayers()
                 .OfType<HyperlinkWidget>()
                 .Where(widget => widget.Envelope is not null && !string.IsNullOrEmpty(widget.Text))
-                .Select(widget => widget.Text)
                 .ToArray();
 
-            Assert.Equal(MapBackgroundCatalog.Get(sourceType).AttributionLinks.Select(link => link.Text), drawn);
+            Assert.Equal(MapBackgroundCatalog.Get(sourceType).AttributionLinks.Select(link => link.Text), drawn.Select(widget => widget.Text));
+            foreach (var (first, second) in drawn.Zip(drawn.Skip(1)))
+            {
+                Assert.False(first.Envelope!.Intersects(second.Envelope));
+            }
         }
         finally
         {

@@ -249,7 +249,8 @@
         <li>Clicking a pin selects the corresponding photo in the list.</li>
         <li>Open the location in Google Maps from the pin details.</li>
         <li>Switch map tiles between OpenStreetMap, Esri WorldImagery (satellite imagery), Mapbox Satellite (satellite imagery), and OpenFreeMap (vector map). OpenStreetMap is the default.</li>
-        <li>OpenStreetMap, Esri, and OpenFreeMap tiles are cached locally for faster reloading. Mapbox tiles are not stored on the device.</li>
+        <li>Turn on "Map sources for Japan (GSI tiles)" in Settings to choose the Standard Map, Pale Map, Aerial Imagery, or Vector Map. The setting defaults to on for the Japanese UI. Turning it off while a GSI map is selected switches to OpenStreetMap. Areas outside the source coverage may appear blank.</li>
+        <li>OpenStreetMap, Esri, OpenFreeMap, and GSI tiles are cached locally for faster reloading. Mapbox tiles are not stored on the device.</li>
         <li>Mapbox Satellite requires a public access token (starting with <code>pk.</code>) issued from your own Mapbox account. Enter it under Map in Settings and choose Save to enable the option. Use Test connection to check that the token works.</li>
         <li>The token is stored in Windows Credential Manager and is never written to the settings file or exports. Secret tokens (<code>sk.</code>) cannot be saved.</li>
         <li>Mapbox usage and charges are billed to the account that issued the token. See the <a href="https://www.mapbox.com/pricing" target="_blank" rel="noopener noreferrer">Mapbox pricing page</a> (Raster Tiles API) for the free tier and rates. URL-restricted tokens may not work from a desktop app.</li>
@@ -346,7 +347,7 @@
       <h2>Privacy</h2>
       <ul>
         <li>Photos and settings are processed locally and not uploaded.</li>
-        <li>Map tiles are fetched from OpenStreetMap and Esri servers. When OpenFreeMap (vector map) is selected, they are fetched from OpenFreeMap servers, and when Mapbox Satellite is selected, from Mapbox servers.</li>
+        <li>Map tiles are fetched from OpenStreetMap and Esri servers. When OpenFreeMap (vector map) is selected, they are fetched from OpenFreeMap servers, and when Mapbox Satellite is selected, from Mapbox servers. GSI tiles are fetched from Geospatial Information Authority of Japan servers when selected.</li>
         <li>The address lookup uses the area data you imported, runs on this device, and does not send the photo location.</li>
         <li>See the privacy policy for details.</li>
       </ul>

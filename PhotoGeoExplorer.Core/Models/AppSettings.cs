@@ -7,7 +7,11 @@ internal enum MapTileSourceType
     OpenStreetMap = 0,
     EsriWorldImagery = 1,
     MapboxSatellite = 2,
-    OpenFreeMapVector = 3
+    OpenFreeMapVector = 3,
+    GsiStandard = 4,
+    GsiPale = 5,
+    GsiPhoto = 6,
+    GsiVector = 7
 }
 
 internal enum PaneLayoutPreset
@@ -46,6 +50,7 @@ internal sealed class AppSettings
     public bool AutoCheckUpdates { get; set; } = true;
     public int MapDefaultZoomLevel { get; set; } = 14;
     public MapTileSourceType MapTileSource { get; set; } = MapTileSourceType.OpenStreetMap;
+    public bool? JapanMapSourcesEnabled { get; set; }
     public bool ShowMapHeaderAddress { get; set; } = true;
     public bool ShowMapHeaderRoadName { get; set; } = true;
     public bool ShowMapHeaderCoordinates { get; set; } = true;

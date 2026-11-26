@@ -11,7 +11,7 @@ using Xunit;
 
 namespace PhotoGeoExplorer.Tests;
 
-public sealed class OpenFreeMapVectorMapRendererTests
+public sealed class TileVectorMapRendererTests
 {
     private const string UserAgent = "PhotoGeoExplorer.Tests/1.0 (test)";
 
@@ -26,7 +26,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
     [InlineData("cache", " ")]
     public void ConstructionRejectsABlankCacheDirectoryOrUserAgent(string cacheDirectory, string userAgent)
     {
-        Assert.ThrowsAny<ArgumentException>(() => new OpenFreeMapVectorMapRenderer(cacheDirectory, userAgent));
+        Assert.ThrowsAny<ArgumentException>(() => new TileVectorMapRenderer(cacheDirectory, userAgent));
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
         await WithTemporaryDirectoryAsync(async directory =>
         {
             using var handler = new FixedStatusHandler(HttpStatusCode.ServiceUnavailable);
-            using var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent, handler);
+            using var renderer = new TileVectorMapRenderer(directory, UserAgent, handler);
 
             await Assert.ThrowsAnyAsync<Exception>(
                 () => renderer.RenderViewAsync(TokyoRequest, CancellationToken.None)).ConfigureAwait(true);
@@ -50,7 +50,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
         await WithTemporaryDirectoryAsync(async directory =>
         {
             using var handler = new FixedStatusHandler(HttpStatusCode.ServiceUnavailable);
-            using var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent, handler);
+            using var renderer = new TileVectorMapRenderer(directory, UserAgent, handler);
 
             await Assert.ThrowsAnyAsync<Exception>(
                 () => renderer.RenderViewAsync(TokyoRequest, CancellationToken.None)).ConfigureAwait(true);
@@ -65,7 +65,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
         await WithTemporaryDirectoryAsync(async directory =>
         {
             using var handler = new HeldResponseHandler();
-            var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent, handler);
+            var renderer = new TileVectorMapRenderer(directory, UserAgent, handler);
             using var cts = new CancellationTokenSource();
 
             var render = renderer.RenderViewAsync(TokyoRequest, cts.Token);
@@ -85,7 +85,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
         await WithTemporaryDirectoryAsync(async directory =>
         {
             using var handler = new HeldResponseHandler();
-            var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent, handler);
+            var renderer = new TileVectorMapRenderer(directory, UserAgent, handler);
 
             var render = renderer.RenderViewAsync(TokyoRequest, CancellationToken.None);
             await handler.Started.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
@@ -102,7 +102,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
     {
         await WithTemporaryDirectoryAsync(async directory =>
         {
-            var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent);
+            var renderer = new TileVectorMapRenderer(directory, UserAgent);
             renderer.Dispose();
 
             await Assert.ThrowsAsync<ObjectDisposedException>(
@@ -116,7 +116,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
         await WithTemporaryDirectoryAsync(async directory =>
         {
             using var handler = new FixedStatusHandler(HttpStatusCode.ServiceUnavailable);
-            using var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent, handler);
+            using var renderer = new TileVectorMapRenderer(directory, UserAgent, handler);
 
             await Assert.ThrowsAnyAsync<Exception>(
                 () => renderer.PrefetchAsync(TokyoPrefetchRequest, CancellationToken.None)).ConfigureAwait(true);
@@ -131,7 +131,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
         await WithTemporaryDirectoryAsync(async directory =>
         {
             using var handler = new HeldResponseHandler();
-            var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent, handler);
+            var renderer = new TileVectorMapRenderer(directory, UserAgent, handler);
 
             var prefetch = renderer.PrefetchAsync(TokyoPrefetchRequest, CancellationToken.None);
             await handler.Started.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
@@ -148,7 +148,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
     {
         await WithTemporaryDirectoryAsync(async directory =>
         {
-            var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent);
+            var renderer = new TileVectorMapRenderer(directory, UserAgent);
             renderer.Dispose();
 
             await Assert.ThrowsAsync<ObjectDisposedException>(
@@ -161,7 +161,7 @@ public sealed class OpenFreeMapVectorMapRendererTests
     {
         await WithTemporaryDirectoryAsync(directory =>
         {
-            var renderer = new OpenFreeMapVectorMapRenderer(directory, UserAgent);
+            var renderer = new TileVectorMapRenderer(directory, UserAgent);
 
             renderer.Dispose();
             renderer.Dispose();
