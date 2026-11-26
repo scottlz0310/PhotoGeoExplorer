@@ -607,6 +607,38 @@ public class MapPaneViewModelTests
     }
 
     [Theory]
+    [InlineData(MapTileSourceType.GsiPhoto, null, 89)]
+    [InlineData(MapTileSourceType.GsiPale, null, 38)]
+    [InlineData(MapTileSourceType.MapboxSatellite, "pk.stored-token", 35)]
+    // トークンがない Mapbox は代わりの背景を表示するため、その帰属表示の高さを避ける
+    [InlineData(MapTileSourceType.MapboxSatellite, null, 21)]
+    internal void SwitchTileSourceKeepsTheStatusPanelAboveTheDisplayedAttribution(
+        MapTileSourceType sourceType, string? storedToken, double expectedBottom)
+    {
+        var secretStore = new InMemorySecretStore();
+        if (storedToken is not null)
+        {
+            secretStore.Set(SecretKeys.MapboxAccessToken, storedToken);
+        }
+
+        var viewModel = CreateViewModelWithSecretStore(secretStore);
+#pragma warning disable CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+        SetMapInitializedForTest(viewModel);
+#pragma warning restore CA2000 // ownership is transferred to viewModel and disposed via viewModel.Cleanup.
+
+        try
+        {
+            viewModel.SwitchTileSource(sourceType);
+
+            Assert.Equal(expectedBottom, viewModel.StatusPanelMargin.Bottom);
+        }
+        finally
+        {
+            viewModel.Cleanup();
+        }
+    }
+
+    [Theory]
     [InlineData(1, 0, "35.681236, 139.767125")]
     [InlineData(2, 0, "")]
     [InlineData(1, 1, "")]

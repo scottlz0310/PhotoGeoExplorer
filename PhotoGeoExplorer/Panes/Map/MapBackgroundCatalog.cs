@@ -38,6 +38,11 @@ internal sealed record MapBackgroundDescriptor(
     bool RequiresJapanMapSources = false)
 {
     internal string DisplayName => LocalizationService.GetString(DisplayNameKey);
+
+    /// <summary>
+    /// 帰属項目を縦に積む。地理院の航空写真などの追加出典は、狭い地図でも収まるように縦に並べる
+    /// </summary>
+    internal bool StacksAttribution => RequiresJapanMapSources;
 }
 
 /// <summary>
