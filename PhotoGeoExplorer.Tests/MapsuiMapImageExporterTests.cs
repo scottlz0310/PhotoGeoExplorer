@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using BruTile;
+using BruTile.Cache;
 using Mapsui.Projections;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.Map;
@@ -163,12 +166,7 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
     internal async Task RenderPngAsyncFetchesABrokenTileAgainInsteadOfKeepingItInTheCache(TileBody body)
     {
         using var handler = new TileHandler(_ => HttpStatusCode.OK, index => index == 1 ? body : TileBody.Image);
-        var root = Path.Combine(_cache.FullName, "retry");
-#pragma warning disable CA2000 // 通信は exporter が破棄する
-        using var exporter = new MapsuiMapImageExporter(
-            request => MapsuiMapFactory.CreateBackground(request, root),
-            new HttpClient(handler, disposeHandler: false));
-#pragma warning restore CA2000
+        using var exporter = CreateExporterWithCache(handler, _cache.FullName);
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => exporter.RenderPngAsync(Request(), CancellationToken.None)).ConfigureAwait(true);
 
@@ -176,6 +174,90 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
 
         Assert.Equal(2, handler.Requests.Count(uri => uri == handler.BrokenRequest));
         Assert.Equal(TileColor, bitmap.GetPixel(bitmap.Width / 2, bitmap.Height / 2));
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncKeepsATileStoredByTheDisplayWhenItsOwnResponseIsBroken()
+    {
+        // 表示と保存が同じタイルを持っていない状態で通信し、表示側が先に正常な画像を書く順序
+        var shared = SharedCache(_cache.FullName);
+        using var handler = new TileHandler(
+            _ => HttpStatusCode.OK,
+            index => index == 1 ? TileBody.NotAnImage : TileBody.Image,
+            uri => shared.Add(TileIndexOf(uri), TileHandler.Tile));
+        using var exporter = CreateExporterWithCache(handler, _cache.FullName);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => exporter.RenderPngAsync(Request(), CancellationToken.None)).ConfigureAwait(true);
+
+        Assert.Equal(TileHandler.Tile, shared.Find(TileIndexOf(handler.BrokenRequest!)));
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncReusesStoredTilesAndReplacesABrokenOne()
+    {
+        var shared = SharedCache(_cache.FullName);
+        using var handler = new TileHandler(_ => HttpStatusCode.OK);
+        using var exporter = CreateExporterWithCache(handler, _cache.FullName);
+        using var first = await RenderAsync(exporter, Request()).ConfigureAwait(true);
+        var fetched = handler.Requests.Count;
+
+        // 2 回目は、保存したタイルだけで描ける
+        using var second = await RenderAsync(exporter, Request()).ConfigureAwait(true);
+        Assert.Equal(fetched, handler.Requests.Count);
+
+        var index = TileIndexOf(handler.Requests.First()!);
+        shared.Remove(index);
+        shared.Add(index, [1, 2, 3, 4]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => exporter.RenderPngAsync(Request(), CancellationToken.None)).ConfigureAwait(true);
+        Assert.Null(shared.Find(index));
+
+        using var third = await RenderAsync(exporter, Request()).ConfigureAwait(true);
+        Assert.Equal(fetched + 1, handler.Requests.Count);
+        Assert.Equal(TileHandler.Tile, shared.Find(index));
+    }
+
+    [Fact]
+    public void ExportTileCacheDoesNotWriteAResponseBeforeItIsVerified()
+    {
+        var shared = SharedCache(_cache.FullName);
+        var index = new TileIndex(1, 2, 3);
+
+        new ExportTileCache(shared).Add(index, [1, 2, 3, 4]);
+
+        Assert.Null(shared.Find(index));
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncSucceedsWhenTheCacheCannotBeWritten()
+    {
+        // ズーム段階の名前のファイルがあると、その下へタイルを書けない
+        var source = Directory.CreateDirectory(Path.Combine(_cache.FullName, nameof(MapTileSourceType.OpenStreetMap)));
+        await File.WriteAllTextAsync(Path.Combine(source.FullName, "14"), "blocked").ConfigureAwait(true);
+        using var handler = new TileHandler(_ => HttpStatusCode.OK);
+        using var exporter = CreateExporterWithCache(handler, _cache.FullName);
+
+        using var bitmap = await RenderAsync(exporter, Request()).ConfigureAwait(true);
+
+        Assert.Equal(TileColor, bitmap.GetPixel(bitmap.Width / 2, bitmap.Height / 2));
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncFetchesATileThatTheDisplayHasLocked()
+    {
+        using var handler = new TileHandler(_ => HttpStatusCode.OK);
+        using var exporter = CreateExporterWithCache(handler, _cache.FullName);
+        using var first = await RenderAsync(exporter, Request()).ConfigureAwait(true);
+        var fetched = handler.Requests.Count;
+        var cachedFile = Directory.EnumerateFiles(_cache.FullName, "*.png", SearchOption.AllDirectories).First();
+        using var locked = new FileStream(cachedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+        using var second = await RenderAsync(exporter, Request()).ConfigureAwait(true);
+
+        Assert.Equal(fetched + 1, handler.Requests.Count);
+        Assert.Equal(TileColor, second.GetPixel(second.Width / 2, second.Height / 2));
     }
 
     [Fact]
@@ -312,9 +394,32 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
         var calls = 0;
 #pragma warning disable CA2000 // 通信は exporter が破棄する
         return new MapsuiMapImageExporter(
-            request => MapsuiMapFactory.CreateBackground(request, Path.Combine(root, (calls++).ToString(System.Globalization.CultureInfo.InvariantCulture))),
+            request => MapsuiMapFactory.CreateBackground(request, Path.Combine(root, (calls++).ToString(CultureInfo.InvariantCulture))),
             new HttpClient(handler, disposeHandler: false));
 #pragma warning restore CA2000
+    }
+
+    private static MapsuiMapImageExporter CreateExporterWithCache(TileHandler handler, string root)
+    {
+#pragma warning disable CA2000 // 通信は exporter が破棄する
+        return new MapsuiMapImageExporter(
+            request => MapsuiMapFactory.CreateBackground(request, root),
+            new HttpClient(handler, disposeHandler: false));
+#pragma warning restore CA2000
+    }
+
+    /// <summary>表示側と同じ置き場を読み書きする、別のキャッシュ</summary>
+    private static FileCache SharedCache(string root)
+        => new(Path.Combine(root, nameof(MapTileSourceType.OpenStreetMap)), "png");
+
+    /// <summary>タイルの URL（.../ズーム/列/行.png）が指すタイル</summary>
+    private static TileIndex TileIndexOf(Uri uri)
+    {
+        var parts = uri.AbsolutePath.Split('/')[^3..];
+        return new TileIndex(
+            int.Parse(parts[1], CultureInfo.InvariantCulture),
+            int.Parse(Path.GetFileNameWithoutExtension(parts[2]), CultureInfo.InvariantCulture),
+            int.Parse(parts[0], CultureInfo.InvariantCulture));
     }
 
     private static async Task<SKBitmap> RenderAsync(MapsuiMapImageExporter exporter, MapImageExportRequest request)
@@ -331,9 +436,12 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
         Empty,
     }
 
-    private sealed class TileHandler(Func<int, HttpStatusCode> status, Func<int, TileBody>? body = null) : HttpMessageHandler
+    private sealed class TileHandler(
+        Func<int, HttpStatusCode> status,
+        Func<int, TileBody>? body = null,
+        Action<Uri>? beforeBrokenResponse = null) : HttpMessageHandler
     {
-        private static readonly byte[] Tile = CreateTile();
+        internal static readonly byte[] Tile = CreateTile();
         private int _count;
 
         public ConcurrentQueue<Uri?> Requests { get; } = new();
@@ -350,6 +458,7 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
             if (kind != TileBody.Image)
             {
                 BrokenRequest = request.RequestUri;
+                beforeBrokenResponse?.Invoke(request.RequestUri!);
             }
 
             byte[] content = kind switch

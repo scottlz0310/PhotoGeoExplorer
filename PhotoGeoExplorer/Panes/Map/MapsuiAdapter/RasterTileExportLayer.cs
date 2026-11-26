@@ -40,7 +40,8 @@ internal static class RasterTileExportLayer
         return schema.GetTileInfos(extent, level).ToArray();
     }
 
-    /// <exception cref="InvalidOperationException">取得できないタイルがある場合</exception>
+    /// <param name="source">保存用に作った配信元。キャッシュの扱いを <see cref="ExportTileCache"/> へ差し替える</param>
+    /// <exception cref="InvalidOperationException">取得できないタイルや、壊れた画像のタイルがある場合</exception>
     internal static async Task<MemoryLayer> CreateAsync(
         HttpTileSource source,
         Viewport viewport,
@@ -50,6 +51,8 @@ internal static class RasterTileExportLayer
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(httpClient);
 
+        var cache = source.PersistentCache as ExportTileCache ?? new ExportTileCache(source.PersistentCache);
+        source.PersistentCache = cache;
         var tiles = SelectTiles(source.Schema, viewport);
         using var failed = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var gate = new SemaphoreSlim(MaxConcurrentRequests);
@@ -70,11 +73,12 @@ internal static class RasterTileExportLayer
                 // 描画は壊れた画像を黙って飛ばすため、ここで確かめる
                 if (!RasterMapBackground.VerifyFullPixelDecode(data))
                 {
-                    // 取得した内容はキャッシュに入るため、残すと次回も同じ画像で失敗する
-                    source.PersistentCache.Remove(tile.Index);
+                    // 壊れた画像がキャッシュにあると、次回も同じ画像で失敗する
+                    cache.Discard(tile.Index, data);
                     throw new InvalidDataException($"The map tile image is broken: {tile.Index}.");
                 }
 
+                cache.Store(tile.Index, data);
                 return new RasterFeature(new MRaster(
                     data,
                     new MRect(tile.Extent.MinX, tile.Extent.MinY, tile.Extent.MaxX, tile.Extent.MaxY)));
