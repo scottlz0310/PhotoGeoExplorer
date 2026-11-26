@@ -36,7 +36,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private readonly WorkspaceState _workspaceState;
     private readonly RelayCommand _nextCommand;
     private readonly RelayCommand _previousCommand;
-    private DispatcherQueue? _uiDispatcherQueue;
+    private Action<Action>? _postToUi;
     private BitmapImage? _currentImage;
     private Visibility _placeholderVisibility = Visibility.Visible;
     private string? _metadataSummary;
@@ -44,6 +44,7 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
     private PanZoomSize _viewportSize;
     private PanZoomSize _imageSize;
     private string? _currentFilePath;
+    private int _selectionVersion;
 
     public PreviewPaneViewModel()
         : this(new PreviewPaneService(), new WorkspaceState())
@@ -68,7 +69,16 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
 
     internal void InitializeDispatcherQueue(DispatcherQueue dispatcherQueue)
     {
-        _uiDispatcherQueue = dispatcherQueue ?? throw new ArgumentNullException(nameof(dispatcherQueue));
+        ArgumentNullException.ThrowIfNull(dispatcherQueue);
+        InitializeUiPost(action => dispatcherQueue.TryEnqueue(() => action()));
+    }
+
+    /// <summary>
+    /// UI スレッドで実行する処理の投入先を設定する。テストは、実行の順序を制御できる投入先を渡す
+    /// </summary>
+    internal void InitializeUiPost(Action<Action> postToUi)
+    {
+        _postToUi = postToUi ?? throw new ArgumentNullException(nameof(postToUi));
     }
 
     /// <summary>
@@ -237,35 +247,19 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         var selectedPhotos = _workspaceState.SelectedPhotos;
         if (selectedPhotos is null || selectedPhotos.Count == 0)
         {
-            // UI スレッドでクリア
-            var clearQueue = TryGetDispatcherQueue();
-            if (clearQueue is null)
+            // 反映が後回しになる間に次の選択が届くことがある（一覧の選択の入れ直しは「空 → 選択」の順に届く）
+            var clearVersion = ++_selectionVersion;
+            await RunOnUiAsync(() =>
             {
+                if (clearVersion != _selectionVersion)
+                {
+                    return;
+                }
+
                 CurrentImage = null;
                 MetadataSummary = null;
                 _currentFilePath = null;
-            }
-            else
-            {
-                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                clearQueue.TryEnqueue(() =>
-                {
-                    try
-                    {
-                        CurrentImage = null;
-                        MetadataSummary = null;
-                        _currentFilePath = null;
-                        tcs.TrySetResult(true);
-                    }
-#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
-                    catch (Exception ex)
-                    {
-                        tcs.TrySetException(ex);
-                    }
-#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
-                });
-                await tcs.Task.ConfigureAwait(false);
-            }
+            }).ConfigureAwait(false);
             return;
         }
 
@@ -276,7 +270,14 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         }
 
         var filePath = selectedPhoto.FilePath;
-        if (string.IsNullOrWhiteSpace(filePath) || filePath == _currentFilePath)
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return;
+        }
+
+        // 反映を待っている消去は、この選択より古いので取り消す
+        _selectionVersion++;
+        if (filePath == _currentFilePath)
         {
             return;
         }
@@ -286,45 +287,53 @@ internal sealed class PreviewPaneViewModel : PaneViewModelBase
         var image = await _service.LoadImageAsync(filePath).ConfigureAwait(false);
         var metadata = await _service.GetMetadataAsync(filePath, CancellationToken.None).ConfigureAwait(false);
 
-        // UI スレッドで更新
-        var dispatcherQueue = TryGetDispatcherQueue();
-        if (dispatcherQueue is null)
+        await RunOnUiAsync(() =>
         {
+            // 読み込みの間に別の写真が選ばれたか、選択が解除されていれば反映しない
+            if (filePath != _currentFilePath)
+            {
+                return;
+            }
+
             CurrentImage = image;
             MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
-        }
-        else
-        {
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            dispatcherQueue.TryEnqueue(() =>
-            {
-                try
-                {
-                    CurrentImage = image;
-                    MetadataSummary = BuildMetadataSummary(metadata, selectedPhoto);
-                    tcs.TrySetResult(true);
-                }
-#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
-                catch (Exception ex)
-                {
-                    tcs.TrySetException(ex);
-                }
-#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
-            });
-            await tcs.Task.ConfigureAwait(false);
-        }
+        }).ConfigureAwait(false);
     }
 
-    private DispatcherQueue? TryGetDispatcherQueue()
+    // UI スレッドで実行して完了を待つ。UI のキューがない（単体テストなど）場合は、その場で実行する
+    private Task RunOnUiAsync(Action action)
     {
-        if (_uiDispatcherQueue is not null)
+        var postToUi = _postToUi ?? TryGetCurrentThreadPost();
+        if (postToUi is null)
         {
-            return _uiDispatcherQueue;
+            action();
+            return Task.CompletedTask;
         }
 
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        postToUi(() =>
+        {
+            try
+            {
+                action();
+                completion.TrySetResult();
+            }
+#pragma warning disable CA1031 // This callback must complete the TaskCompletionSource on any failure.
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+#pragma warning restore CA1031 // This callback must complete the TaskCompletionSource on any failure.
+        });
+        return completion.Task;
+    }
+
+    private static Action<Action>? TryGetCurrentThreadPost()
+    {
         try
         {
-            return DispatcherQueue.GetForCurrentThread();
+            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            return dispatcherQueue is null ? null : action => dispatcherQueue.TryEnqueue(() => action());
         }
         catch (COMException ex) when (ex.HResult == ClassNotRegisteredHresult)
         {
