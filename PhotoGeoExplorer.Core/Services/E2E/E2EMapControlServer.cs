@@ -33,7 +33,13 @@ internal sealed class E2EMapControlServer : IDisposable
         _logError = logError ?? (_ => { });
         _protocol = new E2EMapControlProtocol(controller, _logInfo, _logError);
         _logInfo($@"[E2E][Control] Starting named pipe server: \\.\pipe\{_pipeName}");
-        _acceptLoopTask = Task.Run(() => RunAcceptLoopAsync(_cts.Token));
+        // 戻った時点で接続できるように、最初のパイプはここで作る。受け付けのループの開始を待つ作りでは、
+        // スレッドプールが混み合うと、接続する側が時間切れになる（#397）。
+#pragma warning disable CA2000 // 受け付けのループへ所有権を渡し、そこで破棄する。
+        var firstPipe = CreatePipe();
+#pragma warning restore CA2000
+        var cancellationToken = _cts.Token;
+        _acceptLoopTask = Task.Run(() => RunAcceptLoopAsync(firstPipe, cancellationToken));
     }
 
     internal string PipeName => _pipeName;
@@ -64,18 +70,22 @@ internal sealed class E2EMapControlServer : IDisposable
         }
     }
 
-    private async Task RunAcceptLoopAsync(CancellationToken cancellationToken)
+    private NamedPipeServerStream CreatePipe() => new(
+        _pipeName,
+        PipeDirection.InOut,
+        maxNumberOfServerInstances: 1,
+        PipeTransmissionMode.Byte,
+        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+
+    private async Task RunAcceptLoopAsync(NamedPipeServerStream firstPipe, CancellationToken cancellationToken)
     {
+        NamedPipeServerStream? pendingPipe = firstPipe;
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                using var server = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.InOut,
-                    maxNumberOfServerInstances: 1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                using var server = pendingPipe ?? CreatePipe();
+                pendingPipe = null;
 
                 await server.WaitForConnectionAsync(cancellationToken).ConfigureAwait(false);
                 await HandleConnectionAsync(server, cancellationToken).ConfigureAwait(false);
@@ -93,6 +103,12 @@ internal sealed class E2EMapControlServer : IDisposable
                 _logError($"[E2E][Control] Failed to open named pipe '{_pipeName}': {ex.Message}");
                 break;
             }
+        }
+
+        // ループが始まる前に停止した場合は、最初のパイプが残っている。
+        if (pendingPipe is not null)
+        {
+            await pendingPipe.DisposeAsync().ConfigureAwait(false);
         }
     }
 

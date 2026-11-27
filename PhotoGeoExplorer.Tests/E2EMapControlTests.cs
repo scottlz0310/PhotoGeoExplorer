@@ -92,6 +92,21 @@ public sealed class E2EMapControlTests
     }
 
     [Fact]
+    public void NamedPipeServerIsConnectableAsSoonAsItIsConstructed()
+    {
+        var controller = new FakeMapViewController(CreateStatus(35.681236, 139.767125, 14.0, isBusy: false, renderedSeq: 1));
+        var pipeName = $"PhotoGeoExplorer.E2E.Test.{Guid.NewGuid():N}";
+
+        using var server = new E2EMapControlServer(controller, pipeName);
+        using var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+
+        // 待たずに接続できること。受け付けのループがスレッドプールで始まるのを待つ作りだと失敗する（#397）。
+        client.Connect(0);
+
+        Assert.True(client.IsConnected);
+    }
+
+    [Fact]
     public async Task NamedPipeServerAcceptsMultipleCommandsAndReconnections()
     {
         var controller = new FakeMapViewController(CreateStatus(35.681236, 139.767125, 14.0, isBusy: false, renderedSeq: 1));
@@ -103,7 +118,7 @@ public sealed class E2EMapControlTests
         // 1 回目の接続で複数コマンドを連続実行
         using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
         {
-            await client.ConnectAsync(5000);
+            await client.ConnectAsync(TestTasks.HangTimeout, CancellationToken.None);
             using var reader = new StreamReader(client, utf8NoBom, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
             using var writer = new StreamWriter(client, utf8NoBom, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
 
@@ -130,7 +145,7 @@ public sealed class E2EMapControlTests
         // 切断後の再接続で更新済み状態が読めることを確認
         using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
         {
-            await client.ConnectAsync(5000);
+            await client.ConnectAsync(TestTasks.HangTimeout, CancellationToken.None);
             using var reader = new StreamReader(client, utf8NoBom, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
             using var writer = new StreamWriter(client, utf8NoBom, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
 
@@ -233,7 +248,7 @@ public sealed class E2EMapControlTests
 
         using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
         {
-            await client.ConnectAsync(5000);
+            await client.ConnectAsync(TestTasks.HangTimeout, CancellationToken.None);
             using var reader = new StreamReader(client, utf8NoBom, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
             using var writer = new StreamWriter(client, utf8NoBom, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
 
@@ -247,7 +262,7 @@ public sealed class E2EMapControlTests
         // 超過切断後も次の接続で通常コマンドが処理できる
         using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
         {
-            await client.ConnectAsync(5000);
+            await client.ConnectAsync(TestTasks.HangTimeout, CancellationToken.None);
             using var reader = new StreamReader(client, utf8NoBom, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
             using var writer = new StreamWriter(client, utf8NoBom, leaveOpen: true) { AutoFlush = true, NewLine = "\n" };
 

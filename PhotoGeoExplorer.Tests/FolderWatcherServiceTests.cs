@@ -37,7 +37,7 @@ public sealed class FolderWatcherServiceTests : IDisposable
 
         await File.WriteAllTextAsync(Path.Combine(_tempDir, "new.txt"), "x").ConfigureAwait(true);
 
-        await TestTasks.AssertCompletesWithinAsync(tcs.Task, TimeSpan.FromSeconds(3)).ConfigureAwait(true);
+        await TestTasks.AssertCompletesWithinAsync(tcs.Task, TestTasks.HangTimeout).ConfigureAwait(true);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class FolderWatcherServiceTests : IDisposable
 
         File.Delete(file);
 
-        await TestTasks.AssertCompletesWithinAsync(tcs.Task, TimeSpan.FromSeconds(3)).ConfigureAwait(true);
+        await TestTasks.AssertCompletesWithinAsync(tcs.Task, TestTasks.HangTimeout).ConfigureAwait(true);
     }
 
     [Theory]
@@ -176,7 +176,7 @@ public sealed class FolderWatcherServiceTests : IDisposable
             await File.WriteAllTextAsync(
                 Path.Combine(dir2, "new.txt"), "x").ConfigureAwait(true);
 
-            await TestTasks.AssertCompletesWithinAsync(tcs.Task, TimeSpan.FromSeconds(3)).ConfigureAwait(true);
+            await TestTasks.AssertCompletesWithinAsync(tcs.Task, TestTasks.HangTimeout).ConfigureAwait(true);
         }
         finally
         {
