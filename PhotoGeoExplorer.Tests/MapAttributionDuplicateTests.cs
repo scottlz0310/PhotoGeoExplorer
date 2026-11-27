@@ -18,6 +18,42 @@ namespace PhotoGeoExplorer.Tests;
 /// </summary>
 public sealed class MapAttributionDuplicateTests
 {
+    // 合成の背景は、航空写真の出典の行の下に、道路データの出典の行を置く（背景を地図へ載せず、通信しない）
+    [Theory]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, 1f)]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, 1.5f)]
+    internal void CompositeBackgroundShowsImageryAndRoadCreditsOnSeparateRows(MapTileSourceType sourceType, float pixelDensity)
+    {
+        var descriptor = MapBackgroundCatalog.Get(sourceType);
+        using var map = new Map();
+        map.Navigator.SetSize(800, 600);
+        new MapAttributionPresenter().Attach(map, sourceType);
+
+        using var stream = MapsuiMapImageRenderer.RenderPng(map, [.. map.Layers], map.Navigator.Viewport, pixelDensity);
+
+        var drawn = map.GetWidgetsOfMapAndLayers()
+            .OfType<HyperlinkWidget>()
+            .Where(widget => widget.Envelope is not null && !string.IsNullOrEmpty(widget.Text))
+            .ToArray();
+        Assert.Equal(descriptor.AttributionLinks.Select(link => link.Text), drawn.Select(widget => widget.Text));
+        var imageryCount = descriptor.AttributionRows[0];
+        var imagery = drawn.Take(imageryCount).ToArray();
+        var roads = drawn.Skip(imageryCount).ToArray();
+        Assert.Single(imagery.Select(widget => widget.Envelope!.MinY).Distinct());
+        Assert.Single(roads.Select(widget => widget.Envelope!.MinY).Distinct());
+        Assert.True(imagery[0].Envelope!.MaxY <= roads[0].Envelope!.MinY);
+        Assert.All(drawn, widget => Assert.InRange(widget.Envelope!.MinX, 0, 800));
+        for (var first = 0; first < drawn.Length; first++)
+        {
+            for (var second = first + 1; second < drawn.Length; second++)
+            {
+                var a = drawn[first].Envelope!;
+                var b = drawn[second].Envelope!;
+                Assert.False(a.MinX < b.MaxX && b.MinX < a.MaxX && a.MinY < b.MaxY && b.MinY < a.MaxY);
+            }
+        }
+    }
+
     [Theory]
     [InlineData(MapTileSourceType.OpenStreetMap, 1f)]
     [InlineData(MapTileSourceType.EsriWorldImagery, 1f)]

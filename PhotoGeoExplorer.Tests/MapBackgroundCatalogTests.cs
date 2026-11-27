@@ -30,6 +30,8 @@ public sealed class MapBackgroundCatalogTests
     [InlineData(MapTileSourceType.EsriWorldImagery, MapBackgroundKind.Raster, false, false)]
     [InlineData(MapTileSourceType.MapboxSatellite, MapBackgroundKind.Raster, true, true)]
     [InlineData(MapTileSourceType.OpenFreeMapVector, MapBackgroundKind.Vector, false, false)]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, MapBackgroundKind.Composite, false, false)]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, MapBackgroundKind.Composite, true, true)]
     internal void DescriptorHoldsKindAndMapboxRequirements(
         MapTileSourceType type,
         MapBackgroundKind kind,
@@ -48,6 +50,8 @@ public sealed class MapBackgroundCatalogTests
     [InlineData(MapTileSourceType.EsriWorldImagery, "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community")]
     [InlineData(MapTileSourceType.MapboxSatellite, "© Mapbox|© OpenStreetMap|Improve this map")]
     [InlineData(MapTileSourceType.OpenFreeMapVector, "OpenFreeMap|© OpenMapTiles|Data from OpenStreetMap")]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community|OpenFreeMap|© OpenMapTiles|Data from OpenStreetMap")]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, "© Mapbox|© OpenStreetMap|Improve this map|OpenFreeMap|© OpenMapTiles|Data from OpenStreetMap")]
     internal void AttributionLinksKeepTheRequiredWording(MapTileSourceType type, string expectedTexts)
     {
         ArgumentNullException.ThrowIfNull(expectedTexts);
@@ -64,9 +68,45 @@ public sealed class MapBackgroundCatalogTests
             .Where(entry => entry.link.TracksViewport)
             .ToArray();
 
-        var single = Assert.Single(tracking);
-        Assert.Equal(MapTileSourceType.MapboxSatellite, single.Type);
-        Assert.Equal(MapAttribution.MapboxFeedbackUrl, single.link.Url);
+        Assert.Equal(
+            [MapTileSourceType.MapboxSatellite, MapTileSourceType.MapboxSatelliteRoads],
+            tracking.Select(entry => entry.Type));
+        Assert.All(tracking, entry => Assert.Equal(MapAttribution.MapboxFeedbackUrl, entry.link.Url));
+    }
+
+    [Theory]
+    [InlineData(MapTileSourceType.OpenStreetMap, new[] { 1 })]
+    [InlineData(MapTileSourceType.MapboxSatellite, new[] { 3 })]
+    [InlineData(MapTileSourceType.GsiPale, new[] { 1, 1 })]
+    [InlineData(MapTileSourceType.GsiPhoto, new[] { 1, 1, 1, 1, 1 })]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, new[] { 1, 3 })]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, new[] { 3, 3 })]
+    internal void AttributionRowsSeparateTheImageryAndRoadCredits(MapTileSourceType type, int[] expected)
+    {
+        var descriptor = MapBackgroundCatalog.Get(type);
+
+        Assert.Equal(expected, descriptor.AttributionRows);
+        Assert.Equal(descriptor.AttributionLinks.Count, descriptor.AttributionRows.Sum());
+        var links = MapAttributionLayout.OuterMargin + (expected.Length * MapAttributionLayout.StackedLineHeight);
+        var logo = descriptor.ShowsMapboxLogo
+            ? MapAttributionLayout.LogoHeight + (2 * MapAttributionLayout.LogoMargin)
+            : 0;
+        Assert.Equal(Math.Max(links, logo), MapAttributionLayout.GetReservedHeight(descriptor));
+    }
+
+    [Theory]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, MapTileSourceType.EsriWorldImagery)]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, MapTileSourceType.MapboxSatellite)]
+    internal void CompositeBackgroundsShareTheRequirementsOfTheirImagery(MapTileSourceType type, MapTileSourceType imagery)
+    {
+        var descriptor = MapBackgroundCatalog.Get(type);
+        var raster = MapBackgroundCatalog.Get(imagery);
+
+        Assert.Equal(imagery, descriptor.ImagerySource);
+        Assert.Equal(MapBackgroundKind.Raster, raster.Kind);
+        Assert.Equal(raster.RequiresMapboxAccessToken, descriptor.RequiresMapboxAccessToken);
+        Assert.Equal(raster.ShowsMapboxLogo, descriptor.ShowsMapboxLogo);
+        Assert.All(MapBackgroundCatalog.All.Where(item => item.Kind != MapBackgroundKind.Composite), item => Assert.Null(item.ImagerySource));
     }
 
     [Fact]

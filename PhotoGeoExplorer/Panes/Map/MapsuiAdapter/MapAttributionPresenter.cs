@@ -82,32 +82,31 @@ internal sealed class MapAttributionPresenter
         var descriptor = MapBackgroundCatalog.Get(sourceType);
         _links = descriptor.AttributionLinks;
 
-        var rightOffset = MapAttributionLayout.OuterMargin;
-        var bottomOffset = MapAttributionLayout.OuterMargin;
-        for (var index = _linkWidgets.Length - 1; index >= 0; index--)
+        for (var index = _links.Count; index < _linkWidgets.Length; index++)
         {
-            var widget = _linkWidgets[index];
-            if (index >= _links.Count)
-            {
-                widget.Enabled = false;
-                continue;
-            }
+            _linkWidgets[index].Enabled = false;
+        }
 
-            var link = _links[index];
-            var width = MeasureWidth(link.Text);
-            widget.Text = link.Text;
-            widget.Url = link.Url;
-            widget.Width = width;
-            widget.Margin = new MRect(MapAttributionLayout.OuterMargin, bottomOffset, rightOffset, bottomOffset);
-            widget.Enabled = true;
-            if (descriptor.StacksAttribution)
+        // 下の行から、各行は右の項目から並べる
+        var bottomOffset = MapAttributionLayout.OuterMargin;
+        var linkIndex = _links.Count - 1;
+        foreach (var rowLength in descriptor.AttributionRows.Reverse())
+        {
+            var rightOffset = MapAttributionLayout.OuterMargin;
+            for (var item = 0; item < rowLength; item++, linkIndex--)
             {
-                bottomOffset += MapAttributionLayout.StackedLineHeight;
-            }
-            else
-            {
+                var widget = _linkWidgets[linkIndex];
+                var link = _links[linkIndex];
+                var width = MeasureWidth(link.Text);
+                widget.Text = link.Text;
+                widget.Url = link.Url;
+                widget.Width = width;
+                widget.Margin = new MRect(MapAttributionLayout.OuterMargin, bottomOffset, rightOffset, bottomOffset);
+                widget.Enabled = true;
                 rightOffset += width;
             }
+
+            bottomOffset += MapAttributionLayout.StackedLineHeight;
         }
 
         _mapboxLogo.Enabled = descriptor.ShowsMapboxLogo;

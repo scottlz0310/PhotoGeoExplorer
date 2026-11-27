@@ -164,7 +164,7 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
 
     public int MapTileSourceIndex
     {
-        get => Array.FindIndex(_mapTileChoices, choice => choice.Type == _mapTileSource);
+        get => MapTileChoices.ToList().FindIndex(choice => choice.Type == _mapTileSource);
         set
         {
             if (!_updatingMapTileChoices)
@@ -204,22 +204,31 @@ internal sealed class SettingsPaneViewModel : PaneViewModelBase
         _updatingMapTileChoices = true;
         try
         {
-            // 地理院タイルは末尾に並ぶ。既存の項目を保持したまま末尾だけを更新すると、選択中のボタンを失わない。
-            var visibleCount = _mapTileChoices.Count(choice => choice.IsListed(JapanMapSourcesEnabled));
-            while (MapTileChoices.Count > visibleCount)
+            // 残る項目はそのままにして、差分だけを出し入れすると、選択中のボタンを失わない。
+            var listed = _mapTileChoices.Where(choice => choice.IsListed(JapanMapSourcesEnabled)).ToArray();
+            for (var index = MapTileChoices.Count - 1; index >= 0; index--)
             {
-                MapTileChoices.RemoveAt(MapTileChoices.Count - 1);
+                if (!listed.Contains(MapTileChoices[index]))
+                {
+                    MapTileChoices.RemoveAt(index);
+                }
             }
 
-            while (MapTileChoices.Count < visibleCount)
+            for (var index = 0; index < listed.Length; index++)
             {
-                MapTileChoices.Add(_mapTileChoices[MapTileChoices.Count]);
+                if (index >= MapTileChoices.Count || MapTileChoices[index] != listed[index])
+                {
+                    MapTileChoices.Insert(index, listed[index]);
+                }
             }
         }
         finally
         {
             _updatingMapTileChoices = false;
         }
+
+        // 途中の項目を出し入れすると、選択中の項目の位置が変わる
+        OnPropertyChanged(nameof(MapTileSourceIndex));
     }
 
     private void UpdateMapboxAvailability()

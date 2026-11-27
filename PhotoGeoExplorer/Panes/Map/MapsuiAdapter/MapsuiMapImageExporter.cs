@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -78,7 +79,7 @@ internal sealed class MapsuiMapImageExporter : IMapImageExporter
         var viewport = CreateViewport(request);
         var pixelDensity = (float)request.PixelDensity;
 
-        using var background = CreateBackground(request);
+        using var background = CreateBackground(request.Background);
         using var map = new Mapsui.Map();
 
         // 地図に最初から入るログ表示などは画像に載せない（帰属表示だけを足す）
@@ -94,20 +95,32 @@ internal sealed class MapsuiMapImageExporter : IMapImageExporter
             throw new InvalidOperationException($"Failed to load the map attribution logo: {MapAttribution.MapboxLogoPath}");
         }
 
-        if (background is RasterMapBackground raster)
+        // 合成の背景は、下のラスタと上のベクターを、それぞれ単独の背景と同じ方法で描いて重ねる
+        var (raster, vector) = background switch
         {
-            using var tiles = await RasterTileExportLayer
+            RasterMapBackground single => (single, (VectorMapBackground?)null),
+            VectorMapBackground single => ((RasterMapBackground?)null, single),
+            CompositeMapBackground { Imagery: RasterMapBackground imagery, Overlay: VectorMapBackground overlay } => (imagery, overlay),
+            _ => throw new InvalidOperationException("The map background cannot be exported.")
+        };
+        using var tiles = raster is null
+            ? null
+            : await RasterTileExportLayer
                 .CreateAsync(GetTileSource(raster), viewport, _httpClient, cancellationToken)
                 .ConfigureAwait(true);
-            return Render(map, [tiles, markers], viewport, pixelDensity, cancellationToken);
+        using var exportLayers = vector is null
+            ? null
+            : await vector.CreateExportLayersAsync(viewport, pixelDensity, cancellationToken).ConfigureAwait(true);
+
+        var layers = new List<ILayer>();
+        if (tiles is not null)
+        {
+            layers.Add(tiles);
         }
 
-        var vector = background as VectorMapBackground
-            ?? throw new InvalidOperationException("The map background cannot be exported.");
-        using var exportLayers = await vector
-            .CreateExportLayersAsync(viewport, pixelDensity, cancellationToken)
-            .ConfigureAwait(true);
-        return Render(map, [.. exportLayers.Layers, markers], viewport, pixelDensity, cancellationToken);
+        layers.AddRange(exportLayers?.Layers ?? []);
+        layers.Add(markers);
+        return Render(map, [.. layers], viewport, pixelDensity, cancellationToken);
     }
 
     private static Stream Render(
@@ -130,10 +143,10 @@ internal sealed class MapsuiMapImageExporter : IMapImageExporter
             request.PixelWidth / request.PixelDensity,
             request.PixelHeight / request.PixelDensity);
 
-    private IMapsuiBackground CreateBackground(MapImageExportRequest request)
+    private IMapsuiBackground CreateBackground(MapBackgroundRequest request)
     {
         // 保存用の背景は地図へ載せないため、ベクター背景が画面の更新を UI スレッドへ渡すことはない
-        var background = _createBackground(request.Background with { TryPostToUi = _ => false });
+        var background = _createBackground(request with { TryPostToUi = _ => false });
         return background as IMapsuiBackground
             ?? throw new InvalidOperationException("The map background cannot be exported.");
     }
@@ -144,16 +157,29 @@ internal sealed class MapsuiMapImageExporter : IMapImageExporter
 
     private int CountTiles(MapImageExportRequest request)
     {
-        var viewport = CreateViewport(request);
-        if (MapBackgroundCatalog.Get(request.Background.SourceType).Kind == MapBackgroundKind.Raster)
+        var descriptor = MapBackgroundCatalog.Get(request.Background.SourceType);
+        return descriptor.Kind switch
         {
-            using var background = CreateBackground(request);
-            return background is RasterMapBackground raster
-                ? RasterTileExportLayer.SelectTiles(GetTileSource(raster).Schema, viewport).Count
-                : throw new InvalidOperationException("The raster background has no HTTP tile source.");
-        }
+            MapBackgroundKind.Raster => CountRasterTiles(request, request.Background),
+            MapBackgroundKind.Vector => CountVectorTiles(request),
+            // 合成の背景は、航空写真と道路の両方のタイルを取得する
+            _ => CountRasterTiles(request, request.Background with { SourceType = descriptor.ImagerySource!.Value })
+                + CountVectorTiles(request)
+        };
+    }
 
-        // ベクターは、物理ピクセルのズームを切り捨てた段階のタイルを描く。配信元の最大ズームより先は拡大する
+    private int CountRasterTiles(MapImageExportRequest request, MapBackgroundRequest rasterBackground)
+    {
+        using var background = CreateBackground(rasterBackground);
+        return background is RasterMapBackground raster
+            ? RasterTileExportLayer.SelectTiles(GetTileSource(raster).Schema, CreateViewport(request)).Count
+            : throw new InvalidOperationException("The raster background has no HTTP tile source.");
+    }
+
+    // ベクターは、物理ピクセルのズームを切り捨てた段階のタイルを描く。配信元の最大ズームより先は拡大する
+    private static int CountVectorTiles(MapImageExportRequest request)
+    {
+        var viewport = CreateViewport(request);
         var maxZoom = request.Background.SourceType == MapTileSourceType.GsiVector
             ? GsiVectorTileSource.DefaultMaxZoom
             : OpenFreeMapTileSource.DefaultMaxZoom;

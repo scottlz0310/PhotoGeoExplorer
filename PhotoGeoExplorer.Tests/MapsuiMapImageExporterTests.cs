@@ -344,6 +344,65 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
     }
 
     [Theory]
+    [InlineData(13.4, 1.0)]
+    [InlineData(15.0, 1.5)]
+    public async Task RenderPngAsyncLaysTheRoadsOverTheImagery(double zoom, double density)
+    {
+        var renderer = new RoadStripeRenderer();
+        using var handler = new TileHandler(_ => HttpStatusCode.OK);
+        using var exporter = CreateCompositeExporter(handler, renderer);
+        var request = Request(MapTileSourceType.EsriWorldImageryRoads, zoom, 900, 600, density);
+
+        using var bitmap = await RenderAsync(exporter, request).ConfigureAwait(true);
+
+        // 道路の帯は上端の行だけに描く。帯の外は航空写真が見える
+        Assert.Equal(RoadStripeRenderer.RoadColor, bitmap.GetPixel(450, 5));
+        Assert.Equal(TileColor, bitmap.GetPixel(450, 300));
+        Assert.All(handler.Requests, uri => Assert.Contains("World_Imagery", uri!.AbsoluteUri, StringComparison.Ordinal));
+        var view = Assert.Single(renderer.Requests);
+        Assert.Equal(900, view.PixelWidth);
+        Assert.Equal(zoom + Math.Log2(density), view.Zoom, 1e-6);
+        Assert.False(view.AllowIncompleteMaps);
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncFailsWhenTheRoadsOfACompositeBackgroundCannotBeDrawn()
+    {
+        var renderer = new RoadStripeRenderer { Failure = new InvalidOperationException("roads") };
+        using var handler = new TileHandler(_ => HttpStatusCode.OK);
+        using var exporter = CreateCompositeExporter(handler, renderer);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => exporter.RenderPngAsync(Request(MapTileSourceType.EsriWorldImageryRoads), CancellationToken.None)).ConfigureAwait(true);
+
+        Assert.Same(renderer.Failure, error);
+    }
+
+    [Theory]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, 14.0, 1.0, MapImageExportProblem.None)]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, 12.0, 1.5, MapImageExportProblem.None)]
+    internal void PlanCountsBothTheImageryAndRoadTiles(
+        MapTileSourceType sourceType, double zoom, double density, MapImageExportProblem expected)
+    {
+        using var handler = new TileHandler(_ => HttpStatusCode.OK);
+        using var exporter = CreateExporter(handler);
+        var imagery = MapBackgroundCatalog.Get(sourceType).ImagerySource!.Value;
+        MapImageExportRequest With(MapTileSourceType type)
+        {
+            var request = Request(type, zoom, density: density);
+            return request with { Background = request.Background with { MapboxAccessToken = "test-token" } };
+        }
+
+        var plan = exporter.Plan(With(sourceType));
+
+        Assert.Equal(expected, plan.Problem);
+        Assert.Equal(
+            exporter.Plan(With(imagery)).TileCount + exporter.Plan(With(MapTileSourceType.OpenFreeMapVector)).TileCount,
+            plan.TileCount);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Theory]
     [InlineData(63, 600, 14.0, 1.0, MapImageExportProblem.SizeOutOfRange)]
     [InlineData(800, 4097, 14.0, 1.0, MapImageExportProblem.SizeOutOfRange)]
     [InlineData(800, 600, -0.1, 1.0, MapImageExportProblem.ZoomOutOfRange)]
@@ -397,6 +456,50 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
             request => MapsuiMapFactory.CreateBackground(request, Path.Combine(root, (calls++).ToString(CultureInfo.InvariantCulture))),
             new HttpClient(handler, disposeHandler: false));
 #pragma warning restore CA2000
+    }
+
+    // 航空写真は本物の背景を使い、道路はレンダラーを差し替える（OpenFreeMap へ通信しない）
+    private MapsuiMapImageExporter CreateCompositeExporter(TileHandler handler, IVectorMapRenderer renderer)
+    {
+        var root = Path.Combine(_cache.FullName, Guid.NewGuid().ToString("N"));
+#pragma warning disable CA2000 // 背景と通信は exporter が破棄する
+        return new MapsuiMapImageExporter(
+            request => MapBackgroundCatalog.Get(request.SourceType) is { ImagerySource: { } imagery }
+                ? new CompositeMapBackground(
+                    (IMapsuiBackground)MapsuiMapFactory.CreateBackground(request with { SourceType = imagery }, root),
+                    new VectorMapBackground(renderer, request.TryPostToUi!, sourceType: request.SourceType),
+                    request.SourceType)
+                : MapsuiMapFactory.CreateBackground(request, root),
+            new HttpClient(handler, disposeHandler: false));
+#pragma warning restore CA2000
+    }
+
+    private sealed class RoadStripeRenderer : IVectorMapRenderer
+    {
+        internal static readonly SKColor RoadColor = new(250, 200, 40);
+
+        public Exception? Failure { get; init; }
+
+        public ConcurrentQueue<VectorViewRequest> Requests { get; } = new();
+
+        public Task<VectorViewResult> RenderViewAsync(VectorViewRequest request, CancellationToken cancellationToken = default)
+        {
+            Requests.Enqueue(request);
+            if (Failure is { } failure)
+            {
+                return Task.FromException<VectorViewResult>(failure);
+            }
+
+            using var bitmap = new SKBitmap(request.PixelWidth, request.PixelHeight);
+            bitmap.Erase(SKColors.Transparent);
+            using (var canvas = new SKCanvas(bitmap))
+            {
+                using var paint = new SKPaint { Color = RoadColor };
+                canvas.DrawRect(0, 0, request.PixelWidth, 20, paint);
+            }
+
+            return Task.FromResult(new VectorViewResult(SKImage.FromBitmap(bitmap)));
+        }
     }
 
     private static MapsuiMapImageExporter CreateExporterWithCache(TileHandler handler, string root)

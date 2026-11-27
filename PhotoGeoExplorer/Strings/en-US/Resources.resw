@@ -1474,6 +1474,12 @@
   <data name="MapBackground.MapboxSatellite" xml:space="preserve">
     <value>Mapbox Satellite (requires an access token)</value>
   </data>
+  <data name="MapBackground.EsriWorldImageryRoads" xml:space="preserve">
+    <value>Esri World Imagery + road names</value>
+  </data>
+  <data name="MapBackground.MapboxSatelliteRoads" xml:space="preserve">
+    <value>Mapbox Satellite + road names</value>
+  </data>
   <data name="MapBackground.OpenFreeMapVector" xml:space="preserve">
     <value>OpenFreeMap (vector map)</value>
   </data>

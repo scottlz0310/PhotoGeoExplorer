@@ -47,11 +47,13 @@ internal sealed class TileVectorMapRenderer : IVectorMapRenderer, IVectorMapPref
     /// <param name="userAgent">配信元へ表明する User-Agent（アプリの名称・版・連絡先）</param>
     /// <param name="handler">通信の中身。テストで差し替える（<see langword="null"/> なら既定）</param>
     /// <param name="sourceType">ベクタータイルの配信元</param>
+    /// <param name="roadOverlay">航空写真などへ重ねるために、背景を透明にして道路だけを描く（OpenFreeMap のみ）</param>
     public TileVectorMapRenderer(
         string cacheDirectory,
         string userAgent,
         HttpMessageHandler? handler = null,
-        MapTileSourceType sourceType = MapTileSourceType.OpenFreeMapVector)
+        MapTileSourceType sourceType = MapTileSourceType.OpenFreeMapVector,
+        bool roadOverlay = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cacheDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(userAgent);
@@ -72,7 +74,7 @@ internal sealed class TileVectorMapRenderer : IVectorMapRenderer, IVectorMapPref
         else
         {
             _tileSource = new OpenFreeMapTileSource(_httpClient, urlTemplateStore: _cache);
-            _style = new OpenMapTilesStyle();
+            _style = roadOverlay ? new OpenMapTilesRoadOverlayStyle() : new OpenMapTilesStyle();
         }
         _renderer = new VectorMapRenderer(
             new CachedVectorTileSource(_tileSource, _cache),

@@ -105,7 +105,7 @@
 <body>
     <div class="container">
         <h1>プライバシーポリシー / Privacy Policy</h1>
-        <p class="last-updated">最終更新日: 2026年11月26日 / Last updated: November 26, 2026</p>
+        <p class="last-updated">最終更新日: 2026年11月27日 / Last updated: November 27, 2026</p>
         <p class="lang-switch"><a href="#ja">日本語</a> | <a href="#en">English</a></p>
 
         <section id="ja">
@@ -162,9 +162,9 @@
             <ul>
                 <li><strong>地図タイル:</strong> 地図表示のため、OpenStreetMap または Esri WorldImagery
                     のサーバーから地図タイルを取得します。これらのリクエストに個人情報は含めません。</li>
-                <li><strong>OpenFreeMap（ベクター地図。任意）:</strong> 利用者が設定で「OpenFreeMap（ベクター地図）」を選んだ場合に限り、OpenFreeMap のサーバーから地図データ（ベクタータイル）を取得します。リクエストに含まれるのは、表示範囲のタイル番号と、操作が止まったときに先読みする、表示中のズームで中心を囲む 2×2 枚のタイル番号（取得元の最大ズームが上限です。ズームが小さい広域の表示ほど、広い範囲になります）と、本アプリの名称・版・連絡先（User-Agent）です。<strong>写真や緯度経度そのものは送信しません</strong>が、タイル番号から、表示している範囲は分かります。</li>
+                <li><strong>OpenFreeMap（ベクター地図・航空写真に重ねる道路。任意）:</strong> 利用者が、設定または地図画像の保存ダイアログで「OpenFreeMap（ベクター地図）」か「航空写真＋道路名」の背景を選んだ場合に限り、OpenFreeMap のサーバーから地図データ（ベクタータイル）を取得します。リクエストに含まれるのは、表示範囲のタイル番号と、操作が止まったときに先読みする、表示中のズームで中心を囲む 2×2 枚のタイル番号（取得元の最大ズームが上限です。ズームが小さい広域の表示ほど、広い範囲になります）と、本アプリの名称・版・連絡先（User-Agent）です。<strong>写真や緯度経度そのものは送信しません</strong>が、タイル番号から、表示している範囲は分かります。</li>
                 <li><strong>地理院タイル（任意）:</strong> 利用者が地理院タイルを背景に選んだ場合、国土地理院のサーバーに表示範囲のタイル番号（ラスタ）またはアーカイブ内の取得範囲（ベクター）、およびアプリの名称・版・連絡先（User-Agent）を送ります。写真と緯度経度そのものは送りません。取得したタイルは端末内にキャッシュします。</li>
-                <li><strong>Mapbox Satellite（任意）:</strong> 利用者が自分のアクセストークンを設定して Mapbox Satellite
+                <li><strong>Mapbox Satellite（任意）:</strong> 利用者が自分のアクセストークンを設定して、Mapbox の航空写真を使う背景（Mapbox Satellite、Mapbox 航空写真＋道路名）
                     を選んだ場合に限り、Mapbox のサーバーから地図タイルを取得します。リクエストには、表示範囲のタイル座標と利用者のアクセストークンが含まれます。写真データは送信しません。</li>
                 <li><strong>最寄り道路名（既定で有効。オフにできます）:</strong> 地図ヘッダーに最寄りの道路名（候補）を表示するために、OpenFreeMap
                     のサーバーから道路のタイルを取得します。リクエストに含まれるのは、撮影地点を含むタイルの番号（ズーム 14。約 2 km
@@ -188,7 +188,7 @@
                         rel="noopener noreferrer">OpenStreetMap</a> のタイルサーバーから取得します。詳しくは <a
                         href="https://wiki.openstreetmap.org/wiki/Privacy_Policy" target="_blank"
                         rel="noopener noreferrer">Privacy Policy</a> を参照してください。</li>
-                <li><strong>OpenFreeMap（最寄り道路名・ベクター地図）:</strong> 道路のタイル、およびベクター地図を選んだ場合は地図データのタイルを <a href="https://openfreemap.org/" target="_blank"
+                <li><strong>OpenFreeMap（最寄り道路名・ベクター地図）:</strong> 道路のタイル、およびベクター地図か「航空写真＋道路名」を選んだ場合は地図データのタイルを <a href="https://openfreemap.org/" target="_blank"
                         rel="noopener noreferrer">OpenFreeMap</a> のサーバーから取得します。地図データは OpenStreetMap の貢献者によるものです。</li>
                 <li><strong>e-Stat（地域データ（字地名））:</strong> 利用者が同意したときに、都道府県ごとの境界データ（ZIP）を <a href="https://www.e-stat.go.jp/" target="_blank"
                         rel="noopener noreferrer">政府統計の総合窓口（e-Stat）</a> のサーバー（www.e-stat.go.jp）から取得します。送信されるのは、取得する都道府県を示す URL と、通常の通信情報（IP アドレス・アプリ名を含む User-Agent）だけです。写真や撮影位置は送信されません。</li>
@@ -297,9 +297,9 @@
             </p>
             <ul>
                 <li><strong>Map tiles:</strong> Map tiles are fetched from OpenStreetMap or Esri WorldImagery servers. These requests do not include personal information.</li>
-                <li><strong>OpenFreeMap (vector map; optional):</strong> Only when you select "OpenFreeMap (vector map)" in Settings, map data (vector tiles) is fetched from OpenFreeMap servers. A request contains only the numbers of the tiles of the displayed area, the 2×2 tiles surrounding the center at the current zoom that are fetched in advance when your operation stops (the source's maximum zoom is the upper limit; the wider the area displayed, that is, the smaller the zoom, the larger the range), and the App's name, version, and contact address (User-Agent). <strong>Photos and the latitude and longitude themselves are not sent</strong>, but the displayed area can be inferred from the tile numbers.</li>
+                <li><strong>OpenFreeMap (vector map and roads over satellite imagery; optional):</strong> Only when you select "OpenFreeMap (vector map)" or a "+ road names" background in Settings or in the save map image dialog, map data (vector tiles) is fetched from OpenFreeMap servers. A request contains only the numbers of the tiles of the displayed area, the 2×2 tiles surrounding the center at the current zoom that are fetched in advance when your operation stops (the source's maximum zoom is the upper limit; the wider the area displayed, that is, the smaller the zoom, the larger the range), and the App's name, version, and contact address (User-Agent). <strong>Photos and the latitude and longitude themselves are not sent</strong>, but the displayed area can be inferred from the tile numbers.</li>
                 <li><strong>GSI tiles (optional):</strong> When you select a GSI background, the App sends tile numbers for raster maps or archive byte ranges for vector maps, along with the App's name, version, and contact address (User-Agent), to Geospatial Information Authority of Japan servers. The App does not send photos or raw coordinates. Fetched tiles are cached on the device.</li>
-                <li><strong>Mapbox Satellite (optional):</strong> Only when you set your own access token and select Mapbox Satellite, map tiles are fetched from Mapbox servers. These requests include the tile coordinates of the displayed area and your access token. Photo data is not sent.</li>
+                <li><strong>Mapbox Satellite (optional):</strong> Only when you set your own access token and select a background that uses Mapbox imagery (Mapbox Satellite or Mapbox Satellite + road names), map tiles are fetched from Mapbox servers. These requests include the tile coordinates of the displayed area and your access token. Photo data is not sent.</li>
                 <li><strong>Nearest road name (enabled by default; can be turned off):</strong> To show the nearest road name (a suggestion) in the map header, road tiles are fetched from OpenFreeMap servers. A request contains only the number of the tile that contains the photo location (a zoom-14 tile, about 2 km square; adjacent tiles when the location is near the edge) and the App's name, version, and contact address (User-Agent). <strong>Photos and the latitude and longitude themselves are not sent</strong>, but the tile number reveals the area of about 2 km square around the photo location. Turn off "Show nearest road name (suggestion)" in Settings to stop these requests. When you export photos with location data (CSV, or copy with new names), the same requests are made, with the same content (tile numbers and User-Agent), only while that setting is on, to find the candidates for photos whose road name is not confirmed.</li>
                 <li><strong>Update checks:</strong> GitHub Releases are queried for new versions. These requests do not include personal information or photo data.</li>
             </ul>
@@ -319,7 +319,7 @@
                         rel="noopener noreferrer">OpenStreetMap</a>. See their <a
                         href="https://wiki.openstreetmap.org/wiki/Privacy_Policy" target="_blank"
                         rel="noopener noreferrer">Privacy Policy</a>.</li>
-                <li><strong>OpenFreeMap (nearest road name and vector map):</strong> Road tiles, and map-data tiles when the vector map is selected, are fetched from <a href="https://openfreemap.org/" target="_blank"
+                <li><strong>OpenFreeMap (nearest road name and vector map):</strong> Road tiles, and map-data tiles when the vector map or a "+ road names" background is selected, are fetched from <a href="https://openfreemap.org/" target="_blank"
                         rel="noopener noreferrer">OpenFreeMap</a>. The map data is by OpenStreetMap contributors.</li>
                 <li><strong>e-Stat (area data / town names):</strong> With your consent, the boundary data (ZIP) of a prefecture is downloaded from the servers of <a href="https://www.e-stat.go.jp/" target="_blank"
                         rel="noopener noreferrer">e-Stat (Portal Site of Official Statistics of Japan)</a> (www.e-stat.go.jp). Only the URL that identifies the prefecture and ordinary connection information (your IP address and a User-Agent that includes the app name) are sent. Your photos and their locations are not sent.</li>

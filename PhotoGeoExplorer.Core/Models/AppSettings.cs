@@ -11,7 +11,9 @@ internal enum MapTileSourceType
     GsiStandard = 4,
     GsiPale = 5,
     GsiPhoto = 6,
-    GsiVector = 7
+    GsiVector = 7,
+    EsriWorldImageryRoads = 8,
+    MapboxSatelliteRoads = 9
 }
 
 internal enum PaneLayoutPreset

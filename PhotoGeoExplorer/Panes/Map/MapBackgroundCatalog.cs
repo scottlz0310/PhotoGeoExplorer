@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.Models;
 
@@ -15,7 +16,10 @@ internal enum MapBackgroundKind
     Raster,
 
     /// <summary>ベクタータイル（表示範囲ごとに描画した 1 枚の画像を表示する）</summary>
-    Vector
+    Vector,
+
+    /// <summary>ラスタの航空写真の上へ、道路だけを描いた透過のベクター画像を重ねる</summary>
+    Composite
 }
 
 /// <summary>
@@ -28,6 +32,7 @@ internal enum MapBackgroundKind
 /// <param name="AttributionLinks">帰属表示の項目（最大 <see cref="MapAttribution.MaxLinkCount"/> 件）</param>
 /// <param name="RequiresMapboxAccessToken">Mapbox のアクセストークンがないと表示できない</param>
 /// <param name="ShowsMapboxLogo">帰属表示に Mapbox のロゴが必須</param>
+/// <param name="ImagerySource">合成の背景で、下に敷く航空写真（ラスタ）の背景</param>
 internal sealed record MapBackgroundDescriptor(
     MapTileSourceType Type,
     MapBackgroundKind Kind,
@@ -35,14 +40,33 @@ internal sealed record MapBackgroundDescriptor(
     IReadOnlyList<MapAttributionLink> AttributionLinks,
     bool RequiresMapboxAccessToken = false,
     bool ShowsMapboxLogo = false,
-    bool RequiresJapanMapSources = false)
+    bool RequiresJapanMapSources = false,
+    MapTileSourceType? ImagerySource = null)
 {
     internal string DisplayName => LocalizationService.GetString(DisplayNameKey);
 
     /// <summary>
-    /// 帰属項目を縦に積む。地理院の航空写真などの追加出典は、狭い地図でも収まるように縦に並べる
+    /// 帰属表示の、行ごとの項目数（上の行から順。合計は <see cref="AttributionLinks"/> の件数）。
+    /// 地理院の追加の出典は、狭い地図でも収まるように 1 件ずつ縦に並べる。合成の背景は、航空写真と道路データを別の行にする
     /// </summary>
-    internal bool StacksAttribution => RequiresJapanMapSources;
+    internal IReadOnlyList<int> AttributionRows
+    {
+        get
+        {
+            if (RequiresJapanMapSources)
+            {
+                return Enumerable.Repeat(1, AttributionLinks.Count).ToArray();
+            }
+
+            if (ImagerySource is { } imagery)
+            {
+                var imageryCount = MapBackgroundCatalog.Get(imagery).AttributionLinks.Count;
+                return [imageryCount, AttributionLinks.Count - imageryCount];
+            }
+
+            return [AttributionLinks.Count];
+        }
+    }
 }
 
 /// <summary>
@@ -57,6 +81,24 @@ internal static class MapBackgroundCatalog
     internal const string GsiAttributionUrl = "https://maps.gsi.go.jp/development/ichiran.html";
     private static readonly MapAttributionLink GsiAttribution = new("Geospatial Information Authority of Japan (GSI)", GsiAttributionUrl);
 
+    private static readonly MapAttributionLink[] EsriAttribution = [new(MapAttribution.EsriText, MapAttribution.EsriUrl)];
+
+    // Mapbox は、Mapbox・OpenStreetMap・地図の修正依頼を、それぞれ別のリンクで示すことを求めている。
+    private static readonly MapAttributionLink[] MapboxAttribution =
+    [
+        new("© Mapbox", MapAttribution.MapboxUrl),
+        new("© OpenStreetMap", MapAttribution.OpenStreetMapUrl),
+        new("Improve this map", MapAttribution.MapboxFeedbackUrl, TracksViewport: true)
+    ];
+
+    // OpenFreeMap の利用条件が求める「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」を、項目ごとのリンクで示す。
+    private static readonly MapAttributionLink[] OpenFreeMapAttribution =
+    [
+        new(MapAttribution.OpenFreeMapText, MapAttribution.OpenFreeMapUrl),
+        new(MapAttribution.OpenMapTilesText, MapAttribution.OpenMapTilesUrl),
+        new(MapAttribution.OpenStreetMapDataText, MapAttribution.OpenStreetMapUrl)
+    ];
+
     private static readonly MapBackgroundDescriptor[] Descriptors =
     [
         new(
@@ -68,29 +110,19 @@ internal static class MapBackgroundCatalog
             MapTileSourceType.EsriWorldImagery,
             MapBackgroundKind.Raster,
             "MapBackground.EsriWorldImagery",
-            [new(MapAttribution.EsriText, MapAttribution.EsriUrl)]),
-        // Mapbox は、Mapbox・OpenStreetMap・地図の修正依頼を、それぞれ別のリンクで示すことを求めている。
+            EsriAttribution),
         new(
             MapTileSourceType.MapboxSatellite,
             MapBackgroundKind.Raster,
             "MapBackground.MapboxSatellite",
-            [
-                new("© Mapbox", MapAttribution.MapboxUrl),
-                new("© OpenStreetMap", MapAttribution.OpenStreetMapUrl),
-                new("Improve this map", MapAttribution.MapboxFeedbackUrl, TracksViewport: true)
-            ],
+            MapboxAttribution,
             RequiresMapboxAccessToken: true,
             ShowsMapboxLogo: true),
-        // OpenFreeMap の利用条件が求める「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」を、項目ごとのリンクで示す。
         new(
             MapTileSourceType.OpenFreeMapVector,
             MapBackgroundKind.Vector,
             "MapBackground.OpenFreeMapVector",
-            [
-                new(MapAttribution.OpenFreeMapText, MapAttribution.OpenFreeMapUrl),
-                new(MapAttribution.OpenMapTilesText, MapAttribution.OpenMapTilesUrl),
-                new(MapAttribution.OpenStreetMapDataText, MapAttribution.OpenStreetMapUrl)
-            ]),
+            OpenFreeMapAttribution),
         new(MapTileSourceType.GsiStandard, MapBackgroundKind.Raster, "MapBackground.GsiStandard", [GsiAttribution],
             RequiresJapanMapSources: true),
         new(MapTileSourceType.GsiPale, MapBackgroundKind.Raster, "MapBackground.GsiPale",
@@ -107,7 +139,21 @@ internal static class MapBackgroundCatalog
             RequiresJapanMapSources: true),
         new(MapTileSourceType.GsiVector, MapBackgroundKind.Vector, "MapBackground.GsiVector",
             [new("Geospatial Information Authority of Japan (GSI) vector tiles", "https://github.com/gsi-cyberjapan/optimal_bvmap")],
-            RequiresJapanMapSources: true)
+            RequiresJapanMapSources: true),
+        new(
+            MapTileSourceType.EsriWorldImageryRoads,
+            MapBackgroundKind.Composite,
+            "MapBackground.EsriWorldImageryRoads",
+            [.. EsriAttribution, .. OpenFreeMapAttribution],
+            ImagerySource: MapTileSourceType.EsriWorldImagery),
+        new(
+            MapTileSourceType.MapboxSatelliteRoads,
+            MapBackgroundKind.Composite,
+            "MapBackground.MapboxSatelliteRoads",
+            [.. MapboxAttribution, .. OpenFreeMapAttribution],
+            RequiresMapboxAccessToken: true,
+            ShowsMapboxLogo: true,
+            ImagerySource: MapTileSourceType.MapboxSatellite)
     ];
 
     /// <summary>

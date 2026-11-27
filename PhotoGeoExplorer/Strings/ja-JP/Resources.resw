@@ -1474,6 +1474,12 @@
   <data name="MapBackground.MapboxSatellite" xml:space="preserve">
     <value>Mapbox Satellite（衛星・要アクセストークン）</value>
   </data>
+  <data name="MapBackground.EsriWorldImageryRoads" xml:space="preserve">
+    <value>Esri 航空写真＋道路名</value>
+  </data>
+  <data name="MapBackground.MapboxSatelliteRoads" xml:space="preserve">
+    <value>Mapbox 航空写真＋道路名</value>
+  </data>
   <data name="MapBackground.OpenFreeMapVector" xml:space="preserve">
     <value>OpenFreeMap（ベクター地図）</value>
   </data>

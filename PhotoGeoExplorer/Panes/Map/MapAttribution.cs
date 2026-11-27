@@ -34,7 +34,7 @@ internal static class MapAttribution
     /// <summary>
     /// 1 つの背景が持つ帰属項目の最大数
     /// </summary>
-    internal const int MaxLinkCount = 5;
+    internal const int MaxLinkCount = 6;
 
     /// <summary>
     /// Mapbox のロゴ（帰属表示用の公式 SVG）。Mapbox の背景を表示するときは文言とあわせて表示が必須。

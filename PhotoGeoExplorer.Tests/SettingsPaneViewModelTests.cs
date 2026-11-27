@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using PhotoGeoExplorer.Models;
 using PhotoGeoExplorer.Panes.FileBrowser;
+using PhotoGeoExplorer.Panes.Map;
 using PhotoGeoExplorer.Panes.Settings;
 using PhotoGeoExplorer.Services;
 using PhotoGeoExplorer.State;
@@ -116,6 +119,36 @@ public sealed class SettingsPaneViewModelTests : IDisposable
         Assert.Equal(MapTileSourceType.OpenStreetMap, coordinator.LastMapTileSource);
         Assert.Equal((int)MapTileSourceType.OpenStreetMap, viewModel.MapTileSourceIndex);
         Assert.DoesNotContain(viewModel.MapTileChoices, choice => choice.Type == MapTileSourceType.GsiVector);
+    }
+
+    // 国内向けの項目は一覧の途中にあるので、出し入れしても、後ろの背景の選択と位置がずれないことを確かめる
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TogglingJapanMapSourcesKeepsABackgroundListedAfterThemSelected(bool initiallyEnabled)
+    {
+        using var coordinator = new FakeSettingsCoordinator(_mainViewModel);
+        var viewModel = new SettingsPaneViewModel(coordinator, _fileBrowserPaneViewModel, _mainViewModel, _secretStore, _connectionTester, _areaData);
+        await viewModel.InitializeAsync().ConfigureAwait(true);
+        viewModel.JapanMapSourcesEnabled = initiallyEnabled;
+        viewModel.MapTileSource = MapTileSourceType.EsriWorldImageryRoads;
+        var notified = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
+
+        viewModel.JapanMapSourcesEnabled = !initiallyEnabled;
+
+        Assert.Equal(MapTileSourceType.EsriWorldImageryRoads, viewModel.MapTileSource);
+        Assert.Equal(MapTileSourceType.EsriWorldImageryRoads, viewModel.MapTileChoices[viewModel.MapTileSourceIndex].Type);
+        Assert.Contains(nameof(SettingsPaneViewModel.MapTileSourceIndex), notified);
+        Assert.Equal(
+            MapBackgroundCatalog.All
+                .Where(item => MapBackgroundCatalog.IsListed(item, !initiallyEnabled))
+                .Select(item => item.Type),
+            viewModel.MapTileChoices.Select(choice => choice.Type));
+
+        // 画面が位置で選んでも、その位置の背景になる
+        viewModel.MapTileSourceIndex = viewModel.MapTileChoices.Count - 1;
+        Assert.Equal(MapTileSourceType.MapboxSatelliteRoads, viewModel.MapTileSource);
     }
 
     [Fact]
