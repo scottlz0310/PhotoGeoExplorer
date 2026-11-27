@@ -11,6 +11,12 @@ namespace PhotoGeoExplorer.Tests;
 /// </summary>
 internal static class TestTasks
 {
+    /// <summary>
+    /// 完了するはずの処理が止まった場合に打ち切るための期限。処理の速さは確かめない。短い期限は、
+    /// 混み合った CI ではスレッドプールの空き待ちだけで超えるため、長くしている（#397）
+    /// </summary>
+    public static readonly TimeSpan HangTimeout = TimeSpan.FromSeconds(30);
+
     public static async Task AssertCompletesWithinAsync(Task task, TimeSpan timeout)
     {
         try

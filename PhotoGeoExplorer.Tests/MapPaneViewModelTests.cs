@@ -526,7 +526,7 @@ public class MapPaneViewModelTests
             // Act
             workspaceState.SelectedPhotos = new[] { photo };
 
-            await TestTasks.AssertCompletesWithinAsync(service.LoadCalled, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
+            await TestTasks.AssertCompletesWithinAsync(service.LoadCalled, TestTasks.HangTimeout).ConfigureAwait(true);
 
             // Assert
             Assert.Equal(1, service.LoadPhotoMetadataCallCount);
@@ -554,14 +554,14 @@ public class MapPaneViewModelTests
         // Act
         var updateTask = viewModel.UpdateMarkersFromSelectionAsync(new[] { photo });
 
-        await TestTasks.AssertCompletesWithinAsync(service.LoadStarted, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
+        await TestTasks.AssertCompletesWithinAsync(service.LoadStarted, TestTasks.HangTimeout).ConfigureAwait(true);
 
         // await 中に Cleanup() を発生させ、_map/_surface を破棄・null 化する
         viewModel.Cleanup();
         service.CompleteLoad(new PhotoMetadata(DateTimeOffset.UtcNow, null, null, 35.681236, 139.767125));
 
         // Assert: 破棄済みの map/surface へアクセスせず例外なく完了すること
-        await TestTasks.AssertCompletesWithinAsync(updateTask, TimeSpan.FromSeconds(1)).ConfigureAwait(true);
+        await TestTasks.AssertCompletesWithinAsync(updateTask, TestTasks.HangTimeout).ConfigureAwait(true);
         await updateTask.ConfigureAwait(true);
     }
 
