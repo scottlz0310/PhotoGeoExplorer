@@ -33,7 +33,7 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
     [InlineData(1280, 720, 1.25)]
     [InlineData(1000, 700, 1.5)]
     [InlineData(641, 479, 1.75)]
-    [InlineData(640, 480, 5.0)]
+    [InlineData(1000, 480, 5.0)]
     public async Task RenderPngAsyncCreatesTheRequestedPixelSizeFilledWithTiles(int width, int height, double density)
     {
         // 中央と上端の画素は、右下の帰属表示にかからない大きさで確かめる
@@ -49,17 +49,56 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
         Assert.Equal(TileColor, bitmap.GetPixel(width - 2, 1));
     }
 
-    [Fact]
-    public async Task RenderPngAsyncAcceptsTheSmallestImageAtTheHighestDensity()
+    // 出典が切れる大きさは作らない。示した最小の大きさなら作れる
+    [Theory]
+    [InlineData(MapTileSourceType.OpenStreetMap, 1.0)]
+    [InlineData(MapTileSourceType.OpenStreetMap, 5.0)]
+    [InlineData(MapTileSourceType.EsriWorldImagery, 2.0)]
+    [InlineData(MapTileSourceType.MapboxSatellite, 2.0)]
+    [InlineData(MapTileSourceType.GsiPhoto, 1.5)]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, 2.0)]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, 2.0)]
+    internal void PlanRefusesImagesTooSmallForTheAttribution(MapTileSourceType sourceType, double density)
     {
         using var handler = new TileHandler(_ => HttpStatusCode.OK);
         using var exporter = CreateExporter(handler);
-        var request = Request(width: 64, height: 64, density: MapImageExportLimits.MaxPixelDensity);
+        MapImageExportPlan PlanFor(int width, int height)
+        {
+            var request = Request(sourceType, width: width, height: height, density: density);
+            return exporter.Plan(request with { Background = request.Background with { MapboxAccessToken = "test-token" } });
+        }
+
+        var refused = PlanFor(MapImageExportLimits.MinPixelSize, MapImageExportLimits.MinPixelSize);
+
+        Assert.Equal(MapImageExportProblem.AttributionDoesNotFit, refused.Problem);
+        var (width, height) = (refused.MinimumPixelWidth, refused.MinimumPixelHeight);
+        Assert.Equal(MapImageExportProblem.None, PlanFor(width, Math.Max(height, 64)).Problem);
+        Assert.Equal(MapImageExportProblem.AttributionDoesNotFit, PlanFor(width - 1, 4096).Problem);
+        if (height > MapImageExportLimits.MinPixelSize)
+        {
+            Assert.Equal(MapImageExportProblem.AttributionDoesNotFit, PlanFor(4096, height - 1).Problem);
+        }
+
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task RenderPngAsyncCreatesTheSmallestImageThatHoldsTheAttribution()
+    {
+        using var handler = new TileHandler(_ => HttpStatusCode.OK);
+        using var exporter = CreateExporter(handler);
+        var refused = exporter.Plan(Request(width: 64, height: 64, density: MapImageExportLimits.MaxPixelDensity));
+        var request = Request(
+            width: refused.MinimumPixelWidth,
+            height: Math.Max(refused.MinimumPixelHeight, 64),
+            density: MapImageExportLimits.MaxPixelDensity);
 
         using var bitmap = await RenderAsync(exporter, request).ConfigureAwait(true);
 
-        Assert.Equal(64, bitmap.Width);
-        Assert.Equal(64, bitmap.Height);
+        Assert.Equal(request.PixelWidth, bitmap.Width);
+        Assert.Equal(request.PixelHeight, bitmap.Height);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => exporter.RenderPngAsync(
+            Request(width: 64, height: 64), CancellationToken.None)).ConfigureAwait(true);
     }
 
     [Theory]

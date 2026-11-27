@@ -22,8 +22,16 @@ internal sealed class FakeMapImageExporter : IMapImageExporter
 
     public int DisposeCount { get; private set; }
 
+    /// <summary>検査結果を差し替える。<see langword="null"/> を返すと、本物の上下限とタイル枚数で判定する</summary>
+    public Func<MapImageExportRequest, MapImageExportPlan?> OverridePlan { get; set; } = static _ => null;
+
     public MapImageExportPlan Plan(MapImageExportRequest request)
     {
+        if (OverridePlan(request) is { } overridden)
+        {
+            return overridden;
+        }
+
         var problem = MapImageExportLimits.Validate(request);
         if (problem != MapImageExportProblem.None)
         {

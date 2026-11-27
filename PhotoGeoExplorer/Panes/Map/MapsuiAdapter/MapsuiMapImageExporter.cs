@@ -55,6 +55,15 @@ internal sealed class MapsuiMapImageExporter : IMapImageExporter
             return new MapImageExportPlan(problem, 0);
         }
 
+        // 出典の表示は利用条件で求められるため、切れる大きさの画像は作らない
+        var (width, height) = MapAttributionPresenter.GetRequiredSize(MapBackgroundCatalog.Get(request.Background.SourceType));
+        var minimumWidth = (int)Math.Ceiling(width * request.PixelDensity);
+        var minimumHeight = (int)Math.Ceiling(height * request.PixelDensity);
+        if (request.PixelWidth < minimumWidth || request.PixelHeight < minimumHeight)
+        {
+            return new MapImageExportPlan(MapImageExportProblem.AttributionDoesNotFit, 0, minimumWidth, minimumHeight);
+        }
+
         var tileCount = CountTiles(request);
         return new MapImageExportPlan(
             tileCount > MapImageExportLimits.MaxTileCount ? MapImageExportProblem.TooManyTiles : MapImageExportProblem.None,

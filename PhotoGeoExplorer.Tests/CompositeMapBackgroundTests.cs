@@ -63,10 +63,8 @@ public sealed class CompositeMapBackgroundTests
         Assert.Equal(1, rendered);
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void FrameRenderedForgetsTheEarlierViewportAndDensity(bool viewportChanges)
+    [Fact]
+    public void FrameRenderedForgetsTheEarlierViewport()
     {
         using var background = Create(out var imagery, out var overlay);
         using var map = new Mapsui.Map();
@@ -76,18 +74,49 @@ public sealed class CompositeMapBackgroundTests
         background.FrameRendered += (_, _) => rendered++;
         imagery.RaiseFrameRendered();
 
-        if (viewportChanges)
-        {
-            map.Navigator.CenterOnAndZoomTo(new MPoint(1000, 1000), 4.0);
-        }
-        else
-        {
-            background.OnPixelDensityChanged();
-        }
+        map.Navigator.CenterOnAndZoomTo(new MPoint(1000, 1000), 4.0);
 
         overlay.RaiseFrameRendered();
         Assert.Equal(0, rendered);
         imagery.RaiseFrameRendered();
+        Assert.Equal(1, rendered);
+    }
+
+    // 視点を変えずに表示倍率だけが変わると、描き直すのは道路だけで、航空写真は描画完了を通知し直さない
+    [Fact]
+    public void FrameRenderedFiresAgainAfterADensityChangeOnceTheRoadsAreRedrawn()
+    {
+        using var background = Create(out var imagery, out var overlay);
+        using var map = new Mapsui.Map();
+        background.Attach(map, () => 1.0);
+        var rendered = 0;
+        background.FrameRendered += (_, _) => rendered++;
+        imagery.RaiseFrameRendered();
+        overlay.RaiseFrameRendered();
+        Assert.Equal(1, rendered);
+
+        background.OnPixelDensityChanged();
+        Assert.Equal(1, rendered);
+        overlay.RaiseFrameRendered();
+
+        Assert.Equal(2, rendered);
+    }
+
+    [Fact]
+    public void RoadsDrawnBeforeADensityChangeDoNotCompleteTheFrame()
+    {
+        using var background = Create(out var imagery, out var overlay);
+        using var map = new Mapsui.Map();
+        background.Attach(map, () => 1.0);
+        var rendered = 0;
+        background.FrameRendered += (_, _) => rendered++;
+        overlay.RaiseFrameRendered();
+
+        background.OnPixelDensityChanged();
+        imagery.RaiseFrameRendered();
+        Assert.Equal(0, rendered);
+        overlay.RaiseFrameRendered();
+
         Assert.Equal(1, rendered);
     }
 

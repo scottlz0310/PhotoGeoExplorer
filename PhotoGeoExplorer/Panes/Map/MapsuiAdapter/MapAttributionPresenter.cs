@@ -113,6 +113,36 @@ internal sealed class MapAttributionPresenter
     }
 
     /// <summary>
+    /// 帰属表示の文言とロゴが、切れたり重なったりせずに収まる地図の大きさ（DIP）
+    /// </summary>
+    internal static (double Width, double Height) GetRequiredSize(MapBackgroundDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+
+        var logoWidth = descriptor.ShowsMapboxLogo
+            ? MapAttributionLayout.LogoWidth + (2 * MapAttributionLayout.LogoMargin)
+            : 0;
+        var width = logoWidth;
+        var bottomOffset = MapAttributionLayout.OuterMargin;
+        var linkIndex = descriptor.AttributionLinks.Count - 1;
+        foreach (var rowLength in descriptor.AttributionRows.Reverse())
+        {
+            var rowWidth = 2 * MapAttributionLayout.OuterMargin;
+            for (var item = 0; item < rowLength; item++, linkIndex--)
+            {
+                rowWidth += MeasureWidth(descriptor.AttributionLinks[linkIndex].Text);
+            }
+
+            // 左下のロゴと同じ高さにある行は、ロゴの右側に収める必要がある
+            var besideLogo = bottomOffset < MapAttributionLayout.LogoMargin + MapAttributionLayout.LogoHeight;
+            width = Math.Max(width, besideLogo ? rowWidth + logoWidth : rowWidth);
+            bottomOffset += MapAttributionLayout.StackedLineHeight;
+        }
+
+        return (width, MapAttributionLayout.GetReservedHeight(descriptor));
+    }
+
+    /// <summary>
     /// 表示中の位置と倍率を、地図の修正依頼リンクへ反映する
     /// </summary>
     internal void UpdateViewport(Viewport viewport)

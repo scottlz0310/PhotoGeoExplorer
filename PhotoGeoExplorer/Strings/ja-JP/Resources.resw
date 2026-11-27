@@ -1010,6 +1010,9 @@
   <data name="MapImageExport.Problem.TooManyTiles" xml:space="preserve">
     <value>取得するタイルが約 {0} 枚になり、上限の {1} 枚を超えます。サイズを小さくするか、文字を大きくしてください。</value>
   </data>
+  <data name="MapImageExport.Problem.Attribution" xml:space="preserve">
+    <value>出典の表示が入りません。この背景と文字の大きさでは、幅 {0} px 以上、高さ {1} px 以上にしてください。</value>
+  </data>
   <data name="MapImageExport.Problem.Size" xml:space="preserve">
     <value>幅と高さは {0}〜{1} px で指定してください。</value>
   </data>

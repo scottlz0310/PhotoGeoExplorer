@@ -1010,6 +1010,9 @@
   <data name="MapImageExport.Problem.TooManyTiles" xml:space="preserve">
     <value>About {0} tiles are needed, which exceeds the limit of {1}. Reduce the size or increase the text size.</value>
   </data>
+  <data name="MapImageExport.Problem.Attribution" xml:space="preserve">
+    <value>The attribution does not fit. With this background and text size, use at least {0} px in width and {1} px in height.</value>
+  </data>
   <data name="MapImageExport.Problem.Size" xml:space="preserve">
     <value>Width and height must be between {0} and {1} px.</value>
   </data>

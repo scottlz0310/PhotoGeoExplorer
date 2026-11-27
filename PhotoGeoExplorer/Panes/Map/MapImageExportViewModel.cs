@@ -457,6 +457,8 @@ internal sealed class MapImageExportViewModel : BindableBase, IAsyncDisposable
             MapImageExportProblem.None => LocalizationService.Format("MapImageExport.Status.TileCount", plan.TileCount),
             MapImageExportProblem.TooManyTiles => LocalizationService.Format(
                 "MapImageExport.Problem.TooManyTiles", plan.TileCount, MapImageExportLimits.MaxTileCount),
+            MapImageExportProblem.AttributionDoesNotFit => LocalizationService.Format(
+                "MapImageExport.Problem.Attribution", plan.MinimumPixelWidth, plan.MinimumPixelHeight),
             MapImageExportProblem.SizeOutOfRange => LocalizationService.Format(
                 "MapImageExport.Problem.Size", MapImageExportLimits.MinPixelSize, MapImageExportLimits.MaxPixelSize),
             MapImageExportProblem.ZoomOutOfRange => LocalizationService.Format(

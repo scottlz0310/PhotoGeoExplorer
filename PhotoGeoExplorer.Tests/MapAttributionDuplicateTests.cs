@@ -54,6 +54,41 @@ public sealed class MapAttributionDuplicateTests
         }
     }
 
+    // 示した最小の大きさで、文言とロゴが画像の中に収まり、互いに重ならないことを、すべての背景で確かめる
+    [Theory]
+    [MemberData(nameof(AllBackgrounds))]
+    public void AttributionFitsTheRequiredSizeWithoutOverlap(int type)
+    {
+        var sourceType = (MapTileSourceType)type;
+        var descriptor = MapBackgroundCatalog.Get(sourceType);
+        var (width, height) = MapAttributionPresenter.GetRequiredSize(descriptor);
+        using var map = new Map();
+        map.Navigator.SetSize(width, height);
+        new MapAttributionPresenter().Attach(map, sourceType);
+
+        using var stream = MapsuiMapImageRenderer.RenderPng(map, [.. map.Layers], map.Navigator.Viewport, 2f);
+
+        var drawn = map.GetWidgetsOfMapAndLayers()
+            .OfType<HyperlinkWidget>()
+            .Where(widget => widget.Envelope is not null && !string.IsNullOrEmpty(widget.Text))
+            .Select(widget => widget.Envelope!)
+            .ToArray();
+        Assert.Equal(descriptor.AttributionLinks.Count, drawn.Length);
+        Assert.All(drawn, box =>
+        {
+            Assert.True(box.MinX >= 0 && box.MaxX <= width, $"x: {box.MinX}-{box.MaxX} / {width}");
+            Assert.True(box.MinY >= 0 && box.MaxY <= height, $"y: {box.MinY}-{box.MaxY} / {height}");
+        });
+        if (descriptor.ShowsMapboxLogo)
+        {
+            var logoRight = MapAttributionLayout.LogoMargin + MapAttributionLayout.LogoWidth;
+            var logoTop = height - MapAttributionLayout.LogoMargin - MapAttributionLayout.LogoHeight;
+            Assert.All(drawn, box => Assert.True(box.MinX >= logoRight || box.MaxY <= logoTop));
+        }
+    }
+
+    public static TheoryData<int> AllBackgrounds => [.. MapBackgroundCatalog.All.Select(descriptor => (int)descriptor.Type)];
+
     [Theory]
     [InlineData(MapTileSourceType.OpenStreetMap, 1f)]
     [InlineData(MapTileSourceType.EsriWorldImagery, 1f)]

@@ -75,7 +75,12 @@ internal sealed class CompositeMapBackground : IMapsuiBackground
 
     public void OnPixelDensityChanged()
     {
-        ForgetShownFrames();
+        // 画素密度で描き直すのは道路だけ。航空写真は、同じ視点では描画完了を通知し直さないため、描画済みの状態を引き継ぐ
+        lock (_gate)
+        {
+            _overlayShown = false;
+        }
+
         Imagery.OnPixelDensityChanged();
         Overlay.OnPixelDensityChanged();
     }
@@ -114,9 +119,7 @@ internal sealed class CompositeMapBackground : IMapsuiBackground
         Imagery.Dispose();
     }
 
-    private void OnViewportChanged(object? sender, EventArgs e) => ForgetShownFrames();
-
-    private void ForgetShownFrames()
+    private void OnViewportChanged(object? sender, EventArgs e)
     {
         lock (_gate)
         {

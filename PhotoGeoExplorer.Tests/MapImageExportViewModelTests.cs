@@ -78,6 +78,26 @@ public sealed class MapImageExportViewModelTests
         }
     }
 
+    [Fact]
+    public async Task ConditionsWhoseAttributionDoesNotFitCannotBeSaved()
+    {
+        var exporter = new FakeMapImageExporter
+        {
+            OverridePlan = _ => new MapImageExportPlan(MapImageExportProblem.AttributionDoesNotFit, 0, 780, 70)
+        };
+        var viewModel = new MapImageExportViewModel(exporter, Source(1.0), NoDelay);
+        await using (viewModel.ConfigureAwait(true))
+        {
+            viewModel.Start();
+            await viewModel.PreviewTask.ConfigureAwait(true);
+
+            Assert.False(viewModel.CanSave);
+            Assert.Null(viewModel.PreviewPng);
+            Assert.Contains("MapImageExport.Problem.Attribution", viewModel.StatusText, StringComparison.Ordinal);
+            Assert.Empty(exporter.Rendered);
+        }
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(2)]
