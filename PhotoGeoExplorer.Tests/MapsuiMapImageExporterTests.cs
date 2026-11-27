@@ -72,7 +72,8 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
 
         Assert.Equal(MapImageExportProblem.AttributionDoesNotFit, refused.Problem);
         var (width, height) = (refused.MinimumPixelWidth, refused.MinimumPixelHeight);
-        Assert.Equal(MapImageExportProblem.None, PlanFor(width, Math.Max(height, 64)).Problem);
+        Assert.InRange(height, MapImageExportLimits.MinPixelSize, MapImageExportLimits.MaxPixelSize);
+        Assert.Equal(MapImageExportProblem.None, PlanFor(width, height).Problem);
         Assert.Equal(MapImageExportProblem.AttributionDoesNotFit, PlanFor(width - 1, 4096).Problem);
         if (height > MapImageExportLimits.MinPixelSize)
         {
@@ -90,7 +91,7 @@ public sealed class MapsuiMapImageExporterTests : IDisposable
         var refused = exporter.Plan(Request(width: 64, height: 64, density: MapImageExportLimits.MaxPixelDensity));
         var request = Request(
             width: refused.MinimumPixelWidth,
-            height: Math.Max(refused.MinimumPixelHeight, 64),
+            height: refused.MinimumPixelHeight,
             density: MapImageExportLimits.MaxPixelDensity);
 
         using var bitmap = await RenderAsync(exporter, request).ConfigureAwait(true);

@@ -57,8 +57,9 @@ internal sealed class MapsuiMapImageExporter : IMapImageExporter
 
         // 出典の表示は利用条件で求められるため、切れる大きさの画像は作らない
         var (width, height) = MapAttributionPresenter.GetRequiredSize(MapBackgroundCatalog.Get(request.Background.SourceType));
-        var minimumWidth = (int)Math.Ceiling(width * request.PixelDensity);
-        var minimumHeight = (int)Math.Ceiling(height * request.PixelDensity);
+        // 示す大きさは、画像の寸法の下限も満たす値にする
+        var minimumWidth = Math.Max(MapImageExportLimits.MinPixelSize, (int)Math.Ceiling(width * request.PixelDensity));
+        var minimumHeight = Math.Max(MapImageExportLimits.MinPixelSize, (int)Math.Ceiling(height * request.PixelDensity));
         if (request.PixelWidth < minimumWidth || request.PixelHeight < minimumHeight)
         {
             return new MapImageExportPlan(MapImageExportProblem.AttributionDoesNotFit, 0, minimumWidth, minimumHeight);
