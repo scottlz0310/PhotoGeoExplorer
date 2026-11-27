@@ -97,13 +97,52 @@ public sealed class E2EMapControlTests
         var controller = new FakeMapViewController(CreateStatus(35.681236, 139.767125, 14.0, isBusy: false, renderedSeq: 1));
         var pipeName = $"PhotoGeoExplorer.E2E.Test.{Guid.NewGuid():N}";
 
-        using var server = new E2EMapControlServer(controller, pipeName);
+        // 受け付けのループを始めない。接続できるかが、ループの開始に依存しないことを確かめる（#397）。
+        using var server = new E2EMapControlServer(controller, pipeName, startAcceptLoop: _ => Task.CompletedTask);
         using var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
 
-        // 待たずに接続できること。受け付けのループがスレッドプールで始まるのを待つ作りだと失敗する（#397）。
         client.Connect(0);
 
         Assert.True(client.IsConnected);
+    }
+
+    [Fact]
+    public void NamedPipeServerClosesThePipeWhenDisposedBeforeTheAcceptLoopStarts()
+    {
+        var controller = new FakeMapViewController(CreateStatus(35.681236, 139.767125, 14.0, isBusy: false, renderedSeq: 1));
+        var pipeName = $"PhotoGeoExplorer.E2E.Test.{Guid.NewGuid():N}";
+        var server = new E2EMapControlServer(controller, pipeName, startAcceptLoop: _ => Task.CompletedTask);
+
+        server.Dispose();
+
+        using var client = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        Assert.Throws<TimeoutException>(() => client.Connect(0));
+    }
+
+    [Fact]
+    public void NamedPipeServerTryStartLogsAndReturnsNullWhenThePipeCannotBeCreated()
+    {
+        var controller = new FakeMapViewController(CreateStatus(35.681236, 139.767125, 14.0, isBusy: false, renderedSeq: 1));
+        var pipeName = $"PhotoGeoExplorer.E2E.Test.{Guid.NewGuid():N}";
+        var errorLogs = new List<string>();
+        using var occupant = new NamedPipeServerStream(pipeName, PipeDirection.InOut, maxNumberOfServerInstances: 1);
+
+        using var server = E2EMapControlServer.TryStart(controller, pipeName, logError: errorLogs.Add);
+
+        Assert.Null(server);
+        Assert.Contains("Failed to start", Assert.Single(errorLogs), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NamedPipeServerTryStartReturnsAStartedServer()
+    {
+        var controller = new FakeMapViewController(CreateStatus(35.681236, 139.767125, 14.0, isBusy: false, renderedSeq: 1));
+        var pipeName = $"PhotoGeoExplorer.E2E.Test.{Guid.NewGuid():N}";
+
+        using var server = E2EMapControlServer.TryStart(controller, pipeName);
+
+        Assert.NotNull(server);
+        Assert.Equal(pipeName, server.PipeName);
     }
 
     [Fact]

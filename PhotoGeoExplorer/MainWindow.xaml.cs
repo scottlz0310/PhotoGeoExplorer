@@ -231,7 +231,7 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         if (E2EOptions.IsControlChannelEnabled())
         {
-            _e2eMapControlServer = new E2EMapControlServer(
+            _e2eMapControlServer = E2EMapControlServer.TryStart(
                 _mapPaneViewModel.ViewController,
                 logInfo: AppLog.Info,
                 logError: message => AppLog.Error(message));
