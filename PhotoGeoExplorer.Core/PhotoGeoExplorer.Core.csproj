@@ -20,7 +20,7 @@
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
     <PackageReference Include="NetTopologySuite.IO.Esri.Shapefile" Version="1.2.0" />
     <PackageReference Include="PhotoMapStudio.Tiles" Version="0.1.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.3" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.4" />
   </ItemGroup>
 
 </Project>
