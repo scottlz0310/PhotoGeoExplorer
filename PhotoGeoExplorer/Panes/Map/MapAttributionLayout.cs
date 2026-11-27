@@ -29,8 +29,7 @@ internal static class MapAttributionLayout
     {
         ArgumentNullException.ThrowIfNull(descriptor);
 
-        var lines = descriptor.StacksAttribution ? descriptor.AttributionLinks.Count : 1;
-        var links = OuterMargin + (lines * StackedLineHeight);
+        var links = OuterMargin + (descriptor.AttributionRows.Count * StackedLineHeight);
         var logo = descriptor.ShowsMapboxLogo ? LogoHeight + (2 * LogoMargin) : 0;
         return Math.Max(links, logo);
     }

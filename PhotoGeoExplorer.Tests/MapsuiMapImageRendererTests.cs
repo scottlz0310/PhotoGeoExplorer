@@ -53,6 +53,8 @@ public sealed class MapsuiMapImageRendererTests
     [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatellite, true)]
     [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.OpenStreetMap, false)]
     [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.EsriWorldImagery, false)]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.MapboxSatelliteRoads, true)]
+    [InlineData(PhotoGeoExplorer.Models.MapTileSourceType.EsriWorldImageryRoads, false)]
     internal async System.Threading.Tasks.Task RenderPngDrawsMapboxLogoOnlyForMapbox(PhotoGeoExplorer.Models.MapTileSourceType sourceType, bool expectLogo)
     {
         Assert.True(System.IO.File.Exists(PhotoGeoExplorer.Panes.Map.MapAttribution.MapboxLogoPath));

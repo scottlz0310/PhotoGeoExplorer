@@ -236,13 +236,15 @@ public class MapPaneViewModelTests
 
     [Theory]
     [InlineData(false, null, MapTileSourceType.OpenStreetMap,
-        new[] { 0, 1, 3 })]
+        new[] { 0, 1, 3, 8 })]
     [InlineData(true, null, MapTileSourceType.GsiPale,
-        new[] { 0, 1, 3, 4, 5, 6, 7 })]
+        new[] { 0, 1, 3, 4, 5, 6, 7, 8 })]
     [InlineData(false, "test-token", MapTileSourceType.EsriWorldImagery,
-        new[] { 0, 1, 2, 3 })]
+        new[] { 0, 1, 2, 3, 8, 9 })]
     [InlineData(true, "test-token", MapTileSourceType.MapboxSatellite,
-        new[] { 0, 1, 2, 3, 4, 5, 6, 7 })]
+        new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 })]
+    [InlineData(false, "test-token", MapTileSourceType.MapboxSatelliteRoads,
+        new[] { 0, 1, 2, 3, 8, 9 })]
     internal async Task SaveMapImageAsyncOffersTheBackgroundsThatCanBeShown(
         bool japanMapSources, string? token, MapTileSourceType displayed, int[] expected)
     {
@@ -276,7 +278,7 @@ public class MapPaneViewModelTests
         var requests = Assert.Single(map.Service.Exporters).Rendered.Select(request => request.Background).ToArray();
         Assert.All(types, type => Assert.Contains(requests, request => request.SourceType == type));
         Assert.All(requests, request => Assert.Equal(
-            request.SourceType == MapTileSourceType.MapboxSatellite ? token : null,
+            request.SourceType is MapTileSourceType.MapboxSatellite or MapTileSourceType.MapboxSatelliteRoads ? token : null,
             request.MapboxAccessToken));
         Assert.Equal(displayed, map.ViewModel.CurrentTileSource);
         map.ViewModel.Cleanup();

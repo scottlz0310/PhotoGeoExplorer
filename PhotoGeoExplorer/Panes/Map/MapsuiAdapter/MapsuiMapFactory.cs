@@ -29,24 +29,58 @@ internal static class MapsuiMapFactory
         ArgumentNullException.ThrowIfNull(background.UserAgent);
         ArgumentException.ThrowIfNullOrWhiteSpace(tileCacheRootDirectory);
 
-        if (MapBackgroundCatalog.Get(background.SourceType).Kind == MapBackgroundKind.Vector)
+        var descriptor = MapBackgroundCatalog.Get(background.SourceType);
+        return descriptor.Kind switch
         {
-            return CreateVectorBackground(background, tileCacheRootDirectory);
-        }
-
-        return new RasterMapBackground(CreateTileLayer(background, tileCacheRootDirectory), background.SourceType);
+            MapBackgroundKind.Vector => CreateVectorBackground(background, tileCacheRootDirectory),
+            MapBackgroundKind.Composite => CreateCompositeBackground(background, descriptor, tileCacheRootDirectory),
+            _ => CreateRasterBackground(background, tileCacheRootDirectory)
+        };
     }
+
+    private static RasterMapBackground CreateRasterBackground(MapBackgroundRequest background, string tileCacheRootDirectory)
+        => new(CreateTileLayer(background, tileCacheRootDirectory), background.SourceType);
+
+    // 下の航空写真は、単独の背景と同じ取得とキャッシュを使う。上の道路は、ベクター背景（OpenFreeMap）とタイルのキャッシュを共有する
+    private static CompositeMapBackground CreateCompositeBackground(
+        MapBackgroundRequest background,
+        MapBackgroundDescriptor descriptor,
+        string tileCacheRootDirectory)
+    {
+        var imagerySource = descriptor.ImagerySource
+            ?? throw new InvalidOperationException($"The composite background has no imagery source: {descriptor.Type}.");
+        var overlay = CreateVectorBackground(background, tileCacheRootDirectory);
+        try
+        {
+            var imagery = CreateRasterBackground(background with { SourceType = imagerySource }, tileCacheRootDirectory);
+            return new CompositeMapBackground(imagery, overlay, background.SourceType);
+        }
+        catch
+        {
+            overlay.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// ベクターで描く部分のタイルの配信元。タイルのキャッシュの置き場も、この名前にする
+    /// </summary>
+    internal static MapTileSourceType GetVectorTileSource(MapTileSourceType type)
+        => MapBackgroundCatalog.Get(type).Kind == MapBackgroundKind.Composite ? MapTileSourceType.OpenFreeMapVector : type;
 
     private static VectorMapBackground CreateVectorBackground(MapBackgroundRequest background, string tileCacheRootDirectory)
     {
         var tryPostToUi = background.TryPostToUi
             ?? throw new ArgumentException("TryPostToUi is required for the vector background.", nameof(background));
+        var roadOverlay = MapBackgroundCatalog.Get(background.SourceType).Kind == MapBackgroundKind.Composite;
+        var tileSource = GetVectorTileSource(background.SourceType);
 
         // ラスタと同じく、タイルのキャッシュのルートの下に背景ごとのディレクトリを置く（形式はラスタと別なので混ざらない）
         var renderer = new TileVectorMapRenderer(
-            Path.Combine(tileCacheRootDirectory, background.SourceType.ToString()),
+            Path.Combine(tileCacheRootDirectory, tileSource.ToString()),
             background.UserAgent,
-            sourceType: background.SourceType);
+            sourceType: tileSource,
+            roadOverlay: roadOverlay);
         return new VectorMapBackground(renderer, tryPostToUi, renderer, sourceType: background.SourceType);
     }
 

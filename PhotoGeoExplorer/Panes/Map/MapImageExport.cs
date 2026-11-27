@@ -38,14 +38,21 @@ internal enum MapImageExportProblem
     ZoomOutOfRange,
     PixelDensityOutOfRange,
     TooManyTiles,
+    AttributionDoesNotFit,
 }
 
 /// <summary>
 /// 条件の検査結果
 /// </summary>
 /// <param name="Problem">作れない理由。作れるときは <see cref="MapImageExportProblem.None"/></param>
-/// <param name="TileCount">1 回の描画で使うタイルの枚数。数値の条件が範囲外のときは 0</param>
-internal sealed record MapImageExportPlan(MapImageExportProblem Problem, int TileCount);
+/// <param name="TileCount">1 回の描画で使うタイルの枚数。数値の条件が範囲外か、出典が入らないときは 0</param>
+/// <param name="MinimumPixelWidth">出典が入らないときの、この背景と文字の大きさで必要な幅</param>
+/// <param name="MinimumPixelHeight">出典が入らないときの、この背景と文字の大きさで必要な高さ</param>
+internal sealed record MapImageExportPlan(
+    MapImageExportProblem Problem,
+    int TileCount,
+    int MinimumPixelWidth = 0,
+    int MinimumPixelHeight = 0);
 
 /// <summary>
 /// 保存する地図画像の条件の上限と下限

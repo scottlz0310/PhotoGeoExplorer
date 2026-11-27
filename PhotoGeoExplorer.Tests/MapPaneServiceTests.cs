@@ -159,6 +159,62 @@ public class MapPaneServiceTests
         }
     }
 
+    [Theory]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, MapTileSourceType.EsriWorldImagery, null)]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, MapTileSourceType.MapboxSatellite, "test-token")]
+    internal void CreateCompositeBackgroundStacksRoadsOverTheImagery(
+        MapTileSourceType sourceType, MapTileSourceType imagery, string? token)
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        var service = new MapPaneService(cacheRoot);
+        try
+        {
+            using var background = service.CreateBackground(
+                new MapBackgroundRequest(sourceType, "PhotoGeoExplorer/Test", token, TryPostToUi: _ => true));
+
+            var composite = Assert.IsType<CompositeMapBackground>(background);
+            Assert.Equal(sourceType, composite.SourceType);
+            Assert.Equal(imagery, Assert.IsType<RasterMapBackground>(composite.Imagery).SourceType);
+            Assert.IsType<VectorMapBackground>(composite.Overlay);
+            Assert.Equal(2, composite.Layers.Count);
+            Assert.IsType<TileLayer>(composite.Layers[0]);
+
+            // 合成の背景の名前の置き場は作らない（航空写真と道路は、単独の背景と同じ置き場を使う）
+            Assert.False(Directory.Exists(Path.Combine(cacheRoot, sourceType.ToString())));
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
+    [Theory]
+    [InlineData(MapTileSourceType.OpenFreeMapVector, MapTileSourceType.OpenFreeMapVector)]
+    [InlineData(MapTileSourceType.GsiVector, MapTileSourceType.GsiVector)]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, MapTileSourceType.OpenFreeMapVector)]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, MapTileSourceType.OpenFreeMapVector)]
+    internal void VectorTilesOfACompositeBackgroundComeFromOpenFreeMap(MapTileSourceType type, MapTileSourceType expected)
+        => Assert.Equal(expected, MapsuiMapFactory.GetVectorTileSource(type));
+
+    [Theory]
+    [InlineData(MapTileSourceType.EsriWorldImageryRoads, false)]
+    [InlineData(MapTileSourceType.MapboxSatelliteRoads, true)]
+    internal void CreateCompositeBackgroundFailsWithoutItsRequirements(MapTileSourceType sourceType, bool hasUiThread)
+    {
+        var cacheRoot = CreateTempCacheRoot();
+        var service = new MapPaneService(cacheRoot);
+        try
+        {
+            // 道路には UI スレッドへの入口、Mapbox の航空写真にはアクセストークンが要る
+            Assert.Throws<ArgumentException>(() => service.CreateBackground(new MapBackgroundRequest(
+                sourceType, "PhotoGeoExplorer/Test", TryPostToUi: hasUiThread ? _ => true : null)));
+        }
+        finally
+        {
+            DeleteTempCacheRoot(cacheRoot);
+        }
+    }
+
     [Fact]
     public void CreateBackgroundRejectsTheVectorBackgroundWithoutAWayToReachTheUiThread()
     {

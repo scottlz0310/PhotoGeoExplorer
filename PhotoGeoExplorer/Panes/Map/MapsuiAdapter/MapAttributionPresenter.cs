@@ -82,35 +82,64 @@ internal sealed class MapAttributionPresenter
         var descriptor = MapBackgroundCatalog.Get(sourceType);
         _links = descriptor.AttributionLinks;
 
-        var rightOffset = MapAttributionLayout.OuterMargin;
-        var bottomOffset = MapAttributionLayout.OuterMargin;
-        for (var index = _linkWidgets.Length - 1; index >= 0; index--)
+        for (var index = _links.Count; index < _linkWidgets.Length; index++)
         {
-            var widget = _linkWidgets[index];
-            if (index >= _links.Count)
-            {
-                widget.Enabled = false;
-                continue;
-            }
+            _linkWidgets[index].Enabled = false;
+        }
 
-            var link = _links[index];
-            var width = MeasureWidth(link.Text);
-            widget.Text = link.Text;
-            widget.Url = link.Url;
-            widget.Width = width;
-            widget.Margin = new MRect(MapAttributionLayout.OuterMargin, bottomOffset, rightOffset, bottomOffset);
-            widget.Enabled = true;
-            if (descriptor.StacksAttribution)
+        // 下の行から、各行は右の項目から並べる
+        var bottomOffset = MapAttributionLayout.OuterMargin;
+        var linkIndex = _links.Count - 1;
+        foreach (var rowLength in descriptor.AttributionRows.Reverse())
+        {
+            var rightOffset = MapAttributionLayout.OuterMargin;
+            for (var item = 0; item < rowLength; item++, linkIndex--)
             {
-                bottomOffset += MapAttributionLayout.StackedLineHeight;
-            }
-            else
-            {
+                var widget = _linkWidgets[linkIndex];
+                var link = _links[linkIndex];
+                var width = MeasureWidth(link.Text);
+                widget.Text = link.Text;
+                widget.Url = link.Url;
+                widget.Width = width;
+                widget.Margin = new MRect(MapAttributionLayout.OuterMargin, bottomOffset, rightOffset, bottomOffset);
+                widget.Enabled = true;
                 rightOffset += width;
             }
+
+            bottomOffset += MapAttributionLayout.StackedLineHeight;
         }
 
         _mapboxLogo.Enabled = descriptor.ShowsMapboxLogo;
+    }
+
+    /// <summary>
+    /// 帰属表示の文言とロゴが、切れたり重なったりせずに収まる地図の大きさ（DIP）
+    /// </summary>
+    internal static (double Width, double Height) GetRequiredSize(MapBackgroundDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+
+        var logoWidth = descriptor.ShowsMapboxLogo
+            ? MapAttributionLayout.LogoWidth + (2 * MapAttributionLayout.LogoMargin)
+            : 0;
+        var width = logoWidth;
+        var bottomOffset = MapAttributionLayout.OuterMargin;
+        var linkIndex = descriptor.AttributionLinks.Count - 1;
+        foreach (var rowLength in descriptor.AttributionRows.Reverse())
+        {
+            var rowWidth = 2 * MapAttributionLayout.OuterMargin;
+            for (var item = 0; item < rowLength; item++, linkIndex--)
+            {
+                rowWidth += MeasureWidth(descriptor.AttributionLinks[linkIndex].Text);
+            }
+
+            // 左下のロゴと同じ高さにある行は、ロゴの右側に収める必要がある
+            var besideLogo = bottomOffset < MapAttributionLayout.LogoMargin + MapAttributionLayout.LogoHeight;
+            width = Math.Max(width, besideLogo ? rowWidth + logoWidth : rowWidth);
+            bottomOffset += MapAttributionLayout.StackedLineHeight;
+        }
+
+        return (width, MapAttributionLayout.GetReservedHeight(descriptor));
     }
 
     /// <summary>
